@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.2.2" type="incidents">
+
+    <incident
+        id="RedundantLabel"
+        severity="warning"
+        message="Redundant label can be removed">
+        <fix-attribute
+            description="Delete label"
+            namespace="http://schemas.android.com/apk/res/android"
+            attribute="label"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*manifest*0}"
+            line="18"
+            column="13"
+            startOffset="690"
+            endLine="18"
+            endColumn="45"
+            endOffset="722"/>
+    </incident>
+
+    <incident
+        id="ObsoleteSdkInt"
+        severity="warning"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 26. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <fix-data file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-anydpi-v26" folderName="mipmap-anydpi" requiresApi="26"/>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-anydpi-v26"/>
+    </incident>
+
+    <incident
+        id="MonochromeLauncherIcon"
+        severity="warning"
+        message="The application adaptive icon is missing a monochrome tag">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-anydpi-v26/ic_launcher.xml"
+            line="2"
+            column="1"
+            startOffset="40"
+            endLine="5"
+            endColumn="17"
+            endOffset="269"/>
+    </incident>
+
+    <incident
+        id="MonochromeLauncherIcon"
+        severity="warning"
+        message="The application adaptive roundIcon is missing a monochrome tag">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/mipmap-anydpi-v26/ic_launcher_round.xml"
+            line="2"
+            column="1"
+            startOffset="40"
+            endLine="5"
+            endColumn="17"
+            endOffset="269"/>
+    </incident>
+
+    <incident
+        id="StaticFieldLeak"
+        severity="warning"
+        message="Do not place Android context classes in static fields (static reference to `SettingsRepository` which has field `context` pointing to `Context`); this is a memory leak">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/di/AppContainer.kt"
+            line="14"
+            column="5"
+            startOffset="403"
+            endLine="14"
+            endColumn="63"
+            endOffset="461"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/ui/components/AddAnimeForm.kt"
+            line="75"
+            column="5"
+            startOffset="3053"
+            endLine="75"
+            endColumn="13"
+            endOffset="3061"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/ui/components/AnimeCard.kt"
+            line="75"
+            column="5"
+            startOffset="3216"
+            endLine="75"
+            endColumn="13"
+            endOffset="3224"/>
+    </incident>
+
+    <incident
+        id="FrequentlyChangedStateReadInComposition"
+        severity="warning"
+        message="Frequently changing state should not be directly read in composable function">
+        <fix-alternatives>
+            <fix-replace
+                description="Wrap with derivedStateOf"
+                oldString="listState.firstVisibleItemIndex"
+                replacement="androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex } }"
+                shortenNames="true">
+                <range
+                    file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/ui/timeline/TimelineScreen.kt"
+                    startOffset="3639"
+                    endOffset="3670"/>
+            </fix-replace>
+            <fix-replace
+                description="Collect with snapshotFlow"
+                oldString="listState.firstVisibleItemIndex"
+                replacement="androidx.compose.runtime.LaunchedEffect(listState) {&#xA;                    androidx.compose.runtime.snapshotFlow { listState.firstVisibleItemIndex }&#xA;                        .collect { TODO(&quot;Collect the state&quot;) }&#xA;                }"
+                shortenNames="true"
+                reformat="value">
+                <range
+                    file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/ui/timeline/TimelineScreen.kt"
+                    startOffset="3639"
+                    endOffset="3670"/>
+            </fix-replace>
+        </fix-alternatives>
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*javaDir*0}/com/animetrack/ui/timeline/TimelineScreen.kt"
+            line="84"
+            column="20"
+            startOffset="3639"
+            endLine="84"
+            endColumn="51"
+            endOffset="3670"/>
+    </incident>
+
+    <incident
+        id="OldTargetApi"
+        severity="warning"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details.">
+        <fix-replace
+            description="Update targetSdkVersion to 36"
+            oldString="34"
+            replacement="36"/>
+        <location
+            file="${:app*projectDir}/build.gradle.kts"
+            line="14"
+            column="9"
+            startOffset="277"
+            endLine="14"
+            endColumn="23"
+            endOffset="291"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.17.0">
+        <fix-replace
+            description="Change to 1.17.0"
+            family="Update versions"
+            oldString="1.12.0"
+            replacement="1.17.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="5"
+            column="11"
+            startOffset="75"
+            endLine="5"
+            endColumn="19"
+            endOffset="83"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0">
+        <fix-replace
+            description="Change to 1.3.0"
+            family="Update versions"
+            oldString="1.1.5"
+            replacement="1.3.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="7"
+            column="16"
+            startOffset="116"
+            endLine="7"
+            endColumn="23"
+            endOffset="123"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0">
+        <fix-replace
+            description="Change to 3.7.0"
+            family="Update versions"
+            oldString="3.5.1"
+            replacement="3.7.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="8"
+            column="16"
+            startOffset="139"
+            endLine="8"
+            endColumn="23"
+            endOffset="146"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.10.0">
+        <fix-replace
+            description="Change to 2.10.0"
+            family="Update versions"
+            oldString="2.7.0"
+            replacement="2.10.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="9"
+            column="23"
+            startOffset="169"
+            endLine="9"
+            endColumn="30"
+            endOffset="176"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.12.4">
+        <fix-replace
+            description="Change to 1.12.4"
+            family="Update versions"
+            oldString="1.8.2"
+            replacement="1.12.4"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="10"
+            column="19"
+            startOffset="195"
+            endLine="10"
+            endColumn="26"
+            endOffset="202"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.02.00">
+        <fix-replace
+            description="Change to 2026.02.00"
+            family="Update versions"
+            oldString="2024.06.00"
+            replacement="2026.02.00"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="11"
+            column="14"
+            startOffset="216"
+            endLine="11"
+            endColumn="26"
+            endOffset="228"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.10.0">
+        <fix-replace
+            description="Change to 2.10.0"
+            family="Update versions"
+            oldString="2.7.0"
+            replacement="2.10.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="9"
+            column="23"
+            startOffset="169"
+            endLine="9"
+            endColumn="30"
+            endOffset="176"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.navigation:navigation-compose than 2.7.7 is available: 2.9.7">
+        <fix-replace
+            description="Change to 2.9.7"
+            family="Update versions"
+            oldString="2.7.7"
+            replacement="2.9.7"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="12"
+            column="21"
+            startOffset="249"
+            endLine="12"
+            endColumn="28"
+            endOffset="256"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4">
+        <fix-replace
+            description="Change to 2.8.4"
+            family="Update versions"
+            oldString="2.6.1"
+            replacement="2.8.4"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="14"
+            column="8"
+            startOffset="279"
+            endLine="14"
+            endColumn="15"
+            endOffset="286"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4">
+        <fix-replace
+            description="Change to 2.8.4"
+            family="Update versions"
+            oldString="2.6.1"
+            replacement="2.8.4"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="14"
+            column="8"
+            startOffset="279"
+            endLine="14"
+            endColumn="15"
+            endOffset="286"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4">
+        <fix-replace
+            description="Change to 2.8.4"
+            family="Update versions"
+            oldString="2.6.1"
+            replacement="2.8.4"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="14"
+            column="8"
+            startOffset="279"
+            endLine="14"
+            endColumn="15"
+            endOffset="286"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of androidx.datastore:datastore-preferences than 1.0.0 is available: 1.2.0">
+        <fix-replace
+            description="Change to 1.2.0"
+            family="Update versions"
+            oldString="1.0.0"
+            replacement="1.2.0"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="15"
+            column="13"
+            startOffset="299"
+            endLine="15"
+            endColumn="20"
+            endOffset="306"/>
+    </incident>
+
+    <incident
+        id="GradleDependency"
+        severity="warning"
+        message="A newer version of com.android.application than 8.2.2 is available: 9.0.1">
+        <fix-replace
+            description="Change to 9.0.1"
+            family="Update versions"
+            oldString="8.2.2"
+            replacement="9.0.1"/>
+        <location
+            file="../gradle/libs.versions.toml"
+            line="2"
+            column="7"
+            startOffset="17"
+            endLine="2"
+            endColumn="14"
+            endOffset="24"/>
+    </incident>
+
+    <incident
+        id="IconLocation"
+        severity="warning"
+        message="Found bitmap drawable `res/drawable/my_avatar.webp` in densityless folder">
+        <location
+            file="${:app*debug*MAIN*sourceProvider*0*resDir*0}/drawable/my_avatar.webp"/>
+    </incident>
+
+</incidents>

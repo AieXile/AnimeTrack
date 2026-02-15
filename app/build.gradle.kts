@@ -64,6 +64,9 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
     
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)

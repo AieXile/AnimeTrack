@@ -63,7 +63,8 @@ data class AddAnimeFormState(
     val rating: Float? = null,
     val notes: String = "",
     val startDate: Long? = null,
-    val finishDate: Long? = null
+    val finishDate: Long? = null,
+    val coverUrl: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

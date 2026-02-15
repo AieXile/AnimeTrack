@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.animetrack.model.Anime
 import com.animetrack.model.AnimeStatus
 import com.animetrack.ui.theme.Primary
@@ -131,7 +132,9 @@ fun AnimeCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 AnimeCoverWithStatus(
-                    status = anime.status
+                    status = anime.status,
+                    coverUrl = anime.coverUrl,
+                    title = anime.title
                 )
                 
                 Box(
@@ -312,6 +315,8 @@ fun AnimeCard(
 @Composable
 private fun AnimeCoverWithStatus(
     status: AnimeStatus,
+    coverUrl: String?,
+    title: String,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -319,18 +324,27 @@ private fun AnimeCoverWithStatus(
             .fillMaxWidth()
             .aspectRatio(0.75f)
     ) {
+        val gradientBackground = Brush.linearGradient(
+            colors = listOf(
+                PrimaryContainer,
+                SecondaryContainer
+            )
+        )
+        
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            PrimaryContainer,
-                            SecondaryContainer
-                        )
-                    )
-                )
+                .background(gradientBackground)
         )
+        
+        if (coverUrl != null) {
+            AsyncImage(
+                model = coverUrl,
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         
         StatusBadge(
             status = status,

@@ -4,24 +4,7 @@
             "outputFile": "com.animetrack.app-mergeDebugResources-57:/values-my/values-my.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\ad6df71eafbe67157e28cf30a3ac0f8e\\transformed\\core-1.12.0\\res\\values-my\\values-my.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,158,262,365,467,572,678,797",
-                        "endColumns": "102,103,102,101,104,105,118,100",
-                        "endOffsets": "153,257,360,462,567,673,792,893"
-                    },
-                    "to": {
-                        "startLines": "2,3,4,5,6,7,8,79",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,208,312,415,517,622,728,8326",
-                        "endColumns": "102,103,102,101,104,105,118,100",
-                        "endOffsets": "203,307,410,512,617,723,842,8422"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\392b3146eefe2df165c3f1f7794aabc4\\transformed\\material3-release\\res\\values-my\\values-my.xml",
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\b33db37c9c4f1e061bccefb6047e7204\\transformed\\material3-release\\res\\values-my\\values-my.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -38,24 +21,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\1904adeb8d0c28d40e58a68518811bd3\\transformed\\ui-release\\res\\values-my\\values-my.xml",
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\06f75e456b3862ee0969414d0cb835aa\\transformed\\core-1.12.0\\res\\values-my\\values-my.xml",
                     "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,199,287,391,495,578,662,761,850,932,998,1065,1152,1238,1313,1394,1460",
-                        "endColumns": "93,87,103,103,82,83,98,88,81,65,66,86,85,74,80,65,125",
-                        "endOffsets": "194,282,386,490,573,657,756,845,927,993,1060,1147,1233,1308,1389,1455,1581"
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,158,262,365,467,572,678,797",
+                        "endColumns": "102,103,102,101,104,105,118,100",
+                        "endOffsets": "153,257,360,462,567,673,792,893"
                     },
                     "to": {
-                        "startLines": "9,10,11,12,13,14,15,72,73,74,75,76,77,78,80,81,82",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "847,941,1029,1133,1237,1320,1404,7774,7863,7945,8011,8078,8165,8251,8427,8508,8574",
-                        "endColumns": "93,87,103,103,82,83,98,88,81,65,66,86,85,74,80,65,125",
-                        "endOffsets": "936,1024,1128,1232,1315,1399,1498,7858,7940,8006,8073,8160,8246,8321,8503,8569,8695"
+                        "startLines": "2,3,4,5,6,7,8,79",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,208,312,415,517,622,728,8326",
+                        "endColumns": "102,103,102,101,104,105,118,100",
+                        "endOffsets": "203,307,410,512,617,723,842,8422"
                     }
                 },
                 {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\58d6d7aec5cc87fea5c48ee48b165ace\\transformed\\foundation-release\\res\\values-my\\values-my.xml",
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\6ab4b7bc8888b80f1b01be06b73deb75\\transformed\\foundation-release\\res\\values-my\\values-my.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",
@@ -69,6 +52,23 @@
                         "startOffsets": "8700,8809",
                         "endColumns": "108,107",
                         "endOffsets": "8804,8912"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\8c5fdcf914b93c67b79d04dd4783601d\\transformed\\ui-release\\res\\values-my\\values-my.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,199,287,391,495,578,662,761,850,932,998,1065,1152,1238,1313,1394,1460",
+                        "endColumns": "93,87,103,103,82,83,98,88,81,65,66,86,85,74,80,65,125",
+                        "endOffsets": "194,282,386,490,573,657,756,845,927,993,1060,1147,1233,1308,1389,1455,1581"
+                    },
+                    "to": {
+                        "startLines": "9,10,11,12,13,14,15,72,73,74,75,76,77,78,80,81,82",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "847,941,1029,1133,1237,1320,1404,7774,7863,7945,8011,8078,8165,8251,8427,8508,8574",
+                        "endColumns": "93,87,103,103,82,83,98,88,81,65,66,86,85,74,80,65,125",
+                        "endOffsets": "936,1024,1128,1232,1315,1399,1498,7858,7940,8006,8073,8160,8246,8321,8503,8569,8695"
                     }
                 }
             ]

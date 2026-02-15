@@ -3,6 +3,7 @@ package com.animetrack.ui.home
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -26,6 +28,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -33,6 +37,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,6 +52,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -62,13 +69,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.animetrack.model.Anime
 import com.animetrack.model.ThemeMode
 import com.animetrack.ui.components.AddAnimeForm
@@ -248,7 +258,14 @@ fun HomeScreen(
                     scope.launch {
                         bottomSheetState.hide()
                     }
-                }
+                },
+                searchQuery = uiState.searchQuery,
+                searchResults = uiState.searchResults,
+                isSearching = uiState.isSearching,
+                searchError = uiState.searchError,
+                onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                onSearch = { viewModel.searchAnime() },
+                onSearchResultSelect = { viewModel.selectSearchResult(it) }
             )
         }
     }
@@ -263,6 +280,13 @@ private fun AddAnimeBottomSheet(
     onFormStateChange: (com.animetrack.ui.components.AddAnimeFormState) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
+    searchQuery: String = "",
+    searchResults: List<com.animetrack.data.network.BangumiSubject> = emptyList(),
+    isSearching: Boolean = false,
+    searchError: String? = null,
+    onSearchQueryChange: (String) -> Unit = {},
+    onSearch: () -> Unit = {},
+    onSearchResultSelect: (com.animetrack.data.network.BangumiSubject) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val watchedEpisodesError = if (formState.watchedEpisodes > formState.totalEpisodes) {
@@ -297,6 +321,87 @@ private fun AddAnimeBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp)
         ) {
+            Text(
+                text = "添加新番剧",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("搜索番剧...") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { onSearch() }
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedIndicatorColor = Primary,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                
+                Button(
+                    onClick = onSearch,
+                    enabled = searchQuery.isNotBlank() && !isSearching,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Primary
+                    )
+                ) {
+                    Text(if (isSearching) "..." else "搜索")
+                }
+            }
+            
+            if (searchError != null) {
+                Text(
+                    text = searchError,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
+            
+            if (searchResults.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(horizontal = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(searchResults.size) { index ->
+                        val result = searchResults[index]
+                        SearchResultItem(
+                            subject = result,
+                            onClick = { onSearchResultSelect(result) }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            
             AddAnimeForm(
                 formState = formState,
                 onFormStateChange = onFormStateChange,
@@ -338,6 +443,73 @@ private fun AddAnimeBottomSheet(
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultItem(
+    subject: com.animetrack.data.network.BangumiSubject,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable { onClick() }
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = subject.coverUrl,
+            contentDescription = subject.displayName,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = subject.displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+            
+            if (subject.eps != null) {
+                Text(
+                    text = "${subject.eps} 集",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        if (subject.score != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = String.format("%.1f", subject.score),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Primary
+                )
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(14.dp)
+                )
             }
         }
     }

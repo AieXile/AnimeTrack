@@ -55,7 +55,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -82,6 +82,11 @@ public final class AnimeDao_Impl implements AnimeDao {
           statement.bindNull(9);
         } else {
           statement.bindLong(9, entity.getFinishDate());
+        }
+        if (entity.getCoverUrl() == null) {
+          statement.bindNull(10);
+        } else {
+          statement.bindString(10, entity.getCoverUrl());
         }
       }
     };
@@ -102,7 +107,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -130,7 +135,12 @@ public final class AnimeDao_Impl implements AnimeDao {
         } else {
           statement.bindLong(9, entity.getFinishDate());
         }
-        statement.bindLong(10, entity.getId());
+        if (entity.getCoverUrl() == null) {
+          statement.bindNull(10);
+        } else {
+          statement.bindString(10, entity.getCoverUrl());
+        }
+        statement.bindLong(11, entity.getId());
       }
     };
     this.__preparedStmtOfDeleteAnimeById = new SharedSQLiteStatement(__db) {
@@ -291,6 +301,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
           final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
           final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -326,7 +337,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate);
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
             _result.add(_item);
           }
           return _result;
@@ -364,6 +381,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
           final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
           final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -398,7 +416,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate);
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
           } else {
             _result = null;
           }
@@ -433,6 +457,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
           final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
           final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -468,7 +493,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate);
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
             _result.add(_item);
           }
           return _result;
@@ -505,6 +536,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
           final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
           final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -540,7 +572,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate);
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
             _result.add(_item);
           }
           return _result;

@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.animetrack.data.AnimeRepository
+import com.animetrack.data.network.BangumiSearchRequest
+import com.animetrack.data.network.BangumiSubject
+import com.animetrack.data.network.RetrofitClient
 import com.animetrack.di.AppContainer
 import com.animetrack.model.Anime
 import com.animetrack.model.AnimeStatus
@@ -25,7 +28,11 @@ data class HomeUiState(
     val formError: String? = null,
     val newlyAddedAnimeId: Long? = null,
     val shouldScrollToTop: Boolean = false,
-    val selectedAnimeId: Long? = null
+    val selectedAnimeId: Long? = null,
+    val searchQuery: String = "",
+    val searchResults: List<BangumiSubject> = emptyList(),
+    val isSearching: Boolean = false,
+    val searchError: String? = null
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -166,7 +173,8 @@ class HomeViewModel(
                 rating = formState.rating,
                 notes = formState.notes.trim(),
                 startDate = formState.startDate,
-                finishDate = formState.finishDate
+                finishDate = formState.finishDate,
+                coverUrl = formState.coverUrl
             )
             
             Log.d(TAG, "Inserting anime: $anime")
@@ -208,6 +216,77 @@ class HomeViewModel(
             AnimeFilter.PLANNED -> animeList.filter { it.status == AnimeStatus.PLANNED }
             AnimeFilter.DROPPED -> animeList.filter { it.status == AnimeStatus.DROPPED }
             AnimeFilter.HIGH_RATED -> animeList.filter { (it.rating ?: 0f) >= 4.5f }
+        }
+    }
+    
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+    
+    fun searchAnime() {
+        val query = _uiState.value.searchQuery.trim()
+        if (query.isBlank()) {
+            _uiState.update { it.copy(searchResults = emptyList(), searchError = null) }
+            return
+        }
+        
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSearching = true, searchError = null) }
+            
+            try {
+                val response = RetrofitClient.bangumiApi.searchSubjects(
+                    BangumiSearchRequest(
+                        keyword = query,
+                        type = listOf(2),
+                        limit = 25
+                    )
+                )
+                
+                Log.d(TAG, "Search results: ${response.data.size} items")
+                _uiState.update { 
+                    it.copy(
+                        searchResults = response.data,
+                        isSearching = false
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Search failed", e)
+                _uiState.update { 
+                    it.copy(
+                        isSearching = false,
+                        searchError = "搜索失败: ${e.message}",
+                        searchResults = emptyList()
+                    )
+                }
+            }
+        }
+    }
+    
+    fun selectSearchResult(subject: BangumiSubject) {
+        val rating = subject.score?.toFloat()
+        val totalEpisodes = subject.eps ?: 12
+        
+        _uiState.update {
+            it.copy(
+                formState = it.formState.copy(
+                    title = subject.displayName,
+                    totalEpisodes = totalEpisodes,
+                    coverUrl = subject.coverUrl,
+                    rating = rating
+                ),
+                searchResults = emptyList(),
+                searchQuery = ""
+            )
+        }
+    }
+    
+    fun clearSearchResults() {
+        _uiState.update { 
+            it.copy(
+                searchResults = emptyList(),
+                searchQuery = "",
+                searchError = null
+            )
         }
     }
     

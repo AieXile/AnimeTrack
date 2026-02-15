@@ -1,0 +1,236 @@
+C:\Users\AieXile\.gradle\caches\transforms-3\210f15ee123b9779538ba960a01d3a59\transformed\runtime-release\jars\lint.jar: Warning: Library lint checks reference invalid APIs; these checks will be skipped!
+
+Lint found an issue registry (androidx.compose.runtime.lint.RuntimeIssueRegistry)
+which contains some references to invalid API:
+org.jetbrains.kotlin.analysis.api.session.KtAnalysisSessionProvider: org.jetbrains.kotlin.analysis.api.lifetime.KtLifetimeTokenFactory getTokenFactory()
+(Referenced from androidx/compose/runtime/lint/AutoboxingStateCreationDetector.class)
+
+Therefore, this lint check library is not included
+in analysis. This affects the following lint checks:
+AutoboxingStateValueProperty
+AutoboxingStateCreation
+CoroutineCreationDuringComposition
+FlowOperatorInvokedInComposition
+ComposableLambdaParameterNaming
+ComposableLambdaParameterPosition
+ComposableNaming
+StateFlowValueCalledInComposition
+CompositionLocalNaming
+MutableCollectionMutableState
+ProduceStateDoesNotAssignValue
+RememberReturnType
+OpaqueUnitKey
+UnrememberedMutableState
+
+To use this lint check, upgrade to a more recent version
+of the library. [ObsoleteLintCustomCheck]
+
+   Explanation for issues of type "ObsoleteLintCustomCheck":
+   Lint can be extended with "custom checks": additional checks implemented by
+   developers and libraries to for example enforce specific API usages
+   required by a library or a company coding style guideline.
+
+   The Lint APIs are not yet stable, so these checks may either cause a
+   performance degradation, or stop working, or provide wrong results.
+
+   This warning flags custom lint checks that are found to be using obsolete
+   APIs and will need to be updated to run in the current lint environment.
+
+   It may also flag issues found to be using a newer version of the API,
+   meaning that you need to use a newer version of lint (or Android Studio or
+   Gradle plugin etc) to work with these checks.
+
+E:\Project\AnimeTrack\app\build.gradle.kts:14: Warning: Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details. [OldTargetApi]
+        targetSdk = 34
+        ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "OldTargetApi":
+   When your application runs on a version of Android that is more recent than
+   your targetSdkVersion specifies that it has been tested with, various
+   compatibility modes kick in. This ensures that your application continues
+   to work, but it may look out of place. For example, if the targetSdkVersion
+   is less than 14, your app may get an option button in the UI.
+
+   To fix this issue, set the targetSdkVersion to the highest available value.
+   Then test your app to make sure everything works correctly. You may want to
+   consult the compatibility notes to see what changes apply to each version
+   you are adding support for:
+   https://developer.android.com/reference/android/os/Build.VERSION_CODES.html
+   as well as follow this guide:
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.
+   html
+
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.html
+
+E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:18: Warning: Redundant label can be removed [RedundantLabel]
+            android:label="@string/app_name"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "RedundantLabel":
+   When an activity does not have a label attribute, it will use the one from
+   the application tag. Since the application has already specified the same
+   label, the label on this activity can be omitted.
+
+E:\Project\AnimeTrack\gradle\libs.versions.toml:2: Warning: A newer version of com.android.application than 8.2.2 is available: 9.0.1 [GradleDependency]
+agp = "8.2.2"
+      ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:5: Warning: A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.17.0 [GradleDependency]
+coreKtx = "1.12.0"
+          ~~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:7: Warning: A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0 [GradleDependency]
+junitVersion = "1.1.5"
+               ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:8: Warning: A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0 [GradleDependency]
+espressoCore = "3.5.1"
+               ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:9: Warning: A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.10.0 [GradleDependency]
+lifecycleRuntimeKtx = "2.7.0"
+                      ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:9: Warning: A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.10.0 [GradleDependency]
+lifecycleRuntimeKtx = "2.7.0"
+                      ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:10: Warning: A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.12.4 [GradleDependency]
+activityCompose = "1.8.2"
+                  ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:11: Warning: A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.02.00 [GradleDependency]
+composeBom = "2024.06.00"
+             ~~~~~~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:12: Warning: A newer version of androidx.navigation:navigation-compose than 2.7.7 is available: 2.9.7 [GradleDependency]
+navigationCompose = "2.7.7"
+                    ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:14: Warning: A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4 [GradleDependency]
+room = "2.6.1"
+       ~~~~~~~
+E:\Project\AnimeTrack\gradle\libs.versions.toml:15: Warning: A newer version of androidx.datastore:datastore-preferences than 1.0.0 is available: 1.2.0 [GradleDependency]
+datastore = "1.0.0"
+            ~~~~~~~
+
+   Explanation for issues of type "GradleDependency":
+   This detector looks for usages of libraries where the version you are using
+   is not the current stable release. Using older versions is fine, and there
+   are cases where you deliberately want to stick with an older version.
+   However, you may simply not be aware that a more recent version is
+   available, and that is what this lint check helps find.
+
+E:\Project\AnimeTrack\app\src\main\java\com\animetrack\ui\components\AddAnimeForm.kt:75: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+E:\Project\AnimeTrack\app\src\main\java\com\animetrack\ui\components\AnimeCard.kt:75: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+
+   Explanation for issues of type "ModifierParameter":
+   The first (or only) Modifier parameter in a Composable function should
+   follow the following rules:
+   - Be named modifier
+   - Have a type of Modifier
+   - Either have no default value, or have a default value of Modifier
+   - If optional, be the first optional parameter in the parameter list
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.ui
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+E:\Project\AnimeTrack\app\src\main\res\mipmap-anydpi-v26: Warning: This folder configuration (v26) is unnecessary; minSdkVersion is 26. Merge all the resources in this folder into mipmap-anydpi. [ObsoleteSdkInt]
+
+   Explanation for issues of type "ObsoleteSdkInt":
+   This check flags version checks that are not necessary, because the
+   minSdkVersion (or surrounding known API level) is already at least as high
+   as the version checked for.
+
+   Similarly, it also looks for resources in -vNN folders, such as values-v14
+   where the version qualifier is less than or equal to the minSdkVersion,
+   where the contents should be merged into the best folder.
+
+E:\Project\AnimeTrack\app\src\main\java\com\animetrack\di\AppContainer.kt:14: Warning: Do not place Android context classes in static fields (static reference to SettingsRepository which has field context pointing to Context); this is a memory leak [StaticFieldLeak]
+    private var settingsRepository: SettingsRepository? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+E:\Project\AnimeTrack\app\src\main\java\com\animetrack\ui\timeline\TimelineScreen.kt:84: Warning: Frequently changing state should not be directly read in composable function [FrequentlyChangedStateReadInComposition from androidx.compose.foundation]
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "FrequentlyChangedStateReadInComposition":
+   This property is observable and is updated after every scroll or remeasure.
+   If you use it in the composable function directly, it will be recomposed on
+   every change, causing potential performance issues including infinity
+   recomposition loops. Prefer wrapping it with derivedStateOf to use
+   calculation based on this property in composition or collect changes inside
+   LaunchedEffect instead.
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.foundation
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+E:\Project\AnimeTrack\app\src\main\res\drawable\ic_launcher_background.xml:2: Warning: The resource R.drawable.ic_launcher_background appears to be unused [UnusedResources]
+<vector
+^
+E:\Project\AnimeTrack\app\src\main\res\drawable\ic_launcher_foreground.xml:1: Warning: The resource R.drawable.ic_launcher_foreground appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+
+   Explanation for issues of type "UnusedResources":
+   Unused resources make applications larger and slow down builds.
+
+
+   The unused resource check can ignore tests. If you want to include
+   resources that are only referenced from tests, consider packaging them in a
+   test source set instead.
+
+   You can include test sources in the unused resource check by setting the
+   system property lint.unused-resources.include-tests =true, and to exclude
+   them (usually for performance reasons), use
+   lint.unused-resources.exclude-tests =true.
+   ,
+
+E:\Project\AnimeTrack\app\src\main\res\mipmap-anydpi-v26\ic_launcher.xml:2: Warning: The application adaptive icon is missing a monochrome tag [MonochromeLauncherIcon]
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+^
+E:\Project\AnimeTrack\app\src\main\res\mipmap-anydpi-v26\ic_launcher_round.xml:2: Warning: The application adaptive roundIcon is missing a monochrome tag [MonochromeLauncherIcon]
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+^
+
+   Explanation for issues of type "MonochromeLauncherIcon":
+   If android:roundIcon and android:icon are both in your manifest, you must
+   either remove the reference to android:roundIcon if it is not needed; or,
+   supply the monochrome icon in the drawable defined by the android:roundIcon
+   and android:icon attribute.
+
+   For example, if android:roundIcon and android:icon are both in the
+   manifest, a launcher might choose to use android:roundIcon over
+   android:icon to display the adaptive app icon. Therefore, your themed
+   application iconwill not show if your monochrome attribute is not also
+   specified in android:roundIcon.
+
+E:\Project\AnimeTrack\app\src\main\res\drawable\my_avatar.webp: Warning: Found bitmap drawable res/drawable/my_avatar.webp in densityless folder [IconLocation]
+
+   Explanation for issues of type "IconLocation":
+   The res/drawable folder is intended for density-independent graphics such
+   as shapes defined in XML. For bitmaps, move it to drawable-mdpi and
+   consider providing higher and lower resolution versions in drawable-ldpi,
+   drawable-hdpi and drawable-xhdpi. If the icon really is density independent
+   (for example a solid color) you can place it in drawable-nodpi.
+
+   https://developer.android.com/guide/practices/screens_support.html
+
+0 errors, 26 warnings
