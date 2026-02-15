@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.animetrack.BuildConfig
 import com.animetrack.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,7 +125,7 @@ fun AboutScreen(
             Spacer(modifier = Modifier.weight(2f))
             
             Text(
-                text = "版本 1.0.0",
+                text = "版本 ${BuildConfig.VERSION_NAME}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 32.dp)

@@ -264,7 +264,7 @@ class HomeViewModel(
     
     fun selectSearchResult(subject: BangumiSubject) {
         val rating = subject.score?.toFloat()
-        val totalEpisodes = subject.eps ?: 12
+        val totalEpisodes = subject.episodeCount ?: 12
         
         _uiState.update {
             it.copy(

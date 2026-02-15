@@ -484,13 +484,11 @@ private fun SearchResultItem(
                 maxLines = 1
             )
             
-            if (subject.eps != null) {
-                Text(
-                    text = "${subject.eps} 集",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = subject.episodeCountText,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         
         if (subject.score != null) {
