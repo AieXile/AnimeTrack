@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimeTrack - 番剧记录</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6750A4;
+            --on-primary: #FFFFFF;
+            --primary-container: #EADDFF;
+            --on-primary-container: #21005D;
+            --secondary: #625B71;
+            --on-secondary: #FFFFFF;
+            --secondary-container: #E8DEF8;
+            --on-secondary-container: #1D192B;
+            --tertiary: #7D5260;
+            --on-tertiary: #FFFFFF;
+            --surface: #FEF7FF;
+            --on-surface: #1D1B20;
+            --surface-variant: #E7E0EC;
+            --on-surface-variant: #49454F;
+            --outline: #79747E;
+            --error: #B3261E;
+            --on-error: #FFFFFF;
+            --error-container: #F9DEDC;
+            --on-error-container: #410E0B;
+            --shadow: rgba(0, 0, 0, 0.15);
+        }
+
+        .dark-theme {
+            --primary: #D0BCFF;
+            --on-primary: #381E72;
+            --primary-container: #4F378B;
+            --on-primary-container: #EADDFF;
+            --secondary: #CCC2DC;
+            --on-secondary: #332D41;
+            --secondary-container: #4A4458;
+            --on-secondary-container: #E8DEF8;
+            --tertiary: #EFB8C8;
+            --on-tertiary: #492532;
+            --surface: #1D1B20;
+            --on-surface: #E6E1E5;
+            --surface-variant: #49454F;
+            --on-surface-variant: #CAC4D0;
+            --outline: #938F99;
+            --error: #F2B8B5;
+            --on-error: #601410;
+            --error-container: #8C1D18;
+            --on-error-container: #F9DEDC;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--surface);
+            color: var(--on-surface);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* 顶部应用栏 */
+        .app-bar {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background-color: var(--surface);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .app-title {
+            font-size: 22px;
+            font-weight: 500;
+            margin-left: 16px;
+            color: var(--on-surface);
+        }
+
+        .spacer {
+            flex-grow: 1;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: var(--on-surface);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 20px;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--surface-variant);
+        }
+
+        /* 导航栏 */
+        .nav-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            background-color: var(--surface);
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            box-shadow: 0 -2px 4px var(--shadow);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 16px;
+            color: var(--on-surface-variant);
+            font-size: 12px;
+            text-decoration: none;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+            background-color: var(--primary-container);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        /* 内容区域 */
+        .content-section {
+            padding: 24px 0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 0 16px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .action-button {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            border-radius: 16px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .action-button .material-symbols-outlined {
+            margin-right: 4px;
+        }
+
+        /* 番剧卡片 */
+        .anime-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            padding: 0 16px;
+        }
+
+        .anime-card {
+            background-color: var(--surface-variant);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px var(--shadow);
+            transition: transform 0.2s;
+        }
+
+        .anime-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .anime-cover {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(120deg, var(--primary-container), var(--secondary-container));
+            position: relative;
+        }
+
+        .anime-status {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background-color: var(--primary);
+            color: var(--on-primary);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .anime-info {
+            padding: 16px;
+        }
+
+        .anime-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--on-surface);
+        }
+
+        .anime-meta {
+            display: flex;
+            justify-content: space-between;
+            color: var(--on-surface-variant);
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .progress-container {
+            margin-top: 12px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: var(--surface);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            border-radius: 4px;
+        }
+
+        .rating-stars {
+            display: flex;
+            margin-top: 8px;
+        }
+
+        .star {
+            color: var(--on-surface-variant);
+            font-size: 20px;
+            margin-right: 2px;
+        }
+
+        .star.filled {
+            color: #FFC107;
+        }
+
+        /* 添加表单 */
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 24px;
+            background-color: var(--surface);
+            border-radius: 24px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .form-title {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            text-align: center;
+            color: var(--on-surface);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--on-surface);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--outline);
+            border-radius: 12px;
+            background-color: var(--surface);
+            color: var(--on-surface);
+            font-family: 'Roboto', sans-serif;
+            font-size: 16px;
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .cancel-button {
+            background-color: var(--surface-variant);
+            color: var(--on-surface-variant);
+            border: none;
+            border-radius: 16px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .submit-button {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            border-radius: 16px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        /* 筛选栏 */
+        .filter-bar {
+            display: flex;
+            overflow-x: auto;
+            padding: 16px;
+            gap: 12px;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .filter-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-chip {
+            padding: 8px 16px;
+            background-color: var(--surface-variant);
+            color: var(--on-surface-variant);
+            border-radius: 16px;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .filter-chip.active {
+            background-color: var(--primary);
+            color: var(--on-primary);
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .anime-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .app-bar {
+                padding: 12px;
+            }
+            
+            .section-header {
+                padding: 0 12px;
+            }
+            
+            .anime-grid {
+                padding: 0 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 顶部应用栏 -->
+        <header class="app-bar">
+            <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary);">live_tv</span>
+            <h1 class="app-title">AnimeTrack</h1>
+            <div class="spacer"></div>
+            <button class="theme-toggle" id="themeToggle">
+                <span class="material-symbols-outlined">dark_mode</span>
+            </button>
+        </header>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="filter-chip active">全部</div>
+            <div class="filter-chip">正在观看</div>
+            <div class="filter-chip">已看完</div>
+            <div class="filter-chip">计划观看</div>
+            <div class="filter-chip">已弃番</div>
+            <div class="filter-chip">高分推荐</div>
+        </div>
+
+        <!-- 内容区域 -->
+        <main>
+            <section class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">我的番剧收藏</h2>
+                    <button class="action-button" id="addAnimeBtn">
+                        <span class="material-symbols-outlined">add</span>
+                        添加番剧
+                    </button>
+                </div>
+                
+                <div class="anime-grid" id="animeGrid">
+                    <!-- 番剧卡片将通过JS动态生成 -->
+                </div>
+            </section>
+        </main>
+
+        <!-- 添加/编辑表单 (初始隐藏) -->
+        <div class="form-container" id="animeForm" style="display: none;">
+            <h2 class="form-title" id="formTitle">添加新番剧</h2>
+            <form id="animeFormElement">
+                <div class="form-group">
+                    <label class="form-label">番剧名称</label>
+                    <input type="text" class="form-input" id="animeTitle" placeholder="输入番剧名称" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">总集数</label>
+                    <input type="number" class="form-input" id="totalEpisodes" placeholder="输入总集数" min="1" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">已看集数</label>
+                    <input type="number" class="form-input" id="watchedEpisodes" placeholder="输入已看集数" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">观看状态</label>
+                    <select class="form-select" id="status" required>
+                        <option value="">选择观看状态</option>
+                        <option value="watching">正在观看</option>
+                        <option value="completed">已看完</option>
+                        <option value="planned">计划观看</option>
+                        <option value="dropped">已弃番</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">评分 (1-5)</label>
+                    <input type="number" class="form-input" id="rating" placeholder="输入评分 (1-5)" min="1" max="5" step="0.5">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">备注</label>
+                    <textarea class="form-textarea" id="notes" placeholder="添加备注..."></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="cancel-button" id="cancelBtn">取消</button>
+                    <button type="submit" class="submit-button">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <nav class="nav-bar">
+        <a href="#" class="nav-item active">
+            <span class="material-symbols-outlined nav-icon">home</span>
+            首页
+        </a>
+        <a href="#" class="nav-item">
+            <span class="material-symbols-outlined nav-icon">collections_bookmark</span>
+            收藏
+        </a>
+        <a href="#" class="nav-item">
+            <span class="material-symbols-outlined nav-icon">calendar_month</span>
+            日历
+        </a>
+        <a href="#" class="nav-item">
+            <span class="material-symbols-outlined nav-icon">settings</span>
+            设置
+        </a>
+    </nav>
+
+    <script>
+        // 示例数据
+        const animeData = [
+            {
+                id: 1,
+                title: "咒术回战 第二季",
+                totalEpisodes: 23,
+                watchedEpisodes: 18,
+                status: "watching",
+                rating: 4.5,
+                notes: "怀玉·玉折篇，五条悟年轻时的故事"
+            },
+            {
+                id: 2,
+                title: "进击的巨人 最终季",
+                totalEpisodes: 28,
+                watchedEpisodes: 28,
+                status: "completed",
+                rating: 5,
+                notes: "神作完结！"
+            },
+            {
+                id: 3,
+                title: "葬送的芙莉莲",
+                totalEpisodes: 28,
+                watchedEpisodes: 0,
+                status: "planned",
+                rating: null,
+                notes: "听说很好看，准备追"
+            },
+            {
+                id: 4,
+                title: "间谍过家家",
+                totalEpisodes: 25,
+                watchedEpisodes: 12,
+                status: "watching",
+                rating: 4,
+                notes: "轻松搞笑，适合放松"
+            },
+            {
+                id: 5,
+                title: "鬼灭之刃 锻刀村篇",
+                totalEpisodes: 11,
+                watchedEpisodes: 11,
+                status: "completed",
+                rating: 4.5,
+                notes: "特效炸裂，打斗精彩"
+            },
+            {
+                id: 6,
+                title: "我推的孩子",
+                totalEpisodes: 11,
+                watchedEpisodes: 11,
+                status: "completed",
+                rating: 4.5,
+                notes: "第一集神回"
+            }
+        ];
+
+        // DOM元素
+        const animeGrid = document.getElementById('animeGrid');
+        const animeForm = document.getElementById('animeForm');
+        const formTitle = document.getElementById('formTitle');
+        const animeFormElement = document.getElementById('animeFormElement');
+        const themeToggle = document.getElementById('themeToggle');
+        const addAnimeBtn = document.getElementById('addAnimeBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // 状态管理
+        let currentTheme = 'light';
+        let isEditing = false;
+        let currentAnimeId = null;
+
+        // 初始化应用
+        function initApp() {
+            renderAnimeList(animeData);
+            setupEventListeners();
+        }
+
+        // 渲染番剧列表
+        function renderAnimeList(animes) {
+            animeGrid.innerHTML = '';
+            
+            animes.forEach(anime => {
+                const progress = Math.round((anime.watchedEpisodes / anime.totalEpisodes) * 100);
+                const statusText = getStatusText(anime.status);
+                const statusClass = getStatusClass(anime.status);
+                
+                const animeCard = document.createElement('div');
+                animeCard.className = 'anime-card';
+                animeCard.innerHTML = `
+                    <div class="anime-cover">
+                        <div class="anime-status ${statusClass}">${statusText}</div>
+                    </div>
+                    <div class="anime-info">
+                        <h3 class="anime-title">${anime.title}</h3>
+                        <div class="anime-meta">
+                            <span>${anime.watchedEpisodes}/${anime.totalEpisodes} 集</span>
+                            <span>${anime.rating ? `评分: ${anime.rating}` : '未评分'}</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>观看进度</span>
+                                <span>${progress}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+                        ${anime.rating ? renderStars(anime.rating) : ''}
+                    </div>
+                `;
+                
+                animeCard.addEventListener('click', () => editAnime(anime));
+                animeGrid.appendChild(animeCard);
+            });
+        }
+
+        // 渲染评分星星
+        function renderStars(rating) {
+            let starsHTML = '<div class="rating-stars">';
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5;
+            
+            for (let i = 1; i <= 5; i++) {
+                if (i <= fullStars) {
+                    starsHTML += '<span class="material-symbols-outlined star filled">star</span>';
+                } else if (i === fullStars + 1 && halfStar) {
+                    starsHTML += '<span class="material-symbols-outlined star filled">star_half</span>';
+                } else {
+                    starsHTML += '<span class="material-symbols-outlined star">star</span>';
+                }
+            }
+            
+            starsHTML += '</div>';
+            return starsHTML;
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            const statusMap = {
+                'watching': '正在观看',
+                'completed': '已看完',
+                'planned': '计划观看',
+                'dropped': '已弃番'
+            };
+            return statusMap[status] || status;
+        }
+
+        // 获取状态类名
+        function getStatusClass(status) {
+            const classMap = {
+                'watching': 'watching',
+                'completed': 'completed',
+                'planned': 'planned',
+                'dropped': 'dropped'
+            };
+            return classMap[status] || '';
+        }
+
+        // 编辑番剧
+        function editAnime(anime) {
+            isEditing = true;
+            currentAnimeId = anime.id;
+            formTitle.textContent = '编辑番剧信息';
+            
+            // 填充表单数据
+            document.getElementById('animeTitle').value = anime.title;
+            document.getElementById('totalEpisodes').value = anime.totalEpisodes;
+            document.getElementById('watchedEpisodes').value = anime.watchedEpisodes;
+            document.getElementById('status').value = anime.status;
+            document.getElementById('rating').value = anime.rating || '';
+            document.getElementById('notes').value = anime.notes || '';
+            
+            // 显示表单
+            animeForm.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 添加新番剧
+        function addNewAnime() {
+            isEditing = false;
+            currentAnimeId = null;
+            formTitle.textContent = '添加新番剧';
+            
+            // 重置表单
+            animeFormElement.reset();
+            
+            // 显示表单
+            animeForm.style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 保存番剧
+        function saveAnime(event) {
+            event.preventDefault();
+            
+            const anime = {
+                id: isEditing ? currentAnimeId : animeData.length + 1,
+                title: document.getElementById('animeTitle').value,
+                totalEpisodes: parseInt(document.getElementById('totalEpisodes').value),
+                watchedEpisodes: parseInt(document.getElementById('watchedEpisodes').value),
+                status: document.getElementById('status').value,
+                rating: document.getElementById('rating').value ? parseFloat(document.getElementById('rating').value) : null,
+                notes: document.getElementById('notes').value
+            };
+            
+            if (isEditing) {
+                // 更新现有番剧
+                const index = animeData.findIndex(a => a.id === currentAnimeId);
+                if (index !== -1) {
+                    animeData[index] = anime;
+                }
+            } else {
+                // 添加新番剧
+                animeData.push(anime);
+            }
+            
+            // 重新渲染列表并隐藏表单
+            renderAnimeList(animeData);
+            animeForm.style.display = 'none';
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 主题切换
+            themeToggle.addEventListener('click', () => {
+                currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+                document.body.classList.toggle('dark-theme', currentTheme === 'dark');
+                
+                const icon = themeToggle.querySelector('.material-symbols-outlined');
+                icon.textContent = currentTheme === 'light' ? 'dark_mode' : 'light_mode';
+            });
+            
+            // 添加番剧按钮
+            addAnimeBtn.addEventListener('click', addNewAnime);
+            
+            // 表单提交
+            animeFormElement.addEventListener('submit', saveAnime);
+            
+            // 取消按钮
+            cancelBtn.addEventListener('click', () => {
+                animeForm.style.display = 'none';
+            });
+            
+            // 筛选芯片
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    // 移除所有激活状态
+                    document.querySelectorAll('.filter-chip').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    // 添加当前激活状态
+                    chip.classList.add('active');
+                    
+                    // 实际应用中这里会根据筛选条件过滤列表
+                    // 这里仅做演示，显示全部数据
+                    renderAnimeList(animeData);
+                });
+            });
+            
+            // 导航项
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    // 移除所有激活状态
+                    document.querySelectorAll('.nav-item').forEach(i => {
+                        i.classList.remove('active');
+                    });
+                    
+                    // 添加当前激活状态
+                    item.classList.add('active');
+                });
+            });
+        }
+
+        // 初始化应用
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
