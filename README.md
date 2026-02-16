@@ -25,4 +25,4 @@
 安卓机
 
 ### 安装步骤
-![Releases]([https://img.shields.io/badge/version-v0.1.5--alpha-blue?style=flat-square](https://github.com/AieXile/AnimeTrack/releases))
+![Releases](https://github.com/AieXile/AnimeTrack/releases))
