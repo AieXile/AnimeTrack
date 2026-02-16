@@ -111,15 +111,17 @@ fun AddAnimeForm(
                 minValue = 1
             )
             
-            NumberInputField(
-                label = "已看集数",
-                value = formState.watchedEpisodes,
-                onValueChange = { onFormStateChange(formState.copy(watchedEpisodes = it)) },
-                modifier = Modifier.weight(1f),
-                minValue = 0,
-                maxValue = formState.totalEpisodes,
-                error = watchedEpisodesError
-            )
+            if (formState.status != AnimeStatus.COMPLETED) {
+                NumberInputField(
+                    label = "已看集数",
+                    value = formState.watchedEpisodes,
+                    onValueChange = { onFormStateChange(formState.copy(watchedEpisodes = it)) },
+                    modifier = Modifier.weight(1f),
+                    minValue = 0,
+                    maxValue = formState.totalEpisodes,
+                    error = watchedEpisodesError
+                )
+            }
         }
         
         Spacer(modifier = Modifier.height(20.dp))
@@ -127,8 +129,12 @@ fun AddAnimeForm(
         StatusDropdown(
             selectedStatus = formState.status,
             onStatusChange = { newStatus ->
-                val newState = if (newStatus == AnimeStatus.COMPLETED && formState.finishDate == null) {
-                    formState.copy(status = newStatus, finishDate = System.currentTimeMillis())
+                val newState = if (newStatus == AnimeStatus.COMPLETED) {
+                    formState.copy(
+                        status = newStatus,
+                        watchedEpisodes = formState.totalEpisodes,
+                        finishDate = formState.finishDate ?: System.currentTimeMillis()
+                    )
                 } else {
                     formState.copy(status = newStatus)
                 }
