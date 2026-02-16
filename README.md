@@ -25,4 +25,4 @@
 安卓机
 
 ### 安装步骤
-![Releases](https://github.com/AieXile/AnimeTrack/releases))
+![Releases](https://github.com/AieXile/AnimeTrack/releases)
