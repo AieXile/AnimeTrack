@@ -50,7 +50,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,6 +77,8 @@ fun AnimeCard(
     onEditProgress: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val hapticFeedback = LocalHapticFeedback.current
+    
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 0.95f else 1f,
         animationSpec = spring(
@@ -116,9 +120,10 @@ fun AnimeCard(
                 )
                 .combinedClickable(
                     onClick = onClick,
-                    onLongClick = onLongPress,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
+                    onLongClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                    }
                 ),
             shape = RoundedCornerShape(cornerRadius),
             colors = CardDefaults.cardColors(

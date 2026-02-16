@@ -184,6 +184,7 @@ fun HomeScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
@@ -241,7 +242,11 @@ fun HomeScreen(
                     newlyAddedAnimeId = uiState.newlyAddedAnimeId,
                     selectedAnimeId = uiState.selectedAnimeId,
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
-                    onAnimeClick = { viewModel.clearSelection() },
+                    onAnimeClick = { _ ->
+                        if (uiState.selectedAnimeId != null) {
+                            viewModel.clearSelection()
+                        }
+                    },
                     onAnimeLongPress = { anime -> viewModel.selectAnime(anime.id.toLong()) },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
