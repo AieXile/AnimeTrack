@@ -128,89 +128,91 @@ fun AnimeCard(
                 defaultElevation = 0.dp
             )
         ) {
-            Column(
+            Box(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                AnimeCoverWithStatus(
-                    status = anime.status,
-                    coverUrl = anime.coverUrl,
-                    title = anime.title
-                )
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    val titleStyle = if (anime.title.length > 10) {
-                        MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
-                    } else {
-                        MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
-                    }
+                    AnimeCoverWithStatus(
+                        status = anime.status,
+                        coverUrl = anime.coverUrl,
+                        title = anime.title
+                    )
                     
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .align(Alignment.TopStart)
-                            .height(36.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .height(64.dp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Text(
-                            text = anime.title,
-                            style = titleStyle,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
+                        val titleStyle = if (anime.title.length > 10) {
+                            MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
+                        } else {
+                            MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
+                        }
                         
-                        if (anime.rating != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "${anime.rating}",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = StarFilled
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = StarFilled,
-                                    modifier = Modifier.size(12.dp)
-                                )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopStart)
+                                .height(36.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = anime.title,
+                                style = titleStyle,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            if (anime.rating != null) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "${anime.rating}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = StarFilled
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Filled.Star,
+                                        contentDescription = null,
+                                        tint = StarFilled,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
                             }
                         }
-                    }
-                    
-                    Column(
-                        modifier = Modifier.align(Alignment.BottomStart),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
+                        
                         if (anime.status != AnimeStatus.COMPLETED) {
                             Text(
                                 text = "${anime.watchedEpisodes}/${anime.totalEpisodes}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp
-                            )
-                            
-                            LinearProgressIndicator(
-                                progress = { anime.progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = Primary,
-                                trackColor = MaterialTheme.colorScheme.surface,
+                                fontSize = 10.sp,
+                                modifier = Modifier.align(Alignment.BottomStart)
                             )
                         }
                     }
+                }
+                
+                if (anime.status != AnimeStatus.COMPLETED) {
+                    LinearProgressIndicator(
+                        progress = { anime.progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .align(Alignment.BottomCenter),
+                        color = Primary,
+                        trackColor = Color.Transparent,
+                    )
                 }
             }
         }

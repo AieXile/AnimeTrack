@@ -27,7 +27,7 @@ val OnError = Color(0xFFFFFFFF)
 val ErrorContainer = Color(0xFFF9DEDC)
 val OnErrorContainer = Color(0xFF410E0B)
 
-val StarFilled = Color(0xFFFFC107)
+val StarFilled = Color(0xFFFF8F00)
 
 val PrimaryDark = Color(0xFFD0BCFF)
 val OnPrimaryDark = Color(0xFF381E72)
