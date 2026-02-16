@@ -1,0 +1,32 @@
+<variant
+    name="release"
+    useSupportLibraryVectorDrawables="true"
+    package="com.animetrack"
+    minSdkVersion="26"
+    targetSdkVersion="34"
+    mergedManifest="build\intermediates\merged_manifest\release\AndroidManifest.xml"
+    manifestMergeReport="build\outputs\logs\manifest-merger-release-report.txt"
+    proguardFiles="build\intermediates\default_proguard_files\global\proguard-android-optimize.txt-8.2.2;proguard-rules.pro"
+    partialResultsDir="build\intermediates\lint_vital_partial_results\release\out">
+  <buildFeatures
+      namespacing="REQUIRED"/>
+  <sourceProviders>
+    <sourceProvider
+        manifests="src\main\AndroidManifest.xml"
+        javaDirectories="src\main\java;src\release\java;src\main\kotlin;src\release\kotlin"
+        resDirectories="src\main\res;src\release\res"
+        assetsDirectories="src\main\assets;src\release\assets"/>
+  </sourceProviders>
+  <testSourceProviders>
+  </testSourceProviders>
+  <testFixturesSourceProviders>
+  </testFixturesSourceProviders>
+  <artifact
+      classOutputs="build\intermediates\javac\release\classes;build\tmp\kotlin-classes\release;build\kotlinToolingMetadata;build\generated\ksp\release\resources;build\intermediates\compile_and_runtime_not_namespaced_r_class_jar\release\R.jar"
+      type="MAIN"
+      applicationId="com.animetrack"
+      generatedSourceFolders="build\generated\ksp\release\java;build\generated\ksp\release\kotlin;build\generated\ap_generated_sources\release\out;build\generated\source\buildConfig\release"
+      generatedResourceFolders="build\generated\res\resValues\release"
+      desugaredMethodsFiles="C:\Users\AieXile\.gradle\caches\transforms-3\3fa46f7af6ac59377850e31c1e6abfdb\transformed\D8BackportedDesugaredMethods.txt">
+  </artifact>
+</variant>
