@@ -1,4 +1,4 @@
-com.animetrack
+com.aiexile.animetrack
 attr action
 attr alpha
 attr argType

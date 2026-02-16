@@ -1,90 +1,90 @@
 [
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-hdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-hdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/drawable_ic_launcher_background.xml.flat",
-        "source": "com.animetrack.app-main-61:/drawable/ic_launcher_background.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/xml_data_extraction_rules.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/xml/data_extraction_rules.xml"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher_foreground.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-hdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/drawable_my_avatar.webp.flat",
-        "source": "com.animetrack.app-main-61:/drawable/my_avatar.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-mdpi/ic_launcher_foreground.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher_foreground.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/drawable/ic_launcher_background.xml"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/drawable_my_avatar.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/drawable/my_avatar.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.animetrack.app-main-61:/drawable/ic_launcher_foreground.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-mdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/xml_backup_rules.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/xml/backup_rules.xml"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/xml_data_extraction_rules.xml.flat",
-        "source": "com.animetrack.app-main-61:/xml/data_extraction_rules.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher_round.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher_round.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher_round.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-hdpi/ic_launcher_round.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher_round.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-mdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-mdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-hdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/xml_backup_rules.xml.flat",
-        "source": "com.animetrack.app-main-61:/xml/backup_rules.xml"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xhdpi_ic_launcher.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xhdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/drawable/ic_launcher_foreground.xml"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher_round.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-mdpi/ic_launcher_round.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-mdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-hdpi/ic_launcher_foreground.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-xxhdpi/ic_launcher_round.webp"
     },
     {
-        "merged": "com.animetrack.app-merged_res-59:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.animetrack.app-main-61:/mipmap-xxxhdpi/ic_launcher_round.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-59:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-61:/mipmap-anydpi-v26/ic_launcher_round.xml"
     }
 ]

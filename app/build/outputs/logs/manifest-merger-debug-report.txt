@@ -127,7 +127,7 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\AieXile\.gradle\ca
 		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:15:9-48
 	android:dataExtractionRules
 		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:9:9-65
-activity#com.animetrack.MainActivity
+activity#com.aiexile.animetrack.MainActivity
 ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:17:9-26:20
 	android:label
 		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:20:13-45
@@ -333,7 +333,7 @@ ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transform
 		ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
 	android:name
 		ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
-permission#com.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+permission#com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
 	android:protectionLevel
 		ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
@@ -343,7 +343,7 @@ uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
 	android:name
 		ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
-uses-permission#com.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission#com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
 	android:name
 		ADDED from [androidx.core:core:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\06f75e456b3862ee0969414d0cb835aa\transformed\core-1.12.0\AndroidManifest.xml:26:22-94

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.animetrack.app-mergeDebugResources-57:/values-it/values-it.xml",
+            "outputFile": "com.aiexile.animetrack.app-mergeDebugResources-57:/values-it/values-it.xml",
             "map": [
                 {
                     "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\6ab4b7bc8888b80f1b01be06b73deb75\\transformed\\foundation-release\\res\\values-it\\values-it.xml",

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.animetrack.app-mergeDebugResources-57:/values-zh-rTW/values-zh-rTW.xml",
+            "outputFile": "com.aiexile.animetrack.app-mergeDebugResources-57:/values-zh-rTW/values-zh-rTW.xml",
             "map": [
                 {
                     "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\06f75e456b3862ee0969414d0cb835aa\\transformed\\core-1.12.0\\res\\values-zh-rTW\\values-zh-rTW.xml",

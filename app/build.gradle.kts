@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.animetrack"
+    namespace = "com.aiexile.animetrack"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.animetrack"
+        applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
         versionCode = 3
