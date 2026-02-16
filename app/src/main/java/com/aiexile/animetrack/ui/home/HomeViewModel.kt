@@ -209,13 +209,22 @@ class HomeViewModel(
     fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter): List<Anime> {
         Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter")
         
-        return when (filter) {
+        val filtered = when (filter) {
             AnimeFilter.ALL -> animeList
             AnimeFilter.WATCHING -> animeList.filter { it.status == AnimeStatus.WATCHING }
             AnimeFilter.COMPLETED -> animeList.filter { it.status == AnimeStatus.COMPLETED }
             AnimeFilter.PLANNED -> animeList.filter { it.status == AnimeStatus.PLANNED }
             AnimeFilter.DROPPED -> animeList.filter { it.status == AnimeStatus.DROPPED }
             AnimeFilter.HIGH_RATED -> animeList.filter { (it.rating ?: 0f) >= 4.5f }
+        }
+        
+        return if (filter == AnimeFilter.ALL) {
+            filtered.sortedWith(
+                compareBy<Anime> { it.status != AnimeStatus.WATCHING }
+                    .thenByDescending { it.startDate ?: Long.MIN_VALUE }
+            )
+        } else {
+            filtered.sortedByDescending { it.startDate ?: Long.MIN_VALUE }
         }
     }
     
