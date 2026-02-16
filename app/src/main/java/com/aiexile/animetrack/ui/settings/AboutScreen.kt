@@ -104,7 +104,7 @@ fun AboutScreen(
             
             IconButton(
                 onClick = {
-                    uriHandler.openUri("https://github.com/AieXile")
+                    uriHandler.openUri("https://github.com/AieXile/AnimeTrack")
                 },
                 modifier = Modifier.size(48.dp)
             ) {

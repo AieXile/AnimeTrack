@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -80,14 +81,7 @@ fun AddAnimeForm(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
-        Text(
-            text = "添加新番剧",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
         OutlinedTextField(
             value = formState.title,
@@ -96,6 +90,7 @@ fun AddAnimeForm(
             placeholder = { Text("输入番剧名称") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Primary,
                 focusedLabelColor = Primary
@@ -168,6 +163,7 @@ fun AddAnimeForm(
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
             maxLines = 3,
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Primary,
                 focusedLabelColor = Primary
@@ -270,6 +266,7 @@ private fun StatusDropdown(
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Primary,
                     focusedLabelColor = Primary

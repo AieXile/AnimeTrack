@@ -2,7 +2,7 @@
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.aiexile.animetrack"
 4    android:versionCode="3"
-5    android:versionName="1.1.0-alpha" >
+5    android:versionName="v1.1.0-alpha" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="26"
