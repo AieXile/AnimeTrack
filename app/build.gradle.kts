@@ -4,6 +4,22 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val keystorePath: String? = System.getenv("KEYSTORE_PATH") 
+    ?: findProperty("KEYSTORE_PATH") as String?
+    ?: if (File("${rootDir}/keystore.jks").exists()) "${rootDir}/keystore.jks" else null
+
+val keystorePassword: String? = System.getenv("KEYSTORE_PASSWORD") 
+    ?: findProperty("KEYSTORE_PASSWORD") as String?
+    
+val keyAlias: String? = System.getenv("KEY_ALIAS") 
+    ?: findProperty("KEY_ALIAS") as String?
+    
+val keyPassword: String? = System.getenv("KEY_PASSWORD") 
+    ?: findProperty("KEY_PASSWORD") as String?
+
+val hasSigningConfig = keystorePath != null && keystorePassword != null 
+    && keyAlias != null && keyPassword != null
+
 android {
     namespace = "com.aiexile.animetrack"
     compileSdk = 34
@@ -21,13 +37,27 @@ android {
         }
     }
 
+    if (hasSigningConfig) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword!!
+                keyAlias = keyAlias!!
+                keyPassword = keyPassword!!
+            }
+        }
+    }
+
     buildTypes {
-        release {
-            isMinifyEnabled = false
+        getByName("release") {
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {

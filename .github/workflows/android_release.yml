@@ -26,18 +26,30 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      # 第一步：把 Secrets 里的 Base64 还原成密钥文件
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
 
+      # 第二步：运行正式打包命令，并传入环境变量
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_PATH: ../keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # 第三步：重命名 APK（注意路径变成了 release）
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/AnimeTrack-${{ github.ref_name }}.apk
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
 
+      # 第四步：发布到 Release 页面
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: AnimeTrack ${{ github.ref_name }}
-          files: app/build/outputs/apk/debug/AnimeTrack-${{ github.ref_name }}.apk
+          files: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
