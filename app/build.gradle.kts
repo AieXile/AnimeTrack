@@ -4,21 +4,17 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val keystorePath: String? = System.getenv("KEYSTORE_PATH") 
-    ?: findProperty("KEYSTORE_PATH") as String?
-    ?: if (File("${rootDir}/keystore.jks").exists()) "${rootDir}/keystore.jks" else null
+val ksPath: String? = System.getenv("KEYSTORE_PATH") 
+    ?: project.findProperty("KEYSTORE_PATH")?.toString()
+val ksPass: String? = System.getenv("KEYSTORE_PASSWORD") 
+    ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
+val kAlias: String? = System.getenv("KEY_ALIAS") 
+    ?: project.findProperty("KEY_ALIAS")?.toString()
+val kPass: String? = System.getenv("KEY_PASSWORD") 
+    ?: project.findProperty("KEY_PASSWORD")?.toString()
 
-val keystorePassword: String? = System.getenv("KEYSTORE_PASSWORD") 
-    ?: findProperty("KEYSTORE_PASSWORD") as String?
-    
-val keyAlias: String? = System.getenv("KEY_ALIAS") 
-    ?: findProperty("KEY_ALIAS") as String?
-    
-val keyPassword: String? = System.getenv("KEY_PASSWORD") 
-    ?: findProperty("KEY_PASSWORD") as String?
-
-val hasSigningConfig = keystorePath != null && keystorePassword != null 
-    && keyAlias != null && keyPassword != null
+val isSigningReady = !ksPath.isNullOrBlank() && !ksPass.isNullOrBlank() 
+    && !kAlias.isNullOrBlank() && !kPass.isNullOrBlank()
 
 android {
     namespace = "com.aiexile.animetrack"
@@ -37,13 +33,13 @@ android {
         }
     }
 
-    if (hasSigningConfig) {
-        signingConfigs {
+    signingConfigs {
+        if (isSigningReady) {
             create("release") {
-                storeFile = file(keystorePath!!)
-                storePassword = keystorePassword!!
-                keyAlias = keyAlias!!
-                keyPassword = keyPassword!!
+                storeFile = project.rootProject.file(ksPath!!)
+                storePassword = ksPass
+                keyAlias = kAlias
+                keyPassword = kPass
             }
         }
     }
@@ -55,7 +51,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (hasSigningConfig) {
+            if (isSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
