@@ -43,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -113,19 +114,12 @@ fun SettingsScreen(
             importResult = importResult!!,
             duplicateCount = duplicateCount,
             onConfirm = {
-                snackbarHostState.currentSnackbarData?.dismiss()
-                pendingContent?.let { content ->
-                    viewModel.importAnimesAndSync(content)
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = "正在后台自动补全封面信息...",
-                            duration = SnackbarDuration.Short
-                        )
-                    }
-                }
+                val content = pendingContent
                 importResult = null
                 duplicateCount = 0
                 pendingContent = null
+                viewModel.resetImportState()
+                content?.let { viewModel.importAnimesAndSync(it) }
             },
             onDismiss = {
                 importResult = null
@@ -134,6 +128,21 @@ fun SettingsScreen(
                 viewModel.resetImportState()
             }
         )
+    }
+    
+    LaunchedEffect(uiState.syncCompleted) {
+        if (uiState.syncCompleted) {
+            val message = if (uiState.syncedCount > 0) {
+                "已成功补全 ${uiState.syncedCount} 个番剧封面"
+            } else {
+                "导入完成，无封面需要补全"
+            }
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.resetSyncCompleted()
+        }
     }
     
     if (showImportGuide) {

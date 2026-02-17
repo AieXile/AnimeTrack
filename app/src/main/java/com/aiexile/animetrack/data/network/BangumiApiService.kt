@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.data.network
 
+import com.google.gson.annotations.SerializedName
 import retrofit2.http.Body
 import retrofit2.http.POST
 
@@ -23,12 +24,22 @@ data class BangumiRating(
     val rank: Int = 0
 )
 
+data class BangumiImages(
+    val large: String?,
+    val common: String?,
+    val medium: String?,
+    val small: String?,
+    val grid: String?
+)
+
 data class BangumiSubject(
     val id: Int,
     val name: String,
+    @SerializedName("name_cn")
     val name_cn: String?,
-    val image: String?,
+    val images: BangumiImages?,
     val eps: Int?,
+    @SerializedName("total_episodes")
     val total_episodes: Int?,
     val rating: BangumiRating?
 ) {
@@ -36,7 +47,7 @@ data class BangumiSubject(
         get() = if (!name_cn.isNullOrBlank()) name_cn else name
     
     val coverUrl: String?
-        get() = image
+        get() = images?.large ?: images?.common ?: images?.medium
     
     val score: Double?
         get() = rating?.score

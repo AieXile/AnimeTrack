@@ -25,7 +25,8 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val syncProgress: String? = null,
     val syncedCount: Int = 0,
-    val totalToSync: Int = 0
+    val totalToSync: Int = 0,
+    val syncCompleted: Boolean = false
 )
 
 class SettingsViewModel(
@@ -87,98 +88,131 @@ class SettingsViewModel(
             val result = MarkdownParser.parse(content)
             val animesToInsert = mutableListOf<Anime>()
             
+            Log.d(TAG, "Parsed ${result.animes.size} animes from markdown")
+            
             for (parsed in result.animes) {
                 val existing = animeRepository.getAnimeByTitle(parsed.title)
                 if (existing == null) {
                     animesToInsert.add(MarkdownParser.toAnimeEntity(parsed))
+                } else {
+                    Log.d(TAG, "Skipping duplicate: ${parsed.title}")
                 }
             }
             
-            if (animesToInsert.isNotEmpty()) {
-                animeRepository.insertAnimes(animesToInsert)
+            Log.d(TAG, "Inserting ${animesToInsert.size} new animes")
+            
+            val insertedAnimes = mutableListOf<Anime>()
+            for (anime in animesToInsert) {
+                val id = animeRepository.insertAnime(anime)
+                insertedAnimes.add(anime.copy(id = id.toInt()))
+                Log.d(TAG, "Inserted: ${anime.title} with id=$id")
             }
             
             _uiState.value = _uiState.value.copy(isImporting = false)
             
-            autoSyncAnimeCovers()
+            doAutoSyncAnimeCovers(insertedAnimes)
         }
+    }
+    
+    private suspend fun doAutoSyncAnimeCovers(animesToSync: List<Anime> = emptyList()) {
+        val animesWithoutCover = if (animesToSync.isNotEmpty()) {
+            animesToSync
+        } else {
+            animeRepository.getAnimesWithoutCover()
+        }
+        
+        Log.d(TAG, "Found ${animesWithoutCover.size} animes without cover")
+        
+        if (animesWithoutCover.isEmpty()) {
+            return
+        }
+        
+        _uiState.value = _uiState.value.copy(
+            isSyncing = true,
+            totalToSync = animesWithoutCover.size,
+            syncedCount = 0,
+            syncProgress = null
+        )
+        
+        var syncedCount = 0
+        
+        try {
+            for (anime in animesWithoutCover) {
+                try {
+                    _uiState.value = _uiState.value.copy(
+                        syncProgress = "正在补全: ${anime.title}"
+                    )
+                    
+                    val (cleanTitle, extractedNote) = cleanTitleAndExtractNote(anime.title)
+                    
+                    Log.d(TAG, "Searching for: $cleanTitle")
+                    
+                    val response = RetrofitClient.bangumiApi.searchSubjects(
+                        BangumiSearchRequest(
+                            keyword = cleanTitle,
+                            type = listOf(2),
+                            limit = 10
+                        )
+                    )
+                    
+                    Log.d(TAG, "API returned ${response.data.size} results for: $cleanTitle")
+                    
+                    if (response.data.isNotEmpty()) {
+                        Log.d(TAG, "First result: ${response.data[0].name}, coverUrl: ${response.data[0].coverUrl}")
+                    }
+                    
+                    val bestMatch = response.data
+                        .sortedWith(
+                            compareByDescending<BangumiSubject> {
+                                (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
+                            }.thenByDescending {
+                                !it.name_cn.isNullOrBlank()
+                            }
+                        )
+                        .firstOrNull()
+                    
+                    if (bestMatch != null) {
+                        val updatedAnime = anime.copy(
+                            title = cleanTitle,
+                            coverUrl = bestMatch.coverUrl,
+                            rating = bestMatch.score?.toFloat(),
+                            totalEpisodes = bestMatch.episodeCount ?: anime.totalEpisodes,
+                            notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
+                        )
+                        
+                        animeRepository.updateAnime(updatedAnime)
+                        syncedCount++
+                        
+                        Log.d(TAG, "Synced cover for: ${anime.title} -> ${bestMatch.coverUrl}")
+                    } else {
+                        Log.d(TAG, "No match found for: ${anime.title}")
+                    }
+                    
+                    _uiState.value = _uiState.value.copy(syncedCount = syncedCount)
+                    
+                    delay(API_DELAY_MS)
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync cover for: ${anime.title}", e)
+                }
+            }
+        } finally {
+            _uiState.value = _uiState.value.copy(
+                isSyncing = false,
+                syncProgress = null,
+                syncCompleted = true
+            )
+            Log.d(TAG, "Auto sync completed. Synced $syncedCount/${animesWithoutCover.size} animes")
+        }
+    }
+    
+    fun resetSyncCompleted() {
+        _uiState.value = _uiState.value.copy(syncCompleted = false)
     }
     
     fun autoSyncAnimeCovers() {
         viewModelScope.launch {
-            val animesWithoutCover = animeRepository.getAnimesWithoutCover()
-            
-            if (animesWithoutCover.isEmpty()) {
-                Log.d(TAG, "No animes without cover to sync")
-                return@launch
-            }
-            
-            _uiState.value = _uiState.value.copy(
-                isSyncing = true,
-                totalToSync = animesWithoutCover.size,
-                syncedCount = 0,
-                syncProgress = null
-            )
-            
-            var syncedCount = 0
-            
-            try {
-                for (anime in animesWithoutCover) {
-                    try {
-                        _uiState.value = _uiState.value.copy(
-                            syncProgress = "正在补全: ${anime.title}"
-                        )
-                        
-                        val (cleanTitle, extractedNote) = cleanTitleAndExtractNote(anime.title)
-                        
-                        val response = RetrofitClient.bangumiApi.searchSubjects(
-                            BangumiSearchRequest(
-                                keyword = cleanTitle,
-                                type = listOf(2),
-                                limit = 10
-                            )
-                        )
-                        
-                        val bestMatch = response.data
-                            .sortedWith(
-                                compareByDescending<BangumiSubject> {
-                                    (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
-                                }.thenByDescending {
-                                    !it.name_cn.isNullOrBlank()
-                                }
-                            )
-                            .firstOrNull()
-                        
-                        if (bestMatch != null) {
-                            val updatedAnime = anime.copy(
-                                title = cleanTitle,
-                                coverUrl = bestMatch.coverUrl,
-                                rating = bestMatch.score?.toFloat(),
-                                totalEpisodes = bestMatch.episodeCount ?: anime.totalEpisodes,
-                                notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
-                            )
-                            
-                            animeRepository.updateAnime(updatedAnime)
-                            syncedCount++
-                            
-                            Log.d(TAG, "Synced cover for: ${anime.title}")
-                        }
-                        
-                        _uiState.value = _uiState.value.copy(syncedCount = syncedCount)
-                        
-                        delay(API_DELAY_MS)
-                        
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to sync cover for: ${anime.title}", e)
-                    }
-                }
-            } finally {
-                _uiState.value = _uiState.value.copy(
-                    isSyncing = false,
-                    syncProgress = null
-                )
-                Log.d(TAG, "Auto sync completed. Synced $syncedCount/${animesWithoutCover.size} animes")
-            }
+            doAutoSyncAnimeCovers()
         }
     }
     
@@ -206,7 +240,10 @@ class SettingsViewModel(
     }
     
     fun resetImportState() {
-        _uiState.value = SettingsUiState()
+        _uiState.value = _uiState.value.copy(
+            importResult = null,
+            duplicateCount = 0
+        )
     }
     
     class Factory : ViewModelProvider.Factory {
