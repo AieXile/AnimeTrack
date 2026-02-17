@@ -1,9 +1,7 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -81,19 +79,13 @@ fun AnimeCard(
     
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.5f,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = tween(durationMillis = 150),
         label = "scale"
     )
     
     val elevation by animateDpAsState(
         targetValue = if (isSelected) 0.dp else 4.dp,
-        animationSpec = spring(
-            dampingRatio = 0.5f,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = tween(durationMillis = 150),
         label = "elevation"
     )
     

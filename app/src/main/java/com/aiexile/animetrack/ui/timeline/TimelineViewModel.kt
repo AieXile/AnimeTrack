@@ -54,7 +54,7 @@ class TimelineViewModel(
             .map { animeList -> animeList.filter { it.status == AnimeStatus.WATCHING } }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Eagerly,
+                started = SharingStarted.Lazily,
                 initialValue = emptyList()
             )
         
@@ -62,7 +62,7 @@ class TimelineViewModel(
             .map { animeList -> groupAnimeByMonth(animeList) }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Eagerly,
+                started = SharingStarted.Lazily,
                 initialValue = emptyList()
             )
     }

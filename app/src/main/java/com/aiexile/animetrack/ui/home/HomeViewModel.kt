@@ -55,22 +55,16 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     
-    private val _allAnimes = repository.getAllAnimes()
+    val animeList: StateFlow<List<Anime>> = repository.getAllAnimes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.Lazily,
             initialValue = emptyList()
         )
     
-    val animeList: StateFlow<List<Anime>> = _allAnimes
-    
     init {
-        observeAnimeList()
-    }
-    
-    private fun observeAnimeList() {
         viewModelScope.launch {
-            _allAnimes.collect { animes ->
+            animeList.collect { animes ->
                 Log.d(TAG, "Database changed, anime count: ${animes.size}")
                 _uiState.update { it.copy(isLoading = false) }
             }

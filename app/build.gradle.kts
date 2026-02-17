@@ -12,8 +12,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "v1.1.0-alpha"
+        versionCode = 4
+        versionName = "v0.1.5-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -4,15 +4,15 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "com.animetrack",
+  "applicationId": "com.aiexile.animetrack",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 3,
-      "versionName": "1.1.0-alpha",
+      "versionCode": 4,
+      "versionName": "v0.1.5-alpha",
       "outputFile": "app-release.apk"
     }
   ],

@@ -4,34 +4,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
@@ -41,6 +37,8 @@ import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,141 +57,79 @@ class MainActivity : ComponentActivity() {
             }
             
             AnimeTrackTheme(darkTheme = darkTheme) {
-                AnimeTrackNavHost(themeViewModel = themeViewModel)
+                AnimeTrackApp(themeViewModel = themeViewModel)
             }
         }
     }
 }
 
-private val mainRoutes = listOf("home", "favorites", "timeline", "settings")
+private val mainPages = listOf(
+    MainPage("home", "首页"),
+    MainPage("favorites", "收藏"),
+    MainPage("timeline", "时间线"),
+    MainPage("settings", "设置")
+)
 
-private fun getRouteIndex(route: String?): Int {
-    if (route == null) return -1
-    return mainRoutes.indexOf(route).takeIf { it >= 0 } ?: Int.MAX_VALUE
+private data class MainPage(val route: String, val title: String)
+
+sealed class Screen {
+    data class Main(val pageIndex: Int) : Screen()
+    data object About : Screen()
 }
 
-private fun isMainRoute(route: String?): Boolean {
-    return route in mainRoutes
-}
-
-private const val ANIM_DURATION = 300
-
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AnimeTrackNavHost(
-    themeViewModel: ThemeViewModel,
-    navController: NavHostController = rememberNavController()
+fun AnimeTrackApp(
+    themeViewModel: ThemeViewModel
 ) {
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStackEntry?.destination?.route
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Main(0)) }
+    val pagerState = rememberPagerState(pageCount = { mainPages.size })
+    val scope = rememberCoroutineScope()
     
     Box(modifier = Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = "home",
-            enterTransition = {
-                if (isMainRoute(initialState.destination.route) && isMainRoute(targetState.destination.route)) {
-                    val initialIndex = getRouteIndex(initialState.destination.route)
-                    val targetIndex = getRouteIndex(targetState.destination.route)
+        when (val screen = currentScreen) {
+            is Screen.Main -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        beyondBoundsPageCount = 1
+                    ) { page ->
+                        when (mainPages[page].route) {
+                            "home" -> HomeScreen(
+                                themeViewModel = themeViewModel,
+                                showBottomBar = false,
+                                onNavigate = { }
+                            )
+                            "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
+                            "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
+                            "settings" -> SettingsScreen(
+                                showBottomBar = false,
+                                onNavigateAbout = { currentScreen = Screen.About },
+                                onNavigate = { }
+                            )
+                        }
+                    }
                     
-                    if (targetIndex > initialIndex) {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(ANIM_DURATION))
-                    } else {
-                        slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(ANIM_DURATION))
-                    }
-                } else {
-                    fadeIn(animationSpec = tween(ANIM_DURATION))
-                }
-            },
-            exitTransition = {
-                if (isMainRoute(initialState.destination.route) && isMainRoute(targetState.destination.route)) {
-                    val initialIndex = getRouteIndex(initialState.destination.route)
-                    val targetIndex = getRouteIndex(targetState.destination.route)
-                    
-                    if (targetIndex > initialIndex) {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(ANIM_DURATION))
-                    } else {
-                        slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(ANIM_DURATION))
-                    }
-                } else {
-                    fadeOut(animationSpec = tween(ANIM_DURATION))
-                }
-            },
-            popEnterTransition = {
-                if (isMainRoute(initialState.destination.route) && isMainRoute(targetState.destination.route)) {
-                    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(ANIM_DURATION))
-                } else {
-                    fadeIn(animationSpec = tween(ANIM_DURATION))
-                }
-            },
-            popExitTransition = {
-                if (isMainRoute(initialState.destination.route) && isMainRoute(targetState.destination.route)) {
-                    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(ANIM_DURATION))
-                } else {
-                    fadeOut(animationSpec = tween(ANIM_DURATION))
+                    BottomNavigationBar(
+                        currentRoute = mainPages[pagerState.currentPage].route,
+                        onNavigate = { route ->
+                            val targetIndex = mainPages.indexOfFirst { it.route == route }
+                            if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(targetIndex)
+                                }
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
                 }
             }
-        ) {
-            composable("home") {
-                HomeScreen(
-                    themeViewModel = themeViewModel,
-                    showBottomBar = true,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-            composable("favorites") {
-                PlaceholderScreen(
-                    title = "收藏",
-                    showBottomBar = true
-                )
-            }
-            composable("timeline") {
-                TimelineScreen(
-                    showBottomBar = true,
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-            composable("settings") {
-                SettingsScreen(
-                    showBottomBar = true,
-                    onNavigateAbout = { navController.navigate("about") },
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-            composable("about") {
+            is Screen.About -> {
                 AboutScreen(
-                    onBack = { navController.popBackStack() }
+                    onBack = { currentScreen = Screen.Main(3) }
                 )
             }
-        }
-        
-        if (isMainRoute(currentRoute)) {
-            BottomNavigationBar(
-                currentRoute = currentRoute ?: "home",
-                onNavigate = { route ->
-                    if (currentRoute != route) {
-                        navController.navigate(route) {
-                            popUpTo("home") { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
         }
     }
 }
