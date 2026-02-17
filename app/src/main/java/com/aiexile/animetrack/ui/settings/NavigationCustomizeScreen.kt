@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +31,8 @@ fun NavigationCustomizeScreen(
     themeViewModel: ThemeViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+    
     val showFavorites by themeViewModel.showFavorites.collectAsState()
     val showTimeline by themeViewModel.showTimeline.collectAsState()
     
@@ -51,8 +55,9 @@ fun NavigationCustomizeScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },

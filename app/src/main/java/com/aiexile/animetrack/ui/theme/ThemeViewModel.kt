@@ -6,14 +6,23 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ThemeViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+    
+    private val _isPagerScrollEnabled = MutableStateFlow(true)
+    val isPagerScrollEnabled: StateFlow<Boolean> = _isPagerScrollEnabled.asStateFlow()
+    
+    fun setPagerScrollEnabled(enabled: Boolean) {
+        _isPagerScrollEnabled.value = enabled
+    }
     
     val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode
         .stateIn(

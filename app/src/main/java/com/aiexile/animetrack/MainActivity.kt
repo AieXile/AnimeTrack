@@ -82,6 +82,7 @@ fun AnimeTrackApp(
 ) {
     val showFavorites by themeViewModel.showFavorites.collectAsState()
     val showTimeline by themeViewModel.showTimeline.collectAsState()
+    val isPagerScrollEnabled by themeViewModel.isPagerScrollEnabled.collectAsState()
     
     val mainPages = remember(showFavorites, showTimeline) {
         buildMainPages(showFavorites, showTimeline)
@@ -96,16 +97,36 @@ fun AnimeTrackApp(
     Box(modifier = Modifier.fillMaxSize()) {
         when (val screen = currentScreen) {
             is Screen.Main -> {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Scaffold(
+                    bottomBar = {
+                        BottomNavigationBar(
+                            currentRoute = mainPages.getOrNull(pagerState.targetPage)?.route ?: "home",
+                            visiblePages = mainPages.map { it.route },
+                            onNavigate = { route ->
+                                val targetIndex = mainPages.indexOfFirst { it.route == route }
+                                if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
+                                    scope.launch {
+                                        pagerState.animateScrollToPage(targetIndex)
+                                    }
+                                }
+                            }
+                        )
+                    },
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) { paddingValues ->
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        beyondBoundsPageCount = 1
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = paddingValues.calculateBottomPadding()),
+                        beyondBoundsPageCount = 1,
+                        userScrollEnabled = isPagerScrollEnabled
                     ) { page ->
                         when (mainPages.getOrNull(page)?.route) {
                             "home" -> HomeScreen(
                                 showBottomBar = false,
-                                onNavigate = { }
+                                onNavigate = { },
+                                themeViewModel = themeViewModel
                             )
                             "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
                             "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
@@ -127,20 +148,6 @@ fun AnimeTrackApp(
                             )
                         }
                     }
-                    
-                    BottomNavigationBar(
-                        currentRoute = mainPages.getOrNull(pagerState.currentPage)?.route ?: "home",
-                        visiblePages = mainPages.map { it.route },
-                        onNavigate = { route ->
-                            val targetIndex = mainPages.indexOfFirst { it.route == route }
-                            if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(targetIndex)
-                                }
-                            }
-                        },
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
                 }
             }
             is Screen.About -> {

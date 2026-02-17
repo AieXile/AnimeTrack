@@ -594,6 +594,156 @@ public final class AnimeDao_Impl implements AnimeDao {
     });
   }
 
+  @Override
+  public Object getAnimeByTitle(final String title, final Continuation<? super Anime> $completion) {
+    final String _sql = "SELECT * FROM anime WHERE title = ? LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    _statement.bindString(_argIndex, title);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<Anime>() {
+      @Override
+      @Nullable
+      public Anime call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfTitle = CursorUtil.getColumnIndexOrThrow(_cursor, "title");
+          final int _cursorIndexOfTotalEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "totalEpisodes");
+          final int _cursorIndexOfWatchedEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "watchedEpisodes");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfRating = CursorUtil.getColumnIndexOrThrow(_cursor, "rating");
+          final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
+          final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
+          final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
+          final Anime _result;
+          if (_cursor.moveToFirst()) {
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final String _tmpTitle;
+            _tmpTitle = _cursor.getString(_cursorIndexOfTitle);
+            final int _tmpTotalEpisodes;
+            _tmpTotalEpisodes = _cursor.getInt(_cursorIndexOfTotalEpisodes);
+            final int _tmpWatchedEpisodes;
+            _tmpWatchedEpisodes = _cursor.getInt(_cursorIndexOfWatchedEpisodes);
+            final AnimeStatus _tmpStatus;
+            final String _tmp;
+            _tmp = _cursor.getString(_cursorIndexOfStatus);
+            _tmpStatus = __animeTypeConverters.toAnimeStatus(_tmp);
+            final Float _tmpRating;
+            if (_cursor.isNull(_cursorIndexOfRating)) {
+              _tmpRating = null;
+            } else {
+              _tmpRating = _cursor.getFloat(_cursorIndexOfRating);
+            }
+            final String _tmpNotes;
+            _tmpNotes = _cursor.getString(_cursorIndexOfNotes);
+            final Long _tmpStartDate;
+            if (_cursor.isNull(_cursorIndexOfStartDate)) {
+              _tmpStartDate = null;
+            } else {
+              _tmpStartDate = _cursor.getLong(_cursorIndexOfStartDate);
+            }
+            final Long _tmpFinishDate;
+            if (_cursor.isNull(_cursorIndexOfFinishDate)) {
+              _tmpFinishDate = null;
+            } else {
+              _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
+            }
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object getAnimesWithoutCover(final Continuation<? super List<Anime>> $completion) {
+    final String _sql = "SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<Anime>>() {
+      @Override
+      @NonNull
+      public List<Anime> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfTitle = CursorUtil.getColumnIndexOrThrow(_cursor, "title");
+          final int _cursorIndexOfTotalEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "totalEpisodes");
+          final int _cursorIndexOfWatchedEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "watchedEpisodes");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfRating = CursorUtil.getColumnIndexOrThrow(_cursor, "rating");
+          final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
+          final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
+          final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
+          final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final Anime _item;
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final String _tmpTitle;
+            _tmpTitle = _cursor.getString(_cursorIndexOfTitle);
+            final int _tmpTotalEpisodes;
+            _tmpTotalEpisodes = _cursor.getInt(_cursorIndexOfTotalEpisodes);
+            final int _tmpWatchedEpisodes;
+            _tmpWatchedEpisodes = _cursor.getInt(_cursorIndexOfWatchedEpisodes);
+            final AnimeStatus _tmpStatus;
+            final String _tmp;
+            _tmp = _cursor.getString(_cursorIndexOfStatus);
+            _tmpStatus = __animeTypeConverters.toAnimeStatus(_tmp);
+            final Float _tmpRating;
+            if (_cursor.isNull(_cursorIndexOfRating)) {
+              _tmpRating = null;
+            } else {
+              _tmpRating = _cursor.getFloat(_cursorIndexOfRating);
+            }
+            final String _tmpNotes;
+            _tmpNotes = _cursor.getString(_cursorIndexOfNotes);
+            final Long _tmpStartDate;
+            if (_cursor.isNull(_cursorIndexOfStartDate)) {
+              _tmpStartDate = null;
+            } else {
+              _tmpStartDate = _cursor.getLong(_cursorIndexOfStartDate);
+            }
+            final Long _tmpFinishDate;
+            if (_cursor.isNull(_cursorIndexOfFinishDate)) {
+              _tmpFinishDate = null;
+            } else {
+              _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
+            }
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
   @NonNull
   public static List<Class<?>> getRequiredConverters() {
     return Collections.emptyList();

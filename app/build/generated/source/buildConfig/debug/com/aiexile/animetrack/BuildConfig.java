@@ -7,6 +7,6 @@ public final class BuildConfig {
   public static final boolean DEBUG = Boolean.parseBoolean("true");
   public static final String APPLICATION_ID = "com.aiexile.animetrack";
   public static final String BUILD_TYPE = "debug";
-  public static final int VERSION_CODE = 4;
-  public static final String VERSION_NAME = "v0.1.5-alpha";
+  public static final int VERSION_CODE = 6;
+  public static final String VERSION_NAME = "v0.2.0-alpha";
 }

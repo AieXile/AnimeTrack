@@ -212,13 +212,24 @@ class HomeViewModel(
             AnimeFilter.HIGH_RATED -> animeList.filter { (it.rating ?: 0f) >= 4.5f }
         }
         
-        return if (filter == AnimeFilter.ALL) {
-            filtered.sortedWith(
-                compareBy<Anime> { it.status != AnimeStatus.WATCHING }
-                    .thenByDescending { it.startDate ?: Long.MIN_VALUE }
-            )
-        } else {
-            filtered.sortedByDescending { it.startDate ?: Long.MIN_VALUE }
+        return when (filter) {
+            AnimeFilter.ALL -> {
+                filtered.sortedWith(
+                    compareBy<Anime> { it.status != AnimeStatus.WATCHING }
+                        .thenByDescending { anime ->
+                            when (anime.status) {
+                                AnimeStatus.COMPLETED -> anime.finishDate ?: Long.MIN_VALUE
+                                else -> anime.startDate ?: Long.MIN_VALUE
+                            }
+                        }
+                )
+            }
+            AnimeFilter.COMPLETED -> {
+                filtered.sortedByDescending { it.finishDate ?: Long.MIN_VALUE }
+            }
+            else -> {
+                filtered.sortedByDescending { it.startDate ?: Long.MIN_VALUE }
+            }
         }
     }
     
@@ -245,10 +256,18 @@ class HomeViewModel(
                     )
                 )
                 
-                Log.d(TAG, "Search results: ${response.data.size} items")
+                val sortedResults = response.data.sortedWith(
+                    compareByDescending<BangumiSubject> {
+                        (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
+                    }.thenByDescending {
+                        !it.name_cn.isNullOrBlank()
+                    }
+                )
+                
+                Log.d(TAG, "Search results: ${sortedResults.size} items")
                 _uiState.update { 
                     it.copy(
-                        searchResults = response.data,
+                        searchResults = sortedResults,
                         isSearching = false
                     )
                 }

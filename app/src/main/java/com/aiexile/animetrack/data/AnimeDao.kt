@@ -42,4 +42,10 @@ interface AnimeDao {
     
     @Query("DELETE FROM anime")
     suspend fun deleteAllAnimes()
+    
+    @Query("SELECT * FROM anime WHERE title = :title LIMIT 1")
+    suspend fun getAnimeByTitle(title: String): Anime?
+    
+    @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
+    suspend fun getAnimesWithoutCover(): List<Anime>
 }

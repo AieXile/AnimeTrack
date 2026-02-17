@@ -39,7 +39,7 @@ class SettingsRepository(private val context: Context) {
     
     val showFavorites: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
-            preferences[SHOW_FAVORITES_KEY] ?: true
+            preferences[SHOW_FAVORITES_KEY] ?: false
         }
     
     val showTimeline: Flow<Boolean> = context.dataStore.data

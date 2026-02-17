@@ -4,7 +4,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,6 +74,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -84,6 +87,7 @@ import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.theme.Primary
+import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -92,7 +96,8 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory()),
     showBottomBar: Boolean = true,
-    onNavigate: (String) -> Unit = {}
+    onNavigate: (String) -> Unit = {},
+    themeViewModel: ThemeViewModel? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
@@ -202,7 +207,8 @@ fun HomeScreen(
         ) {
             FilterBar(
                 selectedFilter = uiState.selectedFilter,
-                onFilterSelected = { viewModel.setFilter(it) }
+                onFilterSelected = { viewModel.setFilter(it) },
+                themeViewModel = themeViewModel
             )
             
             if (filteredAnimeList.isEmpty()) {
@@ -501,12 +507,23 @@ private fun SearchResultItem(
 private fun FilterBar(
     selectedFilter: AnimeFilter,
     onFilterSelected: (AnimeFilter) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    themeViewModel: ThemeViewModel? = null
 ) {
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .pointerInput(themeViewModel) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                        themeViewModel?.setPagerScrollEnabled(false)
+                        waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                        themeViewModel?.setPagerScrollEnabled(true)
+                    }
+                }
+            },
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(AnimeFilter.entries) { filter ->

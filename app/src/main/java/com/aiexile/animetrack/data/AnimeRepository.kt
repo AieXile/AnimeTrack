@@ -20,6 +20,12 @@ interface AnimeRepository {
     suspend fun updateAnime(anime: Anime)
     
     suspend fun deleteAnime(anime: Anime)
+    
+    suspend fun getAnimeByTitle(title: String): Anime?
+    
+    suspend fun insertAnimes(animes: List<Anime>)
+    
+    suspend fun getAnimesWithoutCover(): List<Anime>
 }
 
 class AnimeRepositoryImpl(
@@ -60,5 +66,17 @@ class AnimeRepositoryImpl(
     
     override suspend fun deleteAnime(anime: Anime) {
         animeDao.deleteAnime(anime)
+    }
+    
+    override suspend fun getAnimeByTitle(title: String): Anime? {
+        return animeDao.getAnimeByTitle(title)
+    }
+    
+    override suspend fun insertAnimes(animes: List<Anime>) {
+        animeDao.insertAnimes(animes)
+    }
+    
+    override suspend fun getAnimesWithoutCover(): List<Anime> {
+        return animeDao.getAnimesWithoutCover()
     }
 }
