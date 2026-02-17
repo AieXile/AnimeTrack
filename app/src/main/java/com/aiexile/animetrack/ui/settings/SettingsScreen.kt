@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -28,6 +30,8 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 fun SettingsScreen(
     showBottomBar: Boolean = true,
     onNavigateAbout: () -> Unit,
+    onNavigateCustomize: () -> Unit = {},
+    onNavigateTheme: () -> Unit = {},
     onNavigate: (String) -> Unit = {}
 ) {
     Scaffold(
@@ -62,6 +66,56 @@ fun SettingsScreen(
                 .padding(paddingValues)
         ) {
             LazyColumn {
+                item {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = "外观设置",
+                                fontSize = 16.sp
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        modifier = Modifier.clickable { onNavigateTheme() }
+                    )
+                }
+                item {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = "定制导航栏",
+                                fontSize = 16.sp
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Navigation,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        modifier = Modifier.clickable { onNavigateCustomize() }
+                    )
+                }
                 item {
                     ListItem(
                         headlineContent = {

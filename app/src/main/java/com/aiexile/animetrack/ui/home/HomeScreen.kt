@@ -36,10 +36,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material3.Button
@@ -83,12 +80,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
-import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.theme.Primary
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -96,13 +91,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory()),
-    themeViewModel: ThemeViewModel,
     showBottomBar: Boolean = true,
     onNavigate: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
-    val themeMode by themeViewModel.themeMode.collectAsState()
     val filteredAnimeList = remember(animeList, uiState.selectedFilter) {
         viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter)
     }
@@ -141,18 +134,6 @@ fun HomeScreen(
         }
     }
     
-    val themeIcon = when (themeMode) {
-        ThemeMode.SYSTEM -> Icons.Filled.Settings
-        ThemeMode.LIGHT -> Icons.Filled.LightMode
-        ThemeMode.DARK -> Icons.Filled.DarkMode
-    }
-    
-    val themeDescription = when (themeMode) {
-        ThemeMode.SYSTEM -> "跟随系统"
-        ThemeMode.LIGHT -> "亮色模式"
-        ThemeMode.DARK -> "暗色模式"
-    }
-    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -171,14 +152,6 @@ fun HomeScreen(
                             text = "AnimeTrack",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Medium
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { themeViewModel.cycleThemeMode() }) {
-                        Icon(
-                            imageVector = themeIcon,
-                            contentDescription = themeDescription
                         )
                     }
                 },

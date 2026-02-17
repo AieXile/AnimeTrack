@@ -83,6 +83,7 @@ val bottomNavItems = listOf(
 fun BottomNavigationBar(
     currentRoute: String,
     onNavigate: (String) -> Unit,
+    visiblePages: List<String> = listOf("home", "favorites", "timeline", "settings"),
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -98,6 +99,8 @@ fun BottomNavigationBar(
             tonalElevation = 0.dp
         ) {
             bottomNavItems.forEach { item ->
+                if (item.route !in visiblePages) return@forEach
+                
                 val selected = currentRoute == item.route
                 
                 NavigationBarItem(

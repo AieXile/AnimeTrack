@@ -37,6 +37,32 @@ class ThemeViewModel(
         setThemeMode(nextMode)
     }
     
+    val showFavorites: StateFlow<Boolean> = settingsRepository.showFavorites
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+    
+    val showTimeline: StateFlow<Boolean> = settingsRepository.showTimeline
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+    
+    fun setShowFavorites(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowFavorites(show)
+        }
+    }
+    
+    fun setShowTimeline(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowTimeline(show)
+        }
+    }
+    
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
