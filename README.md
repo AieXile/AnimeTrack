@@ -13,11 +13,22 @@
 ## ✨ 核心特性
 
 * **🎨 Bangumi自动搜索获取封面图**
-* **🖐️ 灵动交互逻辑**：
-    * **长按卡片**：触发缩放动画与触感反馈，快速开启管理模式。
-    * **空白取消**：符合直觉的点击逻辑，随时快速退出编辑状态。
+* **🖐️ 支持MD文件导入**
 * **📊 进度管理**：清晰的番剧卡片设计，支持快速标记“想看”、“在看”及“已看”状态。
 * **📅 时间轴视图**：结构化的番剧更新追踪（正在完善中）。
+
+## 📱 应用截图
+
+<table style="width: 100%">
+  <tr>
+    <td width="50%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
+    <td width="50%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
+    <td width="50%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
+  </tr>
+</table>
 
 ## 🚀 快速开始
 
