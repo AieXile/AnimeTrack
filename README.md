@@ -21,22 +21,22 @@
 
 ## 应用截图
 
-<table style="width: 100%; text-align: center;">
+<table style="width: 75%; margin: 0 auto; text-align: center;">
   <!-- 第一行：4张图 -->
   <tr>
-    <td width="35%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
-    <td width="35%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
-    <td width="35%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
-    <td width="35%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
+    <td width="40%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
+    <td width="40%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
+    <td width="40%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
   </tr>
 </table>
 
 <!-- 第二行单独用一个居中的表格放 3 张图，保持宽度一致 -->
-<table style="width: 75%; margin: 0 auto; text-align: center;">
+<table style="width: 100%; text-align: center;">
   <tr>
-    <td width="33%"><img src="assets/Screenshot5.png" alt="截图5"></td>
-    <td width="33%"><img src="assets/Screenshot6.png" alt="截图6"></td>
-    <td width="33%"><img src="assets/Screenshot7.png" alt="截图7"></td>
+    <td width="30%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
+    <td width="30%"><img src="assets/Screenshot5.png" alt="截图5"></td>
+    <td width="30%"><img src="assets/Screenshot6.png" alt="截图6"></td>
+    <td width="30%"><img src="assets/Screenshot7.png" alt="截图7"></td>
   </tr>
 </table>
 
