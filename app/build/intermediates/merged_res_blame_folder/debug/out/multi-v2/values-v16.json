@@ -1,16 +1,17 @@
 {
     "logs": [
         {
-            "outputFile": "com.aiexile.animetrack.app-mergeDebugResources-57:/values-v16/values-v16.xml",
+            "outputFile": "com.aiexile.animetrack.app-mergeDebugResources-72:/values-v16/values-v16.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\06f75e456b3862ee0969414d0cb835aa\\transformed\\core-1.12.0\\res\\values-v16\\values-v16.xml",
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\c86d2563f4dbdb568b52fc6376d54b72\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
                         "startOffsets": "55",
-                        "endColumns": "65",
-                        "endOffsets": "116"
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "223"
                     }
                 }
             ]

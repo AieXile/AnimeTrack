@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,13 +26,13 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -39,8 +41,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,16 +53,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.ImportPreviewDialog
+import androidx.compose.foundation.layout.WindowInsets
+
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,9 +75,11 @@ fun SettingsScreen(
     showBottomBar: Boolean = true,
     onNavigateAbout: () -> Unit,
     onNavigateCustomize: () -> Unit = {},
-    onNavigateTheme: () -> Unit = {},
+    onNavigateAppearance: () -> Unit = {},
+    onNavigateFeatures: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
-    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
+    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory()),
+    themeViewModel: com.aiexile.animetrack.ui.theme.ThemeViewModel? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -157,20 +163,22 @@ fun SettingsScreen(
     }
     
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "设置",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(top = 40.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Text(
+                    text = "设置",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-            )
+            }
         },
         bottomBar = {
             if (showBottomBar) {
@@ -189,12 +197,12 @@ fun SettingsScreen(
                 )
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(top = 16.dp)
         ) {
             if (uiState.isSyncing) {
                 SyncProgressCard(
@@ -202,117 +210,128 @@ fun SettingsScreen(
                     syncedCount = uiState.syncedCount,
                     totalToSync = uiState.totalToSync
                 )
+                Spacer(modifier = Modifier.height(12.dp))
             }
             
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 100.dp)
+            ) {
                 item {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = "外观设置",
-                                fontSize = 16.sp
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier.clickable { onNavigateTheme() }
+                    val currentPreset = themeViewModel?.themePreset?.collectAsState()?.value
+                    val currentMode = themeViewModel?.themeMode?.collectAsState()?.value
+                    val modeLabel = when (currentMode) {
+                        com.aiexile.animetrack.model.ThemeMode.LIGHT -> "浅色"
+                        com.aiexile.animetrack.model.ThemeMode.DARK -> "深色"
+                        else -> "跟随系统"
+                    }
+                    SettingCard(
+                        title = "外观与主题",
+                        subtitle = currentPreset?.let { "${it.displayName} · $modeLabel" } ?: "清透蓝 · 跟随系统",
+                        icon = Icons.Default.Palette,
+                        onClick = onNavigateAppearance
                     )
                 }
                 item {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = "定制导航栏",
-                                fontSize = 16.sp
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Navigation,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier.clickable { onNavigateCustomize() }
+                    SettingCard(
+                        title = "定制导航栏",
+                        icon = Icons.Default.Navigation,
+                        onClick = onNavigateCustomize
                     )
                 }
                 item {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = "导入 Markdown",
-                                fontSize = 16.sp
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                text = "从 Markdown 文件导入番剧列表",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.FileOpen,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier.clickable { showImportGuide = true }
+                    SettingCard(
+                        title = "功能",
+                        icon = Icons.Default.Tune,
+                        onClick = onNavigateFeatures
                     )
                 }
                 item {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text = "关于",
-                                fontSize = 16.sp
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        modifier = Modifier.clickable { onNavigateAbout() }
+                    SettingCard(
+                        title = "导入 Markdown",
+                        subtitle = "从 Markdown 文件导入番剧列表",
+                        icon = Icons.Default.FileOpen,
+                        onClick = { showImportGuide = true }
+                    )
+                }
+                item {
+                    SettingCard(
+                        title = "关于",
+                        icon = Icons.Default.Info,
+                        onClick = onNavigateAbout
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingCard(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    subtitle: String? = null,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = MaterialTheme.colorScheme.outlineVariant
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+            
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -329,7 +348,7 @@ private fun ImportGuideBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -337,7 +356,7 @@ private fun ImportGuideBottomSheet(
                     .width(32.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                    .background(MaterialTheme.colorScheme.outlineVariant)
             )
         }
     ) {
@@ -350,7 +369,7 @@ private fun ImportGuideBottomSheet(
             Text(
                 text = "导入 Markdown",
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             
@@ -369,7 +388,7 @@ private fun ImportGuideBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(codeBlockShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(16.dp)
             ) {
                 Text(
@@ -408,31 +427,31 @@ Dropped
                     text = "支持的标题：",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
                 Text(
                     text = "正在观看：Now / 正在 / Watching",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.outline,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
                 Text(
                     text = "计划观看：Want / 计划 / 打算 / Wish",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.outline,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
                 Text(
                     text = "已看完：Already / 已看完 / Completed / Done",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.outline,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
                 Text(
                     text = "已弃番：Dropped / 弃番 / 放弃",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.outline,
                     style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
                 )
             }
@@ -449,7 +468,7 @@ Dropped
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -473,6 +492,14 @@ private fun SyncProgressCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = MaterialTheme.colorScheme.outlineVariant
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
             .padding(16.dp)
     ) {
         Column {
@@ -504,13 +531,17 @@ private fun SyncProgressCard(
                 }
             }
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             LinearProgressIndicator(
-                progress = if (totalToSync > 0) syncedCount.toFloat() / totalToSync else 0f,
-                modifier = Modifier.fillMaxWidth(),
+                progress = { if (totalToSync > 0) syncedCount.toFloat() / totalToSync else 0f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp)),
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
             )
         }
     }

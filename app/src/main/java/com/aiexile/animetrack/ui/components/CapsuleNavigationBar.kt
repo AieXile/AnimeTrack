@@ -1,0 +1,194 @@
+package com.aiexile.animetrack.ui.components
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.abs
+
+@Composable
+fun CapsuleNavigationBar(
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    visiblePages: List<String> = listOf("home", "favorites", "timeline", "settings"),
+    pagerState: PagerState? = null,
+    modifier: Modifier = Modifier
+) {
+    val visibleItems = bottomNavItems.filter { it.route in visiblePages }
+    val selectedIndex = visibleItems.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+    val itemCount = visibleItems.size
+
+    val effectiveIndex = if (pagerState != null && itemCount > 0) {
+        (pagerState.currentPage + pagerState.currentPageOffsetFraction)
+            .coerceIn(0f, (itemCount - 1).toFloat())
+    } else {
+        selectedIndex.toFloat()
+    }
+
+    var rowWidthPx by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(100.dp)
+                )
+                .clip(RoundedCornerShape(100.dp)),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(100.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { rowWidthPx = it.width.toFloat() }
+                    .padding(4.dp)
+            ) {
+                if (itemCount > 0 && rowWidthPx > 0f) {
+                    val paddingPx = with(density) { 4.dp.toPx() } * 2
+                    val innerWidthPx = rowWidthPx - paddingPx
+                    val itemWidthPx = innerWidthPx / itemCount
+                    val indicatorOffsetPx = effectiveIndex * itemWidthPx
+                    val indicatorOffsetDp = with(density) { indicatorOffsetPx.toDp() }
+                    val itemWidthDp = with(density) { itemWidthPx.toDp() }
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = indicatorOffsetDp)
+                            .width(itemWidthDp)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    visibleItems.forEachIndexed { index, item ->
+                        val selected = index == selectedIndex
+                        val proximity = if (itemCount > 1) {
+                            1f - abs(effectiveIndex - index) / (itemCount - 1).toFloat()
+                        } else if (selected) 1f else 0f
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { onNavigate(item.route) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CapsuleNavItem(
+                                item = item,
+                                selected = selected,
+                                proximity = proximity
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapsuleNavItem(
+    item: BottomNavItem,
+    selected: Boolean,
+    proximity: Float
+) {
+    val iconColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f + 0.65f * proximity),
+        animationSpec = spring(stiffness = 600f),
+        label = "iconColor"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f + 0.65f * proximity),
+        animationSpec = spring(stiffness = 600f),
+        label = "textColor"
+    )
+    val scale = 0.88f + 0.12f * proximity
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+    ) {
+        Icon(
+            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+            contentDescription = item.title,
+            tint = iconColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(1.dp))
+        Text(
+            text = item.title,
+            fontSize = 10.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = textColor,
+            maxLines = 1
+        )
+    }
+}

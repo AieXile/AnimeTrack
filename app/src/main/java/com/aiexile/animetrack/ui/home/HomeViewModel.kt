@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
-import com.aiexile.animetrack.data.network.BangumiSearchRequest
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,7 +33,8 @@ data class HomeUiState(
     val searchQuery: String = "",
     val searchResults: List<BangumiSubject> = emptyList(),
     val isSearching: Boolean = false,
-    val searchError: String? = null
+    val searchError: String? = null,
+    val showCompletedToast: Boolean = false
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -45,7 +47,8 @@ enum class AnimeFilter(val displayName: String) {
 }
 
 class HomeViewModel(
-    private val repository: AnimeRepository
+    private val repository: AnimeRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     
     companion object {
@@ -54,6 +57,23 @@ class HomeViewModel(
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private var greetingHasAnimated = false
+    private var lastAnimatedGreeting = ""
+    private val randomGreetingPrefix = listOf("Hi", "Hey", "Hello").random()
+
+    fun resolveGreetingText(customGreeting: String): String {
+        return if (customGreeting.isNotEmpty()) customGreeting else randomGreetingPrefix
+    }
+
+    fun shouldAnimateGreeting(text: String): Boolean {
+        return !greetingHasAnimated || text != lastAnimatedGreeting
+    }
+
+    fun onGreetingAnimated(text: String) {
+        greetingHasAnimated = true
+        lastAnimatedGreeting = text
+    }
     
     val animeList: StateFlow<List<Anime>> = repository.getAllAnimes()
         .stateIn(
@@ -113,11 +133,38 @@ class HomeViewModel(
     
     fun updateAnimeStatus(anime: Anime, newStatus: AnimeStatus) {
         viewModelScope.launch {
-            val updatedAnime = anime.copy(status = newStatus)
+            val updatedAnime = if (newStatus == AnimeStatus.COMPLETED) {
+                val newWatchedEpisodes = if (anime.totalEpisodes > 0) {
+                    anime.totalEpisodes
+                } else {
+                    anime.watchedEpisodes
+                }
+                anime.copy(
+                    status = newStatus,
+                    isFinished = true,
+                    watchedEpisodes = newWatchedEpisodes,
+                    finishDate = if (anime.finishDate == null) System.currentTimeMillis() else anime.finishDate
+                )
+            } else {
+                anime.copy(
+                    status = newStatus,
+                    isFinished = false
+                )
+            }
             repository.updateAnime(updatedAnime)
             Log.d(TAG, "Updated anime status: ${anime.title} -> $newStatus")
+            if (newStatus == AnimeStatus.COMPLETED) {
+                val showToast = settingsRepository.completedToastEnabled.first()
+                if (showToast) {
+                    _uiState.update { it.copy(showCompletedToast = true) }
+                }
+            }
             clearSelection()
         }
+    }
+
+    fun dismissCompletedToast() {
+        _uiState.update { it.copy(showCompletedToast = false) }
     }
     
     fun deleteAnime(anime: Anime) {
@@ -159,6 +206,21 @@ class HomeViewModel(
         }
         
         viewModelScope.launch {
+            var airWeekday = formState.airWeekday
+            var airDate = formState.airDate
+            var summary = formState.summary
+
+            if (formState.bangumiId != null && (airWeekday == null || airDate == null || summary == null)) {
+                try {
+                    val detail = RetrofitClient.bangumiApi.getSubjectDetail(formState.bangumiId)
+                    airWeekday = airWeekday ?: detail.airWeekday
+                    airDate = airDate ?: detail.date
+                    summary = summary ?: detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to fetch detail before save", e)
+                }
+            }
+
             val anime = Anime(
                 title = formState.title.trim(),
                 totalEpisodes = formState.totalEpisodes,
@@ -168,7 +230,11 @@ class HomeViewModel(
                 notes = formState.notes.trim(),
                 startDate = formState.startDate,
                 finishDate = formState.finishDate,
-                coverUrl = formState.coverUrl
+                coverUrl = formState.coverUrl,
+                summary = summary,
+                bangumiId = formState.bangumiId,
+                airDate = airDate,
+                airWeekday = airWeekday
             )
             
             Log.d(TAG, "Inserting anime: $anime")
@@ -248,26 +314,11 @@ class HomeViewModel(
             _uiState.update { it.copy(isSearching = true, searchError = null) }
             
             try {
-                val response = RetrofitClient.bangumiApi.searchSubjects(
-                    BangumiSearchRequest(
-                        keyword = query,
-                        type = listOf(2),
-                        limit = 25
-                    )
-                )
-                
-                val sortedResults = response.data.sortedWith(
-                    compareByDescending<BangumiSubject> {
-                        (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
-                    }.thenByDescending {
-                        !it.name_cn.isNullOrBlank()
-                    }
-                )
-                
-                Log.d(TAG, "Search results: ${sortedResults.size} items")
+                val results = repository.searchBangumi(query)
+                Log.d(TAG, "Search results: ${results.size} items")
                 _uiState.update { 
                     it.copy(
-                        searchResults = sortedResults,
+                        searchResults = results,
                         isSearching = false
                     )
                 }
@@ -287,6 +338,7 @@ class HomeViewModel(
     fun selectSearchResult(subject: BangumiSubject) {
         val rating = subject.score?.toFloat()
         val totalEpisodes = subject.episodeCount ?: 12
+        val summary = subject.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
         
         _uiState.update {
             it.copy(
@@ -294,21 +346,31 @@ class HomeViewModel(
                     title = subject.displayName,
                     totalEpisodes = totalEpisodes,
                     coverUrl = subject.coverUrl,
-                    rating = rating
+                    rating = rating,
+                    summary = summary,
+                    bangumiId = subject.id
                 ),
                 searchResults = emptyList(),
                 searchQuery = ""
             )
         }
-    }
-    
-    fun clearSearchResults() {
-        _uiState.update { 
-            it.copy(
-                searchResults = emptyList(),
-                searchQuery = "",
-                searchError = null
-            )
+        
+        viewModelScope.launch {
+            try {
+                val detail = RetrofitClient.bangumiApi.getSubjectDetail(subject.id)
+                _uiState.update { state ->
+                    state.copy(
+                        formState = state.formState.copy(
+                            airDate = detail.date ?: state.formState.airDate,
+                            airWeekday = detail.airWeekday ?: state.formState.airWeekday,
+                            summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+                                ?: state.formState.summary
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch detail for bangumiId: ${subject.id}", e)
+            }
         }
     }
     
@@ -316,7 +378,8 @@ class HomeViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val repository = AppContainer.getAnimeRepository()
-            return HomeViewModel(repository) as T
+            val settingsRepository = AppContainer.getSettingsRepository()
+            return HomeViewModel(repository, settingsRepository) as T
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.aiexile.animetrack.data
 
 import android.util.Log
+import com.aiexile.animetrack.data.network.BangumiSearchRequest
+import com.aiexile.animetrack.data.network.BangumiSubject
+import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import kotlinx.coroutines.flow.Flow
@@ -11,9 +14,9 @@ interface AnimeRepository {
     
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
     
-    fun getHighRatedAnimes(minRating: Float = 4.5f): Flow<List<Anime>>
-    
     suspend fun getAnimeById(id: Int): Anime?
+
+    fun observeAnimeById(id: Int): Flow<Anime?>
     
     suspend fun insertAnime(anime: Anime): Long
     
@@ -26,6 +29,10 @@ interface AnimeRepository {
     suspend fun insertAnimes(animes: List<Anime>)
     
     suspend fun getAnimesWithoutCover(): List<Anime>
+    
+    suspend fun searchBangumi(query: String): List<BangumiSubject>
+
+    fun getAiringAnimes(): Flow<List<Anime>>
 }
 
 class AnimeRepositoryImpl(
@@ -45,12 +52,12 @@ class AnimeRepositoryImpl(
         return animeDao.getAnimesByStatus(status)
     }
     
-    override fun getHighRatedAnimes(minRating: Float): Flow<List<Anime>> {
-        return animeDao.getHighRatedAnimes(minRating)
-    }
-    
     override suspend fun getAnimeById(id: Int): Anime? {
         return animeDao.getAnimeById(id)
+    }
+
+    override fun observeAnimeById(id: Int): Flow<Anime?> {
+        return animeDao.observeAnimeById(id)
     }
     
     override suspend fun insertAnime(anime: Anime): Long {
@@ -78,5 +85,28 @@ class AnimeRepositoryImpl(
     
     override suspend fun getAnimesWithoutCover(): List<Anime> {
         return animeDao.getAnimesWithoutCover()
+    }
+    
+    override suspend fun searchBangumi(query: String): List<BangumiSubject> {
+        val response = RetrofitClient.bangumiApi.searchSubjects(
+            BangumiSearchRequest(
+                keyword = query,
+                type = listOf(2),
+                limit = 25
+            )
+        )
+        return response.data.sortedWith(
+            compareByDescending<BangumiSubject> {
+                !it.name_cn.isNullOrBlank()
+            }.thenByDescending {
+                (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
+            }.thenByDescending {
+                it.score ?: 0.0
+            }
+        )
+    }
+
+    override fun getAiringAnimes(): Flow<List<Anime>> {
+        return animeDao.getAiringAnimes()
     }
 }

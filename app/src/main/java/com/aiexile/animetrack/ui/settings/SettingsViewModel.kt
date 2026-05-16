@@ -7,8 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.data.MarkdownParser
-import com.aiexile.animetrack.data.network.BangumiSearchRequest
-import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
@@ -56,28 +54,6 @@ class SettingsViewModel(
                 importResult = result,
                 duplicateCount = duplicateCount
             )
-        }
-    }
-    
-    fun importAnimes(content: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isImporting = true)
-            
-            val result = MarkdownParser.parse(content)
-            val animesToInsert = mutableListOf<Anime>()
-            
-            for (parsed in result.animes) {
-                val existing = animeRepository.getAnimeByTitle(parsed.title)
-                if (existing == null) {
-                    animesToInsert.add(MarkdownParser.toAnimeEntity(parsed))
-                }
-            }
-            
-            if (animesToInsert.isNotEmpty()) {
-                animeRepository.insertAnimes(animesToInsert)
-            }
-            
-            _uiState.value = SettingsUiState(isImporting = false)
         }
     }
     
@@ -147,36 +123,19 @@ class SettingsViewModel(
                     
                     Log.d(TAG, "Searching for: $cleanTitle")
                     
-                    val response = RetrofitClient.bangumiApi.searchSubjects(
-                        BangumiSearchRequest(
-                            keyword = cleanTitle,
-                            type = listOf(2),
-                            limit = 10
-                        )
-                    )
-                    
-                    Log.d(TAG, "API returned ${response.data.size} results for: $cleanTitle")
-                    
-                    if (response.data.isNotEmpty()) {
-                        Log.d(TAG, "First result: ${response.data[0].name}, coverUrl: ${response.data[0].coverUrl}")
-                    }
-                    
-                    val bestMatch = response.data
-                        .sortedWith(
-                            compareByDescending<BangumiSubject> {
-                                (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
-                            }.thenByDescending {
-                                !it.name_cn.isNullOrBlank()
-                            }
-                        )
-                        .firstOrNull()
+                    val results = animeRepository.searchBangumi(cleanTitle)
+                    val bestMatch = results.firstOrNull()
                     
                     if (bestMatch != null) {
+                        val summary = bestMatch.summary
+                            ?: tryFetchSummary(bestMatch.id)
+                        
                         val updatedAnime = anime.copy(
                             title = cleanTitle,
                             coverUrl = bestMatch.coverUrl,
                             rating = bestMatch.score?.toFloat(),
                             totalEpisodes = bestMatch.episodeCount ?: anime.totalEpisodes,
+                            summary = summary,
                             notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
                         )
                         
@@ -206,14 +165,17 @@ class SettingsViewModel(
         }
     }
     
-    fun resetSyncCompleted() {
-        _uiState.value = _uiState.value.copy(syncCompleted = false)
+    private suspend fun tryFetchSummary(bangumiId: Int): String? {
+        return try {
+            RetrofitClient.bangumiApi.getSubjectDetail(bangumiId).summary?.cleanSummary()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch summary for bangumiId: $bangumiId", e)
+            null
+        }
     }
     
-    fun autoSyncAnimeCovers() {
-        viewModelScope.launch {
-            doAutoSyncAnimeCovers()
-        }
+    fun resetSyncCompleted() {
+        _uiState.value = _uiState.value.copy(syncCompleted = false)
     }
     
     private fun cleanTitleAndExtractNote(title: String): Pair<String, String> {
@@ -252,4 +214,8 @@ class SettingsViewModel(
             return SettingsViewModel(AppContainer.getAnimeRepository()) as T
         }
     }
+}
+
+private fun String.cleanSummary(): String {
+    return trim().replace(Regex("\n{3,}"), "\n\n")
 }

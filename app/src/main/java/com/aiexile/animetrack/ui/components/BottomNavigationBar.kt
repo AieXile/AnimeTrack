@@ -1,41 +1,41 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aiexile.animetrack.ui.theme.Primary
-import com.aiexile.animetrack.ui.theme.PrimaryContainer
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 
 sealed class BottomNavItem(
     val route: String,
@@ -63,7 +63,14 @@ sealed class BottomNavItem(
         selectedIcon = Icons.Filled.Timeline,
         unselectedIcon = Icons.Outlined.Timeline
     )
-    
+
+    object Schedule : BottomNavItem(
+        route = "schedule",
+        title = "看板",
+        selectedIcon = Icons.Filled.Schedule,
+        unselectedIcon = Icons.Outlined.Schedule
+    )
+
     object Settings : BottomNavItem(
         route = "settings",
         title = "设置",
@@ -76,6 +83,7 @@ val bottomNavItems = listOf(
     BottomNavItem.Home,
     BottomNavItem.Favorites,
     BottomNavItem.Timeline,
+    BottomNavItem.Schedule,
     BottomNavItem.Settings
 )
 
@@ -87,46 +95,45 @@ fun BottomNavigationBar(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth()
+            .navigationBarsPadding(),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
+        tonalElevation = 0.dp
     ) {
-        NavigationBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
-        ) {
-            bottomNavItems.forEach { item ->
-                if (item.route !in visiblePages) return@forEach
-                
-                val selected = currentRoute == item.route
-                
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = { onNavigate(item.route) },
-                    icon = {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(68.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val visibleItems = bottomNavItems.filter { it.route in visiblePages }
+                visibleItems.forEach { item ->
+                    val selected = currentRoute == item.route
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { onNavigate(item.route) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = item.title
+                            contentDescription = item.title,
+                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
                         )
-                    },
-                    label = {
                         Text(
                             text = item.title,
-                            fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
+                            fontSize = 10.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Primary,
-                        selectedTextColor = Primary,
-                        indicatorColor = PrimaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
+                    }
+                }
             }
         }
     }

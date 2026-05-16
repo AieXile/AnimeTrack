@@ -50,8 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.model.AnimeStatus
-import com.aiexile.animetrack.ui.theme.Primary
-import com.aiexile.animetrack.ui.theme.StarFilled
+import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -65,7 +64,11 @@ data class AddAnimeFormState(
     val notes: String = "",
     val startDate: Long? = null,
     val finishDate: Long? = null,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val summary: String? = null,
+    val bangumiId: Int? = null,
+    val airDate: String? = null,
+    val airWeekday: Int? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,8 +95,8 @@ fun AddAnimeForm(
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Primary,
-                focusedLabelColor = Primary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
             )
         )
         
@@ -171,8 +174,8 @@ fun AddAnimeForm(
             maxLines = 3,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Primary,
-                focusedLabelColor = Primary
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary
             )
         )
     }
@@ -274,8 +277,8 @@ private fun StatusDropdown(
                     .menuAnchor(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Primary,
-                    focusedLabelColor = Primary
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary
                 )
             )
             
@@ -320,7 +323,7 @@ private fun RatingSelector(
                 text = if (rating != null) "${rating} 分" else "未评分",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (rating != null) Primary else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (rating != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         
@@ -348,7 +351,7 @@ private fun RatingSelector(
                         Icon(
                             imageVector = if (isSelected) Icons.Filled.Star else Icons.Outlined.Star,
                             contentDescription = "$starValue 星",
-                            tint = if (isSelected) StarFilled else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSelected) LocalAnimeColors.current.starFilled else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.width(28.dp).height(28.dp)
                         )
                     }
@@ -508,7 +511,7 @@ private fun DatePickerField(
                 Icon(
                     imageVector = Icons.Filled.CalendarMonth,
                     contentDescription = null,
-                    tint = if (date != null) Primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = if (date != null) dateFormat.format(Date(date)) else "选择日期",

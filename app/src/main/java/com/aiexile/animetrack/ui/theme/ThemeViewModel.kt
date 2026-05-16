@@ -3,6 +3,8 @@ package com.aiexile.animetrack.ui.theme
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
@@ -16,27 +18,27 @@ import kotlinx.coroutines.launch
 class ThemeViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    
+
     private val _isPagerScrollEnabled = MutableStateFlow(true)
     val isPagerScrollEnabled: StateFlow<Boolean> = _isPagerScrollEnabled.asStateFlow()
-    
+
     fun setPagerScrollEnabled(enabled: Boolean) {
         _isPagerScrollEnabled.value = enabled
     }
-    
+
     val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = ThemeMode.SYSTEM
         )
-    
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             settingsRepository.setThemeMode(mode)
         }
     }
-    
+
     fun cycleThemeMode() {
         val nextMode = when (themeMode.value) {
             ThemeMode.SYSTEM -> ThemeMode.LIGHT
@@ -45,33 +47,124 @@ class ThemeViewModel(
         }
         setThemeMode(nextMode)
     }
-    
+
+    val themePreset: StateFlow<ThemePreset> = settingsRepository.themePreset
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ThemePreset.VIBRANT_BLUE
+        )
+
+    fun setThemePreset(preset: ThemePreset) {
+        viewModelScope.launch {
+            settingsRepository.setThemePreset(preset)
+        }
+    }
+
     val showFavorites: StateFlow<Boolean> = settingsRepository.showFavorites
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = true
         )
-    
+
     val showTimeline: StateFlow<Boolean> = settingsRepository.showTimeline
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = true
         )
-    
+
     fun setShowFavorites(show: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowFavorites(show)
         }
     }
-    
+
     fun setShowTimeline(show: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowTimeline(show)
         }
     }
-    
+
+    val showSchedule: StateFlow<Boolean> = settingsRepository.showSchedule
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setShowSchedule(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowSchedule(show)
+        }
+    }
+
+    val navigationStyle: StateFlow<NavigationStyle> = settingsRepository.navigationStyle
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = NavigationStyle.BOTTOM
+        )
+
+    fun setNavigationStyle(style: NavigationStyle) {
+        viewModelScope.launch {
+            settingsRepository.setNavigationStyle(style)
+        }
+    }
+
+    val fabLocation: StateFlow<FabLocation> = settingsRepository.fabLocation
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = FabLocation.BOTTOM_RIGHT
+        )
+
+    fun setFabLocation(location: FabLocation) {
+        viewModelScope.launch {
+            settingsRepository.setFabLocation(location)
+        }
+    }
+
+    val customGreeting: StateFlow<String> = settingsRepository.customGreeting
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
+
+    fun setCustomGreeting(greeting: String) {
+        viewModelScope.launch {
+            settingsRepository.setCustomGreeting(greeting)
+        }
+    }
+
+    val autoCompleteEnabled: StateFlow<Boolean> = settingsRepository.autoCompleteEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setAutoCompleteEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoCompleteEnabled(enabled)
+        }
+    }
+
+    val completedToastEnabled: StateFlow<Boolean> = settingsRepository.completedToastEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setCompletedToastEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCompletedToastEnabled(enabled)
+        }
+    }
+
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

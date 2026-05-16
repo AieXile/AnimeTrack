@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,8 +24,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Card
@@ -34,8 +32,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,11 +55,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import com.aiexile.animetrack.ui.theme.Primary
-import com.aiexile.animetrack.ui.theme.PrimaryContainer
+import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
+import androidx.compose.foundation.layout.WindowInsets
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,20 +89,22 @@ fun TimelineScreen(
     }
     
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "时间线",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(top = 40.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Text(
+                    text = "时间线",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-            )
+            }
         },
         bottomBar = {
             if (showBottomBar) {
@@ -115,8 +113,7 @@ fun TimelineScreen(
                     onNavigate = onNavigate
                 )
             }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+        }
     ) { paddingValues ->
         if (!hasWatchingSection && !hasTimelineData) {
             EmptyTimelinePlaceholder(
@@ -172,7 +169,7 @@ private fun EmptyTimelinePlaceholder(
                 imageVector = Icons.Outlined.Timeline,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                tint = MaterialTheme.colorScheme.outline
             )
             Text(
                 text = "暂无时间线记录",
@@ -182,7 +179,7 @@ private fun EmptyTimelinePlaceholder(
             Text(
                 text = "添加番剧并设置日期后，这里将显示时间线",
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.outline
             )
         }
     }
@@ -199,8 +196,10 @@ private fun TimelineList(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp)
+            .padding(horizontal = 20.dp)
+            .padding(top = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+        contentPadding = PaddingValues(bottom = 100.dp)
     ) {
         if (watchingAnimeList.isNotEmpty()) {
             item(key = "watching_section") {
@@ -226,9 +225,9 @@ private fun WatchingSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "正在观看",
-            fontSize = 18.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Primary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(vertical = 16.dp)
         )
         
@@ -250,25 +249,27 @@ private fun WatchingAnimeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+            .padding(bottom = 12.dp)
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = MaterialTheme.colorScheme.outlineVariant
+            ),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
+            defaultElevation = 0.dp
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = anime.title,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -277,43 +278,44 @@ private fun WatchingAnimeCard(
                 
                 if (anime.status != AnimeStatus.COMPLETED) {
                     Row(
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = "${anime.watchedEpisodes}/${anime.totalEpisodes}集",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         
                         if (anime.rating != null) {
                             Text(
                                 text = "★ ${anime.rating}",
-                                fontSize = 12.sp,
-                                color = Color(0xFFFFC107)
+                                fontSize = 13.sp,
+                                color = LocalAnimeColors.current.starFilled
                             )
                         }
                     }
                 } else if (anime.rating != null) {
                     Text(
                         text = "★ ${anime.rating}",
-                        fontSize = 12.sp,
-                        color = Color(0xFFFFC107),
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontSize = 13.sp,
+                        color = LocalAnimeColors.current.starFilled,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                 }
             }
             
             Text(
                 text = "观看中",
-                fontSize = 11.sp,
-                color = Primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .background(
-                        color = Primary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(20.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
     }
@@ -327,9 +329,9 @@ private fun TimelineMonthSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = monthData.yearMonth,
-            fontSize = 18.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Primary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(vertical = 16.dp)
         )
         
@@ -349,9 +351,9 @@ private fun TimelineEntryItem(
     modifier: Modifier = Modifier
 ) {
     val typeColor = when (entry.type) {
-        EntryType.FINISHED -> Color(0xFF4CAF50)
-        EntryType.DROPPED -> Color(0xFFF44336)
-        EntryType.WATCHING -> Primary
+        EntryType.FINISHED -> LocalAnimeColors.current.finished
+        EntryType.DROPPED -> LocalAnimeColors.current.dropped
+        EntryType.WATCHING -> LocalAnimeColors.current.watching
     }
     
     Row(
@@ -407,25 +409,28 @@ private fun TimelineAnimeCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 2.dp,
+                shape = RoundedCornerShape(16.dp),
+                spotColor = MaterialTheme.colorScheme.outlineVariant
+            ),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
+            defaultElevation = 0.dp
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = anime.title,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -434,43 +439,44 @@ private fun TimelineAnimeCard(
                 
                 if (anime.status != AnimeStatus.COMPLETED) {
                     Row(
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = "${anime.watchedEpisodes}/${anime.totalEpisodes}集",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         
                         if (anime.rating != null) {
                             Text(
                                 text = "★ ${anime.rating}",
-                                fontSize = 12.sp,
-                                color = Color(0xFFFFC107)
+                                fontSize = 13.sp,
+                                color = LocalAnimeColors.current.starFilled
                             )
                         }
                     }
                 } else if (anime.rating != null) {
                     Text(
                         text = "★ ${anime.rating}",
-                        fontSize = 12.sp,
-                        color = Color(0xFFFFC107),
-                        modifier = Modifier.padding(top = 4.dp)
+                        fontSize = 13.sp,
+                        color = LocalAnimeColors.current.starFilled,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                 }
             }
             
             Text(
                 text = anime.status.displayName,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
                 color = typeColor,
                 modifier = Modifier
                     .background(
                         color = typeColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
+                        shape = RoundedCornerShape(20.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
     }
@@ -488,7 +494,7 @@ private fun MonthIndexer(
         modifier = modifier
             .width(32.dp)
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
             )
             .padding(vertical = 8.dp),
@@ -509,8 +515,7 @@ private fun MonthIndexer(
                     .size(28.dp)
                     .clip(CircleShape)
                     .background(
-                        color = if (isSelected) Primary.copy(alpha = 0.2f) 
-                               else Color.Transparent
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent
                     )
                     .clickable { onIndexClick(index) },
                 contentAlignment = Alignment.Center
@@ -519,8 +524,7 @@ private fun MonthIndexer(
                     text = month,
                     fontSize = 10.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) Primary 
-                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.alpha(alpha)
                 )
             }

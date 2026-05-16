@@ -1,15 +1,19 @@
 package com.aiexile.animetrack.ui.components
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
@@ -32,7 +37,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,12 +62,13 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
-import com.aiexile.animetrack.ui.theme.Primary
-import com.aiexile.animetrack.ui.theme.PrimaryContainer
-import com.aiexile.animetrack.ui.theme.SecondaryContainer
-import com.aiexile.animetrack.ui.theme.StarFilled
+import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import androidx.compose.foundation.layout.offset
 
-@OptIn(ExperimentalFoundationApi::class)
+private val CardCornerRadius = 16.dp
+private val CoverAspectRatio = 2f / 3f
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AnimeCard(
     anime: Anime,
@@ -73,23 +78,29 @@ fun AnimeCard(
     onStatusChange: (AnimeStatus) -> Unit = {},
     onDelete: () -> Unit = {},
     onEditProgress: () -> Unit = {},
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 0.95f else 1f,
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = spring(
+            dampingRatio = 0.55f,
+            stiffness = 400f
+        ),
         label = "scale"
     )
     
     val elevation by animateDpAsState(
-        targetValue = if (isSelected) 0.dp else 4.dp,
-        animationSpec = tween(durationMillis = 150),
+        targetValue = if (isSelected) 0.dp else 2.dp,
+        animationSpec = spring(
+            dampingRatio = 0.55f,
+            stiffness = 400f
+        ),
         label = "elevation"
     )
-    
-    val cornerRadius = 12.dp
     
     var showStatusMenu by remember { mutableStateOf(false) }
     
@@ -106,9 +117,8 @@ fun AnimeCard(
                 .fillMaxWidth()
                 .shadow(
                     elevation = elevation,
-                    shape = RoundedCornerShape(cornerRadius),
-                    ambientColor = Color.Black.copy(alpha = 0.25f),
-                    spotColor = Color.Black.copy(alpha = 0.3f)
+                    shape = RoundedCornerShape(CardCornerRadius),
+                    spotColor = MaterialTheme.colorScheme.outlineVariant
                 )
                 .combinedClickable(
                     onClick = onClick,
@@ -117,99 +127,64 @@ fun AnimeCard(
                         onLongPress()
                     }
                 ),
-            shape = RoundedCornerShape(cornerRadius),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
+            shape = RoundedCornerShape(CardCornerRadius),
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 0.dp
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
             )
         ) {
-            Box(
+            Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
+                AnimeCoverWithStatus(
+                    status = anime.status,
+                    coverUrl = anime.coverUrl,
+                    title = anime.title,
+                    animeId = anime.id,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+                
                 Column(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    AnimeCoverWithStatus(
-                        status = anime.status,
-                        coverUrl = anime.coverUrl,
-                        title = anime.title
+                    Text(
+                        text = anime.title,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(64.dp)
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val titleStyle = if (anime.title.length > 10) {
-                            MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
-                        } else {
-                            MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
-                        }
+                        Text(
+                            text = "${anime.watchedEpisodes}/${anime.totalEpisodes}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopStart)
-                                .height(36.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        if (anime.rating != null) {
                             Text(
-                                text = anime.title,
-                                style = titleStyle,
+                                text = "${String.format("%.1f", anime.rating)} ★",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            
-                            if (anime.rating != null) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = "${anime.rating}",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = StarFilled
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Filled.Star,
-                                        contentDescription = null,
-                                        tint = StarFilled,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            }
-                        }
-                        
-                        if (anime.status != AnimeStatus.COMPLETED) {
-                            Text(
-                                text = "${anime.watchedEpisodes}/${anime.totalEpisodes}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp,
-                                modifier = Modifier.align(Alignment.BottomStart)
+                                color = LocalAnimeColors.current.starFilled
                             )
                         }
                     }
-                }
-                
-                if (anime.status != AnimeStatus.COMPLETED) {
-                    LinearProgressIndicator(
-                        progress = { anime.progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .align(Alignment.BottomCenter),
-                        color = Primary,
-                        trackColor = Color.Transparent,
-                    )
                 }
             }
         }
@@ -218,8 +193,8 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Primary.copy(alpha = 0.15f)),
+                    .clip(RoundedCornerShape(CardCornerRadius))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -231,15 +206,20 @@ fun AnimeCard(
                             onClick = { showStatusMenu = true },
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = CircleShape
+                                .shadow(
+                                    elevation = 4.dp,
+                                    shape = CircleShape,
+                                    clip = false,
+                                    ambientColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                    spotColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                                 )
+                                .background(MaterialTheme.colorScheme.surfaceContainerLowest, CircleShape)
+                                .clip(CircleShape)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Edit,
                                 contentDescription = "修改状态",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -247,43 +227,53 @@ fun AnimeCard(
                         DropdownMenu(
                             expanded = showStatusMenu,
                             onDismissRequest = { showStatusMenu = false },
-                            modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clip(RoundedCornerShape(12.dp))
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
                             AnimeStatus.entries.forEach { status ->
+                                val isSelected = status == anime.status
                                 DropdownMenuItem(
                                     text = {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            if (status == anime.status) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.PlayArrow,
-                                                    contentDescription = null,
-                                                    tint = Primary,
-                                                    modifier = Modifier.size(16.dp)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(CircleShape)
+                                                .then(
+                                                    if (isSelected) Modifier.background(
+                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                    ) else Modifier
                                                 )
-                                            } else {
-                                                Spacer(modifier = Modifier.width(16.dp))
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Check,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = status.displayName,
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                    fontSize = 14.sp,
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
                                             }
-                                            Text(
-                                                text = status.displayName,
-                                                color = if (status == anime.status) Primary 
-                                                    else MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = if (status == anime.status) FontWeight.Medium 
-                                                    else FontWeight.Normal
-                                            )
                                         }
                                     },
                                     onClick = {
                                         onStatusChange(status)
                                         showStatusMenu = false
-                                    }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -293,15 +283,20 @@ fun AnimeCard(
                         onClick = onDelete,
                         modifier = Modifier
                             .size(48.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                shape = CircleShape
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                clip = false,
+                                ambientColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                spotColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                             )
+                            .background(MaterialTheme.colorScheme.surfaceContainerLowest, CircleShape)
+                            .clip(CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
                             contentDescription = "删除",
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -311,37 +306,57 @@ fun AnimeCard(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AnimeCoverWithStatus(
     status: AnimeStatus,
     coverUrl: String?,
     title: String,
+    animeId: Int,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(0.75f)
+            .aspectRatio(CoverAspectRatio)
     ) {
-        val gradientBackground = Brush.linearGradient(
-            colors = listOf(
-                PrimaryContainer,
-                SecondaryContainer
-            )
-        )
-        
-        Box(
-            modifier = Modifier
+        val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier
+                    .fillMaxSize()
+                    .sharedElement(
+                        rememberSharedContentState(key = "cover_${animeId}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                    .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+            }
+        } else {
+            Modifier
                 .fillMaxSize()
-                .background(gradientBackground)
-        )
+                .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+        }
         
         if (coverUrl != null) {
             AsyncImage(
                 model = coverUrl,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = sharedModifier
+            )
+        } else {
+            val gradientBackground = Brush.linearGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                    .background(gradientBackground)
             )
         }
         
@@ -349,7 +364,7 @@ private fun AnimeCoverWithStatus(
             status = status,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(4.dp)
+                .padding(6.dp)
         )
     }
 }
@@ -361,14 +376,14 @@ private fun StatusBadge(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(4.dp),
-        color = Primary
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.primary
     ) {
         Text(
             text = status.displayName,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-            color = Color.White,
-            fontSize = 8.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Medium
         )
     }

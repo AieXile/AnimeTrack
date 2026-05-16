@@ -18,12 +18,12 @@ interface AnimeDao {
     
     @Query("SELECT * FROM anime WHERE id = :id")
     suspend fun getAnimeById(id: Int): Anime?
+
+    @Query("SELECT * FROM anime WHERE id = :id")
+    fun observeAnimeById(id: Int): Flow<Anime?>
     
     @Query("SELECT * FROM anime WHERE status = :status ORDER BY id DESC")
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
-    
-    @Query("SELECT * FROM anime WHERE rating >= :minRating ORDER BY rating DESC")
-    fun getHighRatedAnimes(minRating: Float = 4.5f): Flow<List<Anime>>
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAnime(anime: Anime): Long
@@ -37,15 +37,12 @@ interface AnimeDao {
     @Delete
     suspend fun deleteAnime(anime: Anime)
     
-    @Query("DELETE FROM anime WHERE id = :id")
-    suspend fun deleteAnimeById(id: Int)
-    
-    @Query("DELETE FROM anime")
-    suspend fun deleteAllAnimes()
-    
     @Query("SELECT * FROM anime WHERE title = :title LIMIT 1")
     suspend fun getAnimeByTitle(title: String): Anime?
     
     @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
     suspend fun getAnimesWithoutCover(): List<Anime>
+
+    @Query("SELECT * FROM anime WHERE isFinished = 0 AND status IN ('WATCHING', 'PLANNED') ORDER BY airWeekday ASC, title ASC")
+    fun getAiringAnimes(): Flow<List<Anime>>
 }

@@ -2,7 +2,9 @@ package com.aiexile.animetrack.data.network
 
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 data class BangumiSearchRequest(
     val keyword: String,
@@ -41,7 +43,8 @@ data class BangumiSubject(
     val eps: Int?,
     @SerializedName("total_episodes")
     val total_episodes: Int?,
-    val rating: BangumiRating?
+    val rating: BangumiRating?,
+    val summary: String? = null
 ) {
     val displayName: String
         get() = if (!name_cn.isNullOrBlank()) name_cn else name
@@ -63,9 +66,72 @@ data class BangumiSubject(
         get() = episodeCount?.let { "${it}集" } ?: "未定"
 }
 
+data class BangumiInfoboxItem(
+    val key: String?,
+    val value: Any?
+)
+
+data class BangumiSubjectDetail(
+    val id: Int,
+    val name: String,
+    @SerializedName("name_cn")
+    val nameCn: String?,
+    val summary: String?,
+    val date: String?,
+    @SerializedName("air_weekday")
+    private val _airWeekday: Int?,
+    val eps: Int?,
+    @SerializedName("total_episodes")
+    val totalEpisodes: Int?,
+    val rating: BangumiRating?,
+    val images: BangumiImages?,
+    val infobox: List<BangumiInfoboxItem>? = null
+) {
+    val score: Double?
+        get() = rating?.score
+
+    val airWeekday: Int?
+        get() = _airWeekday ?: parseWeekdayFromInfobox()
+
+    private fun parseWeekdayFromInfobox(): Int? {
+        val item = infobox?.find { it.key == "放送星期" } ?: return null
+        val value = item.value ?: return null
+        val text = when (value) {
+            is String -> value
+            is Map<*, *> -> value["v"] as? String
+            else -> null
+        } ?: return null
+        return weekdayTextToInt(text)
+    }
+
+    companion object {
+        private val weekdayMap = mapOf(
+            "星期一" to 1, "周一" to 1, "一" to 1,
+            "星期二" to 2, "周二" to 2, "二" to 2,
+            "星期三" to 3, "周三" to 3, "三" to 3,
+            "星期四" to 4, "周四" to 4, "四" to 4,
+            "星期五" to 5, "周五" to 5, "五" to 5,
+            "星期六" to 6, "周六" to 6, "六" to 6,
+            "星期日" to 7, "周日" to 7, "日" to 7,
+            "星期天" to 7, "周天" to 7, "天" to 7
+        )
+
+        fun weekdayTextToInt(text: String): Int? {
+            val trimmed = text.trim()
+            return weekdayMap[trimmed]
+                ?: weekdayMap.entries.find { trimmed.contains(it.key) }?.value
+        }
+    }
+}
+
 interface BangumiApiService {
     @POST("search/subjects")
     suspend fun searchSubjects(
         @Body request: BangumiSearchRequest
     ): BangumiSearchResponse
+    
+    @GET("subjects/{id}")
+    suspend fun getSubjectDetail(
+        @Path("id") id: Int
+    ): BangumiSubjectDetail
 }

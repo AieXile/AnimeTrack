@@ -2,5 +2,10 @@
 <resources>
     <color name="ic_launcher_background">#1F2223</color>
     <string name="app_name">AnimeTrack</string>
-    <style name="Theme.AnimeTrack" parent="android:Theme.Material.Light.NoActionBar"/>
+    <style name="Theme.AnimeTrack" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

@@ -1,51 +1,55 @@
 package com.aiexile.animetrack.ui.home
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -56,28 +60,28 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -86,21 +90,39 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import com.aiexile.animetrack.ui.theme.Primary
+import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.WindowInsets
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory()),
     showBottomBar: Boolean = true,
     onNavigate: (String) -> Unit = {},
-    themeViewModel: ThemeViewModel? = null
+    onNavigateToDetail: (Int, String?) -> Unit = { _, _ -> },
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    themeViewModel: ThemeViewModel? = null,
+    fabLocation: FabLocation = FabLocation.BOTTOM_RIGHT,
+    isCapsuleNav: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
+    val customGreeting by (themeViewModel?.customGreeting?.collectAsState() ?: mutableStateOf(""))
+    val context = LocalContext.current
+
+    LaunchedEffect(uiState.showCompletedToast) {
+        if (uiState.showCompletedToast) {
+            Toast.makeText(context, "完结撒花！", Toast.LENGTH_SHORT).show()
+            viewModel.dismissCompletedToast()
+        }
+    }
+
     val filteredAnimeList = remember(animeList, uiState.selectedFilter) {
         viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter)
     }
@@ -140,32 +162,38 @@ fun HomeScreen(
     }
     
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.LiveTv,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = "AnimeTrack",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(top = 40.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val greetingText = viewModel.resolveGreetingText(customGreeting)
+                    TypingGreeting(
+                        greetingText = greetingText,
+                        shouldAnimate = viewModel.shouldAnimateGreeting(greetingText),
+                        onAnimated = { viewModel.onGreetingAnimated(it) }
+                    )
+                    if (fabLocation == FabLocation.TOP_BAR) {
+                        IconButton(onClick = { viewModel.showBottomSheet() }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "添加番剧",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
+                }
+            }
         },
         bottomBar = {
             if (showBottomBar) {
@@ -176,25 +204,35 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            androidx.compose.material3.FloatingActionButton(
-                onClick = { viewModel.showBottomSheet() },
-                containerColor = Primary,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = "添加番剧",
-                    modifier = Modifier.size(24.dp)
-                )
+            if (fabLocation == FabLocation.BOTTOM_RIGHT) {
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = { viewModel.showBottomSheet() },
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .offset(
+                            y = if (isCapsuleNav) (-80).dp else 0.dp
+                        )
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "添加番剧",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.surface)
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = {
@@ -205,12 +243,6 @@ fun HomeScreen(
                     )
                 }
         ) {
-            FilterBar(
-                selectedFilter = uiState.selectedFilter,
-                onFilterSelected = { viewModel.setFilter(it) },
-                themeViewModel = themeViewModel
-            )
-            
             if (filteredAnimeList.isEmpty()) {
                 EmptyAnimePlaceholder(
                     modifier = Modifier.weight(1f)
@@ -221,15 +253,22 @@ fun HomeScreen(
                     newlyAddedAnimeId = uiState.newlyAddedAnimeId,
                     selectedAnimeId = uiState.selectedAnimeId,
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
-                    onAnimeClick = { _ ->
+                    onAnimeClick = { anime ->
                         if (uiState.selectedAnimeId != null) {
                             viewModel.clearSelection()
+                        } else {
+                            onNavigateToDetail(anime.id, anime.coverUrl)
                         }
                     },
                     onAnimeLongPress = { anime -> viewModel.selectAnime(anime.id.toLong()) },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
-                    gridState = gridState
+                    selectedFilter = uiState.selectedFilter,
+                    onFilterSelected = { viewModel.setFilter(it) },
+                    gridState = gridState,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    isCapsuleNav = isCapsuleNav
                 )
             }
         }
@@ -256,6 +295,39 @@ fun HomeScreen(
             )
         }
     }
+}
+
+@Composable
+private fun TypingGreeting(
+    greetingText: String,
+    shouldAnimate: Boolean,
+    onAnimated: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var visibleCharCount by remember { mutableIntStateOf(if (shouldAnimate) 0 else greetingText.length) }
+
+    LaunchedEffect(greetingText, shouldAnimate) {
+        if (shouldAnimate) {
+            delay(500)
+            for (i in 1..greetingText.length) {
+                visibleCharCount = i
+                delay(100)
+            }
+            onAnimated(greetingText)
+        } else {
+            visibleCharCount = greetingText.length
+        }
+    }
+
+    Text(
+        text = greetingText.substring(0, visibleCharCount.coerceAtMost(greetingText.length)),
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onBackground,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -285,7 +357,7 @@ private fun AddAnimeBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
@@ -295,7 +367,7 @@ private fun AddAnimeBottomSheet(
                     width = 32.dp,
                     height = 4.dp,
                     shape = RoundedCornerShape(2.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
         }
@@ -311,7 +383,7 @@ private fun AddAnimeBottomSheet(
             Text(
                 text = "添加新番剧",
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
@@ -340,8 +412,8 @@ private fun AddAnimeBottomSheet(
                         onSearch = { onSearch() }
                     ),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
@@ -354,7 +426,7 @@ private fun AddAnimeBottomSheet(
                     modifier = Modifier.height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Text(if (isSearching) "..." else "搜索")
@@ -423,7 +495,7 @@ private fun AddAnimeBottomSheet(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary
+                        containerColor = MaterialTheme.colorScheme.primary
                     ),
                     enabled = formError == null && formState.title.isNotBlank()
                 ) {
@@ -448,7 +520,7 @@ private fun SearchResultItem(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable { onClick() }
@@ -490,12 +562,12 @@ private fun SearchResultItem(
                     text = String.format("%.1f", subject.score),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Primary
+                    color = LocalAnimeColors.current.starFilled
                 )
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = null,
-                    tint = Primary,
+                    tint = LocalAnimeColors.current.starFilled,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -503,46 +575,82 @@ private fun SearchResultItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterBar(
+private fun FilterMenu(
     selectedFilter: AnimeFilter,
     onFilterSelected: (AnimeFilter) -> Unit,
-    modifier: Modifier = Modifier,
-    themeViewModel: ThemeViewModel? = null
+    modifier: Modifier = Modifier
 ) {
-    LazyRow(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .pointerInput(themeViewModel) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
-                        themeViewModel?.setPagerScrollEnabled(false)
-                        waitForUpOrCancellation(pass = PointerEventPass.Initial)
-                        themeViewModel?.setPagerScrollEnabled(true)
-                    }
-                }
-            },
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(AnimeFilter.entries) { filter ->
-            FilterChip(
-                selected = selectedFilter == filter,
-                onClick = { onFilterSelected(filter) },
-                label = {
-                    Text(
-                        text = filter.displayName,
-                        fontSize = 14.sp
-                    )
-                },
-                shape = RoundedCornerShape(16.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Primary,
-                    selectedLabelColor = Color.White
-                ),
-                border = null
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.FilterList,
+                contentDescription = "筛选",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp)
             )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = Modifier
+                .padding(horizontal = 4.dp)
+        ) {
+            AnimeFilter.entries.forEach { filter ->
+                val isSelected = filter == selectedFilter
+
+                DropdownMenuItem(
+                    text = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(CircleShape)
+                                .then(
+                                    if (isSelected) Modifier.background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    ) else Modifier
+                                )
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Text(
+                                    text = filter.displayName,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontSize = 14.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        onFilterSelected(filter)
+                        expanded = false
+                    },
+                    colors = androidx.compose.material3.MenuDefaults.itemColors(
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
         }
     }
 }
@@ -552,34 +660,34 @@ private fun EmptyAnimePlaceholder(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
                 imageVector = Icons.Outlined.LiveTv,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(120.dp)
-                    .alpha(0.3f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(64.dp)
             )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
             Text(
-                text = "暂无番剧，点击下方按钮添加",
-                fontSize = 16.sp,
+                text = "还没有添加任何番剧",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Normal,
-                modifier = Modifier.alpha(0.6f)
+                fontSize = 16.sp
+            )
+            Text(
+                text = "点击右下角的 + 按钮添加",
+                color = MaterialTheme.colorScheme.outline,
+                fontSize = 14.sp
             )
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AnimeGrid(
     animeList: List<Anime>,
@@ -590,17 +698,49 @@ private fun AnimeGrid(
     onAnimeLongPress: (Anime) -> Unit,
     onStatusChange: (Anime, com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: (Anime) -> Unit,
+    selectedFilter: AnimeFilter,
+    onFilterSelected: (AnimeFilter) -> Unit,
     gridState: LazyGridState,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    isCapsuleNav: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val horizontalPadding = 24.dp
+    val cardMinWidth = 140.dp
+    val spacing = 12.dp
+    
+    val availableWidth = screenWidthDp - horizontalPadding
+    val calculatedColumns = ((availableWidth + spacing) / (cardMinWidth + spacing)).toInt()
+    val columns = minOf(calculatedColumns.coerceAtLeast(3), 4)
+    
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 110.dp),
-        modifier = modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        columns = GridCells.Fixed(columns),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         state = gridState,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp)
+        contentPadding = PaddingValues(bottom = if (isCapsuleNav) 96.dp else 16.dp)
     ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 8.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                FilterMenu(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = onFilterSelected
+                )
+            }
+        }
+
         items(
             items = animeList,
             key = { it.id }
@@ -616,7 +756,9 @@ private fun AnimeGrid(
                     onLongPress = { onAnimeLongPress(anime) },
                     isSelected = isSelected,
                     onStatusChange = { onStatusChange(anime, it) },
-                    onDelete = { onDelete(anime) }
+                    onDelete = { onDelete(anime) },
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             } else {
                 AnimeCard(
@@ -625,13 +767,16 @@ private fun AnimeGrid(
                     onLongPress = { onAnimeLongPress(anime) },
                     isSelected = isSelected,
                     onStatusChange = { onStatusChange(anime, it) },
-                    onDelete = { onDelete(anime) }
+                    onDelete = { onDelete(anime) },
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun NewAnimeCardWrapper(
     anime: Anime,
@@ -641,6 +786,8 @@ private fun NewAnimeCardWrapper(
     isSelected: Boolean,
     onStatusChange: (com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
     var hasAnimated by remember { mutableStateOf(false) }
@@ -675,6 +822,8 @@ private fun NewAnimeCardWrapper(
             isSelected = isSelected,
             onStatusChange = onStatusChange,
             onDelete = onDelete,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier.graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -686,8 +835,8 @@ private fun NewAnimeCardWrapper(
                 modifier = Modifier
                     .matchParentSize()
                     .background(
-                        color = Primary.copy(alpha = highlightAlpha * 0.15f),
-                        shape = RoundedCornerShape(16.dp)
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha * 0.15f),
+                        shape = RoundedCornerShape(8.dp)
                     )
             )
         }

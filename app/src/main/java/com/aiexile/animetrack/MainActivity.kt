@@ -2,12 +2,31 @@ package com.aiexile.animetrack
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -16,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,13 +51,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
+import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
 import com.aiexile.animetrack.ui.home.HomeScreen
+import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
+import com.aiexile.animetrack.ui.settings.AppearanceScreen
+import com.aiexile.animetrack.ui.settings.FeaturesScreen
 import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
 import com.aiexile.animetrack.ui.settings.SettingsScreen
-import com.aiexile.animetrack.ui.settings.ThemeSettingsScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
+import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import kotlinx.coroutines.launch
 
@@ -51,6 +75,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeViewModel: ThemeViewModel = viewModel(factory = ThemeViewModel.Factory())
             val themeMode by themeViewModel.themeMode.collectAsState()
+            val themePreset by themeViewModel.themePreset.collectAsState()
             val systemDarkTheme = isSystemInDarkTheme()
             
             val darkTheme = when (themeMode) {
@@ -59,7 +84,10 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
             
-            AnimeTrackTheme(darkTheme = darkTheme) {
+            AnimeTrackTheme(
+                darkTheme = darkTheme,
+                themePreset = themePreset
+            ) {
                 AnimeTrackApp(themeViewModel = themeViewModel)
             }
         }
@@ -70,22 +98,27 @@ private data class MainPage(val route: String, val title: String)
 
 sealed class Screen {
     data class Main(val pageIndex: Int = 0) : Screen()
+    data class AnimeDetail(val animeId: Int, val coverUrl: String?) : Screen()
     data object About : Screen()
     data object NavigationCustomize : Screen()
-    data object ThemeSettings : Screen()
+    data object Appearance : Screen()
+    data object Features : Screen()
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AnimeTrackApp(
     themeViewModel: ThemeViewModel
 ) {
     val showFavorites by themeViewModel.showFavorites.collectAsState()
     val showTimeline by themeViewModel.showTimeline.collectAsState()
+    val showSchedule by themeViewModel.showSchedule.collectAsState()
     val isPagerScrollEnabled by themeViewModel.isPagerScrollEnabled.collectAsState()
+    val navigationStyle by themeViewModel.navigationStyle.collectAsState()
+    val fabLocation by themeViewModel.fabLocation.collectAsState()
     
-    val mainPages = remember(showFavorites, showTimeline) {
-        buildMainPages(showFavorites, showTimeline)
+    val mainPages = remember(showFavorites, showTimeline, showSchedule) {
+        buildMainPages(showFavorites, showTimeline, showSchedule)
     }
     
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Main()) }
@@ -94,84 +127,267 @@ fun AnimeTrackApp(
     val pagerState = rememberPagerState(pageCount = { mainPages.size })
     val scope = rememberCoroutineScope()
     
-    Box(modifier = Modifier.fillMaxSize()) {
-        when (val screen = currentScreen) {
-            is Screen.Main -> {
-                Scaffold(
-                    bottomBar = {
-                        BottomNavigationBar(
-                            currentRoute = mainPages.getOrNull(pagerState.targetPage)?.route ?: "home",
-                            visiblePages = mainPages.map { it.route },
-                            onNavigate = { route ->
-                                val targetIndex = mainPages.indexOfFirst { it.route == route }
-                                if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
-                                    scope.launch {
-                                        pagerState.animateScrollToPage(targetIndex)
-                                    }
-                                }
+    BackHandler(enabled = currentScreen !is Screen.Main) {
+        currentScreen = Screen.Main(lastMainPageIndex)
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        SharedTransitionLayout {
+            AnimatedContent(
+                targetState = currentScreen,
+                transitionSpec = {
+                val settingsSubPages = setOf(
+                    Screen.About::class, Screen.NavigationCustomize::class, Screen.Appearance::class, Screen.Features::class
+                )
+                val isEnterSettings = targetState::class in settingsSubPages && initialState is Screen.Main
+                val isExitSettings = initialState::class in settingsSubPages && targetState is Screen.Main
+
+                val animDuration = 300
+                val easing = FastOutSlowInEasing
+                val slideSpec = tween<androidx.compose.ui.unit.IntOffset>(durationMillis = animDuration, easing = easing)
+                val fadeSpec = tween<Float>(durationMillis = animDuration, easing = easing)
+                val scaleSpec = tween<Float>(durationMillis = animDuration, easing = easing)
+
+                when {
+                    isEnterSettings -> {
+                        slideInHorizontally(animationSpec = slideSpec) { it } togetherWith
+                            scaleOut(targetScale = 0.95f, animationSpec = scaleSpec) +
+                                fadeOut(targetAlpha = 0.7f, animationSpec = fadeSpec)
+                    }
+                    isExitSettings -> {
+                        scaleIn(initialScale = 0.95f, animationSpec = scaleSpec) +
+                                fadeIn(initialAlpha = 0.7f, animationSpec = fadeSpec) togetherWith
+                            slideOutHorizontally(animationSpec = slideSpec) { it }
+                    }
+                    targetState is Screen.AnimeDetail && initialState is Screen.Main -> {
+                        fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    }
+                    initialState is Screen.AnimeDetail && targetState is Screen.Main -> {
+                        fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    }
+                    else -> fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                }
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            label = "ScreenTransition"
+        ) { targetScreen ->
+            when (val screen = targetScreen) {
+                is Screen.Main -> {
+                    val currentRoute = mainPages.getOrNull(pagerState.targetPage)?.route ?: "home"
+                    val visiblePages = mainPages.map { it.route }
+                    val onNavigate: (String) -> Unit = { route ->
+                        val targetIndex = mainPages.indexOfFirst { it.route == route }
+                        if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
+                            scope.launch {
+                                pagerState.animateScrollToPage(targetIndex)
                             }
-                        )
-                    },
-                    containerColor = MaterialTheme.colorScheme.surface
-                ) { paddingValues ->
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = paddingValues.calculateBottomPadding()),
-                        beyondBoundsPageCount = 1,
-                        userScrollEnabled = isPagerScrollEnabled
-                    ) { page ->
-                        when (mainPages.getOrNull(page)?.route) {
-                            "home" -> HomeScreen(
-                                showBottomBar = false,
-                                onNavigate = { },
-                                themeViewModel = themeViewModel
-                            )
-                            "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
-                            "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
-                            "settings" -> SettingsScreen(
-                                showBottomBar = false,
-                                onNavigateAbout = { 
-                                    lastMainPageIndex = pagerState.currentPage
-                                    currentScreen = Screen.About 
-                                },
-                                onNavigateCustomize = {
-                                    lastMainPageIndex = pagerState.currentPage
-                                    currentScreen = Screen.NavigationCustomize
-                                },
-                                onNavigateTheme = {
-                                    lastMainPageIndex = pagerState.currentPage
-                                    currentScreen = Screen.ThemeSettings
-                                },
-                                onNavigate = { }
-                            )
+                        }
+                    }
+
+                    if (navigationStyle == NavigationStyle.CAPSULE) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize(),
+                                userScrollEnabled = isPagerScrollEnabled
+                            ) { page ->
+                                MainPagerContent(
+                                    page = page,
+                                    mainPages = mainPages,
+                                    pagerState = pagerState,
+                                    isPagerScrollEnabled = isPagerScrollEnabled,
+                                    themeViewModel = themeViewModel,
+                                    fabLocation = fabLocation,
+                                    navigationStyle = navigationStyle,
+                                    onNavigateToDetail = { animeId, coverUrl ->
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.AnimeDetail(animeId, coverUrl)
+                                    },
+                                    onNavigateAbout = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.About
+                                    },
+                                    onNavigateCustomize = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.NavigationCustomize
+                                    },
+                                    onNavigateAppearance = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.Appearance
+                                    },
+                                    onNavigateFeatures = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.Features
+                                    },
+                                    sharedTransitionScope = this@SharedTransitionLayout,
+                                    animatedVisibilityScope = this@AnimatedContent
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                            ) {
+                                CapsuleNavigationBar(
+                                    currentRoute = currentRoute,
+                                    visiblePages = visiblePages,
+                                    onNavigate = onNavigate,
+                                    pagerState = pagerState
+                                )
+                            }
+                        }
+                    } else {
+                        Scaffold(
+                            bottomBar = {
+                                BottomNavigationBar(
+                                    currentRoute = currentRoute,
+                                    visiblePages = visiblePages,
+                                    onNavigate = onNavigate
+                                )
+                            }
+                        ) { paddingValues ->
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = paddingValues.calculateBottomPadding()),
+                                userScrollEnabled = isPagerScrollEnabled
+                            ) { page ->
+                                MainPagerContent(
+                                    page = page,
+                                    mainPages = mainPages,
+                                    pagerState = pagerState,
+                                    isPagerScrollEnabled = isPagerScrollEnabled,
+                                    themeViewModel = themeViewModel,
+                                    fabLocation = fabLocation,
+                                    navigationStyle = navigationStyle,
+                                    onNavigateToDetail = { animeId, coverUrl ->
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.AnimeDetail(animeId, coverUrl)
+                                    },
+                                    onNavigateAbout = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.About
+                                    },
+                                    onNavigateCustomize = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.NavigationCustomize
+                                    },
+                                    onNavigateAppearance = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.Appearance
+                                    },
+                                    onNavigateFeatures = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.Features
+                                    },
+                                    sharedTransitionScope = this@SharedTransitionLayout,
+                                    animatedVisibilityScope = this@AnimatedContent
+                                )
+                            }
                         }
                     }
                 }
+                is Screen.AnimeDetail -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        AnimeDetailScreen(
+                            animeId = screen.animeId,
+                            coverUrl = screen.coverUrl,
+                            onNavigateBack = { currentScreen = Screen.Main(lastMainPageIndex) },
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this@AnimatedContent
+                        )
+                    }
+                }
+                is Screen.About -> {
+                    AboutScreen(
+                        onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
+                    )
+                }
+                is Screen.NavigationCustomize -> {
+                    NavigationCustomizeScreen(
+                        themeViewModel = themeViewModel,
+                        onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
+                    )
+                }
+                is Screen.Appearance -> {
+                    AppearanceScreen(
+                        themeViewModel = themeViewModel,
+                        onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
+                    )
+                }
+                is Screen.Features -> {
+                    FeaturesScreen(
+                        themeViewModel = themeViewModel,
+                        onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
+                    )
+                }
             }
-            is Screen.About -> {
-                AboutScreen(
-                    onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
-                )
-            }
-            is Screen.NavigationCustomize -> {
-                NavigationCustomizeScreen(
-                    themeViewModel = themeViewModel,
-                    onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
-                )
-            }
-            is Screen.ThemeSettings -> {
-                ThemeSettingsScreen(
-                    themeViewModel = themeViewModel,
-                    onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
-                )
-            }
+        }
         }
     }
 }
 
-private fun buildMainPages(showFavorites: Boolean, showTimeline: Boolean): List<MainPage> {
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@Composable
+private fun MainPagerContent(
+    page: Int,
+    mainPages: List<MainPage>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    isPagerScrollEnabled: Boolean,
+    themeViewModel: ThemeViewModel,
+    fabLocation: FabLocation,
+    navigationStyle: NavigationStyle,
+    onNavigateToDetail: (Int, String?) -> Unit,
+    onNavigateAbout: () -> Unit,
+    onNavigateCustomize: () -> Unit,
+    onNavigateAppearance: () -> Unit,
+    onNavigateFeatures: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
+) {
+    when (mainPages.getOrNull(page)?.route) {
+        "home" -> HomeScreen(
+            showBottomBar = false,
+            onNavigate = { },
+            onNavigateToDetail = onNavigateToDetail,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
+            themeViewModel = themeViewModel,
+            fabLocation = fabLocation,
+            isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
+        )
+        "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
+        "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
+        "schedule" -> ScheduleScreen(onAnimeClick = { animeId ->
+            onNavigateToDetail(animeId, null)
+        })
+        "settings" -> SettingsScreen(
+            showBottomBar = false,
+            onNavigateAbout = onNavigateAbout,
+            onNavigateCustomize = onNavigateCustomize,
+            onNavigateAppearance = onNavigateAppearance,
+            onNavigateFeatures = onNavigateFeatures,
+            onNavigate = { },
+            themeViewModel = themeViewModel
+        )
+    }
+}
+
+private fun buildMainPages(showFavorites: Boolean, showTimeline: Boolean, showSchedule: Boolean): List<MainPage> {
     val pages = mutableListOf<MainPage>()
     pages.add(MainPage("home", "首页"))
     if (showFavorites) {
@@ -179,6 +395,9 @@ private fun buildMainPages(showFavorites: Boolean, showTimeline: Boolean): List<
     }
     if (showTimeline) {
         pages.add(MainPage("timeline", "时间线"))
+    }
+    if (showSchedule) {
+        pages.add(MainPage("schedule", "看板"))
     }
     pages.add(MainPage("settings", "设置"))
     return pages
@@ -199,11 +418,7 @@ fun PlaceholderScreen(
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Medium
                     )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                }
             )
         },
         bottomBar = {
@@ -213,8 +428,7 @@ fun PlaceholderScreen(
                     onNavigate = { }
                 )
             }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+        }
     ) { paddingValues ->
         Box(
             modifier = Modifier

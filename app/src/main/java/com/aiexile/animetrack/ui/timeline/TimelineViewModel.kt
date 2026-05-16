@@ -141,12 +141,6 @@ class TimelineViewModel(
         return groupedByMonth
     }
     
-    fun getYearIndexList(): List<String> {
-        return timelineData.value
-            .map { "${it.year}年${it.month}月" }
-            .distinct()
-    }
-    
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

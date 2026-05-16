@@ -22,7 +22,12 @@ data class Anime(
     val notes: String,
     val startDate: Long? = null,
     val finishDate: Long? = null,
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    val airDate: String? = null,
+    val summary: String? = null,
+    val bangumiId: Int? = null,
+    val airWeekday: Int? = null,
+    val isFinished: Boolean = false
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f
