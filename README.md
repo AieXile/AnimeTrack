@@ -26,22 +26,22 @@
 <table width="100%">
   <tr>
     <td width="50%">
-      <img src="assets/screenshot1.png" alt="核心功能1" style="width: 100%; border-radius: 12px;">
-      <br><b>图1：功能介绍</b>
+      <img src="assets/Screenshot1.png" alt="主界面" style="width: 100%; border-radius: 12px;">
+      <br><b>主界面</b>
     </td>
     <td width="50%">
-      <img src="assets/screenshot2.png" alt="核心功能2" style="width: 100%; border-radius: 12px;">
-      <br><b>图2：功能介绍</b>
+      <img src="assets/Screenshot2.png" alt="时间线" style="width: 100%; border-radius: 12px;">
+      <br><b>时间线界面</b>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <img src="assets/screenshot3.png" alt="核心功能3" style="width: 100%; border-radius: 12px;">
-      <br><b>图3：功能介绍</b>
+      <img src="assets/Screenshot3.png" alt="看板" style="width: 100%; border-radius: 12px;">
+      <br><b>追番看板</b>
     </td>
     <td width="50%">
-      <img src="assets/screenshot4.png" alt="核心功能4" style="width: 100%; border-radius: 12px;">
-      <br><b>图4：功能介绍</b>
+      <img src="assets/Screenshot4.png" alt="设置" style="width: 100%; border-radius: 12px;">
+      <br><b>设置界面</b>
     </td>
   </tr>
 </table>
@@ -51,16 +51,16 @@
 <table width="100%">
   <tr>
     <td width="33%">
-      <img src="assets/screenshot5.png" alt="补充功能1" style="width: 100%; border-radius: 8px;">
-      <br><b>图5：功能介绍</b>
+      <img src="assets/Screenshot5.png" alt="定制导航栏" style="width: 100%; border-radius: 8px;">
+      <br><b>定制导航栏</b>
     </td>
     <td width="33%">
-      <img src="assets/screenshot6.png" alt="补充功能2" style="width: 100%; border-radius: 8px;">
-      <br><b>图6：功能介绍</b>
+      <img src="assets/Screenshot6.png" alt="功能界面" style="width: 100%; border-radius: 8px;">
+      <br><b>功能界面</b>
     </td>
     <td width="33%">
-      <img src="assets/screenshot7.png" alt="补充功能3" style="width: 100%; border-radius: 8px;">
-      <br><b>图7：功能介绍</b>
+      <img src="assets/Screenshot7.png" alt="倒入Md文件" style="width: 100%; border-radius: 8px;">
+      <br><b>倒入Md文件</b>
     </td>
   </tr>
 </table>
