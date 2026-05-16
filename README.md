@@ -24,10 +24,10 @@
 <table style="width: 100%; text-align: center;">
   <!-- 第一行：4张图 -->
   <tr>
-    <td width="25%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
-    <td width="25%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
-    <td width="25%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
-    <td width="25%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
+    <td width="35%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
+    <td width="35%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
+    <td width="35%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
+    <td width="35%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
   </tr>
 </table>
 
