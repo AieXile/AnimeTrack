@@ -21,22 +21,47 @@
 
 ## 应用截图
 
-<table style="width: 75%; margin: 0 auto; text-align: center;">
-  <!-- 第一行：4张图 -->
+<!-- 前4张：2x2网格，每个图占50%宽度，突出展示 -->
+<h3>主界面界面</h3>
+<table width="100%">
   <tr>
-    <td width="40%"><img src="assets/Screenshot1.png" alt="首页展示"></td>
-    <td width="40%"><img src="assets/Screenshot2.png" alt="详情页面"></td>
-    <td width="40%"><img src="assets/Screenshot3.png" alt="导入预览"></td>
+    <td width="50%">
+      <img src="assets/screenshot1.png" alt="核心功能1" style="width: 100%; border-radius: 12px;">
+      <br><b>图1：功能介绍</b>
+    </td>
+    <td width="50%">
+      <img src="assets/screenshot2.png" alt="核心功能2" style="width: 100%; border-radius: 12px;">
+      <br><b>图2：功能介绍</b>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="assets/screenshot3.png" alt="核心功能3" style="width: 100%; border-radius: 12px;">
+      <br><b>图3：功能介绍</b>
+    </td>
+    <td width="50%">
+      <img src="assets/screenshot4.png" alt="核心功能4" style="width: 100%; border-radius: 12px;">
+      <br><b>图4：功能介绍</b>
+    </td>
   </tr>
 </table>
 
-<!-- 第二行单独用一个居中的表格放 3 张图，保持宽度一致 -->
-<table style="width: 100%; text-align: center;">
+<!-- 后3张：一行3列，较小展示 -->
+<h3>更多功能预览</h3>
+<table width="100%">
   <tr>
-    <td width="30%"><img src="assets/Screenshot4.png" alt="同步进度"></td>
-    <td width="30%"><img src="assets/Screenshot5.png" alt="截图5"></td>
-    <td width="30%"><img src="assets/Screenshot6.png" alt="截图6"></td>
-    <td width="30%"><img src="assets/Screenshot7.png" alt="截图7"></td>
+    <td width="33%">
+      <img src="assets/screenshot5.png" alt="补充功能1" style="width: 100%; border-radius: 8px;">
+      <br><b>图5：功能介绍</b>
+    </td>
+    <td width="33%">
+      <img src="assets/screenshot6.png" alt="补充功能2" style="width: 100%; border-radius: 8px;">
+      <br><b>图6：功能介绍</b>
+    </td>
+    <td width="33%">
+      <img src="assets/screenshot7.png" alt="补充功能3" style="width: 100%; border-radius: 8px;">
+      <br><b>图7：功能介绍</b>
+    </td>
   </tr>
 </table>
 
