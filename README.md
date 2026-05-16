@@ -59,8 +59,8 @@
       <br><b>功能界面</b>
     </td>
     <td width="33%">
-      <img src="assets/Screenshot7.png" alt="倒入Md文件" style="width: 100%; border-radius: 8px;">
-      <br><b>倒入Md文件</b>
+      <img src="assets/Screenshot7.png" alt="导入Md文件" style="width: 100%; border-radius: 8px;">
+      <br><b>导入Md文件</b>
     </td>
   </tr>
 </table>
