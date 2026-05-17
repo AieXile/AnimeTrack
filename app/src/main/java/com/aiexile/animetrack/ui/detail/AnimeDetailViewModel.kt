@@ -30,6 +30,19 @@ data class CoverSearchState(
     val error: String? = null
 )
 
+data class EditState(
+    val isEditing: Boolean = false,
+    val title: String = "",
+    val coverUrl: String? = null,
+    val totalEpisodes: Int = 0,
+    val airDate: String? = null,
+    val airWeekday: Int? = null,
+    val bangumiId: Int? = null,
+    val summary: String? = null,
+    val isEditingTitle: Boolean = false,
+    val localCoverUri: String? = null
+)
+
 data class AnimeDetailUiState(
     val anime: Anime? = null,
     val isLoading: Boolean = true,
@@ -39,7 +52,8 @@ data class AnimeDetailUiState(
     val isEditingNotes: Boolean = false,
     val coverSearch: CoverSearchState = CoverSearchState(),
     val airStatusText: String? = null,
-    val showCompletedToast: Boolean = false
+    val showCompletedToast: Boolean = false,
+    val editState: EditState = EditState()
 )
 
 class AnimeDetailViewModel(
@@ -69,27 +83,32 @@ class AnimeDetailViewModel(
 
     private val _showCompletedToast = MutableStateFlow(false)
 
+    private val _editState = MutableStateFlow(EditState())
+
     private data class UiExtras(
         val isFetchingDetail: Boolean = false,
         val notesText: String = "",
         val isEditingNotes: Boolean = false,
         val coverSearch: CoverSearchState = CoverSearchState(),
-        val showCompletedToast: Boolean = false
+        val showCompletedToast: Boolean = false,
+        val editState: EditState = EditState()
     )
 
     private val uiExtras: StateFlow<UiExtras> = combine(
-        _isFetchingDetail,
-        _notesText,
-        _isEditingNotes,
-        _coverSearch,
-        _showCompletedToast
-    ) { fetching, notes, editing, search, toast ->
+        combine(_isFetchingDetail, _notesText, _isEditingNotes) { fetching, notes, editing ->
+            Triple(fetching, notes, editing)
+        },
+        combine(_coverSearch, _showCompletedToast, _editState) { search, toast, edit ->
+            Triple(search, toast, edit)
+        }
+    ) { (fetching, notes, editing), (search, toast, edit) ->
         UiExtras(
             isFetchingDetail = fetching,
             notesText = notes ?: "",
             isEditingNotes = editing,
             coverSearch = search,
-            showCompletedToast = toast
+            showCompletedToast = toast,
+            editState = edit
         )
     }.stateIn(
         scope = viewModelScope,
@@ -111,7 +130,8 @@ class AnimeDetailViewModel(
             isEditingNotes = extras.isEditingNotes,
             coverSearch = extras.coverSearch,
             airStatusText = anime?.let { computeAirStatus(it) },
-            showCompletedToast = extras.showCompletedToast
+            showCompletedToast = extras.showCompletedToast,
+            editState = extras.editState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -165,9 +185,18 @@ class AnimeDetailViewModel(
 
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
 
+                val detailTotalEpisodes = detail.eps ?: detail.totalEpisodes
+                val newTotalEpisodes = if (detailTotalEpisodes != null && detailTotalEpisodes > 0)
+                    detailTotalEpisodes else anime.totalEpisodes
+                val newWatchedEpisodes = if (
+                    anime.status == AnimeStatus.COMPLETED
+                    && anime.watchedEpisodes == 0
+                    && newTotalEpisodes > 0
+                ) newTotalEpisodes else anime.watchedEpisodes
+
                 val isFinished = computeIsFinished(
                     airDate = detail.date,
-                    totalEpisodes = detail.totalEpisodes ?: detail.eps ?: anime.totalEpisodes,
+                    totalEpisodes = newTotalEpisodes,
                     localStatus = anime.status
                 )
 
@@ -176,6 +205,8 @@ class AnimeDetailViewModel(
                     airDate = detail.date ?: anime.airDate,
                     airWeekday = detail.airWeekday ?: anime.airWeekday,
                     rating = detail.score?.toFloat() ?: anime.rating,
+                    totalEpisodes = newTotalEpisodes,
+                    watchedEpisodes = newWatchedEpisodes,
                     isFinished = isFinished
                 )
 
@@ -331,6 +362,74 @@ class AnimeDetailViewModel(
         _isEditingNotes.value = editing
     }
 
+    fun enterEditMode() {
+        val anime = animeFlow.value ?: return
+        _editState.value = EditState(
+            isEditing = true,
+            title = anime.title,
+            coverUrl = anime.coverUrl,
+            totalEpisodes = anime.totalEpisodes,
+            airDate = anime.airDate,
+            airWeekday = anime.airWeekday,
+            bangumiId = anime.bangumiId,
+            summary = anime.summary
+        )
+    }
+
+    fun exitEditMode() {
+        _editState.value = EditState()
+    }
+
+    fun hasUnsavedChanges(): Boolean {
+        val anime = animeFlow.value ?: return false
+        val edit = _editState.value
+        if (!edit.isEditing) return false
+        return edit.title != anime.title
+            || edit.coverUrl != anime.coverUrl
+            || edit.localCoverUri != null
+            || edit.totalEpisodes != anime.totalEpisodes
+            || edit.airDate != anime.airDate
+            || edit.airWeekday != anime.airWeekday
+            || edit.bangumiId != anime.bangumiId
+            || edit.summary != anime.summary
+    }
+
+    fun updateEditTitle(title: String) {
+        _editState.value = _editState.value.copy(title = title)
+    }
+
+    fun updateEditCoverUrl(url: String?) {
+        _editState.value = _editState.value.copy(coverUrl = url, localCoverUri = null)
+    }
+
+    fun updateEditLocalCoverUri(uri: String?) {
+        _editState.value = _editState.value.copy(localCoverUri = uri)
+    }
+
+    fun setEditingTitle(editing: Boolean) {
+        _editState.value = _editState.value.copy(isEditingTitle = editing)
+    }
+
+    fun saveEditChanges() {
+        val anime = animeFlow.value ?: return
+        val edit = _editState.value
+        if (!edit.isEditing) return
+
+        viewModelScope.launch {
+            val updatedAnime = anime.copy(
+                title = edit.title,
+                coverUrl = edit.localCoverUri ?: edit.coverUrl,
+                totalEpisodes = edit.totalEpisodes,
+                airDate = edit.airDate,
+                airWeekday = edit.airWeekday,
+                bangumiId = edit.bangumiId,
+                summary = edit.summary ?: anime.summary
+            )
+            repository.updateAnime(updatedAnime)
+            _editState.value = EditState()
+        }
+    }
+
     fun updateStatus(newStatus: AnimeStatus) {
         val anime = animeFlow.value ?: return
 
@@ -412,32 +511,51 @@ class AnimeDetailViewModel(
     }
 
     fun selectCoverResult(subject: BangumiSubject) {
-        val anime = animeFlow.value ?: return
         val newCoverUrl = subject.coverUrl ?: return
 
-        viewModelScope.launch {
-            val detail = tryFetchDetail(subject.id)
-            val summary = subject.summary
-                ?: detail?.summary?.cleanSummary()
-            val airDate = detail?.date ?: anime.airDate
-            val airWeekday = detail?.airWeekday ?: anime.airWeekday
+        if (_editState.value.isEditing) {
+            viewModelScope.launch {
+                val detail = tryFetchDetail(subject.id)
+                val detailEps = detail?.eps ?: detail?.totalEpisodes ?: subject.episodeCount
+                val finalEps = if (detailEps != null && detailEps > 0) detailEps else _editState.value.totalEpisodes
+                val newSummary = detail?.summary?.cleanSummary() ?: subject.summary ?: _editState.value.summary
+                _editState.value = _editState.value.copy(
+                    title = subject.displayName,
+                    coverUrl = newCoverUrl,
+                    localCoverUri = null,
+                    totalEpisodes = finalEps,
+                    airDate = detail?.date ?: _editState.value.airDate,
+                    airWeekday = detail?.airWeekday ?: _editState.value.airWeekday,
+                    bangumiId = subject.id,
+                    summary = newSummary
+                )
+            }
+        } else {
+            val anime = animeFlow.value ?: return
+            viewModelScope.launch {
+                val detail = tryFetchDetail(subject.id)
+                val summary = subject.summary
+                    ?: detail?.summary?.cleanSummary()
+                val airDate = detail?.date ?: anime.airDate
+                val airWeekday = detail?.airWeekday ?: anime.airWeekday
 
-            val isFinished = computeIsFinished(
-                airDate = airDate,
-                totalEpisodes = anime.totalEpisodes,
-                localStatus = anime.status
-            )
+                val isFinished = computeIsFinished(
+                    airDate = airDate,
+                    totalEpisodes = anime.totalEpisodes,
+                    localStatus = anime.status
+                )
 
-            val updatedAnime = anime.copy(
-                coverUrl = newCoverUrl,
-                summary = summary ?: anime.summary,
-                airDate = airDate,
-                airWeekday = airWeekday,
-                isFinished = isFinished
-            )
-            repository.updateAnime(updatedAnime)
-            _coverSearch.value = CoverSearchState()
+                val updatedAnime = anime.copy(
+                    coverUrl = newCoverUrl,
+                    summary = summary ?: anime.summary,
+                    airDate = airDate,
+                    airWeekday = airWeekday,
+                    isFinished = isFinished
+                )
+                repository.updateAnime(updatedAnime)
+            }
         }
+        _coverSearch.value = CoverSearchState()
     }
 
     private suspend fun tryFetchDetail(bangumiId: Int): com.aiexile.animetrack.data.network.BangumiSubjectDetail? {

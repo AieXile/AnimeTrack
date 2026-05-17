@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -29,6 +29,16 @@ abstract class AnimeDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE anime ADD COLUMN isFinished INTEGER NOT NULL DEFAULT 0")
             }
         }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "DELETE FROM anime WHERE bangumiId IS NOT NULL AND id NOT IN " +
+                    "(SELECT MIN(id) FROM anime WHERE bangumiId IS NOT NULL GROUP BY bangumiId)"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_bangumiId` ON `anime` (`bangumiId`)")
+            }
+        }
         
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -37,7 +47,7 @@ abstract class AnimeDatabase : RoomDatabase() {
                     AnimeDatabase::class.java,
                     "anime_database"
                 )
-                    .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

@@ -6,6 +6,9 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,8 +28,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -105,7 +111,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.data.network.BangumiSubject
@@ -135,6 +149,15 @@ fun AnimeDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val editState = uiState.editState
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.updateEditLocalCoverUri(it.toString()) }
+    }
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
@@ -143,8 +166,18 @@ fun AnimeDetailScreen(
         }
     }
 
-    BackHandler(enabled = uiState.coverSearch.isVisible) {
-        viewModel.hideCoverSearch()
+    BackHandler(enabled = uiState.coverSearch.isVisible || editState.isEditing) {
+        when {
+            uiState.coverSearch.isVisible -> viewModel.hideCoverSearch()
+            editState.isEditingTitle -> viewModel.setEditingTitle(false)
+            editState.isEditing -> {
+                if (viewModel.hasUnsavedChanges()) {
+                    showDiscardDialog = true
+                } else {
+                    viewModel.exitEditMode()
+                }
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -153,7 +186,17 @@ fun AnimeDetailScreen(
                 TopAppBar(
                     title = { },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(onClick = {
+                            if (editState.isEditing) {
+                                if (viewModel.hasUnsavedChanges()) {
+                                    showDiscardDialog = true
+                                } else {
+                                    viewModel.exitEditMode()
+                                }
+                            } else {
+                                onNavigateBack()
+                            }
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "返回",
@@ -162,11 +205,18 @@ fun AnimeDetailScreen(
                         }
                     },
                     actions = {
-                        if (uiState.anime != null) {
-                            IconButton(onClick = { viewModel.showCoverSearch() }) {
+                        if (editState.isEditing) {
+                            TextButton(onClick = {
+                                viewModel.saveEditChanges()
+                                focusManager.clearFocus()
+                            }) {
+                                Text("保存", color = MaterialTheme.colorScheme.primary)
+                            }
+                        } else if (uiState.anime != null) {
+                            IconButton(onClick = { viewModel.enterEditMode() }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
-                                    contentDescription = "更换封面",
+                                    contentDescription = "编辑",
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -214,6 +264,12 @@ fun AnimeDetailScreen(
                             onAdjustWatchedEpisodes = { viewModel.adjustWatchedEpisodes(it) },
                             onStatusChange = { viewModel.updateStatus(it) },
                             onFinishDateChange = { viewModel.updateFinishDate(it) },
+                            editState = editState,
+                            onEditCoverSearch = { viewModel.showCoverSearch() },
+                            onEditCoverUpload = { imagePickerLauncher.launch("image/*") },
+                            onEditTitleChange = { viewModel.updateEditTitle(it) },
+                            onEditTitleStart = { viewModel.setEditingTitle(true) },
+                            onEditTitleDone = { viewModel.setEditingTitle(false) },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -232,6 +288,23 @@ fun AnimeDetailScreen(
                 onSearch = { viewModel.searchCover() },
                 onSelectResult = { viewModel.selectCoverResult(it) },
                 onDismiss = { viewModel.hideCoverSearch() }
+            )
+        }
+
+        if (showDiscardDialog) {
+            AlertDialog(
+                onDismissRequest = { showDiscardDialog = false },
+                title = { Text("放弃修改") },
+                text = { Text("你有未保存的修改，确定要放弃吗？") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDiscardDialog = false
+                        viewModel.exitEditMode()
+                    }) { Text("放弃") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscardDialog = false }) { Text("取消") }
+                }
             )
         }
     }
@@ -456,6 +529,12 @@ private fun AnimeDetailContent(
     onAdjustWatchedEpisodes: (Int) -> Unit,
     onStatusChange: (AnimeStatus) -> Unit,
     onFinishDateChange: (Long?) -> Unit,
+    editState: EditState = EditState(),
+    onEditCoverSearch: () -> Unit = {},
+    onEditCoverUpload: () -> Unit = {},
+    onEditTitleChange: (String) -> Unit = {},
+    onEditTitleStart: () -> Unit = {},
+    onEditTitleDone: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -467,79 +546,184 @@ private fun AnimeDetailContent(
             .padding(horizontal = 16.dp)
             .padding(bottom = 24.dp)
     ) {
-        Row(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            shape = RoundedCornerShape(CardCornerRadius),
+            color = Color.Transparent
         ) {
-            val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier
-                        .width(120.dp)
-                        .aspectRatio(CoverAspectRatio)
-                        .sharedElement(
-                            rememberSharedContentState(key = "cover_${anime.id}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                        .clip(RoundedCornerShape(12.dp))
-                }
-            } else {
-                Modifier
-                    .width(120.dp)
-                    .aspectRatio(CoverAspectRatio)
-                    .clip(RoundedCornerShape(12.dp))
-            }
-
-            Crossfade(
-                targetState = anime.coverUrl,
-                label = "cover_crossfade"
-            ) { url ->
-                if (url != null) {
-                    AsyncImage(
-                        model = url,
-                        contentDescription = anime.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = sharedModifier
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                    )
-                } else {
-                    val gradientBackground = Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)
-                        )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(120.dp)
-                            .aspectRatio(CoverAspectRatio)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(gradientBackground)
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                    )
-                }
-            }
-
-            Column(
+            Row(
                 modifier = Modifier
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = anime.title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .fillMaxHeight()
+                ) {
+                    val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
+
+                    val coverClipShape = RoundedCornerShape(CardCornerRadius)
+
+                    val coverImageModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                        with(sharedTransitionScope) {
+                            Modifier
+                                .fillMaxSize()
+                                .sharedElement(
+                                    rememberSharedContentState(key = "cover_${anime.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                                .clip(coverClipShape)
+                        }
+                    } else {
+                        Modifier
+                            .fillMaxSize()
+                            .clip(coverClipShape)
+                    }
+
+                    Crossfade(
+                        targetState = displayCoverUrl,
+                        label = "cover_crossfade"
+                    ) { url ->
+                        if (url != null) {
+                            AsyncImage(
+                                model = url,
+                                contentDescription = anime.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = coverImageModifier
+                            )
+                        } else {
+                            val gradientBackground = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(coverClipShape)
+                                    .background(gradientBackground)
+                            )
+                        }
+                    }
+
+                    if (editState.isEditing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(coverClipShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                        )
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 6.dp, bottom = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            SmallFloatingActionButton(
+                                onClick = onEditCoverSearch,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "搜索封面",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            SmallFloatingActionButton(
+                                onClick = onEditCoverUpload,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "上传封面",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(vertical = 12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                if (editState.isEditing) {
+                    if (editState.isEditingTitle) {
+                        val focusRequester = remember { FocusRequester() }
+                        val keyboardController = LocalSoftwareKeyboardController.current
+
+                        BasicTextField(
+                            value = editState.title,
+                            onValueChange = onEditTitleChange,
+                            textStyle = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            singleLine = false,
+                            maxLines = 3,
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    onEditTitleDone()
+                                    keyboardController?.hide()
+                                }
+                            )
+                        )
+
+                        LaunchedEffect(Unit) {
+                            focusRequester.requestFocus()
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = editState.title,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = "编辑标题",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { onEditTitleStart() },
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = anime.title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 if (anime.rating != null) {
                     Surface(
@@ -594,14 +778,17 @@ private fun AnimeDetailContent(
                     )
                 }
 
+                    }
+
                 StatusBadge(status = anime.status)
+            }
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
         SummaryCard(
-            summary = anime.summary,
+            summary = if (editState.isEditing) editState.summary else anime.summary,
             isFetchingDetail = isFetchingDetail
         )
 
@@ -662,6 +849,7 @@ private fun SummaryCard(
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var hasOverflow by remember { mutableStateOf(false) }
 
     DetailCard(modifier = modifier) {
         Text(
@@ -693,7 +881,19 @@ private fun SummaryCard(
             }
         } else if (!summary.isNullOrBlank()) {
             Column(
-                modifier = Modifier.clickable { isExpanded = !isExpanded }
+                modifier = Modifier
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        if (hasOverflow) isExpanded = !isExpanded
+                    }
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
             ) {
                 Text(
                     text = summary,
@@ -701,13 +901,14 @@ private fun SummaryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 22.sp,
                     maxLines = if (isExpanded) Int.MAX_VALUE else 5,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        if (!isExpanded) {
+                            hasOverflow = result.hasVisualOverflow
+                        }
+                    }
                 )
-                AnimatedVisibility(
-                    visible = !isExpanded,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
+                if (hasOverflow && !isExpanded) {
                     Text(
                         text = "点击展开",
                         fontSize = 12.sp,
