@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -123,12 +122,19 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(uiState.showDuplicateToast) {
+        if (uiState.showDuplicateToast) {
+            Toast.makeText(context, "番剧已存在", Toast.LENGTH_SHORT).show()
+            viewModel.dismissDuplicateToast()
+        }
+    }
+
     val filteredAnimeList = remember(animeList, uiState.selectedFilter) {
         viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter)
     }
     val scope = rememberCoroutineScope()
     
-    val gridState = rememberLazyGridState()
+    val gridState = viewModel.gridState
     
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
@@ -243,13 +249,14 @@ fun HomeScreen(
                     )
                 }
         ) {
-            if (filteredAnimeList.isEmpty()) {
+            if (animeList.isEmpty()) {
                 EmptyAnimePlaceholder(
                     modifier = Modifier.weight(1f)
                 )
             } else {
                 AnimeGrid(
                     animeList = filteredAnimeList,
+                    hasAnyAnime = true,
                     newlyAddedAnimeId = uiState.newlyAddedAnimeId,
                     selectedAnimeId = uiState.selectedAnimeId,
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
@@ -691,6 +698,7 @@ private fun EmptyAnimePlaceholder(
 @Composable
 private fun AnimeGrid(
     animeList: List<Anime>,
+    hasAnyAnime: Boolean = false,
     newlyAddedAnimeId: Long?,
     selectedAnimeId: Long?,
     onHighlightComplete: () -> Unit,
@@ -771,6 +779,23 @@ private fun AnimeGrid(
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
+            }
+        }
+
+        if (hasAnyAnime && animeList.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "该分类下暂无番剧",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

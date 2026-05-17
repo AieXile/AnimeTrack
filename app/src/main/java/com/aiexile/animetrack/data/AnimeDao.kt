@@ -25,10 +25,10 @@ interface AnimeDao {
     @Query("SELECT * FROM anime WHERE status = :status ORDER BY id DESC")
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAnime(anime: Anime): Long
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAnimes(animes: List<Anime>)
     
     @Update
@@ -39,6 +39,9 @@ interface AnimeDao {
     
     @Query("SELECT * FROM anime WHERE title = :title LIMIT 1")
     suspend fun getAnimeByTitle(title: String): Anime?
+
+    @Query("SELECT * FROM anime WHERE bangumiId = :bangumiId LIMIT 1")
+    suspend fun getAnimeByBangumiId(bangumiId: Int): Anime?
     
     @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
     suspend fun getAnimesWithoutCover(): List<Anime>

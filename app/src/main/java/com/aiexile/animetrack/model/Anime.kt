@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 enum class AnimeStatus(val displayName: String) {
@@ -10,7 +11,10 @@ enum class AnimeStatus(val displayName: String) {
     DROPPED("已弃番")
 }
 
-@Entity(tableName = "anime")
+@Entity(
+    tableName = "anime",
+    indices = [Index(value = ["bangumiId"], unique = true)]
+)
 data class Anime(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,

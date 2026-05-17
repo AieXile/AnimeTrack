@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data
 
 import android.util.Log
+import com.aiexile.animetrack.data.network.BangumiSearchFilter
 import com.aiexile.animetrack.data.network.BangumiSearchRequest
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -25,6 +26,8 @@ interface AnimeRepository {
     suspend fun deleteAnime(anime: Anime)
     
     suspend fun getAnimeByTitle(title: String): Anime?
+
+    suspend fun getAnimeByBangumiId(bangumiId: Int): Anime?
     
     suspend fun insertAnimes(animes: List<Anime>)
     
@@ -78,6 +81,10 @@ class AnimeRepositoryImpl(
     override suspend fun getAnimeByTitle(title: String): Anime? {
         return animeDao.getAnimeByTitle(title)
     }
+
+    override suspend fun getAnimeByBangumiId(bangumiId: Int): Anime? {
+        return animeDao.getAnimeByBangumiId(bangumiId)
+    }
     
     override suspend fun insertAnimes(animes: List<Anime>) {
         animeDao.insertAnimes(animes)
@@ -91,19 +98,11 @@ class AnimeRepositoryImpl(
         val response = RetrofitClient.bangumiApi.searchSubjects(
             BangumiSearchRequest(
                 keyword = query,
-                type = listOf(2),
-                limit = 25
+                sort = "match",
+                filter = BangumiSearchFilter(type = listOf(2))
             )
         )
-        return response.data.sortedWith(
-            compareByDescending<BangumiSubject> {
-                !it.name_cn.isNullOrBlank()
-            }.thenByDescending {
-                (it.total_episodes ?: 0) > 0 || (it.eps ?: 0) > 0
-            }.thenByDescending {
-                it.score ?: 0.0
-            }
-        )
+        return response.data
     }
 
     override fun getAiringAnimes(): Flow<List<Anime>> {

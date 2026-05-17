@@ -8,22 +8,14 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
-
-data class ScheduleUiState(
-    val groupedAnimes: Map<Int, List<Anime>> = emptyMap(),
-    val selectedWeekday: Int = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-        when (it) {
-            Calendar.SUNDAY -> 7
-            else -> it - 1
-        }
-    }
-)
 
 class ScheduleViewModel(
     private val repository: AnimeRepository
@@ -33,30 +25,29 @@ class ScheduleViewModel(
         private const val TAG = "ScheduleViewModel"
     }
 
-    val uiState: StateFlow<ScheduleUiState>
+    private val todayWeekday = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
+        when (it) {
+            Calendar.SUNDAY -> 7
+            else -> it - 1
+        }
+    }
+
+    private val _selectedWeekday = MutableStateFlow(todayWeekday)
+    val selectedWeekday: StateFlow<Int> = _selectedWeekday.asStateFlow()
+
+    val groupedAnimes: StateFlow<Map<Int, List<Anime>>> = repository.getAiringAnimes()
+        .map { animes -> animes.groupBy { it.airWeekday ?: 0 } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Lazily,
+            initialValue = emptyMap()
+        )
+
+    fun selectWeekday(weekday: Int) {
+        _selectedWeekday.value = weekday
+    }
 
     init {
-        val todayWeekday = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-            when (it) {
-                Calendar.SUNDAY -> 7
-                else -> it - 1
-            }
-        }
-
-        uiState = repository.getAiringAnimes()
-            .map { animes ->
-                val grouped = animes.groupBy { it.airWeekday ?: 0 }
-                ScheduleUiState(
-                    groupedAnimes = grouped,
-                    selectedWeekday = todayWeekday
-                )
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.Lazily,
-                initialValue = ScheduleUiState(selectedWeekday = todayWeekday)
-            )
-
         backfillMissingDetails()
     }
 

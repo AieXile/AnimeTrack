@@ -28,12 +28,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,16 +65,33 @@ fun ScheduleScreen(
     onAnimeClick: (Int) -> Unit = {},
     viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.Factory())
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val groupedAnimes by viewModel.groupedAnimes.collectAsState()
+    val selectedWeekday by viewModel.selectedWeekday.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val hasUncategorized = uiState.groupedAnimes.containsKey(0)
+    val hasUncategorized = groupedAnimes.containsKey(0)
     val pageCount = if (hasUncategorized) 8 else 7
 
     val pagerState = rememberPagerState(
-        initialPage = if (hasUncategorized) uiState.selectedWeekday else uiState.selectedWeekday - 1,
+        initialPage = if (hasUncategorized) selectedWeekday else selectedWeekday - 1,
         pageCount = { pageCount }
     )
+
+    LaunchedEffect(selectedWeekday) {
+        val targetPage = if (hasUncategorized) selectedWeekday else selectedWeekday - 1
+        if (pagerState.settledPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+            val weekday = if (hasUncategorized) settledPage else settledPage + 1
+            if (weekday != viewModel.selectedWeekday.value) {
+                viewModel.selectWeekday(weekday)
+            }
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -105,15 +124,13 @@ fun ScheduleScreen(
                 .padding(paddingValues)
         ) {
             WeekdaySelector(
-                selectedWeekday = if (hasUncategorized) pagerState.currentPage else pagerState.currentPage + 1,
+                selectedWeekday = selectedWeekday,
                 hasUncategorized = hasUncategorized,
                 onWeekdaySelected = { weekday ->
+                    viewModel.selectWeekday(weekday)
                     coroutineScope.launch {
-                        if (hasUncategorized) {
-                            pagerState.animateScrollToPage(weekday)
-                        } else {
-                            pagerState.animateScrollToPage(weekday - 1)
-                        }
+                        val targetPage = if (hasUncategorized) weekday else weekday - 1
+                        pagerState.animateScrollToPage(targetPage)
                     }
                 },
                 modifier = Modifier
@@ -126,7 +143,7 @@ fun ScheduleScreen(
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val weekday = if (hasUncategorized) page else page + 1
-                val animes = uiState.groupedAnimes[weekday].orEmpty()
+                val animes = groupedAnimes[weekday].orEmpty()
 
                 if (animes.isEmpty()) {
                     EmptyWeekdayContent(weekday = weekday)

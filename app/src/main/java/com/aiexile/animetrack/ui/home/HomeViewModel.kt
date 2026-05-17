@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.home
 
 import android.util.Log
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -34,7 +35,8 @@ data class HomeUiState(
     val searchResults: List<BangumiSubject> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
-    val showCompletedToast: Boolean = false
+    val showCompletedToast: Boolean = false,
+    val showDuplicateToast: Boolean = false
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -54,6 +56,8 @@ class HomeViewModel(
     companion object {
         private const val TAG = "AnimeTrack"
     }
+    
+    val gridState = LazyGridState()
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -166,6 +170,10 @@ class HomeViewModel(
     fun dismissCompletedToast() {
         _uiState.update { it.copy(showCompletedToast = false) }
     }
+
+    fun dismissDuplicateToast() {
+        _uiState.update { it.copy(showDuplicateToast = false) }
+    }
     
     fun deleteAnime(anime: Anime) {
         viewModelScope.launch {
@@ -206,6 +214,15 @@ class HomeViewModel(
         }
         
         viewModelScope.launch {
+            if (formState.bangumiId != null) {
+                val existing = repository.getAnimeByBangumiId(formState.bangumiId)
+                if (existing != null) {
+                    Log.d(TAG, "Duplicate bangumiId: ${formState.bangumiId}")
+                    _uiState.update { it.copy(showDuplicateToast = true) }
+                    return@launch
+                }
+            }
+
             var airWeekday = formState.airWeekday
             var airDate = formState.airDate
             var summary = formState.summary
@@ -358,9 +375,11 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(subject.id)
+                val detailEps = detail.eps ?: detail.totalEpisodes
                 _uiState.update { state ->
                     state.copy(
                         formState = state.formState.copy(
+                            totalEpisodes = detailEps ?: state.formState.totalEpisodes,
                             airDate = detail.date ?: state.formState.airDate,
                             airWeekday = detail.airWeekday ?: state.formState.airWeekday,
                             summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")

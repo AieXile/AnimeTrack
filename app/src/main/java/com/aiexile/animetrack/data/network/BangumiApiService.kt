@@ -8,9 +8,13 @@ import retrofit2.http.Path
 
 data class BangumiSearchRequest(
     val keyword: String,
-    val type: List<Int>? = null,
-    val limit: Int = 25,
-    val offset: Int = 0
+    val sort: String? = "match",
+    val filter: BangumiSearchFilter? = null
+)
+
+data class BangumiSearchFilter(
+    val type: List<Int>? = listOf(2),
+    val nsfw: Boolean = false
 )
 
 data class BangumiSearchResponse(
@@ -44,7 +48,8 @@ data class BangumiSubject(
     @SerializedName("total_episodes")
     val total_episodes: Int?,
     val rating: BangumiRating?,
-    val summary: String? = null
+    val summary: String? = null,
+    val date: String? = null
 ) {
     val displayName: String
         get() = if (!name_cn.isNullOrBlank()) name_cn else name
@@ -63,7 +68,24 @@ data class BangumiSubject(
         }
     
     val episodeCountText: String
-        get() = episodeCount?.let { "${it}集" } ?: "未定"
+        get() {
+            val epCount = episodeCount
+            val airDate = date
+            if (!airDate.isNullOrBlank()) {
+                val isFuture = try {
+                    java.time.LocalDate.parse(airDate)
+                        .isAfter(java.time.LocalDate.now())
+                } catch (_: Exception) { false }
+                if (isFuture) {
+                    return airDate.replace("-", "/") + " 放送"
+                }
+            }
+            return when {
+                epCount != null && epCount > 0 -> "全${epCount}话"
+                airDate != null -> "连载中"
+                else -> "未定"
+            }
+        }
 }
 
 data class BangumiInfoboxItem(

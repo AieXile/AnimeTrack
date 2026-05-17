@@ -10,6 +10,7 @@ import com.aiexile.animetrack.data.MarkdownParser
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
+import com.aiexile.animetrack.model.AnimeStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -127,15 +128,39 @@ class SettingsViewModel(
                     val bestMatch = results.firstOrNull()
                     
                     if (bestMatch != null) {
-                        val summary = bestMatch.summary
+                        val detail = try {
+                            RetrofitClient.bangumiApi.getSubjectDetail(bestMatch.id)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to fetch detail for: ${anime.title}", e)
+                            null
+                        }
+
+                        val summary = detail?.summary?.cleanSummary()
+                            ?: bestMatch.summary
                             ?: tryFetchSummary(bestMatch.id)
-                        
+
+                        val newTotalEpisodes = detail?.eps
+                            ?: detail?.totalEpisodes
+                            ?: bestMatch.episodeCount
+                            ?: anime.totalEpisodes
+                        val newTotalEpisodesFinal = if (newTotalEpisodes != null && newTotalEpisodes > 0)
+                            newTotalEpisodes else anime.totalEpisodes
+                        val newWatchedEpisodes = if (
+                            anime.status == AnimeStatus.COMPLETED
+                            && anime.watchedEpisodes == 0
+                            && newTotalEpisodesFinal > 0
+                        ) newTotalEpisodesFinal else anime.watchedEpisodes
+
                         val updatedAnime = anime.copy(
                             title = cleanTitle,
                             coverUrl = bestMatch.coverUrl,
-                            rating = bestMatch.score?.toFloat(),
-                            totalEpisodes = bestMatch.episodeCount ?: anime.totalEpisodes,
+                            rating = detail?.score?.toFloat() ?: bestMatch.score?.toFloat(),
+                            totalEpisodes = newTotalEpisodesFinal,
+                            watchedEpisodes = newWatchedEpisodes,
                             summary = summary,
+                            bangumiId = bestMatch.id,
+                            airDate = detail?.date ?: anime.airDate,
+                            airWeekday = detail?.airWeekday ?: anime.airWeekday,
                             notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
                         )
                         
