@@ -32,10 +32,11 @@ jobs:
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        # 💡 改良：限制内存，防止 Compose 编译器把虚拟机逼到 OOM 崩溃
+        run: ./gradlew assembleRelease -Dorg.gradle.jvmargs="-Xmx3072m"
         env:
           KEYSTORE_PATH: keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEY_PASSWORD }} 
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
@@ -46,13 +47,80 @@ jobs:
       - name: Generate Custom Changelog
         id: changelog
         run: |
-          # 提取最近的 commit 标题，每行一个
-          # 如果你想获取从上一个 tag 到现在的，可以用 git log $(git describe --tags --abbrev=0 --always)^..HEAD
-          # 这里简单处理获取最近 10 条
-          echo "log_body<<EOF" >> $GITHUB_OUTPUT
-          git log --pretty=format:"- %s" -n 10 >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # 1. 获取 Tag 范围
+          PREV_TAG=$(git describe --tags --abbrev=0 --always "${{ github.ref_name }}^" 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "未找到上一个版本标签，将提取所有提交..."
+            # 💡 修复点 1：使用 %B 且换行拼接自定义分隔符，确保多行消息边界清晰
+            git log --pretty=format:"%B%n---COMMIT_SPLIT---" > raw_commits.log
+          else
+            echo "正在提取从 $PREV_TAG 到 ${{ github.ref_name }} 的提交..."
+            git log "$PREV_TAG..${{ github.ref_name }}" --pretty=format:"%B%n---COMMIT_SPLIT---" > raw_commits.log
+          fi
+
+          # 2. 清空并初始化分类临时文件
+          touch feat.log fix.log refactor.log chore.log other.log
+
+          # 3. 💡 修复点 2：放弃脆弱的 Shell for 循环，改用 awk 文本流引擎，完美保护内部换行
+          awk '
+            BEGIN { RS="---COMMIT_SPLIT---"; ORS="" }
+            {
+              # 去除单条 Commit 首尾由于格式化产生的多余空行和回车
+              gsub(/^[ \t\r\n]+/, "", $0)
+              gsub(/[ \t\r\n]+$/, "", $0)
+              if ($0 == "") next
+          
+              # 获取当前 Commit 的第一行作为分类依据
+              match($0, /^[^\n]+/)
+              first_line = substr($0, RSTART, RLENGTH)
+          
+              # 过滤掉不需要出现在日志里的 README.md 变动
+              if (first_line ~ /README\.md/) next
+
+              # 💡 修复点 3：不做全局粗暴的 sed "s/^/- /"，只对当前 Commit 第一行规范化输出成 Markdown
+              formatted = $0 "\n"
+
+              # 精准匹配第一行开头进行分流归类
+              if (first_line ~ /^feat/) { print formatted >> "feat.log" }
+              else if (first_line ~ /^fix/) { print formatted >> "fix.log" }
+              else if (first_line ~ /^refactor/) { print formatted >> "refactor.log" }
+              else if (first_line ~ /^chore/) { print formatted >> "chore.log" }
+              else { print formatted >> "other.log" }
+            }
+          ' raw_commits.log
+
+          # 4. 组装最终输出
+          {
+            echo "log_body<<EOF"
+            echo "- 更新版本号为 ${{ github.ref_name }}"
+          
+            if [ -s feat.log ]; then
+              echo "### feat:"
+              cat feat.log
+            fi
+          
+            if [ -s fix.log ]; then
+              echo "### fix:"
+              cat fix.log
+            fi
+          
+            if [ -s refactor.log ]; then
+              echo "### refactor:"
+              cat refactor.log
+            fi
+          
+            if [ -s chore.log ]; then
+              echo "### chore:"
+              cat chore.log
+            fi
+
+            if [ -s other.log ]; then
+              echo "### 其他变更:"
+              cat other.log
+            fi
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -65,6 +133,6 @@ jobs:
             ---
             *由 GitHub Actions 自动构建*
           files: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
-          generate_release_notes: false 
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
