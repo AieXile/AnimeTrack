@@ -561,8 +561,8 @@ private fun AnimeDetailContent(
             ) {
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
-                        .fillMaxHeight()
+                        .width(130.dp)
+                        .aspectRatio(2f / 3f)
                 ) {
                     val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
 
@@ -656,132 +656,138 @@ private fun AnimeDetailContent(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(vertical = 12.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .padding(top = 0.dp, bottom = 0.dp)
+                        .padding(end = 4.dp)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                if (editState.isEditing) {
-                    if (editState.isEditingTitle) {
-                        val focusRequester = remember { FocusRequester() }
-                        val keyboardController = LocalSoftwareKeyboardController.current
+                    if (editState.isEditing) {
+                        if (editState.isEditingTitle) {
+                            val focusRequester = remember { FocusRequester() }
+                            val keyboardController = LocalSoftwareKeyboardController.current
 
-                        BasicTextField(
-                            value = editState.title,
-                            onValueChange = onEditTitleChange,
-                            textStyle = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            singleLine = false,
-                            maxLines = 3,
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    onEditTitleDone()
-                                    keyboardController?.hide()
-                                }
+                            BasicTextField(
+                                value = editState.title,
+                                onValueChange = onEditTitleChange,
+                                textStyle = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                singleLine = false,
+                                maxLines = 3,
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        onEditTitleDone()
+                                        keyboardController?.hide()
+                                    }
+                                )
                             )
-                        )
 
-                        LaunchedEffect(Unit) {
-                            focusRequester.requestFocus()
+                            LaunchedEffect(Unit) {
+                                focusRequester.requestFocus()
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = editState.title,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "编辑标题",
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { onEditTitleStart() },
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                        Text(
+                            text = anime.title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (anime.rating != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = LocalAnimeColors.current.finished.copy(alpha = 0.1f)
                         ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = LocalAnimeColors.current.starFilled,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = String.format("%.1f", anime.rating),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalAnimeColors.current.starFilled
+                                )
+                            }
+                        }
+                    }
+
+                    if (!anime.airDate.isNullOrBlank() || !airStatusText.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (!anime.airDate.isNullOrBlank()) {
                             Text(
-                                text = editState.title,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = "编辑标题",
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onEditTitleStart() },
-                                tint = MaterialTheme.colorScheme.primary
+                                text = "放送: ${anime.airDate}",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                } else {
-                    Text(
-                        text = anime.title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
 
-                if (anime.rating != null) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = LocalAnimeColors.current.finished.copy(alpha = 0.1f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = LocalAnimeColors.current.starFilled,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "全 ${anime.totalEpisodes} 集",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (!airStatusText.isNullOrBlank()) {
                             Text(
-                                text = String.format("%.1f", anime.rating),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LocalAnimeColors.current.starFilled
+                                text = airStatusText,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (airStatusText.contains("已完结")) {
+                                    LocalAnimeColors.current.finished
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                }
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    StatusBadge(status = anime.status)
                 }
-
-                if (!anime.airDate.isNullOrBlank()) {
-                    Text(
-                        text = "放送: ${anime.airDate}",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Text(
-                    text = "全 ${anime.totalEpisodes} 集",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (!airStatusText.isNullOrBlank()) {
-                    Text(
-                        text = airStatusText,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (airStatusText.contains("已完结")) {
-                            LocalAnimeColors.current.finished
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        }
-                    )
-                }
-
-                    }
-
-                StatusBadge(status = anime.status)
-            }
             }
         }
 

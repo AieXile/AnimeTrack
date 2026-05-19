@@ -86,5 +86,9 @@
     {
         "merged": "com.aiexile.animetrack.app-merged_res-74:/mipmap-anydpi-v26_ic_launcher.xml.flat",
         "source": "com.aiexile.animetrack.app-main-76:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.aiexile.animetrack.app-merged_res-74:/xml_file_paths.xml.flat",
+        "source": "com.aiexile.animetrack.app-main-76:/xml/file_paths.xml"
     }
 ]

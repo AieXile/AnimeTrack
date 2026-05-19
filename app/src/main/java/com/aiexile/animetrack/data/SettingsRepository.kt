@@ -29,6 +29,7 @@ class SettingsRepository(private val context: Context) {
         private val CUSTOM_GREETING_KEY = stringPreferencesKey("custom_greeting")
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
+        private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data
@@ -158,6 +159,17 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCompletedToastEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[COMPLETED_TOAST_KEY] = enabled
+        }
+    }
+
+    val skippedVersion: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[SKIPPED_VERSION_KEY] ?: ""
+        }
+
+    suspend fun setSkippedVersion(version: String) {
+        context.dataStore.edit { preferences ->
+            preferences[SKIPPED_VERSION_KEY] = version
         }
     }
 }

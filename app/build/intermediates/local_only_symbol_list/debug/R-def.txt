@@ -11,3 +11,4 @@ string app_name
 style Theme.AnimeTrack
 xml backup_rules
 xml data_extraction_rules
+xml file_paths

@@ -168,6 +168,7 @@ com.aiexile.animetrack:style/Widget.MaterialComponents.TabLayout.PrimarySurface 
 com.aiexile.animetrack:style/Widget.Material3.FloatingActionButton.Large.Secondary = 0x7f10038f
 com.aiexile.animetrack:style/Widget.Material3.FloatingActionButton.Large.Primary = 0x7f10038e
 com.aiexile.animetrack:style/Widget.Material3.ExtendedFloatingActionButton.Tertiary = 0x7f10038d
+com.aiexile.animetrack:xml/file_paths = 0x7f120002
 com.aiexile.animetrack:style/Widget.Material3.ExtendedFloatingActionButton.Secondary = 0x7f10038b
 com.aiexile.animetrack:style/Widget.Material3.ExtendedFloatingActionButton.Icon.Tertiary = 0x7f100389
 com.aiexile.animetrack:style/Widget.Material3.ExtendedFloatingActionButton.Icon.Surface = 0x7f100388

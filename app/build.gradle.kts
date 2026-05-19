@@ -16,6 +16,8 @@ val kPass: String? = System.getenv("KEY_PASSWORD")
 val isSigningReady = !ksPath.isNullOrBlank() && !ksPass.isNullOrBlank() 
     && !kAlias.isNullOrBlank() && !kPass.isNullOrBlank()
 
+val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
+
 android {
     namespace = "com.aiexile.animetrack"
     compileSdk = 34
@@ -25,12 +27,14 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 10
-        versionName = "v0.3.1-alpha"
+        versionName = "v0.0.1-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
     }
 
     signingConfigs {
@@ -83,6 +87,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

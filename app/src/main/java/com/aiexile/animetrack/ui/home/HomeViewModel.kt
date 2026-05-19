@@ -9,10 +9,12 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
+import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +52,8 @@ enum class AnimeFilter(val displayName: String) {
 
 class HomeViewModel(
     private val repository: AnimeRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    val updateViewModel: UpdateViewModel
 ) : ViewModel() {
     
     companion object {
@@ -93,6 +96,7 @@ class HomeViewModel(
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
+        updateViewModel.checkForUpdate()
     }
     
     fun setFilter(filter: AnimeFilter) {
@@ -398,7 +402,9 @@ class HomeViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val repository = AppContainer.getAnimeRepository()
             val settingsRepository = AppContainer.getSettingsRepository()
-            return HomeViewModel(repository, settingsRepository) as T
+            val updateRepository = UpdateRepository()
+            val updateViewModel = UpdateViewModel(updateRepository, settingsRepository)
+            return HomeViewModel(repository, settingsRepository, updateViewModel) as T
         }
     }
 }

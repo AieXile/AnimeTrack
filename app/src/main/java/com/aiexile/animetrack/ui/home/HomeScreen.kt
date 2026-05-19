@@ -92,6 +92,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.ui.update.UpdateDialog
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -166,6 +167,8 @@ fun HomeScreen(
             viewModel.clearSelection()
         }
     }
+    
+    UpdateDialog(viewModel = viewModel.updateViewModel)
     
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
