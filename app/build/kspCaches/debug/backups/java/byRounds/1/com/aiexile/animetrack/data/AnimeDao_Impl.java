@@ -9,6 +9,7 @@ import androidx.room.EntityDeletionOrUpdateAdapter;
 import androidx.room.EntityInsertionAdapter;
 import androidx.room.RoomDatabase;
 import androidx.room.RoomSQLiteQuery;
+import androidx.room.SharedSQLiteStatement;
 import androidx.room.util.CursorUtil;
 import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
@@ -45,13 +46,15 @@ public final class AnimeDao_Impl implements AnimeDao {
 
   private final EntityDeletionOrUpdateAdapter<Anime> __updateAdapterOfAnime;
 
+  private final SharedSQLiteStatement __preparedStmtOfClearNewUpdate;
+
   public AnimeDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfAnime = new EntityInsertionAdapter<Anime>(__db) {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`,`currentEpisodes`,`hasNewUpdate`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -106,6 +109,9 @@ public final class AnimeDao_Impl implements AnimeDao {
         }
         final int _tmp_1 = entity.isFinished() ? 1 : 0;
         statement.bindLong(15, _tmp_1);
+        statement.bindLong(16, entity.getCurrentEpisodes());
+        final int _tmp_2 = entity.getHasNewUpdate() ? 1 : 0;
+        statement.bindLong(17, _tmp_2);
       }
     };
     this.__deletionAdapterOfAnime = new EntityDeletionOrUpdateAdapter<Anime>(__db) {
@@ -125,7 +131,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ?,`currentEpisodes` = ?,`hasNewUpdate` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -180,7 +186,18 @@ public final class AnimeDao_Impl implements AnimeDao {
         }
         final int _tmp_1 = entity.isFinished() ? 1 : 0;
         statement.bindLong(15, _tmp_1);
-        statement.bindLong(16, entity.getId());
+        statement.bindLong(16, entity.getCurrentEpisodes());
+        final int _tmp_2 = entity.getHasNewUpdate() ? 1 : 0;
+        statement.bindLong(17, _tmp_2);
+        statement.bindLong(18, entity.getId());
+      }
+    };
+    this.__preparedStmtOfClearNewUpdate = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE anime SET hasNewUpdate = 0 WHERE id = ?";
+        return _query;
       }
     };
   }
@@ -259,6 +276,31 @@ public final class AnimeDao_Impl implements AnimeDao {
   }
 
   @Override
+  public Object clearNewUpdate(final int id, final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfClearNewUpdate.acquire();
+        int _argIndex = 1;
+        _stmt.bindLong(_argIndex, id);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfClearNewUpdate.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Flow<List<Anime>> getAllAnimes() {
     final String _sql = "SELECT * FROM anime ORDER BY id DESC";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
@@ -283,6 +325,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -352,7 +396,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
             _result.add(_item);
           }
           return _result;
@@ -396,6 +446,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -464,7 +516,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
           } else {
             _result = null;
           }
@@ -504,6 +562,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -572,7 +632,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
           } else {
             _result = null;
           }
@@ -617,6 +683,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -686,7 +754,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_3;
+            _tmp_3 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
             _result.add(_item);
           }
           return _result;
@@ -730,6 +804,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -798,7 +874,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
           } else {
             _result = null;
           }
@@ -840,6 +922,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -908,7 +992,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
           } else {
             _result = null;
           }
@@ -947,6 +1037,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1016,7 +1108,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
             _result.add(_item);
           }
           return _result;
@@ -1053,6 +1151,8 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
           final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1122,7 +1222,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_1;
             _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
             _tmpIsFinished = _tmp_1 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished);
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
             _result.add(_item);
           }
           return _result;
@@ -1136,6 +1242,121 @@ public final class AnimeDao_Impl implements AnimeDao {
         _statement.release();
       }
     });
+  }
+
+  @Override
+  public Object getAiringAnimesWithBangumiId(final Continuation<? super List<Anime>> $completion) {
+    final String _sql = "SELECT * FROM anime WHERE totalEpisodes = 0 AND bangumiId IS NOT NULL";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<Anime>>() {
+      @Override
+      @NonNull
+      public List<Anime> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfTitle = CursorUtil.getColumnIndexOrThrow(_cursor, "title");
+          final int _cursorIndexOfTotalEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "totalEpisodes");
+          final int _cursorIndexOfWatchedEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "watchedEpisodes");
+          final int _cursorIndexOfStatus = CursorUtil.getColumnIndexOrThrow(_cursor, "status");
+          final int _cursorIndexOfRating = CursorUtil.getColumnIndexOrThrow(_cursor, "rating");
+          final int _cursorIndexOfNotes = CursorUtil.getColumnIndexOrThrow(_cursor, "notes");
+          final int _cursorIndexOfStartDate = CursorUtil.getColumnIndexOrThrow(_cursor, "startDate");
+          final int _cursorIndexOfFinishDate = CursorUtil.getColumnIndexOrThrow(_cursor, "finishDate");
+          final int _cursorIndexOfCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "coverUrl");
+          final int _cursorIndexOfAirDate = CursorUtil.getColumnIndexOrThrow(_cursor, "airDate");
+          final int _cursorIndexOfSummary = CursorUtil.getColumnIndexOrThrow(_cursor, "summary");
+          final int _cursorIndexOfBangumiId = CursorUtil.getColumnIndexOrThrow(_cursor, "bangumiId");
+          final int _cursorIndexOfAirWeekday = CursorUtil.getColumnIndexOrThrow(_cursor, "airWeekday");
+          final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
+          final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
+          final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final Anime _item;
+            final int _tmpId;
+            _tmpId = _cursor.getInt(_cursorIndexOfId);
+            final String _tmpTitle;
+            _tmpTitle = _cursor.getString(_cursorIndexOfTitle);
+            final int _tmpTotalEpisodes;
+            _tmpTotalEpisodes = _cursor.getInt(_cursorIndexOfTotalEpisodes);
+            final int _tmpWatchedEpisodes;
+            _tmpWatchedEpisodes = _cursor.getInt(_cursorIndexOfWatchedEpisodes);
+            final AnimeStatus _tmpStatus;
+            final String _tmp;
+            _tmp = _cursor.getString(_cursorIndexOfStatus);
+            _tmpStatus = __animeTypeConverters.toAnimeStatus(_tmp);
+            final Float _tmpRating;
+            if (_cursor.isNull(_cursorIndexOfRating)) {
+              _tmpRating = null;
+            } else {
+              _tmpRating = _cursor.getFloat(_cursorIndexOfRating);
+            }
+            final String _tmpNotes;
+            _tmpNotes = _cursor.getString(_cursorIndexOfNotes);
+            final Long _tmpStartDate;
+            if (_cursor.isNull(_cursorIndexOfStartDate)) {
+              _tmpStartDate = null;
+            } else {
+              _tmpStartDate = _cursor.getLong(_cursorIndexOfStartDate);
+            }
+            final Long _tmpFinishDate;
+            if (_cursor.isNull(_cursorIndexOfFinishDate)) {
+              _tmpFinishDate = null;
+            } else {
+              _tmpFinishDate = _cursor.getLong(_cursorIndexOfFinishDate);
+            }
+            final String _tmpCoverUrl;
+            if (_cursor.isNull(_cursorIndexOfCoverUrl)) {
+              _tmpCoverUrl = null;
+            } else {
+              _tmpCoverUrl = _cursor.getString(_cursorIndexOfCoverUrl);
+            }
+            final String _tmpAirDate;
+            if (_cursor.isNull(_cursorIndexOfAirDate)) {
+              _tmpAirDate = null;
+            } else {
+              _tmpAirDate = _cursor.getString(_cursorIndexOfAirDate);
+            }
+            final String _tmpSummary;
+            if (_cursor.isNull(_cursorIndexOfSummary)) {
+              _tmpSummary = null;
+            } else {
+              _tmpSummary = _cursor.getString(_cursorIndexOfSummary);
+            }
+            final Integer _tmpBangumiId;
+            if (_cursor.isNull(_cursorIndexOfBangumiId)) {
+              _tmpBangumiId = null;
+            } else {
+              _tmpBangumiId = _cursor.getInt(_cursorIndexOfBangumiId);
+            }
+            final Integer _tmpAirWeekday;
+            if (_cursor.isNull(_cursorIndexOfAirWeekday)) {
+              _tmpAirWeekday = null;
+            } else {
+              _tmpAirWeekday = _cursor.getInt(_cursorIndexOfAirWeekday);
+            }
+            final boolean _tmpIsFinished;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfIsFinished);
+            _tmpIsFinished = _tmp_1 != 0;
+            final int _tmpCurrentEpisodes;
+            _tmpCurrentEpisodes = _cursor.getInt(_cursorIndexOfCurrentEpisodes);
+            final boolean _tmpHasNewUpdate;
+            final int _tmp_2;
+            _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
+            _tmpHasNewUpdate = _tmp_2 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
   }
 
   @NonNull

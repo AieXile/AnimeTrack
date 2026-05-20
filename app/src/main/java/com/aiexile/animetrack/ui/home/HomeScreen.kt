@@ -1,5 +1,7 @@
 package com.aiexile.animetrack.ui.home
 
+import android.graphics.Bitmap
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
@@ -24,13 +27,18 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,25 +48,31 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -77,26 +91,32 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AddAnimeForm
+import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import com.aiexile.animetrack.ui.update.UpdateDialog
-import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.WindowInsets
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -138,7 +158,10 @@ fun HomeScreen(
     val gridState = viewModel.gridState
     
     val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
+        skipPartiallyExpanded = true,
+        confirmValueChange = { newValue ->
+            newValue != androidx.compose.material3.SheetValue.PartiallyExpanded
+        }
     )
     
     LaunchedEffect(bottomSheetState.currentValue) {
@@ -286,10 +309,6 @@ fun HomeScreen(
         if (uiState.isBottomSheetVisible) {
             AddAnimeBottomSheet(
                 sheetState = bottomSheetState,
-                formState = uiState.formState,
-                formError = uiState.formError,
-                onFormStateChange = { viewModel.updateFormState(it) },
-                onSave = { viewModel.saveAnime() },
                 onDismiss = {
                     scope.launch {
                         bottomSheetState.hide()
@@ -301,7 +320,19 @@ fun HomeScreen(
                 searchError = uiState.searchError,
                 onSearchQueryChange = { viewModel.updateSearchQuery(it) },
                 onSearch = { viewModel.searchAnime() },
-                onSearchResultSelect = { viewModel.selectSearchResult(it) }
+                onSearchResultSelect = { viewModel.selectSearchResult(it) },
+                onManualAdd = { viewModel.showManualAddDialog() },
+                hasSearched = uiState.hasSearched
+            )
+        }
+
+        if (uiState.showFormDialog) {
+            AddAnimeFormDialog(
+                formState = uiState.formState,
+                formError = uiState.formError,
+                onFormStateChange = { viewModel.updateFormState(it) },
+                onSave = { viewModel.saveAnime() },
+                onDismiss = { viewModel.hideFormDialog() }
             )
         }
     }
@@ -344,26 +375,18 @@ private fun TypingGreeting(
 @Composable
 private fun AddAnimeBottomSheet(
     sheetState: SheetState,
-    formState: com.aiexile.animetrack.ui.components.AddAnimeFormState,
-    formError: String?,
-    onFormStateChange: (com.aiexile.animetrack.ui.components.AddAnimeFormState) -> Unit,
-    onSave: () -> Unit,
     onDismiss: () -> Unit,
     searchQuery: String = "",
-    searchResults: List<com.aiexile.animetrack.data.network.BangumiSubject> = emptyList(),
+    searchResults: List<BangumiSubject> = emptyList(),
     isSearching: Boolean = false,
     searchError: String? = null,
     onSearchQueryChange: (String) -> Unit = {},
     onSearch: () -> Unit = {},
-    onSearchResultSelect: (com.aiexile.animetrack.data.network.BangumiSubject) -> Unit = {},
+    onSearchResultSelect: (BangumiSubject) -> Unit = {},
+    onManualAdd: () -> Unit = {},
+    hasSearched: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val watchedEpisodesError = if (formState.watchedEpisodes > formState.totalEpisodes) {
-        "已看集数不能超过总集数"
-    } else {
-        null
-    }
-    
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -382,13 +405,13 @@ private fun AddAnimeBottomSheet(
             }
         }
     ) {
+        val keyboardController = LocalSoftwareKeyboardController.current
+
         Column(
             modifier = modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp)
         ) {
             Text(
                 text = "添加新番剧",
@@ -397,52 +420,67 @@ private fun AddAnimeBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            Row(
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    placeholder = { Text("搜索番剧...") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Search
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = { onSearch() }
-                    ),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                
-                Button(
-                    onClick = onSearch,
-                    enabled = searchQuery.isNotBlank() && !isSearching,
-                    modifier = Modifier.height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                placeholder = {
+                    Text(
+                        "搜索番剧...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
-                ) {
-                    Text(if (isSearching) "..." else "搜索")
-                }
-            }
-            
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        Row {
+                            IconButton(onClick = {
+                                keyboardController?.hide()
+                                onSearch()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "搜索",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            IconButton(onClick = { onSearchQueryChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "清除",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    keyboardController?.hide()
+                    onSearch()
+                })
+            )
+
             if (searchError != null) {
                 Text(
                     text = searchError,
@@ -451,87 +489,132 @@ private fun AddAnimeBottomSheet(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                 )
             }
-            
-            if (searchResults.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                LazyColumn(
+
+            if (isSearching) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
-                        .padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    items(searchResults.size) { index ->
-                        val result = searchResults[index]
-                        SearchResultItem(
-                            subject = result,
-                            onClick = { onSearchResultSelect(result) }
-                        )
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (searchResults.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val lazyListState = rememberLazyListState()
+                val coroutineScope = rememberCoroutineScope()
+                val flingBehavior = ScrollableDefaults.flingBehavior()
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pointerInput(Unit) {
+                            val velocityTracker = VelocityTracker()
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    velocityTracker.resetTracking()
+                                },
+                                onDragEnd = {
+                                    val velocity = velocityTracker.calculateVelocity().y
+                                    coroutineScope.launch {
+                                        lazyListState.scroll {
+                                            with(flingBehavior) {
+                                                performFling(-velocity)
+                                            }
+                                        }
+                                    }
+                                    velocityTracker.resetTracking()
+                                },
+                                onDragCancel = {
+                                    velocityTracker.resetTracking()
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                    coroutineScope.launch {
+                                        lazyListState.scroll { scrollBy(-dragAmount) }
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    LazyColumn(
+                        state = lazyListState,
+                        userScrollEnabled = false,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(
+                            count = searchResults.size,
+                            key = { searchResults[it].id },
+                            contentType = { "search_result" }
+                        ) { index ->
+                            SearchResultItem(
+                                subject = searchResults[index],
+                                onClick = { onSearchResultSelect(searchResults[index]) }
+                            )
+                        }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
+            } else if (hasSearched && !isSearching && searchResults.isEmpty() && searchError == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "未找到相关番剧",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                }
             }
-            
-            AddAnimeForm(
-                formState = formState,
-                onFormStateChange = onFormStateChange,
-                watchedEpisodesError = watchedEpisodesError
-            )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            Row(
+
+            TextButton(
+                onClick = onManualAdd,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "取消",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                
-                Button(
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    enabled = formError == null && formState.title.isNotBlank()
-                ) {
-                    Text(
-                        text = "保存",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Text(
+                    text = "手动添加番剧",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 14.sp
+                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
 private fun SearchResultItem(
-    subject: com.aiexile.animetrack.data.network.BangumiSubject,
+    subject: BangumiSubject,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                shape = RoundedCornerShape(12.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(14.dp)
             )
             .clickable { onClick() }
             .padding(12.dp),
@@ -539,46 +622,265 @@ private fun SearchResultItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
-            model = subject.coverUrl,
+            model = ImageRequest.Builder(context)
+                .data(subject.coverUrl)
+                .bitmapConfig(Bitmap.Config.HARDWARE)
+                .build(),
             contentDescription = subject.displayName,
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                .width(52.dp)
+                .aspectRatio(2f / 3f)
+                .graphicsLayer {
+                    shape = RoundedCornerShape(8.dp)
+                    clip = true
+                },
+            contentScale = ContentScale.Crop
         )
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = subject.displayName,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-            )
-            
-            Text(
-                text = subject.episodeCountText,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        
-        if (subject.score != null) {
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = String.format("%.1f", subject.score),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = LocalAnimeColors.current.starFilled
+                    text = subject.displayName,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = null,
-                    tint = LocalAnimeColors.current.starFilled,
-                    modifier = Modifier.size(14.dp)
+
+                val score = subject.score
+                if (score != null && score > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = LocalAnimeColors.current.starFilled,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = String.format("%.1f", score),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = LocalAnimeColors.current.starFilled
+                        )
+                    }
+                }
+            }
+
+            val subtitle = if (!subject.name_cn.isNullOrBlank() && subject.name_cn != subject.name) {
+                subject.name
+            } else {
+                null
+            }
+
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!subject.date.isNullOrBlank()) {
+                    val formattedDate = try {
+                        val parts = subject.date.split("-")
+                        if (parts.size >= 2) "${parts[0]}年${parts[1].toInt()}月" else subject.date
+                    } catch (_: Exception) { subject.date }
+                    Text(
+                        text = formattedDate,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = "·",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+
+                Text(
+                    text = subject.episodeCountText,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddAnimeFormDialog(
+    formState: AddAnimeFormState,
+    formError: String?,
+    onFormStateChange: (AddAnimeFormState) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val watchedEpisodesError = if (formState.watchedEpisodes > formState.totalEpisodes) {
+        "已看集数不能超过总集数"
+    } else {
+        null
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.88f)
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLowest
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                FormDialogHeader(formState = formState)
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .imePadding(),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp)
+                ) {
+                    item {
+                        AddAnimeForm(
+                            formState = formState,
+                            onFormStateChange = onFormStateChange,
+                            watchedEpisodesError = watchedEpisodesError
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "取消",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Button(
+                        onClick = onSave,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        enabled = formError == null && formState.title.isNotBlank()
+                    ) {
+                        Text(
+                            text = "保存",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FormDialogHeader(
+    formState: AddAnimeFormState,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (formState.coverUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(formState.coverUrl)
+                    .bitmapConfig(Bitmap.Config.HARDWARE)
+                    .build(),
+                contentDescription = formState.title,
+                modifier = Modifier
+                    .width(64.dp)
+                    .aspectRatio(2f / 3f)
+                    .graphicsLayer {
+                        shape = RoundedCornerShape(10.dp)
+                        clip = true
+                    },
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = formState.title.ifBlank { "新番剧" },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val episodeText = if (formState.totalEpisodes > 0) {
+                "共 ${formState.totalEpisodes} 集"
+            } else if (formState.currentEpisodes > 0) {
+                "连载中 (更新至 ${formState.currentEpisodes} 集)"
+            } else {
+                "连载中"
+            }
+
+            Text(
+                text = episodeText,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (formState.airDate != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formState.airDate,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
         }

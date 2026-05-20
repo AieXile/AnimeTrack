@@ -764,11 +764,25 @@ private fun AnimeDetailContent(
                             )
                         }
 
-                        Text(
-                            text = "全 ${anime.totalEpisodes} 集",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (anime.totalEpisodes > 0) {
+                            Text(
+                                text = "全 ${anime.totalEpisodes} 集",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (anime.currentEpisodes > 0) {
+                            Text(
+                                text = "连载中 (更新至 ${anime.currentEpisodes} 集)",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "连载中",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
 
                         if (!airStatusText.isNullOrBlank()) {
                             Text(
@@ -1008,7 +1022,7 @@ private fun ProgressCard(
                             val filtered = input.filter { it.isDigit() }
                             editValue = filtered
                             val num = filtered.toIntOrNull()
-                            if (num != null && num in 0..anime.totalEpisodes) {
+                            if (num != null && num in 0..anime.effectiveMaxEpisodes) {
                                 onUpdateWatchedEpisodes(num)
                             }
                         },
@@ -1042,8 +1056,10 @@ private fun ProgressCard(
                         }
                     }
                 } else {
+                    val maxEps = anime.effectiveMaxEpisodes
+                    val displayMax = if (anime.totalEpisodes > 0) anime.totalEpisodes else anime.currentEpisodes
                     Text(
-                        text = "第 ${anime.watchedEpisodes} / ${anime.totalEpisodes} 集",
+                        text = if (maxEps > 0) "第 ${anime.watchedEpisodes} / ${displayMax} 集" else "第 ${anime.watchedEpisodes} 集",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -1061,6 +1077,7 @@ private fun ProgressCard(
                 val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
 
                 Box {
+                    val maxEps = anime.effectiveMaxEpisodes
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
@@ -1069,8 +1086,8 @@ private fun ProgressCard(
                         val barHeight = 4.dp.toPx()
                         val barY = (size.height - barHeight) / 2f
                         val cornerRadius = barHeight / 2f
-                        val progress = if (anime.totalEpisodes > 0)
-                            displayValue.toFloat() / anime.totalEpisodes else 0f
+                        val progress = if (maxEps > 0)
+                            displayValue.toFloat() / maxEps else 0f
                         val progressWidth = size.width * progress.coerceIn(0f, 1f)
 
                         drawRoundRect(
@@ -1089,7 +1106,7 @@ private fun ProgressCard(
                             )
                         }
 
-                        val tickCount = minOf(anime.totalEpisodes, 20)
+                        val tickCount = minOf(maxEps, 20)
                         if (tickCount > 1) {
                             val tickSpacing = size.width / tickCount
                             for (i in 1 until tickCount) {
@@ -1114,8 +1131,8 @@ private fun ProgressCard(
                             isDragging = false
                             onUpdateWatchedEpisodes(sliderValue.toInt())
                         },
-                        valueRange = 0f..anime.totalEpisodes.toFloat(),
-                        steps = if (anime.totalEpisodes > 1) anime.totalEpisodes - 1 else 0,
+                        valueRange = if (maxEps > 0) 0f..maxEps.toFloat() else 0f..100f,
+                        steps = if (maxEps > 1) maxEps - 1 else 0,
                         modifier = Modifier
                             .fillMaxWidth(0.85f)
                             .height(20.dp)
@@ -1131,7 +1148,7 @@ private fun ProgressCard(
 
             AcceleratedButton(
                 text = "+",
-                enabled = anime.watchedEpisodes < anime.totalEpisodes,
+                enabled = anime.effectiveMaxEpisodes == 0 || anime.watchedEpisodes < anime.effectiveMaxEpisodes,
                 hapticFeedback = hapticFeedback,
                 onTap = { onAdjustWatchedEpisodes(1) },
                 onAdjust = { step -> onAdjustWatchedEpisodes(step) }
@@ -1369,6 +1386,7 @@ private fun StatusCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
                             .clickable { showDatePicker = true }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,

@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -39,6 +39,13 @@ abstract class AnimeDatabase : RoomDatabase() {
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_bangumiId` ON `anime` (`bangumiId`)")
             }
         }
+
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN currentEpisodes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE anime ADD COLUMN hasNewUpdate INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -47,7 +54,7 @@ abstract class AnimeDatabase : RoomDatabase() {
                     AnimeDatabase::class.java,
                     "anime_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

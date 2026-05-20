@@ -139,23 +139,27 @@ class SettingsViewModel(
                             ?: bestMatch.summary
                             ?: tryFetchSummary(bestMatch.id)
 
-                        val newTotalEpisodes = detail?.eps
-                            ?: detail?.totalEpisodes
-                            ?: bestMatch.episodeCount
-                            ?: anime.totalEpisodes
-                        val newTotalEpisodesFinal = if (newTotalEpisodes != null && newTotalEpisodes > 0)
-                            newTotalEpisodes else anime.totalEpisodes
+                        val apiTotalEps = detail?.totalEpisodes
+                        val apiCurrentEps = detail?.eps
+
+                        val newTotalEpisodes = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                        val newCurrentEpisodes = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else 0
+
+                        val finalTotalEpisodes = if (newTotalEpisodes > 0) newTotalEpisodes else anime.totalEpisodes
+                        val finalCurrentEpisodes = if (newTotalEpisodes > 0) 0 else newCurrentEpisodes
+
                         val newWatchedEpisodes = if (
                             anime.status == AnimeStatus.COMPLETED
                             && anime.watchedEpisodes == 0
-                            && newTotalEpisodesFinal > 0
-                        ) newTotalEpisodesFinal else anime.watchedEpisodes
+                            && finalTotalEpisodes > 0
+                        ) finalTotalEpisodes else anime.watchedEpisodes
 
                         val updatedAnime = anime.copy(
                             title = cleanTitle,
                             coverUrl = bestMatch.coverUrl,
                             rating = detail?.score?.toFloat() ?: bestMatch.score?.toFloat(),
-                            totalEpisodes = newTotalEpisodesFinal,
+                            totalEpisodes = finalTotalEpisodes,
+                            currentEpisodes = finalCurrentEpisodes,
                             watchedEpisodes = newWatchedEpisodes,
                             summary = summary,
                             bangumiId = bestMatch.id,

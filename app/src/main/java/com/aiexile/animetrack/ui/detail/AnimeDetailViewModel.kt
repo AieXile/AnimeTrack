@@ -185,18 +185,24 @@ class AnimeDetailViewModel(
 
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
 
-                val detailTotalEpisodes = detail.eps ?: detail.totalEpisodes
-                val newTotalEpisodes = if (detailTotalEpisodes != null && detailTotalEpisodes > 0)
-                    detailTotalEpisodes else anime.totalEpisodes
+                val apiTotalEps = detail.totalEpisodes
+                val apiCurrentEps = detail.eps
+
+                val newTotalEpisodes = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                val newCurrentEpisodes = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else anime.currentEpisodes
+
+                val finalTotalEpisodes = if (newTotalEpisodes > 0) newTotalEpisodes else anime.totalEpisodes
+                val finalCurrentEpisodes = if (newTotalEpisodes > 0) 0 else newCurrentEpisodes
+
                 val newWatchedEpisodes = if (
                     anime.status == AnimeStatus.COMPLETED
                     && anime.watchedEpisodes == 0
-                    && newTotalEpisodes > 0
-                ) newTotalEpisodes else anime.watchedEpisodes
+                    && finalTotalEpisodes > 0
+                ) finalTotalEpisodes else anime.watchedEpisodes
 
                 val isFinished = computeIsFinished(
                     airDate = detail.date,
-                    totalEpisodes = newTotalEpisodes,
+                    totalEpisodes = finalTotalEpisodes,
                     localStatus = anime.status
                 )
 
@@ -205,7 +211,8 @@ class AnimeDetailViewModel(
                     airDate = detail.date ?: anime.airDate,
                     airWeekday = detail.airWeekday ?: anime.airWeekday,
                     rating = detail.score?.toFloat() ?: anime.rating,
-                    totalEpisodes = newTotalEpisodes,
+                    totalEpisodes = finalTotalEpisodes,
+                    currentEpisodes = finalCurrentEpisodes,
                     watchedEpisodes = newWatchedEpisodes,
                     isFinished = isFinished
                 )
@@ -256,6 +263,7 @@ class AnimeDetailViewModel(
     private fun computeAirStatus(anime: Anime): String? {
         val airDate = anime.airDate ?: return null
         val totalEpisodes = anime.totalEpisodes
+        val currentEpisodes = anime.currentEpisodes
 
         return try {
             val startDate = LocalDate.parse(airDate, DateTimeFormatter.ISO_LOCAL_DATE)
@@ -264,17 +272,23 @@ class AnimeDetailViewModel(
             if (today.isBefore(startDate)) {
                 "${airDate} 开播"
             } else if (anime.isFinished || anime.status == AnimeStatus.COMPLETED) {
-                "全 ${totalEpisodes} 集 / 已完结"
+                if (totalEpisodes > 0) "全 ${totalEpisodes} 集 / 已完结" else "已完结"
             } else {
                 val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
-                if (diffWeeks > (totalEpisodes + 1)) {
+                if (totalEpisodes > 0 && diffWeeks > (totalEpisodes + 1)) {
                     "全 ${totalEpisodes} 集 / 已完结"
-                } else {
+                } else if (totalEpisodes > 0) {
                     val weekdayName = anime.airWeekday?.toWeekdayName()
                     if (weekdayName != null) {
                         "每周${weekdayName}更新"
                     } else {
                         "更新中"
+                    }
+                } else {
+                    if (currentEpisodes > 0) {
+                        "连载中 (更新至 ${currentEpisodes} 集)"
+                    } else {
+                        "连载中"
                     }
                 }
             }
@@ -285,14 +299,16 @@ class AnimeDetailViewModel(
 
     fun adjustWatchedEpisodes(delta: Int) {
         val anime = animeFlow.value ?: return
-        val newCount = (anime.watchedEpisodes + delta).coerceIn(0, anime.totalEpisodes)
+        val maxEps = anime.effectiveMaxEpisodes
+        val newCount = (anime.watchedEpisodes + delta).coerceIn(0, if (maxEps > 0) maxEps else Int.MAX_VALUE)
         if (newCount == anime.watchedEpisodes) return
         applyWatchedEpisodesUpdate(anime, newCount)
     }
 
     fun updateWatchedEpisodes(newCount: Int) {
         val anime = animeFlow.value ?: return
-        val validCount = newCount.coerceIn(0, anime.totalEpisodes)
+        val maxEps = anime.effectiveMaxEpisodes
+        val validCount = newCount.coerceIn(0, if (maxEps > 0) maxEps else Int.MAX_VALUE)
         if (validCount == anime.watchedEpisodes) return
         applyWatchedEpisodesUpdate(anime, validCount)
     }
@@ -330,7 +346,8 @@ class AnimeDetailViewModel(
 
     fun incrementEpisode() {
         val anime = animeFlow.value ?: return
-        if (anime.watchedEpisodes < anime.totalEpisodes) {
+        val maxEps = anime.effectiveMaxEpisodes
+        if (maxEps == 0 || anime.watchedEpisodes < maxEps) {
             updateWatchedEpisodes(anime.watchedEpisodes + 1)
         }
     }

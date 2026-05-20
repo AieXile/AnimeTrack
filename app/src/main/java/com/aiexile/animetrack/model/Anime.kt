@@ -31,11 +31,16 @@ data class Anime(
     val summary: String? = null,
     val bangumiId: Int? = null,
     val airWeekday: Int? = null,
-    val isFinished: Boolean = false
+    val isFinished: Boolean = false,
+    val currentEpisodes: Int = 0,
+    val hasNewUpdate: Boolean = false
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f
 
     val progressPercent: Int
         get() = (progress * 100).toInt()
+
+    val effectiveMaxEpisodes: Int
+        get() = if (totalEpisodes > 0) totalEpisodes else if (currentEpisodes > 0) currentEpisodes else 0
 }

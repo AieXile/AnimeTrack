@@ -36,6 +36,10 @@ interface AnimeRepository {
     suspend fun searchBangumi(query: String): List<BangumiSubject>
 
     fun getAiringAnimes(): Flow<List<Anime>>
+
+    suspend fun getAiringAnimesWithBangumiId(): List<Anime>
+
+    suspend fun clearNewUpdate(id: Int)
 }
 
 class AnimeRepositoryImpl(
@@ -107,5 +111,13 @@ class AnimeRepositoryImpl(
 
     override fun getAiringAnimes(): Flow<List<Anime>> {
         return animeDao.getAiringAnimes()
+    }
+
+    override suspend fun getAiringAnimesWithBangumiId(): List<Anime> {
+        return animeDao.getAiringAnimesWithBangumiId()
+    }
+
+    override suspend fun clearNewUpdate(id: Int) {
+        animeDao.clearNewUpdate(id)
     }
 }

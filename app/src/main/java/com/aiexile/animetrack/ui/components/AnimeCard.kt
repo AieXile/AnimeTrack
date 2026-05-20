@@ -170,7 +170,7 @@ fun AnimeCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "${anime.watchedEpisodes}/${anime.totalEpisodes}",
+                            text = if (anime.totalEpisodes > 0) "${anime.watchedEpisodes}/${anime.totalEpisodes}" else if (anime.currentEpisodes > 0) "${anime.watchedEpisodes}/${anime.currentEpisodes}" else "${anime.watchedEpisodes}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

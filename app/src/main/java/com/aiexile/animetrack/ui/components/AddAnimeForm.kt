@@ -1,19 +1,24 @@
 package com.aiexile.animetrack.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -27,6 +32,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -45,8 +51,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.model.AnimeStatus
@@ -68,7 +77,8 @@ data class AddAnimeFormState(
     val summary: String? = null,
     val bangumiId: Int? = null,
     val airDate: String? = null,
-    val airWeekday: Int? = null
+    val airWeekday: Int? = null,
+    val currentEpisodes: Int = 0
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,9 +92,7 @@ fun AddAnimeForm(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
         
         OutlinedTextField(
             value = formState.title,
@@ -132,14 +140,28 @@ fun AddAnimeForm(
         StatusDropdown(
             selectedStatus = formState.status,
             onStatusChange = { newStatus ->
-                val newState = if (newStatus == AnimeStatus.COMPLETED) {
-                    formState.copy(
-                        status = newStatus,
-                        watchedEpisodes = formState.totalEpisodes,
-                        finishDate = formState.finishDate ?: System.currentTimeMillis()
-                    )
-                } else {
-                    formState.copy(status = newStatus)
+                val newState = when (newStatus) {
+                    AnimeStatus.COMPLETED -> {
+                        formState.copy(
+                            status = newStatus,
+                            watchedEpisodes = formState.totalEpisodes,
+                            finishDate = formState.finishDate ?: System.currentTimeMillis()
+                        )
+                    }
+                    AnimeStatus.WATCHING, AnimeStatus.PLANNED -> {
+                        if (formState.status == AnimeStatus.COMPLETED) {
+                            formState.copy(
+                                status = newStatus,
+                                watchedEpisodes = 0,
+                                finishDate = null
+                            )
+                        } else {
+                            formState.copy(status = newStatus)
+                        }
+                    }
+                    else -> {
+                        formState.copy(status = newStatus)
+                    }
                 }
                 onFormStateChange(newState)
             }
@@ -218,7 +240,7 @@ private fun NumberInputField(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.width(40.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
             
             IconButton(
@@ -251,7 +273,22 @@ private fun StatusDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
+    val animeColors = LocalAnimeColors.current
+
+    val statusColor = when (selectedStatus) {
+        AnimeStatus.WATCHING -> animeColors.watching
+        AnimeStatus.COMPLETED -> animeColors.finished
+        AnimeStatus.PLANNED -> MaterialTheme.colorScheme.tertiary
+        AnimeStatus.DROPPED -> animeColors.dropped
+    }
+
+    val statusContainerColor = when (selectedStatus) {
+        AnimeStatus.WATCHING -> animeColors.watchingContainer
+        AnimeStatus.COMPLETED -> animeColors.finishedContainer
+        AnimeStatus.PLANNED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+        AnimeStatus.DROPPED -> animeColors.droppedContainer
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "观看状态",
@@ -259,7 +296,7 @@ private fun StatusDropdown(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp)
         )
-        
+
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = it },
@@ -272,27 +309,95 @@ private fun StatusDropdown(
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                 },
+                leadingIcon = {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(statusColor, CircleShape)
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary
+                    focusedBorderColor = statusColor,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                    focusedLabelColor = statusColor,
+                    focusedContainerColor = statusContainerColor,
+                    unfocusedContainerColor = Color.Transparent,
+                    cursorColor = statusColor
                 )
             )
-            
+
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 AnimeStatus.entries.forEach { status ->
+                    val isSelected = status == selectedStatus
+                    val itemColor = when (status) {
+                        AnimeStatus.WATCHING -> animeColors.watching
+                        AnimeStatus.COMPLETED -> animeColors.finished
+                        AnimeStatus.PLANNED -> MaterialTheme.colorScheme.tertiary
+                        AnimeStatus.DROPPED -> animeColors.dropped
+                    }
+                    val itemContainerColor = when (status) {
+                        AnimeStatus.WATCHING -> animeColors.watchingContainer
+                        AnimeStatus.COMPLETED -> animeColors.finishedContainer
+                        AnimeStatus.PLANNED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+                        AnimeStatus.DROPPED -> animeColors.droppedContainer
+                    }
+
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(status.displayName) },
+                        text = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (isSelected) Modifier.background(itemContainerColor)
+                                        else Modifier
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(itemColor, CircleShape)
+                                    )
+                                    Text(
+                                        text = status.displayName,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontSize = 14.sp,
+                                        color = if (isSelected) itemColor
+                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            tint = itemColor,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         onClick = {
                             onStatusChange(status)
                             expanded = false
                         },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
                         contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                     )
                 }

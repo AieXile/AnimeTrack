@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 
 data class HomeUiState(
     val selectedFilter: AnimeFilter = AnimeFilter.ALL,
@@ -37,8 +40,10 @@ data class HomeUiState(
     val searchResults: List<BangumiSubject> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
+    val hasSearched: Boolean = false,
     val showCompletedToast: Boolean = false,
-    val showDuplicateToast: Boolean = false
+    val showDuplicateToast: Boolean = false,
+    val showFormDialog: Boolean = false
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -97,6 +102,61 @@ class HomeViewModel(
             }
         }
         updateViewModel.checkForUpdate()
+        checkAiringAnimeUpdates()
+    }
+
+    fun checkAiringAnimeUpdates() {
+        viewModelScope.launch {
+            try {
+                val airingAnimes = repository.getAiringAnimesWithBangumiId()
+                if (airingAnimes.isEmpty()) return@launch
+
+                Log.d(TAG, "Checking updates for ${airingAnimes.size} airing animes")
+
+                val deferredResults = airingAnimes.map { anime ->
+                    async {
+                        try {
+                            val bangumiId = anime.bangumiId ?: return@async null
+                            val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
+
+                            val remoteEps = detail.eps ?: 0
+                            val remoteTotal = detail.totalEpisodes ?: 0
+
+                            if (remoteEps > anime.currentEpisodes) {
+                                Log.d(TAG, "New episode found: ${anime.title} local=${anime.currentEpisodes} remote=$remoteEps")
+                                val updatedAnime = anime.copy(
+                                    currentEpisodes = remoteEps,
+                                    totalEpisodes = if (remoteTotal > 0) remoteTotal else anime.totalEpisodes,
+                                    hasNewUpdate = true
+                                )
+                                repository.updateAnime(updatedAnime)
+                                return@async anime.title to remoteEps
+                            } else if (remoteTotal > 0 && anime.totalEpisodes == 0) {
+                                val updatedAnime = anime.copy(
+                                    totalEpisodes = remoteTotal,
+                                    currentEpisodes = 0,
+                                    hasNewUpdate = false
+                                )
+                                repository.updateAnime(updatedAnime)
+                            }
+                            null
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to check update for: ${anime.title}", e)
+                            null
+                        }
+                    }
+                }
+
+                val results = deferredResults.awaitAll().filterNotNull()
+                if (results.isNotEmpty()) {
+                    results.forEach { (title, eps) ->
+                        Log.d(TAG, "Update detected: $title -> $eps episodes")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkAiringAnimeUpdates failed", e)
+            }
+        }
     }
     
     fun setFilter(filter: AnimeFilter) {
@@ -113,9 +173,14 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = true,
+                showFormDialog = false,
                 formState = AddAnimeFormState(),
                 formError = null,
-                selectedAnimeId = null
+                selectedAnimeId = null,
+                searchResults = emptyList(),
+                searchQuery = "",
+                hasSearched = false,
+                searchError = null
             )
         }
     }
@@ -125,6 +190,7 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = false,
+                showFormDialog = false,
                 formState = AddAnimeFormState(),
                 formError = null
             )
@@ -177,6 +243,26 @@ class HomeViewModel(
 
     fun dismissDuplicateToast() {
         _uiState.update { it.copy(showDuplicateToast = false) }
+    }
+
+    fun clearAnimeUpdateFlag(animeId: Int) {
+        viewModelScope.launch {
+            repository.clearNewUpdate(animeId)
+        }
+    }
+
+    fun hideFormDialog() {
+        _uiState.update { it.copy(showFormDialog = false) }
+    }
+
+    fun showManualAddDialog() {
+        _uiState.update {
+            it.copy(
+                formState = AddAnimeFormState(),
+                formError = null,
+                showFormDialog = true
+            )
+        }
     }
     
     fun deleteAnime(anime: Anime) {
@@ -255,7 +341,8 @@ class HomeViewModel(
                 summary = summary,
                 bangumiId = formState.bangumiId,
                 airDate = airDate,
-                airWeekday = airWeekday
+                airWeekday = airWeekday,
+                currentEpisodes = formState.currentEpisodes
             )
             
             Log.d(TAG, "Inserting anime: $anime")
@@ -267,6 +354,7 @@ class HomeViewModel(
                 _uiState.update { 
                     it.copy(
                         isBottomSheetVisible = false,
+                        showFormDialog = false,
                         formState = AddAnimeFormState(),
                         formError = null,
                         newlyAddedAnimeId = id,
@@ -332,7 +420,7 @@ class HomeViewModel(
         }
         
         viewModelScope.launch {
-            _uiState.update { it.copy(isSearching = true, searchError = null) }
+            _uiState.update { it.copy(isSearching = true, searchError = null, hasSearched = true) }
             
             try {
                 val results = repository.searchBangumi(query)
@@ -358,9 +446,9 @@ class HomeViewModel(
     
     fun selectSearchResult(subject: BangumiSubject) {
         val rating = subject.score?.toFloat()
-        val totalEpisodes = subject.episodeCount ?: 12
+        val totalEpisodes = subject.episodeCount ?: 0
         val summary = subject.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
-        
+
         _uiState.update {
             it.copy(
                 formState = it.formState.copy(
@@ -371,19 +459,24 @@ class HomeViewModel(
                     summary = summary,
                     bangumiId = subject.id
                 ),
-                searchResults = emptyList(),
-                searchQuery = ""
+                showFormDialog = true
             )
         }
-        
+
         viewModelScope.launch {
             try {
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(subject.id)
-                val detailEps = detail.eps ?: detail.totalEpisodes
+                val apiTotalEps = detail.totalEpisodes
+                val apiCurrentEps = detail.eps
+
+                val finalTotal = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                val finalCurrent = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else 0
+
                 _uiState.update { state ->
                     state.copy(
                         formState = state.formState.copy(
-                            totalEpisodes = detailEps ?: state.formState.totalEpisodes,
+                            totalEpisodes = if (finalTotal > 0) finalTotal else if (finalCurrent > 0) 0 else state.formState.totalEpisodes,
+                            currentEpisodes = if (finalTotal > 0) 0 else finalCurrent,
                             airDate = detail.date ?: state.formState.airDate,
                             airWeekday = detail.airWeekday ?: state.formState.airWeekday,
                             summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")

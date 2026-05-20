@@ -48,4 +48,10 @@ interface AnimeDao {
 
     @Query("SELECT * FROM anime WHERE isFinished = 0 AND status IN ('WATCHING', 'PLANNED') ORDER BY airWeekday ASC, title ASC")
     fun getAiringAnimes(): Flow<List<Anime>>
+
+    @Query("SELECT * FROM anime WHERE totalEpisodes = 0 AND bangumiId IS NOT NULL")
+    suspend fun getAiringAnimesWithBangumiId(): List<Anime>
+
+    @Query("UPDATE anime SET hasNewUpdate = 0 WHERE id = :id")
+    suspend fun clearNewUpdate(id: Int)
 }
