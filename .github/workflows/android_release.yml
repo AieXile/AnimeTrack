@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # 必须为 0，官方计算增量日志需要完整的 Git 历史差异
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -35,7 +35,7 @@ jobs:
         run: ./gradlew assembleRelease
         env:
           KEYSTORE_PATH: keystore.jks
-          KEYSTORE_PASSWORD: ${{ secrets.KEY_PASSWORD }} 
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
@@ -43,28 +43,17 @@ jobs:
         run: |
           mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
 
-      - name: Generate Custom Changelog
-        id: changelog
-        run: |
-          # 提取最近的 commit 标题，每行一个
-          # 如果你想获取从上一个 tag 到现在的，可以用 git log $(git describe --tags --abbrev=0 --always)^..HEAD
-          # 这里简单处理获取最近 10 条
-          echo "log_body<<EOF" >> $GITHUB_OUTPUT
-          git log --pretty=format:"- %s" -n 10 >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: AnimeTrack ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          # 1. 开启官方自动日志生成机制
+          generate_release_notes: true
+          # 2. 完美的文案拼接：在官方生成的增量日志上方，强行插入您指定的固定行
           body: |
             ## 📝 更新日志
-            ${{ steps.changelog.outputs.log_body }}
-            
-            ---
-            *由 GitHub Actions 自动构建*
+            - 更新版本号为 ${{ github.ref_name }}
           files: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
-          generate_release_notes: false 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

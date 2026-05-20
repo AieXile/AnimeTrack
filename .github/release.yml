@@ -1,0 +1,25 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - octocat
+      - github-actions[bot]
+
+  categories:
+    - title: "### feat: "
+      labels:
+        - feat
+        - feature
+        - enhancement
+    - title: "### fix: "
+      labels:
+        - fix
+        - bug
+    - title: "### refactor: "
+      labels:
+        - refactor
+    - title: "### chore: "
+      labels:
+        - chore
+        - dependencies
