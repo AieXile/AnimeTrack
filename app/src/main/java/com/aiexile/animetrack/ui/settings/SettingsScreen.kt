@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Palette
@@ -105,6 +106,41 @@ fun SettingsScreen(
                 pendingContent = text
                 viewModel.parseMarkdown(text)
             }
+        }
+    }
+
+    val createDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri: Uri? ->
+        uri?.let {
+            val markdown = uiState.exportMarkdown
+            if (markdown != null) {
+                try {
+                    context.contentResolver.openOutputStream(uri)?.use { os ->
+                        os.write(markdown.toByteArray(Charsets.UTF_8))
+                    }
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "导出成功！已保存至所选位置",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                } catch (e: Exception) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "导出失败：${e.message}",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
+            }
+        }
+        viewModel.clearExportMarkdown()
+    }
+
+    LaunchedEffect(uiState.exportMarkdown) {
+        if (uiState.exportMarkdown != null) {
+            createDocLauncher.launch("anime_card_backup.md")
         }
     }
     
@@ -253,6 +289,14 @@ fun SettingsScreen(
                         subtitle = "从 Markdown 文件导入番剧列表",
                         icon = Icons.Default.FileOpen,
                         onClick = { showImportGuide = true }
+                    )
+                }
+                item {
+                    SettingCard(
+                        title = "导出番剧数据",
+                        subtitle = "将番剧列表导出为 Markdown 文件",
+                        icon = Icons.Default.FileDownload,
+                        onClick = { viewModel.prepareExport() }
                     )
                 }
                 item {

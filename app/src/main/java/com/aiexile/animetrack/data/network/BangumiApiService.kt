@@ -62,8 +62,8 @@ data class BangumiSubject(
     
     val episodeCount: Int?
         get() = when {
-            total_episodes != null && total_episodes > 0 -> total_episodes
             eps != null && eps > 0 -> eps
+            total_episodes != null && total_episodes > 0 -> total_episodes
             else -> null
         }
     

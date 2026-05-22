@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.ExportAnimeService
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.data.MarkdownParser
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -15,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class SettingsUiState(
@@ -25,7 +27,8 @@ data class SettingsUiState(
     val syncProgress: String? = null,
     val syncedCount: Int = 0,
     val totalToSync: Int = 0,
-    val syncCompleted: Boolean = false
+    val syncCompleted: Boolean = false,
+    val exportMarkdown: String? = null
 )
 
 class SettingsViewModel(
@@ -139,14 +142,18 @@ class SettingsViewModel(
                             ?: bestMatch.summary
                             ?: tryFetchSummary(bestMatch.id)
 
+                        val apiEps = detail?.eps
                         val apiTotalEps = detail?.totalEpisodes
-                        val apiCurrentEps = detail?.eps
 
-                        val newTotalEpisodes = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-                        val newCurrentEpisodes = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else 0
+                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
 
-                        val finalTotalEpisodes = if (newTotalEpisodes > 0) newTotalEpisodes else anime.totalEpisodes
-                        val finalCurrentEpisodes = if (newTotalEpisodes > 0) 0 else newCurrentEpisodes
+                        val finalTotalEpisodes = when {
+                            mainEps > 0 -> mainEps
+                            allEps > 0 -> allEps
+                            else -> anime.totalEpisodes
+                        }
+                        val finalCurrentEpisodes = if (mainEps > 0 || allEps > 0) 0 else anime.currentEpisodes
 
                         val newWatchedEpisodes = if (
                             anime.status == AnimeStatus.COMPLETED
@@ -235,6 +242,18 @@ class SettingsViewModel(
             importResult = null,
             duplicateCount = 0
         )
+    }
+
+    fun prepareExport() {
+        viewModelScope.launch {
+            val animes = animeRepository.getAllAnimes().first()
+            val markdown = ExportAnimeService.exportToMarkdown(animes)
+            _uiState.value = _uiState.value.copy(exportMarkdown = markdown)
+        }
+    }
+
+    fun clearExportMarkdown() {
+        _uiState.value = _uiState.value.copy(exportMarkdown = null)
     }
     
     class Factory : ViewModelProvider.Factory {

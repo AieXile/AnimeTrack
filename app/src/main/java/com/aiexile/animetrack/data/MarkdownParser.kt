@@ -24,7 +24,7 @@ object MarkdownParser {
     
     private val headerRegex = Regex("""^#+\s+(.*)""")
     private val dateRegex = Regex("""(\d{4})[./-](\d{1,2})[./-](\d{1,2})""")
-    private val listPrefixRegex = Regex("""^[\-\*\d]+\.\s*""")
+    private val listPrefixRegex = Regex("""^([-*]\s+|\d+\.\s*)""")
     
     private val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
     

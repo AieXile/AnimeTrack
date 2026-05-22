@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -52,9 +55,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -213,6 +221,10 @@ private fun NumberInputField(
     maxValue: Int = Int.MAX_VALUE,
     error: String? = null
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editValue by remember { mutableStateOf(TextFieldValue()) }
+    val focusReq = remember { FocusRequester() }
+
     Column(modifier = modifier) {
         Text(
             text = label,
@@ -223,33 +235,100 @@ private fun NumberInputField(
         
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             IconButton(
                 onClick = { if (value > minValue) onValueChange(value - 1) },
-                enabled = value > minValue
+                enabled = value > minValue,
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Remove,
-                    contentDescription = "减少"
+                    contentDescription = "减少",
+                    modifier = Modifier.size(20.dp)
                 )
             }
             
-            Text(
-                text = value.toString(),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.width(40.dp),
-                textAlign = TextAlign.Center
-            )
+            Box(
+                modifier = Modifier.width(48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isEditing) {
+                    BasicTextField(
+                        value = editValue,
+                        onValueChange = { input ->
+                            val filtered = input.copy(text = input.text.filter { it.isDigit() })
+                            editValue = filtered
+                            val num = filtered.text.toIntOrNull()
+                            if (num != null) {
+                                val clamped = num.coerceIn(minValue, maxValue)
+                                onValueChange(clamped)
+                            }
+                        },
+                        modifier = Modifier
+                            .width(48.dp)
+                            .focusRequester(focusReq),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        singleLine = true,
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                    )
+
+                    LaunchedEffect(isEditing) {
+                        if (isEditing) {
+                            editValue = TextFieldValue(
+                                text = value.toString(),
+                                selection = androidx.compose.ui.text.TextRange(value.toString().length)
+                            )
+                            focusReq.requestFocus()
+                        }
+                    }
+                } else {
+                    Text(
+                        text = value.toString(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.clickable {
+                            isEditing = true
+                            editValue = TextFieldValue(
+                                text = value.toString(),
+                                selection = androidx.compose.ui.text.TextRange(value.toString().length)
+                            )
+                        }
+                    )
+                }
+            }
             
             IconButton(
                 onClick = { if (value < maxValue) onValueChange(value + 1) },
-                enabled = value < maxValue
+                enabled = value < maxValue,
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "增加"
+                    contentDescription = "增加",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        LaunchedEffect(isEditing) {
+            if (!isEditing) return@LaunchedEffect
+            val currentText = editValue.text
+            val currentValue = currentText.toIntOrNull() ?: value
+            if (currentValue != value) {
+                editValue = TextFieldValue(
+                    text = value.toString(),
+                    selection = androidx.compose.ui.text.TextRange(value.toString().length)
                 )
             }
         }

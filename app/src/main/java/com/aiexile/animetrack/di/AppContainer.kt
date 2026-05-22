@@ -8,14 +8,21 @@ import com.aiexile.animetrack.data.SettingsRepository
 
 object AppContainer {
     
+    private var context: Context? = null
     private var database: AnimeDatabase? = null
     private var repository: AnimeRepository? = null
     private var settingsRepository: SettingsRepository? = null
     
     fun initialize(context: Context) {
-        database = AnimeDatabase.getDatabase(context)
+        this.context = context.applicationContext
+        database = AnimeDatabase.getDatabase(this.context!!)
         repository = AnimeRepositoryImpl(database!!.animeDao())
-        settingsRepository = SettingsRepository(context)
+        settingsRepository = SettingsRepository(this.context!!)
+    }
+    
+    fun getApplication(): android.app.Application {
+        return context?.applicationContext as? android.app.Application
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
     
     fun getAnimeRepository(): AnimeRepository {

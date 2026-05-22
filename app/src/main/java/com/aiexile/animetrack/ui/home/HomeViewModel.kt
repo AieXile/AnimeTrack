@@ -122,19 +122,23 @@ class HomeViewModel(
                             val remoteEps = detail.eps ?: 0
                             val remoteTotal = detail.totalEpisodes ?: 0
 
+                            val resolvedTotal = when {
+                                remoteEps > 0 -> remoteEps
+                                remoteTotal > 0 -> remoteTotal
+                                else -> anime.totalEpisodes
+                            }
+
                             if (remoteEps > anime.currentEpisodes) {
                                 Log.d(TAG, "New episode found: ${anime.title} local=${anime.currentEpisodes} remote=$remoteEps")
                                 val updatedAnime = anime.copy(
                                     currentEpisodes = remoteEps,
-                                    totalEpisodes = if (remoteTotal > 0) remoteTotal else anime.totalEpisodes,
                                     hasNewUpdate = true
                                 )
                                 repository.updateAnime(updatedAnime)
                                 return@async anime.title to remoteEps
-                            } else if (remoteTotal > 0 && anime.totalEpisodes == 0) {
+                            } else if (resolvedTotal > 0 && anime.totalEpisodes == 0) {
                                 val updatedAnime = anime.copy(
-                                    totalEpisodes = remoteTotal,
-                                    currentEpisodes = 0,
+                                    totalEpisodes = resolvedTotal,
                                     hasNewUpdate = false
                                 )
                                 repository.updateAnime(updatedAnime)
@@ -466,17 +470,23 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(subject.id)
+                val apiEps = detail.eps
                 val apiTotalEps = detail.totalEpisodes
-                val apiCurrentEps = detail.eps
 
-                val finalTotal = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-                val finalCurrent = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else 0
+                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+
+                val finalTotal = when {
+                    mainEps > 0 -> mainEps
+                    allEps > 0 -> allEps
+                    else -> 0
+                }
 
                 _uiState.update { state ->
                     state.copy(
                         formState = state.formState.copy(
-                            totalEpisodes = if (finalTotal > 0) finalTotal else if (finalCurrent > 0) 0 else state.formState.totalEpisodes,
-                            currentEpisodes = if (finalTotal > 0) 0 else finalCurrent,
+                            totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
+                            currentEpisodes = if (finalTotal > 0) 0 else if (mainEps > 0) 0 else state.formState.currentEpisodes,
                             airDate = detail.date ?: state.formState.airDate,
                             airWeekday = detail.airWeekday ?: state.formState.airWeekday,
                             summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")

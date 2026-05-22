@@ -102,9 +102,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -957,7 +959,7 @@ private fun ProgressCard(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     var isEditing by remember { mutableStateOf(false) }
-    var editValue by remember { mutableStateOf("") }
+    var editValue by remember { mutableStateOf(TextFieldValue()) }
     val focusReq = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -1019,9 +1021,9 @@ private fun ProgressCard(
                     BasicTextField(
                         value = editValue,
                         onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() }
+                            val filtered = input.copy(text = input.text.filter { it.isDigit() })
                             editValue = filtered
-                            val num = filtered.toIntOrNull()
+                            val num = filtered.text.toIntOrNull()
                             if (num != null && num in 0..anime.effectiveMaxEpisodes) {
                                 onUpdateWatchedEpisodes(num)
                             }
@@ -1051,7 +1053,11 @@ private fun ProgressCard(
 
                     LaunchedEffect(isEditing) {
                         if (isEditing) {
-                            editValue = anime.watchedEpisodes.toString()
+                            val text = anime.watchedEpisodes.toString()
+                            editValue = TextFieldValue(
+                                text = text,
+                                selection = TextRange(text.length)
+                            )
                             focusReq.requestFocus()
                         }
                     }
@@ -1065,7 +1071,11 @@ private fun ProgressCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.clickable {
                             isEditing = true
-                            editValue = anime.watchedEpisodes.toString()
+                            val text = anime.watchedEpisodes.toString()
+                            editValue = TextFieldValue(
+                                text = text,
+                                selection = TextRange(text.length)
+                            )
                         }
                     )
                 }

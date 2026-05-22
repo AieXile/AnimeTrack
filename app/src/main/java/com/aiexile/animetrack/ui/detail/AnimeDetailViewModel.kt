@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.ui.detail
 
+import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -57,6 +59,7 @@ data class AnimeDetailUiState(
 )
 
 class AnimeDetailViewModel(
+    private val application: Application,
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
     private val animeId: Int
@@ -185,14 +188,18 @@ class AnimeDetailViewModel(
 
                 val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
 
+                val apiEps = detail.eps
                 val apiTotalEps = detail.totalEpisodes
-                val apiCurrentEps = detail.eps
 
-                val newTotalEpisodes = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-                val newCurrentEpisodes = if (apiCurrentEps != null && apiCurrentEps > 0) apiCurrentEps else anime.currentEpisodes
+                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
 
-                val finalTotalEpisodes = if (newTotalEpisodes > 0) newTotalEpisodes else anime.totalEpisodes
-                val finalCurrentEpisodes = if (newTotalEpisodes > 0) 0 else newCurrentEpisodes
+                val finalTotalEpisodes = when {
+                    mainEps > 0 -> mainEps
+                    allEps > 0 -> allEps
+                    else -> anime.totalEpisodes
+                }
+                val finalCurrentEpisodes = if (mainEps > 0 || allEps > 0) 0 else anime.currentEpisodes
 
                 val newWatchedEpisodes = if (
                     anime.status == AnimeStatus.COMPLETED
@@ -420,7 +427,52 @@ class AnimeDetailViewModel(
     }
 
     fun updateEditLocalCoverUri(uri: String?) {
-        _editState.value = _editState.value.copy(localCoverUri = uri)
+        if (uri == null) {
+            _editState.value = _editState.value.copy(localCoverUri = null)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val savedPath = copyCoverToInternalStorage(uri)
+                if (savedPath != null) {
+                    _editState.value = _editState.value.copy(localCoverUri = savedPath)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy cover image", e)
+            }
+        }
+    }
+
+    private fun copyCoverToInternalStorage(contentUri: String): String? {
+        return try {
+            val uri = android.net.Uri.parse(contentUri)
+            val coversDir = File(application.filesDir, "covers").apply { mkdirs() }
+            val fileName = "cover_${animeId}_${System.currentTimeMillis()}.jpg"
+            val destFile = File(coversDir, fileName)
+
+            application.contentResolver.openInputStream(uri)?.use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            destFile.absolutePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy cover to internal storage", e)
+            null
+        }
+    }
+
+    private fun deleteOldCoverFile(oldCoverUrl: String?) {
+        if (oldCoverUrl == null) return
+        try {
+            val file = File(oldCoverUrl)
+            if (file.exists() && file.absolutePath.startsWith(application.filesDir.absolutePath)) {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete old cover file", e)
+        }
     }
 
     fun setEditingTitle(editing: Boolean) {
@@ -433,9 +485,13 @@ class AnimeDetailViewModel(
         if (!edit.isEditing) return
 
         viewModelScope.launch {
+            val newCoverUrl = edit.localCoverUri ?: edit.coverUrl
+            if (edit.localCoverUri != null && anime.coverUrl != edit.localCoverUri) {
+                deleteOldCoverFile(anime.coverUrl)
+            }
             val updatedAnime = anime.copy(
                 title = edit.title,
-                coverUrl = edit.localCoverUri ?: edit.coverUrl,
+                coverUrl = newCoverUrl,
                 totalEpisodes = edit.totalEpisodes,
                 airDate = edit.airDate,
                 airWeekday = edit.airWeekday,
@@ -598,9 +654,10 @@ class AnimeDetailViewModel(
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            val application = AppContainer.getApplication()
             val repository = AppContainer.getAnimeRepository()
             val settingsRepository = AppContainer.getSettingsRepository()
-            return AnimeDetailViewModel(repository, settingsRepository, animeId) as T
+            return AnimeDetailViewModel(application, repository, settingsRepository, animeId) as T
         }
     }
 }
