@@ -1,0 +1,45 @@
+<h2>关于界面 — 方案 A 细化设计</h2>
+<p class="subtitle">确认各区域的具体样式和交互</p>
+
+<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
+  <div style="background:#1a1a2e;border-radius:16px;padding:28px 24px;min-height:580px;width:280px;display:flex;flex-direction:column;align-items:center;color:#fff;font-family:system-ui;position:relative;overflow:hidden;">
+    
+    <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold;margin-bottom:12px;box-shadow:0 4px 20px rgba(99,102,241,0.3);">A</div>
+    
+    <div style="font-size:22px;font-weight:700;margin-bottom:4px;">AieXile</div>
+    <div style="font-size:13px;opacity:0.5;margin-bottom:24px;">一款简洁的番剧追踪应用</div>
+    
+    <div style="display:flex;gap:20px;margin-bottom:32px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all 0.2s;">🐙</div>
+        <span style="font-size:11px;opacity:0.4;">GitHub</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all 0.2s;">💬</div>
+        <span style="font-size:11px;opacity:0.4;">QQ群</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all 0.2s;">✈️</div>
+        <span style="font-size:11px;opacity:0.4;">TG群</span>
+      </div>
+    </div>
+
+    <div style="width:100%;border-top:1px solid rgba(255,255,255,0.08);padding-top:20px;text-align:center;margin-top:auto;">
+      <div style="font-size:16px;font-weight:600;margin-bottom:2px;">AnimeTrack</div>
+      <div style="font-size:12px;opacity:0.4;margin-bottom:12px;">v0.3.5 · Build 14</div>
+      <div style="padding:8px 20px;border-radius:10px;background:rgba(99,102,241,0.15);font-size:13px;color:#818cf8;display:inline-block;cursor:pointer;border:1px solid rgba(99,102,241,0.2);">检查更新</div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:32px;padding:20px;background:rgba(99,102,241,0.05);border-radius:12px;border-left:4px solid #6366f1;">
+  <h3 style="margin-top:0;color:#6366f1;">设计细节</h3>
+  <ul style="line-height:1.8;opacity:0.85;">
+    <li><strong>头像</strong>：80dp 圆形，2dp primary 色边框，带 primary 色 shadow 光晕</li>
+    <li><strong>名字</strong>：headlineMedium + Bold，居中</li>
+    <li><strong>一句话介绍</strong>：bodySmall + onSurfaceVariant，居中</li>
+    <li><strong>社交图标</strong>：48dp 圆角方块（12dp radius），surfaceContainer 背景，点击跳转链接，长按复制群号/链接</li>
+    <li><strong>版本区</strong>：分割线 + 应用名 + 版本名(版本号) + 检查更新按钮</li>
+    <li><strong>整体</strong>：LazyColumn，内容垂直居中（weight spacer 上下分配）</li>
+  </ul>
+</div>

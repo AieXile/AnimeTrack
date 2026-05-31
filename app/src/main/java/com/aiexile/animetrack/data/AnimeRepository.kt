@@ -4,6 +4,7 @@ import android.util.Log
 import com.aiexile.animetrack.data.network.BangumiSearchFilter
 import com.aiexile.animetrack.data.network.BangumiSearchRequest
 import com.aiexile.animetrack.data.network.BangumiSubject
+import com.aiexile.animetrack.data.network.CoverDownloader
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -43,7 +44,8 @@ interface AnimeRepository {
 }
 
 class AnimeRepositoryImpl(
-    private val animeDao: AnimeDao
+    private val animeDao: AnimeDao,
+    private val context: android.content.Context
 ) : AnimeRepository {
     
     companion object {
@@ -69,13 +71,15 @@ class AnimeRepositoryImpl(
     
     override suspend fun insertAnime(anime: Anime): Long {
         Log.d(TAG, "insertAnime: Inserting anime - $anime")
-        val id = animeDao.insertAnime(anime)
+        val localized = localizeCover(anime)
+        val id = animeDao.insertAnime(localized)
         Log.d(TAG, "insertAnime: Inserted with id=$id")
         return id
     }
     
     override suspend fun updateAnime(anime: Anime) {
-        animeDao.updateAnime(anime)
+        val localized = localizeCover(anime)
+        animeDao.updateAnime(localized)
     }
     
     override suspend fun deleteAnime(anime: Anime) {
@@ -91,7 +95,8 @@ class AnimeRepositoryImpl(
     }
     
     override suspend fun insertAnimes(animes: List<Anime>) {
-        animeDao.insertAnimes(animes)
+        val localized = animes.map { localizeCover(it) }
+        animeDao.insertAnimes(localized)
     }
     
     override suspend fun getAnimesWithoutCover(): List<Anime> {
@@ -119,5 +124,19 @@ class AnimeRepositoryImpl(
 
     override suspend fun clearNewUpdate(id: Int) {
         animeDao.clearNewUpdate(id)
+    }
+
+    private suspend fun localizeCover(anime: Anime): Anime {
+        val localPath = CoverDownloader.downloadAndLocalize(
+            context = context,
+            coverUrl = anime.coverUrl,
+            bangumiId = anime.bangumiId
+        ) ?: return anime
+
+        return if (localPath != anime.coverUrl) {
+            anime.copy(coverUrl = localPath)
+        } else {
+            anime
+        }
     }
 }

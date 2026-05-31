@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.aiexile.animetrack"
-4    android:versionCode="12"
-5    android:versionName="v0.3.3-alpha" >
+4    android:versionCode="14"
+5    android:versionName="v0.3.5" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="26"
@@ -15,168 +15,198 @@
 12-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:6:5-83
 12-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:6:22-80
 13
-14    <permission
-14-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
-15        android:name="com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-15-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
-16        android:protectionLevel="signature" />
-16-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+14    <queries>
+14-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:8:5-17:15
+15        <intent>
+15-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:9:9-12:18
+16            <action android:name="android.intent.action.VIEW" />
+16-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:13-65
+16-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:21-62
 17
-18    <uses-permission android:name="com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-18-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
-18-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
-19
-20    <application
-20-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:8:5-38:19
-21        android:allowBackup="true"
-21-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:9:9-35
-22        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-22-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
-23        android:dataExtractionRules="@xml/data_extraction_rules"
-23-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:9-65
-24        android:debuggable="true"
-25        android:extractNativeLibs="false"
-26        android:fullBackupContent="@xml/backup_rules"
-26-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:9-54
-27        android:icon="@mipmap/ic_launcher"
-27-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:12:9-43
-28        android:label="@string/app_name"
-28-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:13:9-41
-29        android:roundIcon="@mipmap/ic_launcher_round"
-29-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:14:9-54
-30        android:supportsRtl="true"
-30-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:15:9-35
-31        android:theme="@style/Theme.AnimeTrack"
-31-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:16:9-48
-32        android:usesCleartextTraffic="true" >
-32-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:17:9-44
-33        <activity
-33-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:19:9-28:20
-34            android:name="com.aiexile.animetrack.MainActivity"
-34-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:20:13-41
-35            android:exported="true"
-35-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:21:13-36
-36            android:label="@string/app_name"
-36-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:22:13-45
-37            android:theme="@style/Theme.AnimeTrack" >
-37-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:23:13-52
-38            <intent-filter>
-38-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:24:13-27:29
-39                <action android:name="android.intent.action.MAIN" />
-39-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:17-69
-39-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:25-66
-40
-41                <category android:name="android.intent.category.LAUNCHER" />
-41-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:17-77
-41-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:27-74
-42            </intent-filter>
-43        </activity>
-44
-45        <provider
-46            android:name="androidx.core.content.FileProvider"
-46-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:30:13-62
-47            android:authorities="com.aiexile.animetrack.fileprovider"
-47-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:31:13-64
-48            android:exported="false"
-48-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:32:13-37
-49            android:grantUriPermissions="true" >
-49-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:33:13-47
-50            <meta-data
-50-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:34:13-36:54
-51                android:name="android.support.FILE_PROVIDER_PATHS"
-51-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:35:17-67
-52                android:resource="@xml/file_paths" />
-52-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:17-51
-53        </provider>
-54
-55        <activity
-55-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:23:9-25:39
-56            android:name="androidx.compose.ui.tooling.PreviewActivity"
-56-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:24:13-71
-57            android:exported="true" />
-57-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:25:13-36
-58
-59        <provider
-59-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
-60            android:name="androidx.startup.InitializationProvider"
-60-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
-61            android:authorities="com.aiexile.animetrack.androidx-startup"
-61-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
-62            android:exported="false" >
-62-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
-63            <meta-data
-63-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
-64                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-64-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
-65                android:value="androidx.startup" />
-65-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
-66            <meta-data
-66-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:29:13-31:52
-67                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-67-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:30:17-78
-68                android:value="androidx.startup" />
-68-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:31:17-49
-69            <meta-data
-69-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
-70                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-70-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
-71                android:value="androidx.startup" />
-71-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
-72        </provider>
-73
-74        <activity
-74-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:23:9-25:39
-75            android:name="androidx.activity.ComponentActivity"
-75-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:24:13-63
-76            android:exported="true" />
-76-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:25:13-36
-77
-78        <service
-78-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:24:9-28:63
-79            android:name="androidx.room.MultiInstanceInvalidationService"
-79-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:25:13-74
-80            android:directBootAware="true"
-80-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:26:13-43
-81            android:exported="false" />
-81-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:27:13-37
-82
-83        <receiver
-83-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
-84            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-84-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
-85            android:directBootAware="false"
-85-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
-86            android:enabled="true"
-86-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
-87            android:exported="true"
-87-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
-88            android:permission="android.permission.DUMP" >
-88-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
-89            <intent-filter>
-89-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
-90                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-90-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
-90-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
-91            </intent-filter>
-92            <intent-filter>
-92-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
-93                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-93-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
-93-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
-94            </intent-filter>
-95            <intent-filter>
-95-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
-96                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-96-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
-96-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
-97            </intent-filter>
-98            <intent-filter>
-98-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
-99                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-99-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
-99-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
-100            </intent-filter>
-101        </receiver>
-102    </application>
-103
-104</manifest>
+18            <data
+18-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:13-70
+19                android:host="qun.qq.com"
+19-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:42-67
+20                android:scheme="https" />
+20-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:19-41
+21        </intent>
+22        <intent>
+22-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:13:9-16:18
+23            <action android:name="android.intent.action.VIEW" />
+23-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:13-65
+23-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:21-62
+24
+25            <data
+25-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:13-70
+26                android:host="t.me"
+26-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:42-67
+27                android:scheme="https" />
+27-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:19-41
+28        </intent>
+29    </queries>
+30
+31    <permission
+31-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+32        android:name="com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+32-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+33        android:protectionLevel="signature" />
+33-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+34
+35    <uses-permission android:name="com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+35-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+35-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+36
+37    <application
+37-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:19:5-49:19
+38        android:allowBackup="true"
+38-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:20:9-35
+39        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+39-->[androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+40        android:dataExtractionRules="@xml/data_extraction_rules"
+40-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:21:9-65
+41        android:debuggable="true"
+42        android:extractNativeLibs="false"
+43        android:fullBackupContent="@xml/backup_rules"
+43-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:22:9-54
+44        android:icon="@mipmap/ic_launcher"
+44-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:23:9-43
+45        android:label="@string/app_name"
+45-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:24:9-41
+46        android:roundIcon="@mipmap/ic_launcher_round"
+46-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:9-54
+47        android:supportsRtl="true"
+47-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:9-35
+48        android:theme="@style/Theme.AnimeTrack"
+48-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:27:9-48
+49        android:usesCleartextTraffic="true" >
+49-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:28:9-44
+50        <activity
+50-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:30:9-39:20
+51            android:name="com.aiexile.animetrack.MainActivity"
+51-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:31:13-41
+52            android:exported="true"
+52-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:32:13-36
+53            android:label="@string/app_name"
+53-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:33:13-45
+54            android:theme="@style/Theme.AnimeTrack" >
+54-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:34:13-52
+55            <intent-filter>
+55-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:35:13-38:29
+56                <action android:name="android.intent.action.MAIN" />
+56-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:17-69
+56-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:25-66
+57
+58                <category android:name="android.intent.category.LAUNCHER" />
+58-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:37:17-77
+58-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:37:27-74
+59            </intent-filter>
+60        </activity>
+61
+62        <provider
+63            android:name="androidx.core.content.FileProvider"
+63-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:41:13-62
+64            android:authorities="com.aiexile.animetrack.fileprovider"
+64-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:42:13-64
+65            android:exported="false"
+65-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:43:13-37
+66            android:grantUriPermissions="true" >
+66-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:44:13-47
+67            <meta-data
+67-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:45:13-47:54
+68                android:name="android.support.FILE_PROVIDER_PATHS"
+68-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:46:17-67
+69                android:resource="@xml/file_paths" />
+69-->E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:47:17-51
+70        </provider>
+71
+72        <activity
+72-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:23:9-25:39
+73            android:name="androidx.compose.ui.tooling.PreviewActivity"
+73-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:24:13-71
+74            android:exported="true" />
+74-->[androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:25:13-36
+75
+76        <provider
+76-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+77            android:name="androidx.startup.InitializationProvider"
+77-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
+78            android:authorities="com.aiexile.animetrack.androidx-startup"
+78-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
+79            android:exported="false" >
+79-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
+80            <meta-data
+80-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+81                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+81-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+82                android:value="androidx.startup" />
+82-->[androidx.emoji2:emoji2:1.3.0] C:\Users\AieXile\.gradle\caches\transforms-3\563c34309a932bcbce6d90bab31dce2c\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+83            <meta-data
+83-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:29:13-31:52
+84                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+84-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:30:17-78
+85                android:value="androidx.startup" />
+85-->[androidx.lifecycle:lifecycle-process:2.8.3] C:\Users\AieXile\.gradle\caches\transforms-3\e71154c8b2d30d60a7ee92b6d43c42cc\transformed\lifecycle-process-2.8.3\AndroidManifest.xml:31:17-49
+86            <meta-data
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+87                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+88                android:value="androidx.startup" />
+88-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+89        </provider>
+90
+91        <activity
+91-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:23:9-25:39
+92            android:name="androidx.activity.ComponentActivity"
+92-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:24:13-63
+93            android:exported="true" />
+93-->[androidx.compose.ui:ui-test-manifest:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\aefd6175de2aa8fb8a941bf4ac25c8f7\transformed\ui-test-manifest-1.7.5\AndroidManifest.xml:25:13-36
+94
+95        <service
+95-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:24:9-28:63
+96            android:name="androidx.room.MultiInstanceInvalidationService"
+96-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:25:13-74
+97            android:directBootAware="true"
+97-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:26:13-43
+98            android:exported="false" />
+98-->[androidx.room:room-runtime:2.6.1] C:\Users\AieXile\.gradle\caches\transforms-3\d62e64aec3e3484a7c8682411dc96277\transformed\room-runtime-2.6.1\AndroidManifest.xml:27:13-37
+99
+100        <receiver
+100-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+101            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+101-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+102            android:directBootAware="false"
+102-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+103            android:enabled="true"
+103-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+104            android:exported="true"
+104-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+105            android:permission="android.permission.DUMP" >
+105-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+106            <intent-filter>
+106-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+107                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+107-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+107-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+108            </intent-filter>
+109            <intent-filter>
+109-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+110                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+110-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+110-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+111            </intent-filter>
+112            <intent-filter>
+112-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+113                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+113-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+113-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+114            </intent-filter>
+115            <intent-filter>
+115-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+116                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\AieXile\.gradle\caches\transforms-3\738e1783c326f50ceb2e83e5dd2140a7\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+117            </intent-filter>
+118        </receiver>
+119    </application>
+120
+121</manifest>

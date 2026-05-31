@@ -54,6 +54,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
 import com.aiexile.animetrack.ui.home.HomeScreen
+import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
@@ -117,6 +118,8 @@ fun AnimeTrackApp(
     val navigationStyle by themeViewModel.navigationStyle.collectAsState()
     val fabLocation by themeViewModel.fabLocation.collectAsState()
     
+    val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
+    
     val mainPages = remember(showFavorites, showTimeline, showSchedule) {
         buildMainPages(showFavorites, showTimeline, showSchedule)
     }
@@ -160,7 +163,7 @@ fun AnimeTrackApp(
                     }
                     isExitSettings -> {
                         scaleIn(initialScale = 0.95f, animationSpec = scaleSpec) +
-                                fadeIn(initialAlpha = 0.7f, animationSpec = fadeSpec) togetherWith
+                                fadeIn(initialAlpha = 0.0f, animationSpec = tween(durationMillis = animDuration, delayMillis = 80, easing = easing)) togetherWith
                             slideOutHorizontally(animationSpec = slideSpec) { it }
                     }
                     targetState is Screen.AnimeDetail && initialState is Screen.Main -> {
@@ -207,6 +210,7 @@ fun AnimeTrackApp(
                                     themeViewModel = themeViewModel,
                                     fabLocation = fabLocation,
                                     navigationStyle = navigationStyle,
+                                    homeViewModel = homeViewModel,
                                     onNavigateToDetail = { animeId, coverUrl ->
                                         lastMainPageIndex = pagerState.currentPage
                                         currentScreen = Screen.AnimeDetail(animeId, coverUrl)
@@ -270,6 +274,7 @@ fun AnimeTrackApp(
                                     themeViewModel = themeViewModel,
                                     fabLocation = fabLocation,
                                     navigationStyle = navigationStyle,
+                                    homeViewModel = homeViewModel,
                                     onNavigateToDetail = { animeId, coverUrl ->
                                         lastMainPageIndex = pagerState.currentPage
                                         currentScreen = Screen.AnimeDetail(animeId, coverUrl)
@@ -351,6 +356,7 @@ private fun MainPagerContent(
     themeViewModel: ThemeViewModel,
     fabLocation: FabLocation,
     navigationStyle: NavigationStyle,
+    homeViewModel: HomeViewModel,
     onNavigateToDetail: (Int, String?) -> Unit,
     onNavigateAbout: () -> Unit,
     onNavigateCustomize: () -> Unit,
@@ -361,6 +367,7 @@ private fun MainPagerContent(
 ) {
     when (mainPages.getOrNull(page)?.route) {
         "home" -> HomeScreen(
+            viewModel = homeViewModel,
             showBottomBar = false,
             onNavigate = { },
             onNavigateToDetail = onNavigateToDetail,

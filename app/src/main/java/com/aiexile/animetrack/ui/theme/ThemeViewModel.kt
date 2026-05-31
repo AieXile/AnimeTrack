@@ -165,6 +165,19 @@ class ThemeViewModel(
         }
     }
 
+    val hideBangumiAvatar: StateFlow<Boolean> = settingsRepository.hideBangumiAvatar
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false
+        )
+
+    fun setHideBangumiAvatar(hide: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setHideBangumiAvatar(hide)
+        }
+    }
+
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

@@ -7,8 +7,8 @@ public final class BuildConfig {
   public static final boolean DEBUG = Boolean.parseBoolean("true");
   public static final String APPLICATION_ID = "com.aiexile.animetrack";
   public static final String BUILD_TYPE = "debug";
-  public static final int VERSION_CODE = 12;
-  public static final String VERSION_NAME = "v0.3.3-alpha";
+  public static final int VERSION_CODE = 14;
+  public static final String VERSION_NAME = "v0.3.5";
   // Field from default config.
   public static final String GITHUB_TOKEN = "";
 }

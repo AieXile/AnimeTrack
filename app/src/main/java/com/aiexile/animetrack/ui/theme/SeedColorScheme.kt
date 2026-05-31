@@ -5,12 +5,6 @@ import androidx.compose.ui.graphics.Color
 import com.google.android.material.color.utilities.CorePalette
 import com.google.android.material.color.utilities.TonalPalette
 
-enum class PaletteStyle {
-    TONAL_SPOT,
-    VIBRANT,
-    CONTENT,
-}
-
 fun seedColorScheme(
     seedColor: Color,
     isDark: Boolean,

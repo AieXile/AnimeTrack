@@ -3,9 +3,15 @@ package com.aiexile.animetrack.ui.settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,6 +26,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,6 +43,7 @@ fun FeaturesScreen(
 
     val autoCompleteEnabled by themeViewModel.autoCompleteEnabled.collectAsState()
     val completedToastEnabled by themeViewModel.completedToastEnabled.collectAsState()
+    val hideBangumiAvatar by themeViewModel.hideBangumiAvatar.collectAsState()
 
     Scaffold(
         topBar = {
@@ -60,7 +68,7 @@ fun FeaturesScreen(
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
+                .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -68,21 +76,36 @@ fun FeaturesScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                FeatureItem(
-                    title = "自动完结",
-                    description = "观看进度拉满时自动标记为已看完",
-                    checked = autoCompleteEnabled,
-                    onCheckedChange = { themeViewModel.setAutoCompleteEnabled(it) }
-                )
+                SettingsGroup(title = "观看") {
+                    Column {
+                        SwitchItem(
+                            title = "自动完结",
+                            description = "观看进度拉满时自动标记为已看完",
+                            checked = autoCompleteEnabled,
+                            onCheckedChange = { themeViewModel.setAutoCompleteEnabled(it) }
+                        )
+                        SwitchItem(
+                            title = "完结撒花提示",
+                            description = "标记为已看完时显示完结撒花提示",
+                            checked = completedToastEnabled,
+                            onCheckedChange = { themeViewModel.setCompletedToastEnabled(it) }
+                        )
+                    }
+                }
             }
 
             item {
-                FeatureItem(
-                    title = "完结撒花提示",
-                    description = "标记为已看完时显示完结撒花提示",
-                    checked = completedToastEnabled,
-                    onCheckedChange = { themeViewModel.setCompletedToastEnabled(it) }
-                )
+                SettingsGroup(title = "界面") {
+                    Column {
+                        SwitchItem(
+                            title = "隐藏 Bangumi 头像",
+                            description = "隐藏主界面顶部的 Bangumi 登录头像",
+                            checked = hideBangumiAvatar,
+                            onCheckedChange = { themeViewModel.setHideBangumiAvatar(it) },
+                            badge = "未完成"
+                        )
+                    }
+                }
             }
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
@@ -90,33 +113,54 @@ fun FeaturesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FeatureItem(
+private fun SwitchItem(
     title: String,
     description: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    badge: String? = null
 ) {
-    androidx.compose.material3.ListItem(
-        headlineContent = {
-            Text(
-                text = title,
-                fontSize = 16.sp
-            )
-        },
-        supportingContent = {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                badge?.let {
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text(
+                        text = it,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = description,
-                fontSize = 14.sp,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
         }
-    )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
 }

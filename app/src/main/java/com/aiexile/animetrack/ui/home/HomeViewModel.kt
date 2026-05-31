@@ -103,6 +103,10 @@ class HomeViewModel(
         }
         updateViewModel.checkForUpdate()
         checkAiringAnimeUpdates()
+        viewModelScope.launch {
+            val syncManager = AppContainer.getSyncManager()
+            syncManager.syncRemoteToLocal()
+        }
     }
 
     fun checkAiringAnimeUpdates() {
@@ -231,6 +235,16 @@ class HomeViewModel(
             }
             repository.updateAnime(updatedAnime)
             Log.d(TAG, "Updated anime status: ${anime.title} -> $newStatus")
+
+            if (anime.bangumiId != null) {
+                val syncManager = AppContainer.getSyncManager()
+                if (newStatus == AnimeStatus.COMPLETED && anime.totalEpisodes > 0) {
+                    syncManager.pushProgressThenStatus(anime.bangumiId, anime.totalEpisodes, newStatus)
+                } else {
+                    syncManager.pushStatusToRemote(anime.bangumiId, newStatus)
+                }
+            }
+
             if (newStatus == AnimeStatus.COMPLETED) {
                 val showToast = settingsRepository.completedToastEnabled.first()
                 if (showToast) {

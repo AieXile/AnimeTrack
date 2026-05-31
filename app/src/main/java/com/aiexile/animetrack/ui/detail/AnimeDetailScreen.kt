@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +55,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -153,6 +155,7 @@ fun AnimeDetailScreen(
     val context = LocalContext.current
     val editState = uiState.editState
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -215,6 +218,13 @@ fun AnimeDetailScreen(
                                 Text("保存", color = MaterialTheme.colorScheme.primary)
                             }
                         } else if (uiState.anime != null) {
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "删除",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                             IconButton(onClick = { viewModel.enterEditMode() }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
@@ -272,6 +282,7 @@ fun AnimeDetailScreen(
                             onEditTitleChange = { viewModel.updateEditTitle(it) },
                             onEditTitleStart = { viewModel.setEditingTitle(true) },
                             onEditTitleDone = { viewModel.setEditingTitle(false) },
+                            onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -306,6 +317,26 @@ fun AnimeDetailScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showDiscardDialog = false }) { Text("取消") }
+                }
+            )
+        }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("删除番剧") },
+                text = { Text("确定要删除「${uiState.anime?.title}」吗？此操作不可撤销。") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteAnime()
+                        onNavigateBack()
+                    }) {
+                        Text("删除", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
                 }
             )
         }
@@ -537,6 +568,7 @@ private fun AnimeDetailContent(
     onEditTitleChange: (String) -> Unit = {},
     onEditTitleStart: () -> Unit = {},
     onEditTitleDone: () -> Unit = {},
+    onEditAirWeekdayChange: (Int?) -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -786,7 +818,22 @@ private fun AnimeDetailContent(
                             )
                         }
 
-                        if (!airStatusText.isNullOrBlank()) {
+                        if (editState.isEditing && !anime.isFinished && anime.status != AnimeStatus.COMPLETED) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "每周",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                WeekdayChips(
+                                    selected = editState.airWeekday,
+                                    onSelect = onEditAirWeekdayChange
+                                )
+                            }
+                        } else if (!airStatusText.isNullOrBlank()) {
                             Text(
                                 text = airStatusText,
                                 fontSize = 12.sp,
@@ -1521,5 +1568,57 @@ private fun StatusBadge(
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun WeekdayChips(
+    selected: Int?,
+    onSelect: (Int?) -> Unit
+) {
+    val weekdays = listOf(
+        1 to "一", 2 to "二", 3 to "三",
+        4 to "四", 5 to "五", 6 to "六", 7 to "日"
+    )
+
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        weekdays.forEach { (day, label) ->
+            val isSelected = selected == day
+            Surface(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clickable { onSelect(if (isSelected) null else day) },
+                shape = CircleShape,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun Int.toWeekdayName(): String {
+    return when (this) {
+        1 -> "一"
+        2 -> "二"
+        3 -> "三"
+        4 -> "四"
+        5 -> "五"
+        6 -> "六"
+        7 -> "日"
+        else -> ""
     }
 }

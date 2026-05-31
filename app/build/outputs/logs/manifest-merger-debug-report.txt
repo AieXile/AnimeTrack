@@ -1,20 +1,20 @@
 -- Merging decision tree log ---
 provider#androidx.core.content.FileProvider
-INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:29:9-37:20
+INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:40:9-48:20
 	android:grantUriPermissions
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:33:13-47
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:44:13-47
 	android:authorities
 		INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:31:13-64
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:42:13-64
 	android:exported
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:32:13-37
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:43:13-37
 	android:name
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:30:13-62
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:41:13-62
 manifest
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-40:12
-INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-40:12
-INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-40:12
-INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-40:12
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-51:12
+INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-51:12
+INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-51:12
+INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:2:1-51:12
 MERGED from [androidx.navigation:navigation-common:2.8.0] C:\Users\AieXile\.gradle\caches\transforms-3\dc35cb072caea7a7a727891cbef36466\transformed\navigation-common-2.8.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.8.0] C:\Users\AieXile\.gradle\caches\transforms-3\95c48b0506729f30bfa5473874f3fe25\transformed\navigation-runtime-2.8.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-common-ktx:2.8.0] C:\Users\AieXile\.gradle\caches\transforms-3\3489c652eb101498f916eab64dc5336f\transformed\navigation-common-ktx-2.8.0\AndroidManifest.xml:2:1-7:12
@@ -124,9 +124,25 @@ uses-permission#android.permission.REQUEST_INSTALL_PACKAGES
 ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:6:5-83
 	android:name
 		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:6:22-80
+queries
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:8:5-17:15
+intent#action:name:android.intent.action.VIEW+data:host:qun.qq.com+data:scheme:https
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:9:9-12:18
+action#android.intent.action.VIEW
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:13-65
+	android:name
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:21-62
+data
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:13-70
+	android:host
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:42-67
+	android:scheme
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:19-41
+intent#action:name:android.intent.action.VIEW+data:host:t.me+data:scheme:https
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:13:9-16:18
 application
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:8:5-38:19
-INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:8:5-38:19
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:19:5-49:19
+INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:19:5-49:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.7.5] C:\Users\AieXile\.gradle\caches\transforms-3\70a543e68ce997c1f8bd310518d3623e\transformed\ui-tooling-release\AndroidManifest.xml:22:5-26:19
 MERGED from [com.google.android.material:material:1.12.0] C:\Users\AieXile\.gradle\caches\transforms-3\1277dfeccb3f4a1101bfbd8852ad9a87\transformed\material-1.12.0\AndroidManifest.xml:22:5-20
@@ -154,51 +170,51 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\AieXile\.gradle\ca
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.13.1] C:\Users\AieXile\.gradle\caches\transforms-3\3641eaebba38db9323e0b1380284d63c\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:15:9-35
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:9-35
 	android:label
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:13:9-41
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:24:9-41
 	android:fullBackupContent
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:11:9-54
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:22:9-54
 	android:roundIcon
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:14:9-54
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:9-54
 	tools:targetApi
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:18:9-29
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:29:9-29
 	android:icon
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:12:9-43
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:23:9-43
 	android:allowBackup
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:9:9-35
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:20:9-35
 	android:theme
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:16:9-48
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:27:9-48
 	android:dataExtractionRules
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:10:9-65
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:21:9-65
 	android:usesCleartextTraffic
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:17:9-44
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:28:9-44
 activity#com.aiexile.animetrack.MainActivity
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:19:9-28:20
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:30:9-39:20
 	android:label
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:22:13-45
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:33:13-45
 	android:exported
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:21:13-36
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:32:13-36
 	android:theme
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:23:13-52
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:34:13-52
 	android:name
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:20:13-41
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:31:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:24:13-27:29
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:35:13-38:29
 action#android.intent.action.MAIN
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:17-69
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:17-69
 	android:name
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:25:25-66
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:25-66
 category#android.intent.category.LAUNCHER
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:17-77
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:37:17-77
 	android:name
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:26:27-74
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:37:27-74
 meta-data#android.support.FILE_PROVIDER_PATHS
-ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:34:13-36:54
+ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:45:13-47:54
 	android:resource
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:36:17-51
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:47:17-51
 	android:name
-		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:35:17-67
+		ADDED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml:46:17-67
 uses-sdk
 INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from E:\Project\AnimeTrack\app\src\main\AndroidManifest.xml

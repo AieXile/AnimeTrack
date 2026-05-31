@@ -29,6 +29,7 @@ class SettingsRepository(private val context: Context) {
         private val CUSTOM_GREETING_KEY = stringPreferencesKey("custom_greeting")
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
+        private val HIDE_BANGUMI_AVATAR_KEY = booleanPreferencesKey("hide_bangumi_avatar")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
     }
 
@@ -159,6 +160,17 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCompletedToastEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[COMPLETED_TOAST_KEY] = enabled
+        }
+    }
+
+    val hideBangumiAvatar: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[HIDE_BANGUMI_AVATAR_KEY] ?: false
+        }
+
+    suspend fun setHideBangumiAvatar(hide: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[HIDE_BANGUMI_AVATAR_KEY] = hide
         }
     }
 

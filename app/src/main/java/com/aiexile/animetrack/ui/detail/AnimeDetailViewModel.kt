@@ -201,11 +201,11 @@ class AnimeDetailViewModel(
                 }
                 val finalCurrentEpisodes = if (mainEps > 0 || allEps > 0) 0 else anime.currentEpisodes
 
-                val newWatchedEpisodes = if (
-                    anime.status == AnimeStatus.COMPLETED
-                    && anime.watchedEpisodes == 0
-                    && finalTotalEpisodes > 0
-                ) finalTotalEpisodes else anime.watchedEpisodes
+                val newWatchedEpisodes = when {
+                    anime.status == AnimeStatus.COMPLETED && anime.watchedEpisodes == 0 && finalTotalEpisodes > 0 -> finalTotalEpisodes
+                    finalTotalEpisodes > 0 && anime.watchedEpisodes > finalTotalEpisodes -> finalTotalEpisodes
+                    else -> anime.watchedEpisodes
+                }
 
                 val isFinished = computeIsFinished(
                     airDate = detail.date,
@@ -279,11 +279,11 @@ class AnimeDetailViewModel(
             if (today.isBefore(startDate)) {
                 "${airDate} 开播"
             } else if (anime.isFinished || anime.status == AnimeStatus.COMPLETED) {
-                if (totalEpisodes > 0) "全 ${totalEpisodes} 集 / 已完结" else "已完结"
+                "已完结"
             } else {
                 val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
                 if (totalEpisodes > 0 && diffWeeks > (totalEpisodes + 1)) {
-                    "全 ${totalEpisodes} 集 / 已完结"
+                    "已完结"
                 } else if (totalEpisodes > 0) {
                     val weekdayName = anime.airWeekday?.toWeekdayName()
                     if (weekdayName != null) {
@@ -344,7 +344,18 @@ class AnimeDetailViewModel(
             }
         }
 
-        viewModelScope.launch { repository.updateAnime(updatedAnime) }
+        viewModelScope.launch {
+            repository.updateAnime(updatedAnime)
+
+            if (anime.bangumiId != null) {
+                val syncManager = AppContainer.getSyncManager()
+                if (updatedAnime.status != anime.status) {
+                    syncManager.pushProgressThenStatus(anime.bangumiId, newCount, updatedAnime.status)
+                } else {
+                    syncManager.pushProgressToRemote(anime.bangumiId, newCount)
+                }
+            }
+        }
     }
 
     fun dismissCompletedToast() {
@@ -422,6 +433,10 @@ class AnimeDetailViewModel(
         _editState.value = _editState.value.copy(title = title)
     }
 
+    fun updateEditAirWeekday(weekday: Int?) {
+        _editState.value = _editState.value.copy(airWeekday = weekday)
+    }
+
     fun updateEditCoverUrl(url: String?) {
         _editState.value = _editState.value.copy(coverUrl = url, localCoverUri = null)
     }
@@ -489,10 +504,16 @@ class AnimeDetailViewModel(
             if (edit.localCoverUri != null && anime.coverUrl != edit.localCoverUri) {
                 deleteOldCoverFile(anime.coverUrl)
             }
+            val clampedWatched = if (edit.totalEpisodes > 0) {
+                anime.watchedEpisodes.coerceAtMost(edit.totalEpisodes)
+            } else {
+                anime.watchedEpisodes
+            }
             val updatedAnime = anime.copy(
                 title = edit.title,
                 coverUrl = newCoverUrl,
                 totalEpisodes = edit.totalEpisodes,
+                watchedEpisodes = clampedWatched,
                 airDate = edit.airDate,
                 airWeekday = edit.airWeekday,
                 bangumiId = edit.bangumiId,
@@ -500,6 +521,13 @@ class AnimeDetailViewModel(
             )
             repository.updateAnime(updatedAnime)
             _editState.value = EditState()
+        }
+    }
+
+    fun deleteAnime() {
+        val anime = animeFlow.value ?: return
+        viewModelScope.launch {
+            repository.deleteAnime(anime)
         }
     }
 
@@ -518,6 +546,11 @@ class AnimeDetailViewModel(
                 }
             )
             repository.updateAnime(updatedAnime)
+
+            if (anime.bangumiId != null) {
+                val syncManager = AppContainer.getSyncManager()
+                syncManager.pushStatusToRemote(anime.bangumiId, newStatus)
+            }
         }
     }
 
@@ -589,8 +622,17 @@ class AnimeDetailViewModel(
         if (_editState.value.isEditing) {
             viewModelScope.launch {
                 val detail = tryFetchDetail(subject.id)
-                val detailEps = detail?.eps ?: detail?.totalEpisodes ?: subject.episodeCount
-                val finalEps = if (detailEps != null && detailEps > 0) detailEps else _editState.value.totalEpisodes
+                val apiEps = detail?.eps
+                val apiTotalEps = detail?.totalEpisodes
+                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                val subjectEps = subject.episodeCount
+                val finalEps = when {
+                    mainEps > 0 -> mainEps
+                    allEps > 0 -> allEps
+                    subjectEps != null && subjectEps > 0 -> subjectEps
+                    else -> _editState.value.totalEpisodes
+                }
                 val newSummary = detail?.summary?.cleanSummary() ?: subject.summary ?: _editState.value.summary
                 _editState.value = _editState.value.copy(
                     title = subject.displayName,
@@ -612,9 +654,24 @@ class AnimeDetailViewModel(
                 val airDate = detail?.date ?: anime.airDate
                 val airWeekday = detail?.airWeekday ?: anime.airWeekday
 
+                val apiEps = detail?.eps
+                val apiTotalEps = detail?.totalEpisodes
+                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                val finalTotalEpisodes = when {
+                    mainEps > 0 -> mainEps
+                    allEps > 0 -> allEps
+                    else -> anime.totalEpisodes
+                }
+                val clampedWatched = if (finalTotalEpisodes > 0) {
+                    anime.watchedEpisodes.coerceAtMost(finalTotalEpisodes)
+                } else {
+                    anime.watchedEpisodes
+                }
+
                 val isFinished = computeIsFinished(
                     airDate = airDate,
-                    totalEpisodes = anime.totalEpisodes,
+                    totalEpisodes = finalTotalEpisodes,
                     localStatus = anime.status
                 )
 
@@ -623,6 +680,8 @@ class AnimeDetailViewModel(
                     summary = summary ?: anime.summary,
                     airDate = airDate,
                     airWeekday = airWeekday,
+                    totalEpisodes = finalTotalEpisodes,
+                    watchedEpisodes = clampedWatched,
                     isFinished = isFinished
                 )
                 repository.updateAnime(updatedAnime)

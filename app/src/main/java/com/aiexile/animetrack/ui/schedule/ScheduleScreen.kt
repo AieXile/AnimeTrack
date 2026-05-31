@@ -8,10 +8,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -54,8 +56,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 
 private val weekdayLabels = listOf("?", "一", "二", "三", "四", "五", "六", "日")
 
@@ -69,28 +73,27 @@ fun ScheduleScreen(
     val selectedWeekday by viewModel.selectedWeekday.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val hasUncategorized = groupedAnimes.containsKey(0)
-    val pageCount = if (hasUncategorized) 8 else 7
-
     val pagerState = rememberPagerState(
-        initialPage = if (hasUncategorized) selectedWeekday else selectedWeekday - 1,
-        pageCount = { pageCount }
+        initialPage = selectedWeekday,
+        pageCount = { 8 }
     )
 
     LaunchedEffect(selectedWeekday) {
-        val targetPage = if (hasUncategorized) selectedWeekday else selectedWeekday - 1
-        if (pagerState.settledPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+        if (pagerState.currentPage != selectedWeekday) {
+            pagerState.scrollToPage(selectedWeekday)
         }
     }
 
     LaunchedEffect(Unit) {
-        snapshotFlow { pagerState.settledPage }.collect { settledPage ->
-            val weekday = if (hasUncategorized) settledPage else settledPage + 1
-            if (weekday != viewModel.selectedWeekday.value) {
-                viewModel.selectWeekday(weekday)
+        snapshotFlow { pagerState.settledPage }
+            .drop(1)
+            .collect { settledPage ->
+                if (!pagerState.isScrollInProgress) {
+                    if (settledPage != viewModel.selectedWeekday.value) {
+                        viewModel.selectWeekday(settledPage)
+                    }
+                }
             }
-        }
     }
 
     Scaffold(
@@ -100,15 +103,22 @@ fun ScheduleScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(top = 40.dp)
+                    .statusBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
-                Text(
-                    text = "追番看板",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "追番看板",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
                 Text(
                     text = "每周更新一览",
                     fontSize = 13.sp,
@@ -124,13 +134,11 @@ fun ScheduleScreen(
                 .padding(paddingValues)
         ) {
             WeekdaySelector(
-                selectedWeekday = selectedWeekday,
-                hasUncategorized = hasUncategorized,
+                selectedWeekday = pagerState.currentPage,
                 onWeekdaySelected = { weekday ->
                     viewModel.selectWeekday(weekday)
                     coroutineScope.launch {
-                        val targetPage = if (hasUncategorized) weekday else weekday - 1
-                        pagerState.animateScrollToPage(targetPage)
+                        pagerState.scrollToPage(weekday)
                     }
                 },
                 modifier = Modifier
@@ -142,11 +150,10 @@ fun ScheduleScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                val weekday = if (hasUncategorized) page else page + 1
-                val animes = groupedAnimes[weekday].orEmpty()
+                val animes = groupedAnimes[page].orEmpty()
 
                 if (animes.isEmpty()) {
-                    EmptyWeekdayContent(weekday = weekday)
+                    EmptyWeekdayContent(weekday = page)
                 } else {
                     AnimeCoverGrid(
                         animes = animes,
@@ -164,7 +171,6 @@ fun ScheduleScreen(
 @Composable
 private fun WeekdaySelector(
     selectedWeekday: Int,
-    hasUncategorized: Boolean,
     onWeekdaySelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -174,20 +180,18 @@ private fun WeekdaySelector(
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
             .padding(vertical = 8.dp)
     ) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            val labels = if (hasUncategorized) weekdayLabels else weekdayLabels.drop(1)
-            labels.forEachIndexed { index, label ->
-                val weekday = if (hasUncategorized) index else index + 1
-                val isSelected = weekday == selectedWeekday
+            weekdayLabels.forEachIndexed { index, label ->
+                val isSelected = index == selectedWeekday
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable { onWeekdaySelected(weekday) }
+                        .clickable { onWeekdaySelected(index) }
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
                     Box(

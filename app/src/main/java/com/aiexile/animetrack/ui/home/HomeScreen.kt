@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.lazy.LazyColumn
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.LiveTv
@@ -106,12 +108,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.network.BangumiSubject
+import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.login.LoginDialog
+import com.aiexile.animetrack.ui.login.ProfileDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import com.aiexile.animetrack.ui.update.UpdateDialog
@@ -135,6 +141,12 @@ fun HomeScreen(
     val animeList by viewModel.animeList.collectAsState()
     val customGreeting by (themeViewModel?.customGreeting?.collectAsState() ?: mutableStateOf(""))
     val context = LocalContext.current
+    val authManager = remember { AppContainer.getAuthManager() }
+    val isLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
+    val userAvatar by authManager.userAvatar.collectAsState(initial = null)
+    val hideBangumiAvatar by (themeViewModel?.hideBangumiAvatar?.collectAsState() ?: mutableStateOf(false))
+    var showLoginDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
@@ -200,11 +212,13 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(top = 40.dp)
+                    .statusBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -301,7 +315,14 @@ fun HomeScreen(
                     gridState = gridState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
-                    isCapsuleNav = isCapsuleNav
+                    isCapsuleNav = isCapsuleNav,
+                    isLoggedIn = isLoggedIn,
+                    userAvatar = userAvatar,
+                    hideBangumiAvatar = hideBangumiAvatar,
+                    onAvatarClick = {
+                        if (isLoggedIn) showProfileDialog = true
+                        else showLoginDialog = true
+                    }
                 )
             }
         }
@@ -333,6 +354,21 @@ fun HomeScreen(
                 onFormStateChange = { viewModel.updateFormState(it) },
                 onSave = { viewModel.saveAnime() },
                 onDismiss = { viewModel.hideFormDialog() }
+            )
+        }
+
+        if (showLoginDialog) {
+            LoginDialog(
+                onDismiss = { showLoginDialog = false },
+                onLoginSuccess = { showLoginDialog = false }
+            )
+        }
+
+        if (showProfileDialog) {
+            ProfileDialog(
+                onDismiss = { showProfileDialog = false },
+                onNavigateToSync = { },
+                onLogout = { }
             )
         }
     }
@@ -1017,6 +1053,10 @@ private fun AnimeGrid(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     isCapsuleNav: Boolean = false,
+    isLoggedIn: Boolean = false,
+    userAvatar: String? = null,
+    hideBangumiAvatar: Boolean = false,
+    onAvatarClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1044,9 +1084,20 @@ private fun AnimeGrid(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(end = 8.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.End
+                    .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                if (!hideBangumiAvatar) {
+                    UserAvatarButton(
+                        isLoggedIn = isLoggedIn,
+                        avatarUrl = userAvatar,
+                        onClick = onAvatarClick
+                    )
+                } else {
+                    Spacer(modifier = Modifier.size(1.dp))
+                }
+
                 FilterMenu(
                     selectedFilter = selectedFilter,
                     onFilterSelected = onFilterSelected
@@ -1168,6 +1219,49 @@ private fun NewAnimeCardWrapper(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha * 0.15f),
                         shape = RoundedCornerShape(8.dp)
                     )
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserAvatarButton(
+    isLoggedIn: Boolean,
+    avatarUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    Box(
+        modifier = modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(
+                color = if (isLoggedIn) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = CircleShape
+            )
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLoggedIn && avatarUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(avatarUrl)
+                    .bitmapConfig(Bitmap.Config.HARDWARE)
+                    .build(),
+                contentDescription = "用户头像",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "登录",
+                modifier = Modifier.size(18.dp),
+                tint = if (isLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -3,6 +3,7 @@ package com.aiexile.animetrack.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -27,6 +28,9 @@ fun AnimeTrackTheme(
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        themePreset.paletteStyle == PaletteStyle.NEUTRAL -> remember(darkTheme) {
+            if (darkTheme) monoBlackDarkScheme() else monoBlackLightScheme()
         }
         else -> remember(themePreset, darkTheme) {
             seedColorScheme(
@@ -69,3 +73,81 @@ fun AnimeTrackTheme(
         )
     }
 }
+
+internal fun monoBlackLightScheme(): ColorScheme = ColorScheme(
+    primary = Color(0xFF1A1A1A),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFE0E0E0),
+    onPrimaryContainer = Color(0xFF1A1A1A),
+    inversePrimary = Color(0xFFBDBDBD),
+    secondary = Color(0xFF424242),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFEEEEEE),
+    onSecondaryContainer = Color(0xFF212121),
+    tertiary = Color(0xFF616161),
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFF5F5F5),
+    onTertiaryContainer = Color(0xFF212121),
+    background = Color(0xFFFAFAFA),
+    onBackground = Color(0xFF1C1C1C),
+    surface = Color(0xFFFAFAFA),
+    onSurface = Color(0xFF1C1C1C),
+    surfaceVariant = Color(0xFFF0F0F0),
+    onSurfaceVariant = Color(0xFF424242),
+    surfaceTint = Color(0xFF1A1A1A),
+    inverseSurface = Color(0xFF2C2C2C),
+    inverseOnSurface = Color(0xFFF0F0F0),
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    outline = Color(0xFFBDBDBD),
+    outlineVariant = Color(0xFFE0E0E0),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFFFAFAFA),
+    surfaceDim = Color(0xFFEAEAEA),
+    surfaceContainer = Color(0xFFF2F2F2),
+    surfaceContainerHigh = Color(0xFFECECEC),
+    surfaceContainerHighest = Color(0xFFE6E6E6),
+    surfaceContainerLow = Color(0xFFF6F6F6),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+)
+
+private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
+    primary = Color(0xFFE0E0E0),
+    onPrimary = Color(0xFF000000),
+    primaryContainer = Color(0xFF2C2C2C),
+    onPrimaryContainer = Color(0xFFE0E0E0),
+    inversePrimary = Color(0xFF1A1A1A),
+    secondary = Color(0xFFBDBDBD),
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFF2A2A2A),
+    onSecondaryContainer = Color(0xFFE0E0E0),
+    tertiary = Color(0xFF9E9E9E),
+    onTertiary = Color(0xFF000000),
+    tertiaryContainer = Color(0xFF262626),
+    onTertiaryContainer = Color(0xFFE0E0E0),
+    background = Color(0xFF0A0A0A),
+    onBackground = Color(0xFFE8E8E8),
+    surface = Color(0xFF0A0A0A),
+    onSurface = Color(0xFFE8E8E8),
+    surfaceVariant = Color(0xFF1A1A1A),
+    onSurfaceVariant = Color(0xFFBDBDBD),
+    surfaceTint = Color(0xFFE0E0E0),
+    inverseSurface = Color(0xFFE8E8E8),
+    inverseOnSurface = Color(0xFF1A1A1A),
+    error = Color(0xFFCF6679),
+    onError = Color(0xFF000000),
+    errorContainer = Color(0xFFB3261E),
+    onErrorContainer = Color(0xFFF9DEDC),
+    outline = Color(0xFF424242),
+    outlineVariant = Color(0xFF2C2C2C),
+    scrim = Color(0xFF000000),
+    surfaceBright = Color(0xFF1A1A1A),
+    surfaceDim = Color(0xFF050505),
+    surfaceContainer = Color(0xFF111111),
+    surfaceContainerHigh = Color(0xFF1A1A1A),
+    surfaceContainerHighest = Color(0xFF242424),
+    surfaceContainerLow = Color(0xFF0D0D0D),
+    surfaceContainerLowest = Color(0xFF050505),
+)
