@@ -44,6 +44,8 @@ fun FeaturesScreen(
     val autoCompleteEnabled by themeViewModel.autoCompleteEnabled.collectAsState()
     val completedToastEnabled by themeViewModel.completedToastEnabled.collectAsState()
     val hideBangumiAvatar by themeViewModel.hideBangumiAvatar.collectAsState()
+    val showUpdateBanner by themeViewModel.showUpdateBanner.collectAsState()
+    val showCalendarButton by themeViewModel.showCalendarButton.collectAsState()
 
     Scaffold(
         topBar = {
@@ -103,6 +105,25 @@ fun FeaturesScreen(
                             checked = hideBangumiAvatar,
                             onCheckedChange = { themeViewModel.setHideBangumiAvatar(it) },
                             badge = "未完成"
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsGroup(title = "看板") {
+                    Column {
+                        SwitchItem(
+                            title = "今日更新提醒",
+                            description = "在主界面顶部显示今日番剧更新提醒卡片",
+                            checked = showUpdateBanner,
+                            onCheckedChange = { themeViewModel.setShowUpdateBanner(it) }
+                        )
+                        SwitchItem(
+                            title = "日程预览按钮",
+                            description = "在看板右上角显示日历按钮，查看今明日更新",
+                            checked = showCalendarButton,
+                            onCheckedChange = { themeViewModel.setShowCalendarButton(it) }
                         )
                     }
                 }

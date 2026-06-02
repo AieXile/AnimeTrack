@@ -2,11 +2,14 @@ package com.aiexile.animetrack.ui.home
 
 import android.graphics.Bitmap
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -135,7 +138,8 @@ fun HomeScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     themeViewModel: ThemeViewModel? = null,
     fabLocation: FabLocation = FabLocation.BOTTOM_RIGHT,
-    isCapsuleNav: Boolean = false
+    isCapsuleNav: Boolean = false,
+    isCurrentPage: Boolean = true
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
@@ -145,6 +149,15 @@ fun HomeScreen(
     val isLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
     val userAvatar by authManager.userAvatar.collectAsState(initial = null)
     val hideBangumiAvatar by (themeViewModel?.hideBangumiAvatar?.collectAsState() ?: mutableStateOf(false))
+    val showUpdateBanner by (themeViewModel?.showUpdateBanner?.collectAsState() ?: mutableStateOf(true))
+    val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
+    val bannerDismissed by viewModel.bannerDismissed.collectAsState()
+
+    LaunchedEffect(isCurrentPage) {
+        if (!isCurrentPage) {
+            viewModel.dismissBanner()
+        }
+    }
     var showLoginDialog by remember { mutableStateOf(false) }
     var showProfileDialog by remember { mutableStateOf(false) }
 
@@ -299,8 +312,13 @@ fun HomeScreen(
                     hasAnyAnime = true,
                     newlyAddedAnimeId = uiState.newlyAddedAnimeId,
                     selectedAnimeId = uiState.selectedAnimeId,
+                    highlightedAnimeIds = uiState.highlightedAnimeIds,
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
                     onAnimeClick = { anime ->
+                        scope.launch {
+                            delay(250)
+                            viewModel.dismissBanner()
+                        }
                         if (uiState.selectedAnimeId != null) {
                             viewModel.clearSelection()
                         } else {
@@ -322,7 +340,11 @@ fun HomeScreen(
                     onAvatarClick = {
                         if (isLoggedIn) showProfileDialog = true
                         else showLoginDialog = true
-                    }
+                    },
+                    showBanner = showUpdateBanner && todayUpdateCount > 0 && !bannerDismissed,
+                    todayUpdateCount = todayUpdateCount,
+                    onDismissBanner = { viewModel.dismissBanner() },
+                    onBannerClick = { viewModel.highlightTodayUpdates() }
                 )
             }
         }
@@ -1042,6 +1064,7 @@ private fun AnimeGrid(
     hasAnyAnime: Boolean = false,
     newlyAddedAnimeId: Long?,
     selectedAnimeId: Long?,
+    highlightedAnimeIds: Set<Long> = emptySet(),
     onHighlightComplete: () -> Unit,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongPress: (Anime) -> Unit,
@@ -1057,6 +1080,10 @@ private fun AnimeGrid(
     userAvatar: String? = null,
     hideBangumiAvatar: Boolean = false,
     onAvatarClick: () -> Unit = {},
+    showBanner: Boolean = false,
+    todayUpdateCount: Int = 0,
+    onDismissBanner: () -> Unit = {},
+    onBannerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1105,12 +1132,59 @@ private fun AnimeGrid(
             }
         }
 
+        if (showBanner) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                AnimatedVisibility(
+                    visible = true,
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onBannerClick() }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "✨ 今日有 $todayUpdateCount 部番剧更新",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            IconButton(
+                                onClick = onDismissBanner,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "关闭",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         items(
             items = animeList,
             key = { it.id }
         ) { anime ->
             val isNew = anime.id.toLong() == newlyAddedAnimeId
             val isSelected = anime.id.toLong() == selectedAnimeId
+            val isHighlighted = anime.id.toLong() in highlightedAnimeIds
             
             if (isNew) {
                 NewAnimeCardWrapper(
@@ -1130,6 +1204,7 @@ private fun AnimeGrid(
                     onClick = { onAnimeClick(anime) },
                     onLongPress = { onAnimeLongPress(anime) },
                     isSelected = isSelected,
+                    isHighlighted = isHighlighted,
                     onStatusChange = { onStatusChange(anime, it) },
                     onDelete = { onDelete(anime) },
                     sharedTransitionScope = sharedTransitionScope,

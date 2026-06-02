@@ -178,6 +178,110 @@ class ThemeViewModel(
         }
     }
 
+    val showUpdateBanner: StateFlow<Boolean> = settingsRepository.showUpdateBanner
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setShowUpdateBanner(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowUpdateBanner(show)
+        }
+    }
+
+    val showCalendarButton: StateFlow<Boolean> = settingsRepository.showCalendarButton
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setShowCalendarButton(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowCalendarButton(show)
+        }
+    }
+
+    val webdavUrl: StateFlow<String> = settingsRepository.webdavUrl
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
+
+    fun setWebdavUrl(url: String) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavUrl(url)
+        }
+    }
+
+    val webdavUsername: StateFlow<String> = settingsRepository.webdavUsername
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
+
+    fun setWebdavUsername(username: String) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavUsername(username)
+        }
+    }
+
+    val webdavPassword: StateFlow<String> = settingsRepository.webdavPassword
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ""
+        )
+
+    fun setWebdavPassword(password: String) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavPassword(password)
+        }
+    }
+
+    val webdavBackupStrategy: StateFlow<Int> = settingsRepository.webdavBackupStrategy
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 0
+        )
+
+    fun setWebdavBackupStrategy(strategy: Int) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavBackupStrategy(strategy)
+        }
+    }
+
+    val webdavRestoreMode: StateFlow<Int> = settingsRepository.webdavRestoreMode
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 0
+        )
+
+    fun setWebdavRestoreMode(mode: Int) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavRestoreMode(mode)
+        }
+    }
+
+    val webdavLastSyncTime: StateFlow<Long> = settingsRepository.webdavLastSyncTime
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = 0L
+        )
+
+    fun setWebdavLastSyncTime(time: Long) {
+        viewModelScope.launch {
+            settingsRepository.setWebdavLastSyncTime(time)
+        }
+    }
+
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

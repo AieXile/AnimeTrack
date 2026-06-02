@@ -32,6 +32,10 @@ class ScheduleViewModel(
         }
     }
 
+    val currentTodayWeekday: Int = todayWeekday
+
+    private val tomorrowWeekday = (todayWeekday % 7) + 1
+
     private val _selectedWeekday = MutableStateFlow(todayWeekday)
     val selectedWeekday: StateFlow<Int> = _selectedWeekday.asStateFlow()
 
@@ -42,6 +46,29 @@ class ScheduleViewModel(
             started = SharingStarted.Lazily,
             initialValue = emptyMap()
         )
+
+    val todayUpdateCount: StateFlow<Int> = groupedAnimes.map { it[todayWeekday]?.size ?: 0 }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Lazily,
+            initialValue = 0
+        )
+
+    val todayAnimes: StateFlow<List<Anime>> = groupedAnimes.map { grouped ->
+        (grouped[todayWeekday] ?: emptyList()).sortedBy { it.airDate }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = emptyList()
+    )
+
+    val tomorrowAnimes: StateFlow<List<Anime>> = groupedAnimes.map { grouped ->
+        (grouped[tomorrowWeekday] ?: emptyList()).sortedBy { it.airDate }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = emptyList()
+    )
 
     fun selectWeekday(weekday: Int) {
         _selectedWeekday.value = weekday

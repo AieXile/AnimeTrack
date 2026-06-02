@@ -16,6 +16,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -1591,10 +1592,16 @@ private fun WeekdayChips(
             Surface(
                 modifier = Modifier
                     .size(28.dp)
-                    .clickable { onSelect(if (isSelected) null else day) },
+                    .clip(CircleShape)
+                    .clickable { onSelect(day) },
                 shape = CircleShape,
                 color = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = if (isSelected) null
+                    else BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outlineVariant
+                    )
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(

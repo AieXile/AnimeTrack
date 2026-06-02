@@ -15,6 +15,9 @@ interface AnimeDao {
     
     @Query("SELECT * FROM anime ORDER BY id DESC")
     fun getAllAnimes(): Flow<List<Anime>>
+
+    @Query("SELECT * FROM anime ORDER BY id DESC")
+    suspend fun getAllAnimesList(): List<Anime>
     
     @Query("SELECT * FROM anime WHERE id = :id")
     suspend fun getAnimeById(id: Int): Anime?
@@ -54,4 +57,10 @@ interface AnimeDao {
 
     @Query("UPDATE anime SET hasNewUpdate = 0 WHERE id = :id")
     suspend fun clearNewUpdate(id: Int)
+
+    @Query("UPDATE anime SET coverUrl = :coverUrl WHERE id = :id")
+    suspend fun updateCoverUrl(id: Int, coverUrl: String)
+
+    @Query("DELETE FROM anime")
+    suspend fun deleteAllAnimes()
 }

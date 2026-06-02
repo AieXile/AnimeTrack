@@ -176,6 +176,11 @@ class SettingsViewModel(
                         )
                         
                         animeRepository.updateAnime(updatedAnime)
+                        animeRepository.downloadCoverAsync(
+                            animeId = updatedAnime.id,
+                            coverUrl = updatedAnime.coverUrl,
+                            bangumiId = updatedAnime.bangumiId
+                        )
                         syncedCount++
                         
                         Log.d(TAG, "Synced cover for: ${anime.title} -> ${bestMatch.coverUrl}")

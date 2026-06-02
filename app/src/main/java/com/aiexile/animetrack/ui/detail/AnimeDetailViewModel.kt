@@ -685,6 +685,11 @@ class AnimeDetailViewModel(
                     isFinished = isFinished
                 )
                 repository.updateAnime(updatedAnime)
+                repository.downloadCoverAsync(
+                    animeId = updatedAnime.id,
+                    coverUrl = updatedAnime.coverUrl,
+                    bangumiId = updatedAnime.bangumiId
+                )
             }
         }
         _coverSearch.value = CoverSearchState()

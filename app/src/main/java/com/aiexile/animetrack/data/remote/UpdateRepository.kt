@@ -35,6 +35,16 @@ class UpdateRepository {
             null
         }
     }
+
+    suspend fun getCurrentVersionChangelog(currentVersion: String): String? {
+        return try {
+            val release = RetrofitClient.updateApi.getReleaseByTag(currentVersion)
+            release.body.ifBlank { null }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch changelog for $currentVersion", e)
+            null
+        }
+    }
 }
 
 data class UpdateInfo(

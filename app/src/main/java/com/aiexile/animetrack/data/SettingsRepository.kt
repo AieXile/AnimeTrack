@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aiexile.animetrack.model.ThemeMode
@@ -30,7 +32,15 @@ class SettingsRepository(private val context: Context) {
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
         private val HIDE_BANGUMI_AVATAR_KEY = booleanPreferencesKey("hide_bangumi_avatar")
+        private val SHOW_UPDATE_BANNER_KEY = booleanPreferencesKey("show_update_banner")
+        private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
+        private val WEBDAV_URL_KEY = stringPreferencesKey("webdav_url")
+        private val WEBDAV_USERNAME_KEY = stringPreferencesKey("webdav_username")
+        private val WEBDAV_PASSWORD_KEY = stringPreferencesKey("webdav_password")
+        private val WEBDAV_BACKUP_STRATEGY_KEY = intPreferencesKey("webdav_backup_strategy")
+        private val WEBDAV_RESTORE_MODE_KEY = intPreferencesKey("webdav_restore_mode")
+        private val WEBDAV_LAST_SYNC_TIME_KEY = longPreferencesKey("webdav_last_sync_time")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data
@@ -174,6 +184,28 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    val showUpdateBanner: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_UPDATE_BANNER_KEY] ?: true
+        }
+
+    suspend fun setShowUpdateBanner(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_UPDATE_BANNER_KEY] = show
+        }
+    }
+
+    val showCalendarButton: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_CALENDAR_BUTTON_KEY] ?: true
+        }
+
+    suspend fun setShowCalendarButton(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_CALENDAR_BUTTON_KEY] = show
+        }
+    }
+
     val skippedVersion: Flow<String> = context.dataStore.data
         .map { preferences ->
             preferences[SKIPPED_VERSION_KEY] ?: ""
@@ -182,6 +214,72 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSkippedVersion(version: String) {
         context.dataStore.edit { preferences ->
             preferences[SKIPPED_VERSION_KEY] = version
+        }
+    }
+
+    val webdavUrl: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_URL_KEY] ?: ""
+        }
+
+    suspend fun setWebdavUrl(url: String) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_URL_KEY] = url
+        }
+    }
+
+    val webdavUsername: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_USERNAME_KEY] ?: ""
+        }
+
+    suspend fun setWebdavUsername(username: String) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_USERNAME_KEY] = username
+        }
+    }
+
+    val webdavPassword: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_PASSWORD_KEY] ?: ""
+        }
+
+    suspend fun setWebdavPassword(password: String) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_PASSWORD_KEY] = password
+        }
+    }
+
+    val webdavBackupStrategy: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_BACKUP_STRATEGY_KEY] ?: 0
+        }
+
+    suspend fun setWebdavBackupStrategy(strategy: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_BACKUP_STRATEGY_KEY] = strategy
+        }
+    }
+
+    val webdavRestoreMode: Flow<Int> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_RESTORE_MODE_KEY] ?: 0
+        }
+
+    suspend fun setWebdavRestoreMode(mode: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_RESTORE_MODE_KEY] = mode
+        }
+    }
+
+    val webdavLastSyncTime: Flow<Long> = context.dataStore.data
+        .map { preferences ->
+            preferences[WEBDAV_LAST_SYNC_TIME_KEY] ?: 0L
+        }
+
+    suspend fun setWebdavLastSyncTime(time: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[WEBDAV_LAST_SYNC_TIME_KEY] = time
         }
     }
 }

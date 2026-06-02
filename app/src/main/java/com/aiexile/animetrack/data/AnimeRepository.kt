@@ -8,32 +8,36 @@ import com.aiexile.animetrack.data.network.CoverDownloader
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 interface AnimeRepository {
-    
+
     fun getAllAnimes(): Flow<List<Anime>>
-    
+
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
-    
+
     suspend fun getAnimeById(id: Int): Anime?
 
     fun observeAnimeById(id: Int): Flow<Anime?>
-    
+
     suspend fun insertAnime(anime: Anime): Long
-    
+
     suspend fun updateAnime(anime: Anime)
-    
+
     suspend fun deleteAnime(anime: Anime)
-    
+
     suspend fun getAnimeByTitle(title: String): Anime?
 
     suspend fun getAnimeByBangumiId(bangumiId: Int): Anime?
-    
+
     suspend fun insertAnimes(animes: List<Anime>)
-    
+
     suspend fun getAnimesWithoutCover(): List<Anime>
-    
+
     suspend fun searchBangumi(query: String): List<BangumiSubject>
 
     fun getAiringAnimes(): Flow<List<Anime>>
@@ -41,26 +45,29 @@ interface AnimeRepository {
     suspend fun getAiringAnimesWithBangumiId(): List<Anime>
 
     suspend fun clearNewUpdate(id: Int)
+
+    fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?)
 }
 
 class AnimeRepositoryImpl(
     private val animeDao: AnimeDao,
     private val context: android.content.Context
 ) : AnimeRepository {
-    
+
     companion object {
         private const val TAG = "AnimeTrack"
+        private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
-    
+
     override fun getAllAnimes(): Flow<List<Anime>> {
         Log.d(TAG, "getAllAnimes: Getting all animes from DAO")
         return animeDao.getAllAnimes()
     }
-    
+
     override fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>> {
         return animeDao.getAnimesByStatus(status)
     }
-    
+
     override suspend fun getAnimeById(id: Int): Anime? {
         return animeDao.getAnimeById(id)
     }
@@ -68,24 +75,22 @@ class AnimeRepositoryImpl(
     override fun observeAnimeById(id: Int): Flow<Anime?> {
         return animeDao.observeAnimeById(id)
     }
-    
+
     override suspend fun insertAnime(anime: Anime): Long {
         Log.d(TAG, "insertAnime: Inserting anime - $anime")
-        val localized = localizeCover(anime)
-        val id = animeDao.insertAnime(localized)
+        val id = animeDao.insertAnime(anime)
         Log.d(TAG, "insertAnime: Inserted with id=$id")
         return id
     }
-    
+
     override suspend fun updateAnime(anime: Anime) {
-        val localized = localizeCover(anime)
-        animeDao.updateAnime(localized)
+        animeDao.updateAnime(anime)
     }
-    
+
     override suspend fun deleteAnime(anime: Anime) {
         animeDao.deleteAnime(anime)
     }
-    
+
     override suspend fun getAnimeByTitle(title: String): Anime? {
         return animeDao.getAnimeByTitle(title)
     }
@@ -93,16 +98,15 @@ class AnimeRepositoryImpl(
     override suspend fun getAnimeByBangumiId(bangumiId: Int): Anime? {
         return animeDao.getAnimeByBangumiId(bangumiId)
     }
-    
+
     override suspend fun insertAnimes(animes: List<Anime>) {
-        val localized = animes.map { localizeCover(it) }
-        animeDao.insertAnimes(localized)
+        animeDao.insertAnimes(animes)
     }
-    
+
     override suspend fun getAnimesWithoutCover(): List<Anime> {
         return animeDao.getAnimesWithoutCover()
     }
-    
+
     override suspend fun searchBangumi(query: String): List<BangumiSubject> {
         val response = RetrofitClient.bangumiApi.searchSubjects(
             BangumiSearchRequest(
@@ -126,17 +130,26 @@ class AnimeRepositoryImpl(
         animeDao.clearNewUpdate(id)
     }
 
-    private suspend fun localizeCover(anime: Anime): Anime {
-        val localPath = CoverDownloader.downloadAndLocalize(
-            context = context,
-            coverUrl = anime.coverUrl,
-            bangumiId = anime.bangumiId
-        ) ?: return anime
+    override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?) {
+        if (coverUrl.isNullOrBlank()) return
+        if (bangumiId == null) return
+        if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return
 
-        return if (localPath != anime.coverUrl) {
-            anime.copy(coverUrl = localPath)
-        } else {
-            anime
+        appScope.launch {
+            try {
+                val localPath = CoverDownloader.downloadAndLocalize(
+                    context = context,
+                    coverUrl = coverUrl,
+                    bangumiId = bangumiId
+                ) ?: return@launch
+
+                if (localPath != coverUrl) {
+                    animeDao.updateCoverUrl(animeId, localPath)
+                    Log.d(TAG, "Cover localized async: animeId=$animeId")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
+            }
         }
     }
 }

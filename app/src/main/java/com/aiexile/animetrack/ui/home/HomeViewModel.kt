@@ -20,12 +20,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import java.util.Calendar
 
 data class HomeUiState(
     val selectedFilter: AnimeFilter = AnimeFilter.ALL,
@@ -43,7 +46,8 @@ data class HomeUiState(
     val hasSearched: Boolean = false,
     val showCompletedToast: Boolean = false,
     val showDuplicateToast: Boolean = false,
-    val showFormDialog: Boolean = false
+    val showFormDialog: Boolean = false,
+    val highlightedAnimeIds: Set<Long> = emptySet()
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -93,6 +97,41 @@ class HomeViewModel(
             started = SharingStarted.Lazily,
             initialValue = emptyList()
         )
+
+    private val todayWeekday = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
+        when (it) {
+            Calendar.SUNDAY -> 7
+            else -> it - 1
+        }
+    }
+
+    val todayUpdateCount: StateFlow<Int> = animeList.map { animes ->
+        animes.count { it.airWeekday == todayWeekday && !it.isFinished }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = 0
+    )
+
+    private val _bannerDismissed = MutableStateFlow(false)
+    val bannerDismissed: StateFlow<Boolean> = _bannerDismissed.asStateFlow()
+
+    fun highlightTodayUpdates() {
+        val todayAnimeIds = animeList.value
+            .filter { it.airWeekday == todayWeekday && !it.isFinished }
+            .map { it.id.toLong() }
+            .toSet()
+        if (todayAnimeIds.isEmpty()) return
+        _uiState.update { it.copy(highlightedAnimeIds = todayAnimeIds) }
+        viewModelScope.launch {
+            delay(250)
+            _uiState.update { it.copy(highlightedAnimeIds = emptySet()) }
+        }
+    }
+
+    fun dismissBanner() {
+        _bannerDismissed.value = true
+    }
     
     init {
         viewModelScope.launch {
@@ -331,21 +370,6 @@ class HomeViewModel(
                 }
             }
 
-            var airWeekday = formState.airWeekday
-            var airDate = formState.airDate
-            var summary = formState.summary
-
-            if (formState.bangumiId != null && (airWeekday == null || airDate == null || summary == null)) {
-                try {
-                    val detail = RetrofitClient.bangumiApi.getSubjectDetail(formState.bangumiId)
-                    airWeekday = airWeekday ?: detail.airWeekday
-                    airDate = airDate ?: detail.date
-                    summary = summary ?: detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to fetch detail before save", e)
-                }
-            }
-
             val anime = Anime(
                 title = formState.title.trim(),
                 totalEpisodes = formState.totalEpisodes,
@@ -356,10 +380,10 @@ class HomeViewModel(
                 startDate = formState.startDate,
                 finishDate = formState.finishDate,
                 coverUrl = formState.coverUrl,
-                summary = summary,
+                summary = formState.summary,
                 bangumiId = formState.bangumiId,
-                airDate = airDate,
-                airWeekday = airWeekday,
+                airDate = formState.airDate,
+                airWeekday = formState.airWeekday,
                 currentEpisodes = formState.currentEpisodes
             )
             
@@ -378,6 +402,30 @@ class HomeViewModel(
                         newlyAddedAnimeId = id,
                         shouldScrollToTop = true
                     )
+                }
+
+                repository.downloadCoverAsync(
+                    animeId = id.toInt(),
+                    coverUrl = anime.coverUrl,
+                    bangumiId = anime.bangumiId
+                )
+
+                if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null)) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        try {
+                            val detail = RetrofitClient.bangumiApi.getSubjectDetail(anime.bangumiId)
+                            val dbAnime = repository.getAnimeById(id.toInt()) ?: return@launch
+                            val updated = dbAnime.copy(
+                                airWeekday = dbAnime.airWeekday ?: detail.airWeekday,
+                                airDate = dbAnime.airDate ?: detail.date,
+                                summary = dbAnime.summary ?: detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+                            )
+                            repository.updateAnime(updated)
+                            Log.d(TAG, "Backfilled detail for animeId=$id")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to backfill detail for animeId=$id", e)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to insert anime", e)

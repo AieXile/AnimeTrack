@@ -5,6 +5,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -41,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,6 +77,7 @@ fun AnimeCard(
     onClick: () -> Unit = {},
     onLongPress: () -> Unit = {},
     isSelected: Boolean = false,
+    isHighlighted: Boolean = false,
     onStatusChange: (AnimeStatus) -> Unit = {},
     onDelete: () -> Unit = {},
     onEditProgress: () -> Unit = {},
@@ -84,14 +87,49 @@ fun AnimeCard(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 0.95f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.55f,
-            stiffness = 400f
-        ),
-        label = "scale"
-    )
+    val highlightScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            highlightScale.animateTo(
+                targetValue = 0.92f,
+                animationSpec = tween(durationMillis = 150)
+            )
+            highlightScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.4f,
+                    stiffness = 400f
+                )
+            )
+        } else {
+            highlightScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.4f,
+                    stiffness = 400f
+                )
+            )
+        }
+    }
+    
+    val selectScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(isSelected) {
+        if (isSelected) {
+            selectScale.animateTo(
+                targetValue = 0.92f,
+                animationSpec = tween(durationMillis = 150)
+            )
+            selectScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.4f,
+                    stiffness = 400f
+                )
+            )
+        } else {
+            selectScale.snapTo(1f)
+        }
+    }
     
     val elevation by animateDpAsState(
         targetValue = if (isSelected) 0.dp else 2.dp,
@@ -108,18 +146,14 @@ fun AnimeCard(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+                scaleX = selectScale.value * highlightScale.value
+                scaleY = selectScale.value * highlightScale.value
             }
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(
-                    elevation = elevation,
-                    shape = RoundedCornerShape(CardCornerRadius),
-                    spotColor = MaterialTheme.colorScheme.outlineVariant
-                )
+                .clip(RoundedCornerShape(CardCornerRadius))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -129,7 +163,7 @@ fun AnimeCard(
                 ),
             shape = RoundedCornerShape(CardCornerRadius),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = 0.dp
+                defaultElevation = elevation
             ),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
@@ -302,6 +336,20 @@ fun AnimeCard(
                     }
                 }
             }
+        }
+        
+        if (isHighlighted && !isSelected) {
+            val highlightAlpha by animateFloatAsState(
+                targetValue = if (isHighlighted) 0.2f else 0f,
+                animationSpec = tween(durationMillis = 300),
+                label = "highlightAlpha"
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(CardCornerRadius))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha))
+            )
         }
     }
 }

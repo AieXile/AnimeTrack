@@ -93,7 +93,12 @@ class BangumiSyncManager(
                 bangumiId = bangumiId,
                 airWeekday = subject?.airWeekday
             )
-            repository.insertAnime(newAnime)
+            val id = repository.insertAnime(newAnime)
+            repository.downloadCoverAsync(
+                animeId = id.toInt(),
+                coverUrl = newAnime.coverUrl,
+                bangumiId = newAnime.bangumiId
+            )
             Log.d(TAG, "Inserted new anime from remote: ${newAnime.title} ep=$remoteEps")
         } else {
             val mergedWatched = maxOf(localAnime.watchedEpisodes, remoteEps)

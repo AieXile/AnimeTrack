@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aiexile.animetrack"
     android:versionCode="14"
-    android:versionName="v0.3.5" >
+    android:versionName="v0.3.5-alpha" >
 
     <uses-sdk
         android:minSdkVersion="26"
@@ -51,7 +51,7 @@
             android:name="com.aiexile.animetrack.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.AnimeTrack" >
+            android:theme="@style/Theme.AnimeTrack.Splash" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

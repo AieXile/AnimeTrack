@@ -1,10 +1,13 @@
 package com.aiexile.animetrack
 
 import android.os.Bundle
+import android.animation.ObjectAnimator
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -58,6 +61,8 @@ import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
+import com.aiexile.animetrack.ui.settings.DataManageScreen
+import com.aiexile.animetrack.ui.settings.WebDAVSyncScreen
 import com.aiexile.animetrack.ui.settings.FeaturesScreen
 import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
 import com.aiexile.animetrack.ui.settings.SettingsScreen
@@ -70,7 +75,23 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val fadeOut = ObjectAnimator.ofFloat(
+                splashScreenView.view, View.ALPHA, 1f, 0f
+            )
+            fadeOut.duration = 300L
+            fadeOut.interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
+            fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    splashScreenView.remove()
+                }
+            })
+            fadeOut.start()
+        }
+
         AppContainer.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
@@ -104,6 +125,8 @@ sealed class Screen {
     data object NavigationCustomize : Screen()
     data object Appearance : Screen()
     data object Features : Screen()
+    data object DataManage : Screen()
+    data object WebDAVSync : Screen()
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
@@ -144,7 +167,7 @@ fun AnimeTrackApp(
                 targetState = currentScreen,
                 transitionSpec = {
                 val settingsSubPages = setOf(
-                    Screen.About::class, Screen.NavigationCustomize::class, Screen.Appearance::class, Screen.Features::class
+                    Screen.About::class, Screen.NavigationCustomize::class, Screen.Appearance::class, Screen.Features::class, Screen.DataManage::class, Screen.WebDAVSync::class
                 )
                 val isEnterSettings = targetState::class in settingsSubPages && initialState is Screen.Main
                 val isExitSettings = initialState::class in settingsSubPages && targetState is Screen.Main
@@ -231,6 +254,10 @@ fun AnimeTrackApp(
                                         lastMainPageIndex = pagerState.currentPage
                                         currentScreen = Screen.Features
                                     },
+                                    onNavigateDataManage = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.DataManage
+                                    },
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@AnimatedContent
                                 )
@@ -295,6 +322,10 @@ fun AnimeTrackApp(
                                         lastMainPageIndex = pagerState.currentPage
                                         currentScreen = Screen.Features
                                     },
+                                    onNavigateDataManage = {
+                                        lastMainPageIndex = pagerState.currentPage
+                                        currentScreen = Screen.DataManage
+                                    },
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@AnimatedContent
                                 )
@@ -340,6 +371,21 @@ fun AnimeTrackApp(
                         onBack = { currentScreen = Screen.Main(lastMainPageIndex) }
                     )
                 }
+                is Screen.DataManage -> {
+                    DataManageScreen(
+                        themeViewModel = themeViewModel,
+                        onBack = { currentScreen = Screen.Main(lastMainPageIndex) },
+                        onNavigateWebDAV = {
+                            currentScreen = Screen.WebDAVSync
+                        }
+                    )
+                }
+                is Screen.WebDAVSync -> {
+                    WebDAVSyncScreen(
+                        themeViewModel = themeViewModel,
+                        onBack = { currentScreen = Screen.DataManage }
+                    )
+                }
             }
         }
         }
@@ -362,6 +408,7 @@ private fun MainPagerContent(
     onNavigateCustomize: () -> Unit,
     onNavigateAppearance: () -> Unit,
     onNavigateFeatures: () -> Unit,
+    onNavigateDataManage: () -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
@@ -375,19 +422,24 @@ private fun MainPagerContent(
             animatedVisibilityScope = animatedVisibilityScope,
             themeViewModel = themeViewModel,
             fabLocation = fabLocation,
-            isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
+            isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE,
+            isCurrentPage = pagerState.currentPage == page
         )
         "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
         "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
-        "schedule" -> ScheduleScreen(onAnimeClick = { animeId ->
-            onNavigateToDetail(animeId, null)
-        })
+        "schedule" -> ScheduleScreen(
+            onAnimeClick = { animeId ->
+                onNavigateToDetail(animeId, null)
+            },
+            themeViewModel = themeViewModel
+        )
         "settings" -> SettingsScreen(
             showBottomBar = false,
             onNavigateAbout = onNavigateAbout,
             onNavigateCustomize = onNavigateCustomize,
             onNavigateAppearance = onNavigateAppearance,
             onNavigateFeatures = onNavigateFeatures,
+            onNavigateDataManage = onNavigateDataManage,
             onNavigate = { },
             themeViewModel = themeViewModel
         )
