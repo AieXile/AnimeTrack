@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 interface AnimeRepository {
 
@@ -57,6 +59,7 @@ class AnimeRepositoryImpl(
     companion object {
         private const val TAG = "AnimeTrack"
         private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val downloadSemaphore = Semaphore(3)
     }
 
     override fun getAllAnimes(): Flow<List<Anime>> {
@@ -133,22 +136,39 @@ class AnimeRepositoryImpl(
     override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?) {
         if (coverUrl.isNullOrBlank()) return
         if (bangumiId == null) return
-        if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return
+
+        // 本地路径但文件已不存在，清除 DB 中的 coverUrl 避免 UI 空白
+        if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+            val localFile = java.io.File(coverUrl.removePrefix("file://"))
+            if (!localFile.exists() || localFile.length() == 0L) {
+                appScope.launch {
+                    try {
+                        animeDao.updateCoverUrl(animeId, "")
+                        Log.w(TAG, "Local cover file missing, cleared coverUrl: animeId=$animeId")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to clear missing cover: animeId=$animeId", e)
+                    }
+                }
+            }
+            return
+        }
 
         appScope.launch {
-            try {
-                val localPath = CoverDownloader.downloadAndLocalize(
-                    context = context,
-                    coverUrl = coverUrl,
-                    bangumiId = bangumiId
-                ) ?: return@launch
+            downloadSemaphore.withPermit {
+                try {
+                    val localPath = CoverDownloader.downloadAndLocalize(
+                        context = context,
+                        coverUrl = coverUrl,
+                        bangumiId = bangumiId
+                    ) ?: return@withPermit
 
-                if (localPath != coverUrl) {
-                    animeDao.updateCoverUrl(animeId, localPath)
-                    Log.d(TAG, "Cover localized async: animeId=$animeId")
+                    if (localPath != coverUrl) {
+                        animeDao.updateCoverUrl(animeId, localPath)
+                        Log.d(TAG, "Cover localized async: animeId=$animeId")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
             }
         }
     }

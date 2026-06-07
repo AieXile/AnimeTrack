@@ -12,6 +12,9 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.util.cleanSummary
+import com.aiexile.animetrack.util.computeIsFinished
+import com.aiexile.animetrack.util.resolveSearchError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -248,25 +251,6 @@ class AnimeDetailViewModel(
         }
     }
 
-    private fun computeIsFinished(
-        airDate: String?,
-        totalEpisodes: Int,
-        localStatus: AnimeStatus
-    ): Boolean {
-        if (localStatus == AnimeStatus.COMPLETED) return true
-
-        if (airDate == null || totalEpisodes <= 0) return false
-
-        return try {
-            val startDate = LocalDate.parse(airDate, DateTimeFormatter.ISO_LOCAL_DATE)
-            val today = LocalDate.now()
-            val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
-            diffWeeks > (totalEpisodes + 1)
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     private fun computeAirStatus(anime: Anime): String? {
         val airDate = anime.airDate ?: return null
         val totalEpisodes = anime.totalEpisodes
@@ -324,6 +308,11 @@ class AnimeDetailViewModel(
         val autoComplete = autoCompleteEnabled.value
 
         var updatedAnime = anime.copy(watchedEpisodes = newCount)
+
+        // 计划观看 → 正在观看
+        if (anime.status == AnimeStatus.PLANNED && newCount > 0) {
+            updatedAnime = updatedAnime.copy(status = AnimeStatus.WATCHING)
+        }
 
         if (autoComplete) {
             if (newCount == anime.totalEpisodes && anime.totalEpisodes > 0 && anime.status != AnimeStatus.COMPLETED) {
@@ -435,6 +424,15 @@ class AnimeDetailViewModel(
 
     fun updateEditAirWeekday(weekday: Int?) {
         _editState.value = _editState.value.copy(airWeekday = weekday)
+    }
+
+    fun updateEditTotalEpisodes(total: Int) {
+        _editState.value = _editState.value.copy(totalEpisodes = total.coerceAtLeast(0))
+    }
+
+    fun adjustEditTotalEpisodes(delta: Int) {
+        val current = _editState.value.totalEpisodes
+        _editState.value = _editState.value.copy(totalEpisodes = (current + delta).coerceAtLeast(0))
     }
 
     fun updateEditCoverUrl(url: String?) {
@@ -609,7 +607,7 @@ class AnimeDetailViewModel(
             } catch (e: Exception) {
                 _coverSearch.value = _coverSearch.value.copy(
                     isSearching = false,
-                    error = "搜索失败: ${e.message}",
+                    error = "搜索失败: ${resolveSearchError(e)}",
                     results = emptyList()
                 )
             }
@@ -724,10 +722,6 @@ class AnimeDetailViewModel(
             return AnimeDetailViewModel(application, repository, settingsRepository, animeId) as T
         }
     }
-}
-
-private fun String.cleanSummary(): String {
-    return trim().replace(Regex("\n{3,}"), "\n\n")
 }
 
 private fun Int.toWeekdayName(): String {

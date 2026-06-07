@@ -11,11 +11,12 @@ import com.aiexile.animetrack.model.AnimeStatus
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
-import java.text.SimpleDateFormat
+import com.aiexile.animetrack.util.formatDateMonthDay
+import com.aiexile.animetrack.util.formatDateYearMonth
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 data class TimelineMonth(
     val yearMonth: String,
@@ -50,15 +51,22 @@ class TimelineViewModel(
     }
     
     init {
-        watchingAnimeList = repository.getAllAnimes()
+        val sharedAnimeList = repository.getAllAnimes()
+            .shareIn(
+                scope = viewModelScope,
+                started = SharingStarted.Lazily,
+                replay = 1
+            )
+
+        watchingAnimeList = sharedAnimeList
             .map { animeList -> animeList.filter { it.status == AnimeStatus.WATCHING } }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Lazily,
                 initialValue = emptyList()
             )
-        
-        timelineData = repository.getAllAnimes()
+
+        timelineData = sharedAnimeList
             .map { animeList -> groupAnimeByMonth(animeList) }
             .stateIn(
                 scope = viewModelScope,
@@ -69,7 +77,6 @@ class TimelineViewModel(
     
     private fun groupAnimeByMonth(animeList: List<Anime>): List<TimelineMonth> {
         val entries = mutableListOf<TimelineEntry>()
-        val displayDateFormat = SimpleDateFormat("MM月dd日", Locale.getDefault())
         
         animeList.forEach { anime ->
             when (anime.status) {
@@ -78,7 +85,7 @@ class TimelineViewModel(
                         entries.add(
                             TimelineEntry(
                                 date = anime.finishDate,
-                                dateLabel = displayDateFormat.format(Date(anime.finishDate)),
+                                dateLabel = formatDateMonthDay(anime.finishDate),
                                 animeList = listOf(anime),
                                 type = EntryType.FINISHED
                             )
@@ -90,7 +97,7 @@ class TimelineViewModel(
                         entries.add(
                             TimelineEntry(
                                 date = anime.finishDate,
-                                dateLabel = displayDateFormat.format(Date(anime.finishDate)),
+                                dateLabel = formatDateMonthDay(anime.finishDate),
                                 animeList = listOf(anime),
                                 type = EntryType.DROPPED
                             )
@@ -120,7 +127,6 @@ class TimelineViewModel(
             .sortedByDescending { it.date }
         
         val calendar = Calendar.getInstance()
-        val monthFormat = SimpleDateFormat("yyyy年MM月", Locale.getDefault())
         
         val groupedByMonth = groupedByDate.groupBy { entry ->
             calendar.timeInMillis = entry.date ?: 0L
@@ -131,7 +137,7 @@ class TimelineViewModel(
             val month = calendar.get(Calendar.MONTH) + 1
             
             TimelineMonth(
-                yearMonth = monthFormat.format(Date(entries.first().date ?: 0L)),
+                yearMonth = formatDateYearMonth(entries.first().date ?: 0L),
                 year = year,
                 month = month,
                 entries = entries

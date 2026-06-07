@@ -6,9 +6,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -48,9 +53,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
@@ -58,7 +65,8 @@ import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.LiveTv
+import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,10 +97,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -101,8 +115,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -114,13 +131,13 @@ import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.util.resolveCoverModel
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import com.aiexile.animetrack.ui.login.LoginDialog
-import com.aiexile.animetrack.ui.login.ProfileDialog
+import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import com.aiexile.animetrack.ui.update.UpdateDialog
@@ -139,17 +156,27 @@ fun HomeScreen(
     themeViewModel: ThemeViewModel? = null,
     fabLocation: FabLocation = FabLocation.BOTTOM_RIGHT,
     isCapsuleNav: Boolean = false,
-    isCurrentPage: Boolean = true
+    isCurrentPage: Boolean = true,
+    onNavigateBilibiliLogin: () -> Unit = {},
+    onNavigateBangumiLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
     val customGreeting by (themeViewModel?.customGreeting?.collectAsState() ?: mutableStateOf(""))
     val context = LocalContext.current
     val authManager = remember { AppContainer.getAuthManager() }
-    val isLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
-    val userAvatar by authManager.userAvatar.collectAsState(initial = null)
+    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
+    val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
+    val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
+    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
+    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
+    val customAvatarUri by authManager.customAvatarUri.collectAsState(initial = null)
+    val isLoggedIn = bangumiLoggedIn || bilibiliLoggedIn
+    val userAvatar = customAvatarUri ?: bilibiliAvatar ?: bangumiAvatar
     val hideBangumiAvatar by (themeViewModel?.hideBangumiAvatar?.collectAsState() ?: mutableStateOf(false))
+    val greetingTypingEffect by (themeViewModel?.greetingTypingEffect?.collectAsState() ?: mutableStateOf(true))
     val showUpdateBanner by (themeViewModel?.showUpdateBanner?.collectAsState() ?: mutableStateOf(true))
+    val showSearchButton by (themeViewModel?.showSearchButton?.collectAsState() ?: mutableStateOf(true))
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
 
@@ -158,8 +185,8 @@ fun HomeScreen(
             viewModel.dismissBanner()
         }
     }
-    var showLoginDialog by remember { mutableStateOf(false) }
-    var showProfileDialog by remember { mutableStateOf(false) }
+    var showAccountPanel by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
@@ -175,12 +202,20 @@ fun HomeScreen(
         }
     }
 
-    val filteredAnimeList = remember(animeList, uiState.selectedFilter) {
-        viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter)
+    val filteredAnimeList = remember(animeList, uiState.selectedFilter, uiState.localSearchQuery) {
+        viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter, uiState.localSearchQuery)
     }
     val scope = rememberCoroutineScope()
     
     val gridState = viewModel.gridState
+    var showScrollToTop by remember { mutableStateOf(false) }
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex }
+            .collect { index ->
+                if (index > 2 && !showScrollToTop) showScrollToTop = true
+                else if (index <= 1 && showScrollToTop) showScrollToTop = false
+            }
+    }
     
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
@@ -228,27 +263,114 @@ fun HomeScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    val greetingText = viewModel.resolveGreetingText(customGreeting)
-                    TypingGreeting(
-                        greetingText = greetingText,
-                        shouldAnimate = viewModel.shouldAnimateGreeting(greetingText),
-                        onAnimated = { viewModel.onGreetingAnimated(it) }
-                    )
-                    if (fabLocation == FabLocation.TOP_BAR) {
-                        IconButton(onClick = { viewModel.showBottomSheet() }) {
+                if (uiState.isLocalSearchActive) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        BasicTextField(
+                            value = TextFieldValue(
+                                text = uiState.localSearchQuery,
+                                selection = TextRange(uiState.localSearchQuery.length)
+                            ),
+                            onValueChange = { newValue ->
+                                viewModel.updateLocalSearchQuery(newValue.text)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (uiState.localSearchQuery.isEmpty()) {
+                                        Text(
+                                            text = "搜索番剧",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        if (uiState.localSearchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { viewModel.updateLocalSearchQuery("") },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "清除",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.clearLocalSearch()
+                            }
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "添加番剧",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(26.dp)
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "关闭搜索",
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
+                        }
+                    }
+                    LaunchedEffect(uiState.isLocalSearchActive, isCurrentPage) {
+                        if (uiState.isLocalSearchActive && isCurrentPage) {
+                            focusRequester.requestFocus()
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val greetingText = viewModel.resolveGreetingText(customGreeting)
+                        TypingGreeting(
+                            greetingText = greetingText,
+                            shouldAnimate = greetingTypingEffect && viewModel.shouldAnimateGreeting(greetingText),
+                            onAnimated = { viewModel.onGreetingAnimated(it) }
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                            val showSearchIcon = showSearchButton && animeList.isNotEmpty() && filteredAnimeList.isNotEmpty()
+                            if (showSearchIcon) {
+                                IconButton(onClick = { viewModel.startLocalSearch() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "搜索",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            if (fabLocation == FabLocation.TOP_BAR) {
+                                IconButton(onClick = { viewModel.showBottomSheet() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "添加番剧",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -263,25 +385,66 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
+            val fabOffsetY = if (isCapsuleNav) (-80).dp else 0.dp
+
             if (fabLocation == FabLocation.BOTTOM_RIGHT) {
-                androidx.compose.material3.FloatingActionButton(
-                    onClick = { viewModel.showBottomSheet() },
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(16.dp),
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
-                        .offset(
-                            y = if (isCapsuleNav) (-80).dp else 0.dp
+                        .offset(y = fabOffsetY)
+                        .padding(end = 8.dp, bottom = 8.dp)
+                ) {
+                    AnimatedVisibility(
+                        visible = showScrollToTop,
+                        enter = scaleIn(
+                            initialScale = 0.3f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            )
+                        ),
+                        exit = scaleOut(
+                            targetScale = 0.3f,
+                            animationSpec = tween(150, easing = FastOutSlowInEasing)
                         )
-                        .shadow(
-                            elevation = 4.dp,
+                    ) {
+                        ScrollToTopFab(onClick = { scope.launch { gridState.animateScrollToItem(0) } })
+                    }
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = { viewModel.showBottomSheet() },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.directionalFabShadow(
                             shape = RoundedCornerShape(16.dp)
                         )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "添加番剧",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            } else {
+                AnimatedVisibility(
+                    visible = showScrollToTop,
+                    enter = scaleIn(
+                        initialScale = 0.3f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        )
+                    ),
+                    exit = scaleOut(
+                        targetScale = 0.3f,
+                        animationSpec = tween(150, easing = FastOutSlowInEasing)
+                    )
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "添加番剧",
-                        modifier = Modifier.size(24.dp)
+                    ScrollToTopFab(
+                        onClick = { scope.launch { gridState.animateScrollToItem(0) } },
+                        modifier = Modifier.padding(end = 8.dp, bottom = 8.dp)
                     )
                 }
             }
@@ -308,11 +471,21 @@ fun HomeScreen(
                 )
             } else {
                 AnimeGrid(
-                    animeList = filteredAnimeList,
-                    hasAnyAnime = true,
-                    newlyAddedAnimeId = uiState.newlyAddedAnimeId,
-                    selectedAnimeId = uiState.selectedAnimeId,
-                    highlightedAnimeIds = uiState.highlightedAnimeIds,
+                    state = AnimeGridState(
+                        animeList = filteredAnimeList,
+                        hasAnyAnime = true,
+                        newlyAddedAnimeId = uiState.newlyAddedAnimeId,
+                        selectedAnimeId = uiState.selectedAnimeId,
+                        highlightedAnimeIds = uiState.highlightedAnimeIds,
+                        selectedFilter = uiState.selectedFilter
+                    ),
+                    headerState = AnimeGridHeaderState(
+                        isLoggedIn = isLoggedIn,
+                        userAvatar = userAvatar,
+                        hideBangumiAvatar = hideBangumiAvatar,
+                        showBanner = showUpdateBanner && todayUpdateCount > 0 && !bannerDismissed,
+                        todayUpdateCount = todayUpdateCount
+                    ),
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
                     onAnimeClick = { anime ->
                         scope.launch {
@@ -328,23 +501,16 @@ fun HomeScreen(
                     onAnimeLongPress = { anime -> viewModel.selectAnime(anime.id.toLong()) },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
-                    selectedFilter = uiState.selectedFilter,
                     onFilterSelected = { viewModel.setFilter(it) },
+                    onAvatarClick = {
+                        showAccountPanel = true
+                    },
+                    onDismissBanner = { viewModel.dismissBanner() },
+                    onBannerClick = { viewModel.highlightTodayUpdates() },
                     gridState = gridState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
-                    isCapsuleNav = isCapsuleNav,
-                    isLoggedIn = isLoggedIn,
-                    userAvatar = userAvatar,
-                    hideBangumiAvatar = hideBangumiAvatar,
-                    onAvatarClick = {
-                        if (isLoggedIn) showProfileDialog = true
-                        else showLoginDialog = true
-                    },
-                    showBanner = showUpdateBanner && todayUpdateCount > 0 && !bannerDismissed,
-                    todayUpdateCount = todayUpdateCount,
-                    onDismissBanner = { viewModel.dismissBanner() },
-                    onBannerClick = { viewModel.highlightTodayUpdates() }
+                    isCapsuleNav = isCapsuleNav
                 )
             }
         }
@@ -379,20 +545,85 @@ fun HomeScreen(
             )
         }
 
-        if (showLoginDialog) {
-            LoginDialog(
-                onDismiss = { showLoginDialog = false },
-                onLoginSuccess = { showLoginDialog = false }
+        if (showAccountPanel) {
+            AccountPanelDialog(
+                onDismiss = { showAccountPanel = false },
+                onNavigateBilibiliLogin = {
+                    showAccountPanel = false
+                    onNavigateBilibiliLogin()
+                },
+                onNavigateBangumiLogin = {
+                    showAccountPanel = false
+                    onNavigateBangumiLogin()
+                }
             )
         }
+    }
+}
 
-        if (showProfileDialog) {
-            ProfileDialog(
-                onDismiss = { showProfileDialog = false },
-                onNavigateToSync = { },
-                onLogout = { }
-            )
-        }
+private fun Modifier.directionalFabShadow(
+    shape: RoundedCornerShape,
+    elevation: Dp = 2.dp,
+    shadowSpread: Dp = 8.dp
+): Modifier = this
+    .shadow(elevation = elevation, shape = shape)
+    .drawBehind {
+        val spread = shadowSpread.toPx()
+        val shadowColor = Color.Black.copy(alpha = 0.18f)
+
+        // 底部阴影
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(shadowColor, Color.Transparent),
+                startY = size.height,
+                endY = size.height + spread
+            ),
+            topLeft = Offset(0f, size.height),
+            size = androidx.compose.ui.geometry.Size(size.width, spread)
+        )
+
+        // 右侧阴影
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(shadowColor, Color.Transparent),
+                startX = size.width,
+                endX = size.width + spread
+            ),
+            topLeft = Offset(size.width, 0f),
+            size = androidx.compose.ui.geometry.Size(spread, size.height)
+        )
+
+        // 右下角阴影
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(shadowColor, Color.Transparent),
+                center = Offset(size.width, size.height),
+                radius = spread
+            ),
+            topLeft = Offset(size.width, size.height),
+            size = androidx.compose.ui.geometry.Size(spread, spread)
+        )
+    }
+
+@Composable
+private fun ScrollToTopFab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.FloatingActionButton(
+        onClick = onClick,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.primary,
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.directionalFabShadow(
+            shape = RoundedCornerShape(16.dp)
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Filled.VerticalAlignTop,
+            contentDescription = "返回顶部",
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
@@ -681,7 +912,7 @@ private fun SearchResultItem(
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(subject.coverUrl)
+                .data(resolveCoverModel(subject.coverUrl))
                 .bitmapConfig(Bitmap.Config.HARDWARE)
                 .build(),
             contentDescription = subject.displayName,
@@ -892,7 +1123,7 @@ private fun FormDialogHeader(
         if (formState.coverUrl != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(formState.coverUrl)
+                    .data(resolveCoverModel(formState.coverUrl))
                     .bitmapConfig(Bitmap.Config.HARDWARE)
                     .build(),
                 contentDescription = formState.title,
@@ -1038,7 +1269,7 @@ private fun EmptyAnimePlaceholder(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.LiveTv,
+                imageVector = Icons.Outlined.Inbox,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(64.dp)
@@ -1057,33 +1288,41 @@ private fun EmptyAnimePlaceholder(
     }
 }
 
+private data class AnimeGridState(
+    val animeList: List<Anime>,
+    val hasAnyAnime: Boolean = false,
+    val newlyAddedAnimeId: Long?,
+    val selectedAnimeId: Long?,
+    val highlightedAnimeIds: Set<Long> = emptySet(),
+    val selectedFilter: AnimeFilter
+)
+
+private data class AnimeGridHeaderState(
+    val isLoggedIn: Boolean = false,
+    val userAvatar: String? = null,
+    val hideBangumiAvatar: Boolean = false,
+    val showBanner: Boolean = false,
+    val todayUpdateCount: Int = 0
+)
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AnimeGrid(
-    animeList: List<Anime>,
-    hasAnyAnime: Boolean = false,
-    newlyAddedAnimeId: Long?,
-    selectedAnimeId: Long?,
-    highlightedAnimeIds: Set<Long> = emptySet(),
+    state: AnimeGridState,
+    headerState: AnimeGridHeaderState,
     onHighlightComplete: () -> Unit,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongPress: (Anime) -> Unit,
     onStatusChange: (Anime, com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: (Anime) -> Unit,
-    selectedFilter: AnimeFilter,
     onFilterSelected: (AnimeFilter) -> Unit,
+    onAvatarClick: () -> Unit = {},
+    onDismissBanner: () -> Unit = {},
+    onBannerClick: () -> Unit = {},
     gridState: LazyGridState,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     isCapsuleNav: Boolean = false,
-    isLoggedIn: Boolean = false,
-    userAvatar: String? = null,
-    hideBangumiAvatar: Boolean = false,
-    onAvatarClick: () -> Unit = {},
-    showBanner: Boolean = false,
-    todayUpdateCount: Int = 0,
-    onDismissBanner: () -> Unit = {},
-    onBannerClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -1108,83 +1347,56 @@ private fun AnimeGrid(
         contentPadding = PaddingValues(bottom = if (isCapsuleNav) 96.dp else 16.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                if (!hideBangumiAvatar) {
+                if (!headerState.hideBangumiAvatar) {
                     UserAvatarButton(
-                        isLoggedIn = isLoggedIn,
-                        avatarUrl = userAvatar,
-                        onClick = onAvatarClick
+                        isLoggedIn = headerState.isLoggedIn,
+                        avatarUrl = headerState.userAvatar,
+                        onClick = onAvatarClick,
+                        modifier = Modifier.align(Alignment.CenterStart)
                     )
-                } else {
-                    Spacer(modifier = Modifier.size(1.dp))
+                }
+
+                if (headerState.showBanner) {
+                    Surface(
+                        color = Color.Transparent,
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onBannerClick() }
+                    ) {
+                        Text(
+                            text = "今日有 ${headerState.todayUpdateCount} 部番剧更新",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
+                    }
                 }
 
                 FilterMenu(
-                    selectedFilter = selectedFilter,
-                    onFilterSelected = onFilterSelected
+                    selectedFilter = state.selectedFilter,
+                    onFilterSelected = onFilterSelected,
+                    modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
         }
 
-        if (showBanner) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = expandVertically(),
-                    exit = shrinkVertically()
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onBannerClick() }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "✨ 今日有 $todayUpdateCount 部番剧更新",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            IconButton(
-                                onClick = onDismissBanner,
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "关闭",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         items(
-            items = animeList,
-            key = { it.id }
+            items = state.animeList,
+            key = { it.id },
+            contentType = { "anime_card" }
         ) { anime ->
-            val isNew = anime.id.toLong() == newlyAddedAnimeId
-            val isSelected = anime.id.toLong() == selectedAnimeId
-            val isHighlighted = anime.id.toLong() in highlightedAnimeIds
+            val isNew = anime.id.toLong() == state.newlyAddedAnimeId
+            val isSelected = anime.id.toLong() == state.selectedAnimeId
+            val isHighlighted = anime.id.toLong() in state.highlightedAnimeIds
             
             if (isNew) {
                 NewAnimeCardWrapper(
@@ -1213,7 +1425,7 @@ private fun AnimeGrid(
             }
         }
 
-        if (hasAnyAnime && animeList.isEmpty()) {
+        if (state.hasAnyAnime && state.animeList.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(
                     modifier = Modifier

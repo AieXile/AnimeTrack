@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -52,7 +53,7 @@ class ThemeViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = ThemePreset.VIBRANT_BLUE
+            initialValue = ThemePreset.MONO_BLACK
         )
 
     fun setThemePreset(preset: ThemePreset) {
@@ -139,6 +140,19 @@ class ThemeViewModel(
         }
     }
 
+    val greetingTypingEffect: StateFlow<Boolean> = settingsRepository.greetingTypingEffect
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setGreetingTypingEffect(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setGreetingTypingEffect(enabled)
+        }
+    }
+
     val autoCompleteEnabled: StateFlow<Boolean> = settingsRepository.autoCompleteEnabled
         .stateIn(
             scope = viewModelScope,
@@ -201,6 +215,19 @@ class ThemeViewModel(
     fun setShowCalendarButton(show: Boolean) {
         viewModelScope.launch {
             settingsRepository.setShowCalendarButton(show)
+        }
+    }
+
+    val showSearchButton: StateFlow<Boolean> = settingsRepository.showSearchButton
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    fun setShowSearchButton(show: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowSearchButton(show)
         }
     }
 
@@ -279,6 +306,20 @@ class ThemeViewModel(
     fun setWebdavLastSyncTime(time: Long) {
         viewModelScope.launch {
             settingsRepository.setWebdavLastSyncTime(time)
+        }
+    }
+
+    val isFirstLaunch: StateFlow<Boolean?> = settingsRepository.isFirstLaunch
+        .map { it as Boolean? }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
+
+    fun completeFirstLaunch() {
+        viewModelScope.launch {
+            settingsRepository.setFirstLaunchCompleted()
         }
     }
 

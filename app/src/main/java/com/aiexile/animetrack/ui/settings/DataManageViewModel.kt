@@ -3,9 +3,6 @@ package com.aiexile.animetrack.ui.settings
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -19,8 +16,12 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -33,75 +34,84 @@ class DataManageViewModel(
         private const val API_DELAY_MS = 800L
     }
 
-    var webdavUrl by mutableStateOf("")
-    var webdavUsername by mutableStateOf("")
-    var webdavPassword by mutableStateOf("")
-    var backupStrategy by mutableStateOf(0)
-    var restoreMode by mutableStateOf(0)
+    // 表单输入状态 — 公开可写
+    val webdavUrl = MutableStateFlow("")
+    val webdavUsername = MutableStateFlow("")
+    val webdavPassword = MutableStateFlow("")
+    val backupStrategy = MutableStateFlow(0)
+    val restoreMode = MutableStateFlow(0)
 
-    var isLoading by mutableStateOf(false)
-        private set
-    var loadingMessage by mutableStateOf("")
-        private set
-    var snackbarMessage by mutableStateOf<String?>(null)
-        private set
+    // 操作反馈状态 — 内部可写，外部只读
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    var importResult by mutableStateOf<ImportResult?>(null)
-        private set
-    var duplicateCount by mutableStateOf(0)
-        private set
-    var pendingContent by mutableStateOf<String?>(null)
-        private set
+    private val _loadingMessage = MutableStateFlow("")
+    val loadingMessage: StateFlow<String> = _loadingMessage.asStateFlow()
 
-    var isSyncing by mutableStateOf(false)
-        private set
-    var syncProgress by mutableStateOf<String?>(null)
-        private set
-    var syncedCount by mutableStateOf(0)
-        private set
-    var totalToSync by mutableStateOf(0)
-        private set
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
-    var exportMarkdown by mutableStateOf<String?>(null)
-        private set
+    private val _importResult = MutableStateFlow<ImportResult?>(null)
+    val importResult: StateFlow<ImportResult?> = _importResult.asStateFlow()
+
+    private val _duplicateCount = MutableStateFlow(0)
+    val duplicateCount: StateFlow<Int> = _duplicateCount.asStateFlow()
+
+    private val _pendingContent = MutableStateFlow<String?>(null)
+    val pendingContent: StateFlow<String?> = _pendingContent.asStateFlow()
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _syncProgress = MutableStateFlow<String?>(null)
+    val syncProgress: StateFlow<String?> = _syncProgress.asStateFlow()
+
+    private val _syncedCount = MutableStateFlow(0)
+    val syncedCount: StateFlow<Int> = _syncedCount.asStateFlow()
+
+    private val _totalToSync = MutableStateFlow(0)
+    val totalToSync: StateFlow<Int> = _totalToSync.asStateFlow()
+
+    private val _exportMarkdown = MutableStateFlow<String?>(null)
+    val exportMarkdown: StateFlow<String?> = _exportMarkdown.asStateFlow()
 
     fun loadConfig(themeViewModel: ThemeViewModel) {
         viewModelScope.launch {
-            webdavUrl = themeViewModel.webdavUrl.value
-            webdavUsername = themeViewModel.webdavUsername.value
-            webdavPassword = themeViewModel.webdavPassword.value
-            backupStrategy = themeViewModel.webdavBackupStrategy.value
-            restoreMode = themeViewModel.webdavRestoreMode.value
+            webdavUrl.value = themeViewModel.webdavUrl.value
+            webdavUsername.value = themeViewModel.webdavUsername.value
+            webdavPassword.value = themeViewModel.webdavPassword.value
+            backupStrategy.value = themeViewModel.webdavBackupStrategy.value
+            restoreMode.value = themeViewModel.webdavRestoreMode.value
         }
     }
 
     fun saveConfig(themeViewModel: ThemeViewModel) {
         viewModelScope.launch {
-            themeViewModel.setWebdavUrl(webdavUrl)
-            themeViewModel.setWebdavUsername(webdavUsername)
-            themeViewModel.setWebdavPassword(webdavPassword)
-            themeViewModel.setWebdavBackupStrategy(backupStrategy)
-            themeViewModel.setWebdavRestoreMode(restoreMode)
+            themeViewModel.setWebdavUrl(webdavUrl.value)
+            themeViewModel.setWebdavUsername(webdavUsername.value)
+            themeViewModel.setWebdavPassword(webdavPassword.value)
+            themeViewModel.setWebdavBackupStrategy(backupStrategy.value)
+            themeViewModel.setWebdavRestoreMode(restoreMode.value)
         }
     }
 
     fun testConnection(themeViewModel: ThemeViewModel) {
         viewModelScope.launch {
             saveConfig(themeViewModel)
-            isLoading = true
-            loadingMessage = "正在测试连接..."
+            _isLoading.value = true
+            _loadingMessage.value = "正在测试连接..."
             try {
-                val result = WebDAVClient.checkConnection(webdavUrl, webdavUsername, webdavPassword)
+                val result = WebDAVClient.checkConnection(webdavUrl.value, webdavUsername.value, webdavPassword.value)
                 if (result.isSuccess) {
-                    snackbarMessage = "连接成功！"
+                    _snackbarMessage.value = "连接成功！"
                 } else {
-                    snackbarMessage = "连接失败：${result.exceptionOrNull()?.message}"
+                    _snackbarMessage.value = "连接失败：${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
-                snackbarMessage = "连接失败：${e.message}"
+                _snackbarMessage.value = "连接失败：${e.message}"
             } finally {
-                isLoading = false
-                loadingMessage = ""
+                _isLoading.value = false
+                _loadingMessage.value = ""
             }
         }
     }
@@ -109,28 +119,28 @@ class DataManageViewModel(
     fun backupNow(themeViewModel: ThemeViewModel) {
         viewModelScope.launch {
             saveConfig(themeViewModel)
-            isLoading = true
-            loadingMessage = "正在备份..."
+            _isLoading.value = true
+            _loadingMessage.value = "正在备份..."
             try {
                 val context = AppContainer.getApplication()
-                val backupFile = BackupManager.backup(context, backupStrategy, getAnimeDao())
+                val backupFile = BackupManager.backup(context, backupStrategy.value, getAnimeDao())
 
-                loadingMessage = "正在上传..."
+                _loadingMessage.value = "正在上传..."
                 val result = WebDAVClient.upload(
-                    webdavUrl, webdavUsername, webdavPassword,
-                    backupFile, backupStrategy
+                    webdavUrl.value, webdavUsername.value, webdavPassword.value,
+                    backupFile, backupStrategy.value
                 )
                 if (result.isSuccess) {
                     themeViewModel.setWebdavLastSyncTime(System.currentTimeMillis())
-                    snackbarMessage = "备份成功！"
+                    _snackbarMessage.value = "备份成功！"
                 } else {
-                    snackbarMessage = "上传失败：${result.exceptionOrNull()?.message}"
+                    _snackbarMessage.value = "上传失败：${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
-                snackbarMessage = "备份失败：${e.message}"
+                _snackbarMessage.value = "备份失败：${e.message}"
             } finally {
-                isLoading = false
-                loadingMessage = ""
+                _isLoading.value = false
+                _loadingMessage.value = ""
             }
         }
     }
@@ -138,34 +148,34 @@ class DataManageViewModel(
     fun restoreNow(themeViewModel: ThemeViewModel) {
         viewModelScope.launch {
             saveConfig(themeViewModel)
-            isLoading = true
-            loadingMessage = "正在下载..."
+            _isLoading.value = true
+            _loadingMessage.value = "正在下载..."
             try {
                 val context = AppContainer.getApplication()
-                val strategy = backupStrategy
+                val strategy = backupStrategy.value
                 val ext = if (strategy == 0) "json" else "zip"
                 val downloadFile = java.io.File(context.cacheDir, "AnimeTrack_Restore.$ext")
 
                 val downloadResult = WebDAVClient.download(
-                    webdavUrl, webdavUsername, webdavPassword,
+                    webdavUrl.value, webdavUsername.value, webdavPassword.value,
                     downloadFile, strategy
                 )
                 if (downloadResult.isFailure) {
-                    snackbarMessage = "下载失败：${downloadResult.exceptionOrNull()?.message}"
+                    _snackbarMessage.value = "下载失败：${downloadResult.exceptionOrNull()?.message}"
                     return@launch
                 }
 
-                loadingMessage = "正在恢复..."
+                _loadingMessage.value = "正在恢复..."
                 val restoreResult = BackupManager.restore(
-                    context, strategy, restoreMode, downloadFile, getAnimeDao()
+                    context, strategy, restoreMode.value, downloadFile, getAnimeDao()
                 )
-                snackbarMessage = "恢复完成：共 ${restoreResult.totalCount} 部，新增 ${restoreResult.insertedCount} 部，跳过 ${restoreResult.skippedCount} 部"
+                _snackbarMessage.value = "恢复完成：共 ${restoreResult.totalCount} 部，新增 ${restoreResult.insertedCount} 部，跳过 ${restoreResult.skippedCount} 部"
                 downloadFile.delete()
             } catch (e: Exception) {
-                snackbarMessage = "恢复失败：${e.message}"
+                _snackbarMessage.value = "恢复失败：${e.message}"
             } finally {
-                isLoading = false
-                loadingMessage = ""
+                _isLoading.value = false
+                _loadingMessage.value = ""
             }
         }
     }
@@ -175,7 +185,7 @@ class DataManageViewModel(
     }
 
     fun clearSnackbar() {
-        snackbarMessage = null
+        _snackbarMessage.value = null
     }
 
     fun parseMarkdown(content: String) {
@@ -189,15 +199,15 @@ class DataManageViewModel(
                     dupCount++
                 }
             }
-            importResult = result
-            duplicateCount = dupCount
+            _importResult.value = result
+            _duplicateCount.value = dupCount
         }
     }
 
     fun importAnimesAndSync(content: String) {
         viewModelScope.launch {
-            isLoading = true
-            loadingMessage = "正在导入..."
+            _isLoading.value = true
+            _loadingMessage.value = "正在导入..."
 
             val result = MarkdownParser.parse(content)
             val animesToInsert = mutableListOf<Anime>()
@@ -219,9 +229,9 @@ class DataManageViewModel(
                 insertedAnimes.add(anime.copy(id = id.toInt()))
             }
 
-            isLoading = false
-            loadingMessage = ""
-            snackbarMessage = "成功导入 ${animesToInsert.size} 部番剧"
+            _isLoading.value = false
+            _loadingMessage.value = ""
+            _snackbarMessage.value = "成功导入 ${animesToInsert.size} 部番剧"
 
             doAutoSyncAnimeCovers(insertedAnimes)
         }
@@ -236,17 +246,17 @@ class DataManageViewModel(
 
         if (animesWithoutCover.isEmpty()) return
 
-        isSyncing = true
-        totalToSync = animesWithoutCover.size
-        syncedCount = 0
-        syncProgress = null
+        _isSyncing.value = true
+        _totalToSync.value = animesWithoutCover.size
+        _syncedCount.value = 0
+        _syncProgress.value = null
 
         var count = 0
 
         try {
             for (anime in animesWithoutCover) {
                 try {
-                    syncProgress = "正在补全: ${anime.title}"
+                    _syncProgress.value = "正在补全: ${anime.title}"
 
                     val (cleanTitle, extractedNote) = cleanTitleAndExtractNote(anime.title)
 
@@ -260,7 +270,7 @@ class DataManageViewModel(
                             null
                         }
 
-                        val summary = detail?.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+                        val summary = detail?.summary?.cleanSummary()
                             ?: bestMatch.summary
 
                         val apiEps = detail?.eps
@@ -305,36 +315,36 @@ class DataManageViewModel(
                         count++
                     }
 
-                    syncedCount = count
+                    _syncedCount.value = count
                     delay(API_DELAY_MS)
                 } catch (_: Exception) {
                 }
             }
         } finally {
-            isSyncing = false
-            syncProgress = null
+            _isSyncing.value = false
+            _syncProgress.value = null
             if (count > 0) {
-                snackbarMessage = "已补全 $count 个番剧封面"
+                _snackbarMessage.value = "已补全 $count 个番剧封面"
             }
         }
     }
 
     fun resetImportState() {
-        importResult = null
-        duplicateCount = 0
-        pendingContent = null
+        _importResult.value = null
+        _duplicateCount.value = 0
+        _pendingContent.value = null
     }
 
     fun prepareExport() {
         viewModelScope.launch {
             val animes = animeRepository.getAllAnimes().first()
             val markdown = ExportAnimeService.exportToMarkdown(animes)
-            exportMarkdown = markdown
+            _exportMarkdown.value = markdown
         }
     }
 
     fun clearExportMarkdown() {
-        exportMarkdown = null
+        _exportMarkdown.value = null
     }
 
     private fun cleanTitleAndExtractNote(title: String): Pair<String, String> {

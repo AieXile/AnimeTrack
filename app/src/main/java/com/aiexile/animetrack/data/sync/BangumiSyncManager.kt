@@ -8,6 +8,7 @@ import com.aiexile.animetrack.data.network.EpisodeProgressBody
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.util.computeIsFinished
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -80,18 +81,20 @@ class BangumiSyncManager(
         val localAnime = repository.getAnimeByBangumiId(bangumiId)
 
         if (localAnime == null) {
+            val status = bangumiTypeToAnimeStatus(item.type)
             val newAnime = Anime(
                 title = subject?.displayName ?: "Unknown",
                 totalEpisodes = subject?.resolvedEps ?: 0,
                 watchedEpisodes = remoteEps,
-                status = bangumiTypeToAnimeStatus(item.type),
+                status = status,
                 rating = subject?.rating?.score?.toFloat(),
                 notes = "",
                 coverUrl = subject?.coverUrl,
                 airDate = subject?.date,
                 summary = subject?.summary,
                 bangumiId = bangumiId,
-                airWeekday = subject?.airWeekday
+                airWeekday = subject?.airWeekday,
+                isFinished = computeIsFinished(subject?.date, subject?.resolvedEps ?: 0, status)
             )
             val id = repository.insertAnime(newAnime)
             repository.downloadCoverAsync(

@@ -41,6 +41,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,20 +72,27 @@ fun DataManageScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val isLoading by viewModel.isLoading.collectAsState()
+    val loadingMessage by viewModel.loadingMessage.collectAsState()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+    val importResult by viewModel.importResult.collectAsState()
+    val duplicateCount by viewModel.duplicateCount.collectAsState()
+    val exportMarkdown by viewModel.exportMarkdown.collectAsState()
+
     LaunchedEffect(Unit) {
         viewModel.loadConfig(themeViewModel)
     }
 
-    LaunchedEffect(viewModel.snackbarMessage) {
-        viewModel.snackbarMessage?.let { msg ->
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { msg ->
             snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Short)
             viewModel.clearSnackbar()
         }
     }
 
     var showImportGuide by remember { mutableStateOf(false) }
-    var importResult by remember { mutableStateOf<ImportResult?>(null) }
-    var duplicateCount by remember { mutableStateOf(0) }
+    var localImportResult by remember { mutableStateOf<ImportResult?>(null) }
+    var localDuplicateCount by remember { mutableStateOf(0) }
     var pendingContent by remember { mutableStateOf<String?>(null) }
 
     val importGuideSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -107,11 +115,10 @@ fun DataManageScreen(
         contract = ActivityResultContracts.CreateDocument("text/markdown")
     ) { uri: Uri? ->
         uri?.let {
-            val markdown = viewModel.exportMarkdown
-            if (markdown != null) {
+            if (exportMarkdown != null) {
                 try {
                     context.contentResolver.openOutputStream(uri)?.use { os ->
-                        os.write(markdown.toByteArray(Charsets.UTF_8))
+                        os.write(exportMarkdown!!.toByteArray(Charsets.UTF_8))
                     }
                     scope.launch {
                         snackbarHostState.showSnackbar(
@@ -132,34 +139,34 @@ fun DataManageScreen(
         viewModel.clearExportMarkdown()
     }
 
-    LaunchedEffect(viewModel.exportMarkdown) {
-        if (viewModel.exportMarkdown != null) {
-            createDocLauncher.launch("anime_card_backup.md")
+    LaunchedEffect(exportMarkdown) {
+        if (exportMarkdown != null) {
+            createDocLauncher.launch("AnimeTrack_backup.md")
         }
     }
 
-    viewModel.importResult?.let { result ->
-        if (importResult == null) {
-            importResult = result
-            duplicateCount = viewModel.duplicateCount
+    importResult?.let { result ->
+        if (localImportResult == null) {
+            localImportResult = result
+            localDuplicateCount = duplicateCount
         }
     }
 
-    if (importResult != null) {
+    if (localImportResult != null) {
         ImportPreviewDialog(
-            importResult = importResult!!,
-            duplicateCount = duplicateCount,
+            importResult = localImportResult!!,
+            duplicateCount = localDuplicateCount,
             onConfirm = {
                 val content = pendingContent
-                importResult = null
-                duplicateCount = 0
+                localImportResult = null
+                localDuplicateCount = 0
                 pendingContent = null
                 viewModel.resetImportState()
                 content?.let { viewModel.importAnimesAndSync(it) }
             },
             onDismiss = {
-                importResult = null
-                duplicateCount = 0
+                localImportResult = null
+                localDuplicateCount = 0
                 pendingContent = null
                 viewModel.resetImportState()
             }
@@ -254,7 +261,7 @@ fun DataManageScreen(
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
 
-            if (viewModel.isLoading) {
+            if (isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -267,7 +274,7 @@ fun DataManageScreen(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = viewModel.loadingMessage,
+                            text = loadingMessage,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 14.sp
                         )

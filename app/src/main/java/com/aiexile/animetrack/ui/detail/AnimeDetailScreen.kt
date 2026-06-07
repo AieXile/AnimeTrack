@@ -130,7 +130,9 @@ import coil.compose.AsyncImage
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.delay
 
 private val CoverAspectRatio = 2f / 3f
@@ -284,6 +286,8 @@ fun AnimeDetailScreen(
                             onEditTitleStart = { viewModel.setEditingTitle(true) },
                             onEditTitleDone = { viewModel.setEditingTitle(false) },
                             onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
+                            onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
+                            onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -494,7 +498,7 @@ private fun CoverSearchResultItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = subject.coverUrl,
+                model = resolveCoverModel(subject.coverUrl),
                 contentDescription = subject.displayName,
                 modifier = Modifier
                     .size(52.dp, 70.dp)
@@ -570,6 +574,8 @@ private fun AnimeDetailContent(
     onEditTitleStart: () -> Unit = {},
     onEditTitleDone: () -> Unit = {},
     onEditAirWeekdayChange: (Int?) -> Unit = {},
+    onUpdateEditTotalEpisodes: (Int) -> Unit = {},
+    onAdjustEditTotalEpisodes: (Int) -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -625,23 +631,14 @@ private fun AnimeDetailContent(
                     ) { url ->
                         if (url != null) {
                             AsyncImage(
-                                model = url,
+                                model = resolveCoverModel(url),
                                 contentDescription = anime.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = coverImageModifier
                             )
                         } else {
-                            val gradientBackground = Brush.linearGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)
-                                )
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(coverClipShape)
-                                    .background(gradientBackground)
+                            EmptyCoverPlaceholder(
+                                shape = coverClipShape
                             )
                         }
                     }
@@ -867,7 +864,11 @@ private fun AnimeDetailContent(
         ProgressCard(
             anime = anime,
             onUpdateWatchedEpisodes = onUpdateWatchedEpisodes,
-            onAdjustWatchedEpisodes = onAdjustWatchedEpisodes
+            onAdjustWatchedEpisodes = onAdjustWatchedEpisodes,
+            isEditMode = editState.isEditing,
+            editTotalEpisodes = editState.totalEpisodes,
+            onUpdateEditTotalEpisodes = onUpdateEditTotalEpisodes,
+            onAdjustEditTotalEpisodes = onAdjustEditTotalEpisodes
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -931,25 +932,7 @@ private fun SummaryCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (isFetchingDetail) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "正在获取详情...",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else if (!summary.isNullOrBlank()) {
+        if (!summary.isNullOrBlank()) {
             Column(
                 modifier = Modifier
                     .clickable(
@@ -978,6 +961,7 @@ private fun SummaryCard(
                         }
                     }
                 )
+
                 if (hasOverflow && !isExpanded) {
                     Text(
                         text = "点击展开",
@@ -986,6 +970,24 @@ private fun SummaryCard(
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
+            }
+        } else if (isFetchingDetail) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "正在获取详情...",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
             Text(
@@ -1003,6 +1005,10 @@ private fun ProgressCard(
     anime: Anime,
     onUpdateWatchedEpisodes: (Int) -> Unit,
     onAdjustWatchedEpisodes: (Int) -> Unit,
+    isEditMode: Boolean = false,
+    editTotalEpisodes: Int = 0,
+    onUpdateEditTotalEpisodes: (Int) -> Unit = {},
+    onAdjustEditTotalEpisodes: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val hapticFeedback = LocalHapticFeedback.current
@@ -1011,14 +1017,18 @@ private fun ProgressCard(
     val focusReq = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var sliderValue by remember(anime.watchedEpisodes) {
-        mutableFloatStateOf(anime.watchedEpisodes.toFloat())
+    // 编辑模式下使用 editTotalEpisodes，否则使用 watchedEpisodes
+    val currentDisplayValue = if (isEditMode) editTotalEpisodes else anime.watchedEpisodes
+    val currentMaxValue = if (isEditMode) 9999 else anime.effectiveMaxEpisodes
+
+    var sliderValue by remember(currentDisplayValue) {
+        mutableFloatStateOf(currentDisplayValue.toFloat())
     }
     var isDragging by remember { mutableStateOf(false) }
 
     DetailCard(modifier = modifier) {
         Text(
-            text = "观看进度",
+            text = if (isEditMode) "总集数" else "观看进度",
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -1033,17 +1043,17 @@ private fun ProgressCard(
         ) {
             AcceleratedButton(
                 text = "-",
-                enabled = anime.watchedEpisodes > 0,
+                enabled = currentDisplayValue > 0,
                 hapticFeedback = hapticFeedback,
-                onTap = { onAdjustWatchedEpisodes(-1) },
-                onAdjust = { step -> onAdjustWatchedEpisodes(-step) }
+                onTap = { if (isEditMode) onAdjustEditTotalEpisodes(-1) else onAdjustWatchedEpisodes(-1) },
+                onAdjust = { step -> if (isEditMode) onAdjustEditTotalEpisodes(-step) else onAdjustWatchedEpisodes(-step) }
             )
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(1f)
             ) {
-                val displayValue = if (isDragging) sliderValue.toInt() else anime.watchedEpisodes
+                val displayValue = if (isDragging) sliderValue.toInt() else currentDisplayValue
 
                 AnimatedVisibility(
                     visible = isDragging,
@@ -1072,8 +1082,12 @@ private fun ProgressCard(
                             val filtered = input.copy(text = input.text.filter { it.isDigit() })
                             editValue = filtered
                             val num = filtered.text.toIntOrNull()
-                            if (num != null && num in 0..anime.effectiveMaxEpisodes) {
-                                onUpdateWatchedEpisodes(num)
+                            if (num != null && num >= 0) {
+                                if (isEditMode) {
+                                    onUpdateEditTotalEpisodes(num)
+                                } else {
+                                    onUpdateWatchedEpisodes(num.coerceAtMost(currentMaxValue))
+                                }
                             }
                         },
                         modifier = Modifier
@@ -1101,7 +1115,7 @@ private fun ProgressCard(
 
                     LaunchedEffect(isEditing) {
                         if (isEditing) {
-                            val text = anime.watchedEpisodes.toString()
+                            val text = currentDisplayValue.toString()
                             editValue = TextFieldValue(
                                 text = text,
                                 selection = TextRange(text.length)
@@ -1110,106 +1124,126 @@ private fun ProgressCard(
                         }
                     }
                 } else {
-                    val maxEps = anime.effectiveMaxEpisodes
-                    val displayMax = if (anime.totalEpisodes > 0) anime.totalEpisodes else anime.currentEpisodes
-                    Text(
-                        text = if (maxEps > 0) "第 ${anime.watchedEpisodes} / ${displayMax} 集" else "第 ${anime.watchedEpisodes} 集",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable {
-                            isEditing = true
-                            val text = anime.watchedEpisodes.toString()
-                            editValue = TextFieldValue(
-                                text = text,
-                                selection = TextRange(text.length)
-                            )
-                        }
-                    )
+                    if (isEditMode) {
+                        Text(
+                            text = if (editTotalEpisodes > 0) "全 ${editTotalEpisodes} 集" else "未知集数",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.clickable {
+                                isEditing = true
+                                val text = editTotalEpisodes.toString()
+                                editValue = TextFieldValue(
+                                    text = text,
+                                    selection = TextRange(text.length)
+                                )
+                            }
+                        )
+                    } else {
+                        val maxEps = anime.effectiveMaxEpisodes
+                        val displayMax = if (anime.totalEpisodes > 0) anime.totalEpisodes else anime.currentEpisodes
+                        Text(
+                            text = if (maxEps > 0) "第 ${anime.watchedEpisodes} / ${displayMax} 集" else "第 ${anime.watchedEpisodes} 集",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.clickable {
+                                isEditing = true
+                                val text = anime.watchedEpisodes.toString()
+                                editValue = TextFieldValue(
+                                    text = text,
+                                    selection = TextRange(text.length)
+                                )
+                            }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                val progressColor = MaterialTheme.colorScheme.primary
-                val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                // 编辑模式下隐藏 Slider
+                if (!isEditMode) {
+                    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    val progressColor = MaterialTheme.colorScheme.primary
+                    val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
 
-                Box {
-                    val maxEps = anime.effectiveMaxEpisodes
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .height(20.dp)
-                    ) {
-                        val barHeight = 4.dp.toPx()
-                        val barY = (size.height - barHeight) / 2f
-                        val cornerRadius = barHeight / 2f
-                        val progress = if (maxEps > 0)
-                            displayValue.toFloat() / maxEps else 0f
-                        val progressWidth = size.width * progress.coerceIn(0f, 1f)
+                    Box {
+                        val maxEps = anime.effectiveMaxEpisodes
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(20.dp)
+                        ) {
+                            val barHeight = 4.dp.toPx()
+                            val barY = (size.height - barHeight) / 2f
+                            val cornerRadius = barHeight / 2f
+                            val progress = if (maxEps > 0)
+                                displayValue.toFloat() / maxEps else 0f
+                            val progressWidth = size.width * progress.coerceIn(0f, 1f)
 
-                        drawRoundRect(
-                            color = trackColor,
-                            topLeft = Offset(0f, barY),
-                            size = Size(size.width, barHeight),
-                            cornerRadius = CornerRadius(cornerRadius)
-                        )
-
-                        if (progressWidth > 0) {
                             drawRoundRect(
-                                color = progressColor,
+                                color = trackColor,
                                 topLeft = Offset(0f, barY),
-                                size = Size(progressWidth, barHeight),
+                                size = Size(size.width, barHeight),
                                 cornerRadius = CornerRadius(cornerRadius)
                             )
-                        }
 
-                        val tickCount = minOf(maxEps, 20)
-                        if (tickCount > 1) {
-                            val tickSpacing = size.width / tickCount
-                            for (i in 1 until tickCount) {
-                                val x = i * tickSpacing
-                                drawLine(
-                                    color = tickColor,
-                                    start = Offset(x, barY - 1.dp.toPx()),
-                                    end = Offset(x, barY + barHeight + 1.dp.toPx()),
-                                    strokeWidth = 0.5.dp.toPx()
+                            if (progressWidth > 0) {
+                                drawRoundRect(
+                                    color = progressColor,
+                                    topLeft = Offset(0f, barY),
+                                    size = Size(progressWidth, barHeight),
+                                    cornerRadius = CornerRadius(cornerRadius)
                                 )
                             }
-                        }
-                    }
 
-                    Slider(
-                        value = sliderValue,
-                        onValueChange = {
-                            sliderValue = it
-                            isDragging = true
-                        },
-                        onValueChangeFinished = {
-                            isDragging = false
-                            onUpdateWatchedEpisodes(sliderValue.toInt())
-                        },
-                        valueRange = if (maxEps > 0) 0f..maxEps.toFloat() else 0f..100f,
-                        steps = if (maxEps > 1) maxEps - 1 else 0,
-                        modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .height(20.dp)
-                            .offset(y = (-20).dp),
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = Color.Transparent,
-                            inactiveTrackColor = Color.Transparent
+                            val tickCount = minOf(maxEps, 20)
+                            if (tickCount > 1) {
+                                val tickSpacing = size.width / tickCount
+                                for (i in 1 until tickCount) {
+                                    val x = i * tickSpacing
+                                    drawLine(
+                                        color = tickColor,
+                                        start = Offset(x, barY - 1.dp.toPx()),
+                                        end = Offset(x, barY + barHeight + 1.dp.toPx()),
+                                        strokeWidth = 0.5.dp.toPx()
+                                    )
+                                }
+                            }
+                        }
+
+                        Slider(
+                            value = sliderValue,
+                            onValueChange = {
+                                sliderValue = it
+                                isDragging = true
+                            },
+                            onValueChangeFinished = {
+                                isDragging = false
+                                onUpdateWatchedEpisodes(sliderValue.toInt())
+                            },
+                            valueRange = if (maxEps > 0) 0f..maxEps.toFloat() else 0f..100f,
+                            steps = if (maxEps > 1) maxEps - 1 else 0,
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(20.dp)
+                                .offset(y = (-20).dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = Color.Transparent,
+                                inactiveTrackColor = Color.Transparent
+                            )
                         )
-                    )
+                    }
                 }
             }
 
             AcceleratedButton(
                 text = "+",
-                enabled = anime.effectiveMaxEpisodes == 0 || anime.watchedEpisodes < anime.effectiveMaxEpisodes,
+                enabled = isEditMode || anime.effectiveMaxEpisodes == 0 || anime.watchedEpisodes < anime.effectiveMaxEpisodes,
                 hapticFeedback = hapticFeedback,
-                onTap = { onAdjustWatchedEpisodes(1) },
-                onAdjust = { step -> onAdjustWatchedEpisodes(step) }
+                onTap = { if (isEditMode) onAdjustEditTotalEpisodes(1) else onAdjustWatchedEpisodes(1) },
+                onAdjust = { step -> if (isEditMode) onAdjustEditTotalEpisodes(step) else onAdjustWatchedEpisodes(step) }
             )
         }
     }
@@ -1457,10 +1491,7 @@ private fun StatusCard(
                         )
                         Text(
                             text = if (finishDate != null) {
-                                java.text.SimpleDateFormat(
-                                    "yyyy-MM-dd",
-                                    java.util.Locale.getDefault()
-                                ).format(java.util.Date(finishDate))
+                                com.aiexile.animetrack.util.formatDate(finishDate)
                             } else {
                                 "选择日期"
                             },

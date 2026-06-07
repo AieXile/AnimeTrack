@@ -47,9 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.aiexile.animetrack.util.formatDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,12 +59,21 @@ fun WebDAVSyncScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val lastSyncTime by themeViewModel.webdavLastSyncTime.collectAsState()
 
+    val webdavUrl by viewModel.webdavUrl.collectAsState()
+    val webdavUsername by viewModel.webdavUsername.collectAsState()
+    val webdavPassword by viewModel.webdavPassword.collectAsState()
+    val backupStrategy by viewModel.backupStrategy.collectAsState()
+    val restoreMode by viewModel.restoreMode.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val loadingMessage by viewModel.loadingMessage.collectAsState()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+
     LaunchedEffect(Unit) {
         viewModel.loadConfig(themeViewModel)
     }
 
-    LaunchedEffect(viewModel.snackbarMessage) {
-        viewModel.snackbarMessage?.let { msg ->
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { msg ->
             snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Short)
             viewModel.clearSnackbar()
         }
@@ -119,8 +126,8 @@ fun WebDAVSyncScreen(
                     SettingsGroup(title = "WebDAV 同步") {
                         Column {
                             OutlinedTextField(
-                                value = viewModel.webdavUrl,
-                                onValueChange = { viewModel.webdavUrl = it },
+                                value = webdavUrl,
+                                onValueChange = { viewModel.webdavUrl.value = it },
                                 label = { Text("服务器地址") },
                                 placeholder = { Text("https://dav.jianguoyun.com/dav/") },
                                 singleLine = true,
@@ -130,8 +137,8 @@ fun WebDAVSyncScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
-                                value = viewModel.webdavUsername,
-                                onValueChange = { viewModel.webdavUsername = it },
+                                value = webdavUsername,
+                                onValueChange = { viewModel.webdavUsername.value = it },
                                 label = { Text("用户名") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -140,8 +147,8 @@ fun WebDAVSyncScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             OutlinedTextField(
-                                value = viewModel.webdavPassword,
-                                onValueChange = { viewModel.webdavPassword = it },
+                                value = webdavPassword,
+                                onValueChange = { viewModel.webdavPassword.value = it },
                                 label = { Text("密码") },
                                 visualTransformation = PasswordVisualTransformation(),
                                 singleLine = true,
@@ -178,13 +185,13 @@ fun WebDAVSyncScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = viewModel.backupStrategy == 0,
-                                    onClick = { viewModel.backupStrategy = 0 }
+                                    selected = backupStrategy == 0,
+                                    onClick = { viewModel.backupStrategy.value = 0 }
                                 )
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable { viewModel.backupStrategy = 0 }
+                                        .clickable { viewModel.backupStrategy.value = 0 }
                                 ) {
                                     Text(text = "JSON")
                                     Text(
@@ -194,13 +201,13 @@ fun WebDAVSyncScreen(
                                     )
                                 }
                                 RadioButton(
-                                    selected = viewModel.backupStrategy == 1,
-                                    onClick = { viewModel.backupStrategy = 1 }
+                                    selected = backupStrategy == 1,
+                                    onClick = { viewModel.backupStrategy.value = 1 }
                                 )
                                 Column(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable { viewModel.backupStrategy = 1 }
+                                        .clickable { viewModel.backupStrategy.value = 1 }
                                 ) {
                                     Text(text = "完整 ZIP")
                                     Text(
@@ -227,21 +234,21 @@ fun WebDAVSyncScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = viewModel.restoreMode == 0,
-                                    onClick = { viewModel.restoreMode = 0 }
+                                    selected = restoreMode == 0,
+                                    onClick = { viewModel.restoreMode.value = 0 }
                                 )
                                 Text(
                                     text = "覆盖本地",
-                                    modifier = Modifier.clickable { viewModel.restoreMode = 0 }
+                                    modifier = Modifier.clickable { viewModel.restoreMode.value = 0 }
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 RadioButton(
-                                    selected = viewModel.restoreMode == 1,
-                                    onClick = { viewModel.restoreMode = 1 }
+                                    selected = restoreMode == 1,
+                                    onClick = { viewModel.restoreMode.value = 1 }
                                 )
                                 Text(
                                     text = "兼容合并",
-                                    modifier = Modifier.clickable { viewModel.restoreMode = 1 }
+                                    modifier = Modifier.clickable { viewModel.restoreMode.value = 1 }
                                 )
                             }
 
@@ -281,12 +288,8 @@ fun WebDAVSyncScreen(
 
                             if (lastSyncTime > 0L) {
                                 Spacer(modifier = Modifier.height(12.dp))
-                                val dateFormat = SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss",
-                                    Locale.getDefault()
-                                )
                                 Text(
-                                    text = "上次同步：${dateFormat.format(Date(lastSyncTime))}",
+                                    text = "上次同步：${formatDateTime(lastSyncTime)}",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -298,7 +301,7 @@ fun WebDAVSyncScreen(
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
 
-            if (viewModel.isLoading) {
+            if (isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -311,7 +314,7 @@ fun WebDAVSyncScreen(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = viewModel.loadingMessage,
+                            text = loadingMessage,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 14.sp
                         )

@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +66,7 @@ import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.settings.SettingsGroup
 import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
@@ -420,10 +420,7 @@ private fun CoverCard(
             }
             .clip(RoundedCornerShape(12.dp))
             .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { onClick() }
+            .clickable { onClick() }
             .then(
                 Modifier.pointerInput(Unit) {
                     awaitPointerEventScope {
@@ -442,7 +439,7 @@ private fun CoverCard(
     ) {
         if (anime.coverUrl != null) {
             AsyncImage(
-                model = anime.coverUrl,
+                model = resolveCoverModel(anime.coverUrl),
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

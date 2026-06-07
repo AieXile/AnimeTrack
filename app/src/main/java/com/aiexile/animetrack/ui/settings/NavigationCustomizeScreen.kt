@@ -114,6 +114,23 @@ fun NavigationCustomizeScreen(
             }
 
             item {
+                SettingsGroup(title = "添加番剧按钮位置") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FabLocationCard(
+                            location = FabLocation.BOTTOM_RIGHT,
+                            isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
+                            onClick = { themeViewModel.setFabLocation(FabLocation.BOTTOM_RIGHT) }
+                        )
+                        FabLocationCard(
+                            location = FabLocation.TOP_BAR,
+                            isSelected = fabLocation == FabLocation.TOP_BAR,
+                            onClick = { themeViewModel.setFabLocation(FabLocation.TOP_BAR) }
+                        )
+                    }
+                }
+            }
+
+            item {
                 SettingsGroup(
                     title = "导航栏内容",
                     subtitle = "选择在导航栏中显示的入口"
@@ -142,31 +159,23 @@ fun NavigationCustomizeScreen(
             }
 
             item {
-                SettingsGroup(title = "添加番剧按钮位置") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FabLocationCard(
-                            location = FabLocation.BOTTOM_RIGHT,
-                            isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
-                            onClick = { themeViewModel.setFabLocation(FabLocation.BOTTOM_RIGHT) }
-                        )
-                        FabLocationCard(
-                            location = FabLocation.TOP_BAR,
-                            isSelected = fabLocation == FabLocation.TOP_BAR,
-                            onClick = { themeViewModel.setFabLocation(FabLocation.TOP_BAR) }
-                        )
-                    }
-                }
-            }
-
-            item {
                 SettingsGroup(
                     title = "自定义欢迎语",
                     subtitle = "设置首页标题栏显示的欢迎语"
                 ) {
-                    CustomGreetingField(
-                        customGreeting = themeViewModel.customGreeting.collectAsState().value,
-                        onGreetingChange = { themeViewModel.setCustomGreeting(it) }
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val greetingTypingEffect by themeViewModel.greetingTypingEffect.collectAsState()
+                        SwitchItem(
+                            title = "打字效果",
+                            description = "欢迎语逐字显示的打字机动画",
+                            checked = greetingTypingEffect,
+                            onCheckedChange = { themeViewModel.setGreetingTypingEffect(it) }
+                        )
+                        CustomGreetingField(
+                            customGreeting = themeViewModel.customGreeting.collectAsState().value,
+                            onGreetingChange = { themeViewModel.setCustomGreeting(it) }
+                        )
+                    }
                 }
             }
 

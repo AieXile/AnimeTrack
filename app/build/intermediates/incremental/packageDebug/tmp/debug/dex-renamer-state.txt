@@ -1,4 +1,4 @@
-#Wed Jun 03 02:32:56 CST 2026
+#Mon Jun 08 02:46:32 CST 2026
 base.0=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
 base.1=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
 base.10=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\5\\classes.dex
@@ -8,6 +8,7 @@ base.13=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergePr
 base.14=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\9\\classes.dex
 base.15=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
 base.16=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
+base.17=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\11\\classes.dex
 base.2=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\10\\classes.dex
 base.3=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\12\\classes.dex
 base.4=E\:\\Project\\AnimeTrack\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\14\\classes.dex
@@ -25,6 +26,7 @@ path.13=8/classes.dex
 path.14=9/classes.dex
 path.15=classes2.dex
 path.16=classes3.dex
+path.17=11/classes.dex
 path.2=10/classes.dex
 path.3=12/classes.dex
 path.4=14/classes.dex
@@ -42,6 +44,7 @@ renamed.13=classes14.dex
 renamed.14=classes15.dex
 renamed.15=classes16.dex
 renamed.16=classes17.dex
+renamed.17=classes18.dex
 renamed.2=classes3.dex
 renamed.3=classes4.dex
 renamed.4=classes5.dex

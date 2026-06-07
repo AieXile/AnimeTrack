@@ -1,0 +1,61 @@
+<h2>引导页插画风格</h2>
+<p class="subtitle">选择引导页中插画的整体视觉风格方向</p>
+
+<div class="cards">
+  <div class="card" data-choice="illustration" onclick="toggleSelect(this)">
+    <div class="card-image" style="min-height:200px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#E3F2FD,#BBDEFB);border-radius:12px;padding:24px;">
+      <div style="text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">🎨</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
+          <div style="width:40px;height:60px;background:#42A5F5;border-radius:4px;"></div>
+          <div style="width:40px;height:45px;background:#66BB6A;border-radius:4px;"></div>
+          <div style="width:40px;height:55px;background:#FFA726;border-radius:4px;"></div>
+        </div>
+        <div style="font-size:13px;color:#546E7A;">手绘/扁平插画风格</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 矢量插画</h3>
+      <p>自定义矢量插画，风格统一、品牌感强，但需要设计资源</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="icon" onclick="toggleSelect(this)">
+    <div class="card-image" style="min-height:200px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#F3E5F5,#E1BEE7);border-radius:12px;padding:24px;">
+      <div style="text-align:center;">
+        <div style="display:flex;gap:16px;justify-content:center;margin-bottom:16px;">
+          <div style="width:56px;height:56px;background:#AB47BC;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:24px;">📺</div>
+          <div style="width:56px;height:56px;background:#7E57C2;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:24px;">🔄</div>
+          <div style="width:56px;height:56px;background:#5C6BC0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:24px;">☁️</div>
+        </div>
+        <div style="font-size:13px;color:#6A1B9A;">大图标 + 渐变背景</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 图标组合</h3>
+      <p>大尺寸 Material Icon / Emoji 搭配渐变色背景，开发成本低，风格简洁现代</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="ai" onclick="toggleSelect(this)">
+    <div class="card-image" style="min-height:200px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#E8EAF6,#C5CAE9);border-radius:12px;padding:24px;">
+      <div style="text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">🖼️</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
+          <div style="width:80px;height:50px;background:linear-gradient(135deg,#7986CB,#3F51B5);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;">AI生成</div>
+          <div style="width:80px;height:50px;background:linear-gradient(135deg,#4DB6AC,#00897B);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:10px;">AI生成</div>
+        </div>
+        <div style="font-size:13px;color:#3949AB;">AI 生成的插画图片</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. AI 生成插画</h3>
+      <p>使用 AI 图片生成 API 生成主题插画，视觉效果丰富，但风格一致性需控制</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>💡 推荐</h3>
+  <p style="color:var(--text-secondary);">方案 B（图标组合）最适合当前项目——与 Material Design 3 风格一致，开发成本低，且不需要外部设计资源。如果后续有设计资源，可以平滑升级为方案 A。</p>
+</div>

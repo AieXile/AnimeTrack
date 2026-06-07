@@ -12,6 +12,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,15 +76,23 @@ private const val GITHUB_URL = "https://github.com/AieXile/AnimeTrack"
 private const val QQ_GROUP_NUMBER = "951059178"
 private const val TG_URL = "https://t.me/AnimeTrackovo"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun AboutScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateDeveloper: () -> Unit = {}
 ) {
     BackHandler { onBack() }
 
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val settingsRepository = remember { AppContainer.getSettingsRepository() }
+    val scope = rememberCoroutineScope()
+    val developerMode by settingsRepository.developerMode.collectAsState(initial = false)
+
+    var avatarTapCount by remember { mutableStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
+
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -143,6 +154,27 @@ fun AboutScreen(
                             width = 3.dp,
                             color = MaterialTheme.colorScheme.primary,
                             shape = CircleShape
+                        )
+                        .combinedClickable(
+                            onClick = {
+                                val now = System.currentTimeMillis()
+                                if (now - lastTapTime > 2000) {
+                                    avatarTapCount = 1
+                                } else {
+                                    avatarTapCount++
+                                }
+                                lastTapTime = now
+
+                                if (!developerMode && avatarTapCount >= 5) {
+                                    avatarTapCount = 0
+                                    scope.launch {
+                                        settingsRepository.setDeveloperMode(true)
+                                        Toast.makeText(context, "已开启开发者模式", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else if (!developerMode && avatarTapCount == 3) {
+                                    Toast.makeText(context, "再点击 2 次开启开发者模式", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
                 ) {
                     Image(
@@ -208,8 +240,9 @@ fun AboutScreen(
 
                 Spacer(modifier = Modifier.size(16.dp))
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalButton(
                         onClick = { updateViewModel.checkForUpdate(force = true) }
@@ -220,7 +253,7 @@ fun AboutScreen(
                     var changelogLoading by remember { mutableStateOf(false) }
                     var changelogContent by remember { mutableStateOf<String?>(null) }
                     var showChangelogDialog by remember { mutableStateOf(false) }
-                    val scope = rememberCoroutineScope()
+                    val changelogScope = rememberCoroutineScope()
 
                     FilledTonalButton(
                         onClick = {
@@ -228,7 +261,7 @@ fun AboutScreen(
                                 showChangelogDialog = true
                             } else {
                                 changelogLoading = true
-                                scope.launch {
+                                changelogScope.launch {
                                     val repo = UpdateRepository()
                                     changelogContent = repo.getCurrentVersionChangelog(BuildConfig.VERSION_NAME)
                                     changelogLoading = false
@@ -255,6 +288,14 @@ fun AboutScreen(
                             changelog = changelogContent,
                             onDismiss = { showChangelogDialog = false }
                         )
+                    }
+
+                    if (developerMode) {
+                        FilledTonalButton(
+                            onClick = onNavigateDeveloper
+                        ) {
+                            Text(text = "开发者")
+                        }
                     }
                 }
 

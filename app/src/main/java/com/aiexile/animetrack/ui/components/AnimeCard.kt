@@ -11,6 +11,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.util.resolveCoverModel
 import androidx.compose.foundation.layout.offset
 
 private val CardCornerRadius = 16.dp
@@ -159,11 +161,16 @@ fun AnimeCard(
                     onLongClick = {
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLongPress()
-                    }
+                    },
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
                 ),
             shape = RoundedCornerShape(CardCornerRadius),
             elevation = CardDefaults.cardElevation(
-                defaultElevation = elevation
+                defaultElevation = elevation,
+                pressedElevation = elevation,
+                focusedElevation = elevation,
+                hoveredElevation = elevation
             ),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
@@ -388,23 +395,14 @@ private fun AnimeCoverWithStatus(
         
         if (coverUrl != null) {
             AsyncImage(
-                model = coverUrl,
+                model = resolveCoverModel(coverUrl),
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = sharedModifier
             )
         } else {
-            val gradientBackground = Brush.linearGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f)
-                )
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
-                    .background(gradientBackground)
+            EmptyCoverPlaceholder(
+                shape = RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
             )
         }
         

@@ -9,7 +9,9 @@ data class ParsedAnime(
     val title: String,
     val status: AnimeStatus,
     val note: String,
-    val finishDate: Long?
+    val finishDate: Long?,
+    val watchedEpisodes: Int = 0,
+    val totalEpisodes: Int = 0
 )
 
 data class ImportResult(
@@ -25,6 +27,7 @@ object MarkdownParser {
     private val headerRegex = Regex("""^#+\s+(.*)""")
     private val dateRegex = Regex("""(\d{4})[./-](\d{1,2})[./-](\d{1,2})""")
     private val listPrefixRegex = Regex("""^([-*]\s+|\d+\.\s*)""")
+    private val episodeInfoRegex = Regex("""\s+(\d+)/(\d+|\?)\s*$""")
     
     private val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
     
@@ -72,16 +75,19 @@ object MarkdownParser {
             if (currentStatus != null) {
                 var cleanLine = listPrefixRegex.replace(trimmed, "")
                 if (cleanLine.isEmpty()) continue
-                
+
+                val episodeInfo = extractEpisodeInfo(cleanLine)
                 val title = extractTitle(cleanLine)
                 val note = extractNote(cleanLine)
-                
+
                 if (title.isNotEmpty()) {
                     parsedAnimes.add(ParsedAnime(
                         title = title,
                         status = currentStatus,
                         note = note,
-                        finishDate = if (currentStatus == AnimeStatus.COMPLETED) lastDate else null
+                        finishDate = if (currentStatus == AnimeStatus.COMPLETED) lastDate else null,
+                        watchedEpisodes = episodeInfo.first,
+                        totalEpisodes = episodeInfo.second
                     ))
                 }
             }
@@ -153,24 +159,41 @@ object MarkdownParser {
             .replace("`", "")
             .trim()
     }
-    
-    private fun extractTitle(line: String): String {
+
+    private fun extractEpisodeInfo(line: String): Pair<Int, Int> {
+        // 先去掉括号备注部分，再在剩余内容末尾匹配 数字/数字 或 数字/?
+        val lineWithoutNote = removeNotePart(line)
+        val match = episodeInfoRegex.find(lineWithoutNote)
+        if (match != null) {
+            val watched = match.groupValues[1].toIntOrNull() ?: 0
+            val totalStr = match.groupValues[2]
+            val total = if (totalStr == "?") 0 else totalStr.toIntOrNull() ?: 0
+            return Pair(watched, total)
+        }
+        return Pair(0, 0)
+    }
+
+    private fun removeNotePart(line: String): String {
         val parenIndex = line.indexOf("(")
         val bracketIndex = line.indexOf("（")
-        
         val splitIndex = when {
             parenIndex < 0 && bracketIndex < 0 -> -1
             parenIndex < 0 -> bracketIndex
             bracketIndex < 0 -> parenIndex
             else -> minOf(parenIndex, bracketIndex)
         }
-        
-        val rawTitle = if (splitIndex > 0) {
-            line.substring(0, splitIndex).trim()
+        return if (splitIndex > 0) line.substring(0, splitIndex).trim() else line.trim()
+    }
+
+    private fun extractTitle(line: String): String {
+        // 先去掉集数和备注部分，提取纯标题
+        val lineWithoutNote = removeNotePart(line)
+        val episodeMatch = episodeInfoRegex.find(lineWithoutNote)
+        val rawTitle = if (episodeMatch != null) {
+            lineWithoutNote.substring(0, episodeMatch.range.first).trim()
         } else {
-            line.trim()
+            lineWithoutNote.trim()
         }
-        
         return cleanMarkdown(rawTitle)
     }
     
@@ -209,8 +232,8 @@ object MarkdownParser {
     fun toAnimeEntity(parsed: ParsedAnime): Anime {
         return Anime(
             title = parsed.title,
-            totalEpisodes = 0,
-            watchedEpisodes = 0,
+            totalEpisodes = parsed.totalEpisodes,
+            watchedEpisodes = parsed.watchedEpisodes,
             status = parsed.status,
             rating = null,
             notes = parsed.note,

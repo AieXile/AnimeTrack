@@ -13,6 +13,10 @@ import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.util.cleanSummary
+import com.aiexile.animetrack.util.computeIsFinished
+import com.aiexile.animetrack.util.getCurrentWeekday
+import com.aiexile.animetrack.util.resolveSearchError
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +51,9 @@ data class HomeUiState(
     val showCompletedToast: Boolean = false,
     val showDuplicateToast: Boolean = false,
     val showFormDialog: Boolean = false,
-    val highlightedAnimeIds: Set<Long> = emptySet()
+    val highlightedAnimeIds: Set<Long> = emptySet(),
+    val localSearchQuery: String = "",
+    val isLocalSearchActive: Boolean = false
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -98,12 +104,7 @@ class HomeViewModel(
             initialValue = emptyList()
         )
 
-    private val todayWeekday = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-        when (it) {
-            Calendar.SUNDAY -> 7
-            else -> it - 1
-        }
-    }
+    private val todayWeekday = getCurrentWeekday()
 
     val todayUpdateCount: StateFlow<Int> = animeList.map { animes ->
         animes.count { it.airWeekday == todayWeekday && !it.isFinished }
@@ -175,14 +176,16 @@ class HomeViewModel(
                                 Log.d(TAG, "New episode found: ${anime.title} local=${anime.currentEpisodes} remote=$remoteEps")
                                 val updatedAnime = anime.copy(
                                     currentEpisodes = remoteEps,
-                                    hasNewUpdate = true
+                                    hasNewUpdate = true,
+                                    isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
                                 )
                                 repository.updateAnime(updatedAnime)
                                 return@async anime.title to remoteEps
                             } else if (resolvedTotal > 0 && anime.totalEpisodes == 0) {
                                 val updatedAnime = anime.copy(
                                     totalEpisodes = resolvedTotal,
-                                    hasNewUpdate = false
+                                    hasNewUpdate = false,
+                                    isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
                                 )
                                 repository.updateAnime(updatedAnime)
                             }
@@ -384,7 +387,8 @@ class HomeViewModel(
                 bangumiId = formState.bangumiId,
                 airDate = formState.airDate,
                 airWeekday = formState.airWeekday,
-                currentEpisodes = formState.currentEpisodes
+                currentEpisodes = formState.currentEpisodes,
+                isFinished = computeIsFinished(formState.airDate, formState.totalEpisodes, formState.status)
             )
             
             Log.d(TAG, "Inserting anime: $anime")
@@ -415,10 +419,13 @@ class HomeViewModel(
                         try {
                             val detail = RetrofitClient.bangumiApi.getSubjectDetail(anime.bangumiId)
                             val dbAnime = repository.getAnimeById(id.toInt()) ?: return@launch
+                            val updatedAirDate = dbAnime.airDate ?: detail.date
+                            val updatedAirWeekday = dbAnime.airWeekday ?: detail.airWeekday
                             val updated = dbAnime.copy(
-                                airWeekday = dbAnime.airWeekday ?: detail.airWeekday,
-                                airDate = dbAnime.airDate ?: detail.date,
-                                summary = dbAnime.summary ?: detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+                                airWeekday = updatedAirWeekday,
+                                airDate = updatedAirDate,
+                                summary = dbAnime.summary ?: detail.summary?.cleanSummary(),
+                                isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status)
                             )
                             repository.updateAnime(updated)
                             Log.d(TAG, "Backfilled detail for animeId=$id")
@@ -441,8 +448,8 @@ class HomeViewModel(
         _uiState.update { it.copy(newlyAddedAnimeId = null) }
     }
     
-    fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter): List<Anime> {
-        Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter")
+    fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter, searchQuery: String = ""): List<Anime> {
+        Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery")
         
         val filtered = when (filter) {
             AnimeFilter.ALL -> animeList
@@ -453,7 +460,7 @@ class HomeViewModel(
             AnimeFilter.HIGH_RATED -> animeList.filter { (it.rating ?: 0f) >= 4.5f }
         }
         
-        return when (filter) {
+        val sorted = when (filter) {
             AnimeFilter.ALL -> {
                 filtered.sortedWith(
                     compareBy<Anime> { it.status != AnimeStatus.WATCHING }
@@ -472,6 +479,24 @@ class HomeViewModel(
                 filtered.sortedByDescending { it.startDate ?: Long.MIN_VALUE }
             }
         }
+
+        return if (searchQuery.isNotBlank()) {
+            sorted.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        } else {
+            sorted
+        }
+    }
+    
+    fun updateLocalSearchQuery(query: String) {
+        _uiState.update { it.copy(localSearchQuery = query) }
+    }
+    
+    fun startLocalSearch() {
+        _uiState.update { it.copy(isLocalSearchActive = true) }
+    }
+    
+    fun clearLocalSearch() {
+        _uiState.update { it.copy(localSearchQuery = "", isLocalSearchActive = false) }
     }
     
     fun updateSearchQuery(query: String) {
@@ -502,7 +527,7 @@ class HomeViewModel(
                 _uiState.update { 
                     it.copy(
                         isSearching = false,
-                        searchError = "搜索失败: ${e.message}",
+                        searchError = "搜索失败: ${resolveSearchError(e)}",
                         searchResults = emptyList()
                     )
                 }
@@ -512,8 +537,8 @@ class HomeViewModel(
     
     fun selectSearchResult(subject: BangumiSubject) {
         val rating = subject.score?.toFloat()
-        val totalEpisodes = subject.episodeCount ?: 0
-        val summary = subject.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
+        val totalEpisodes = subject.episodeCount ?: 12
+        val summary = subject.summary?.cleanSummary()
 
         _uiState.update {
             it.copy(
@@ -545,14 +570,19 @@ class HomeViewModel(
                 }
 
                 _uiState.update { state ->
+                    val updatedAirDate = detail.date ?: state.formState.airDate
+                    val isNotYetAired = updatedAirDate != null && try {
+                        java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
+                    } catch (_: Exception) { false }
                     state.copy(
                         formState = state.formState.copy(
                             totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
                             currentEpisodes = if (finalTotal > 0) 0 else if (mainEps > 0) 0 else state.formState.currentEpisodes,
-                            airDate = detail.date ?: state.formState.airDate,
+                            airDate = updatedAirDate,
                             airWeekday = detail.airWeekday ?: state.formState.airWeekday,
-                            summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
-                                ?: state.formState.summary
+                            summary = detail.summary?.cleanSummary()
+                                ?: state.formState.summary,
+                            status = if (isNotYetAired) AnimeStatus.PLANNED else state.formState.status
                         )
                     )
                 }

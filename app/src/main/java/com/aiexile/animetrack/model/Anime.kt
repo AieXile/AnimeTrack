@@ -13,7 +13,12 @@ enum class AnimeStatus(val displayName: String) {
 
 @Entity(
     tableName = "anime",
-    indices = [Index(value = ["bangumiId"], unique = true)]
+    indices = [
+        Index(value = ["bangumiId"], unique = true),
+        Index(value = ["title"]),
+        Index(value = ["coverUrl"]),
+        Index(value = ["isFinished", "status"])
+    ]
 )
 data class Anime(
     @PrimaryKey(autoGenerate = true)
@@ -33,7 +38,8 @@ data class Anime(
     val airWeekday: Int? = null,
     val isFinished: Boolean = false,
     val currentEpisodes: Int = 0,
-    val hasNewUpdate: Boolean = false
+    val hasNewUpdate: Boolean = false,
+    val syncRemarks: String? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

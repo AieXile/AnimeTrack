@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aiexile.animetrack"
-    android:versionCode="14"
-    android:versionName="v0.3.5-alpha" >
+    android:versionCode="16"
+    android:versionName="v0.3.7-alpha" >
 
     <uses-sdk
         android:minSdkVersion="26"
@@ -26,6 +26,8 @@
                 android:host="t.me"
                 android:scheme="https" />
         </intent>
+
+        <package android:name="tv.danmaku.bili" />
     </queries>
 
     <permission
@@ -35,6 +37,7 @@
     <uses-permission android:name="com.aiexile.animetrack.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 
     <application
+        android:name="com.aiexile.animetrack.AnimeTrackApp"
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:dataExtractionRules="@xml/data_extraction_rules"

@@ -1,0 +1,100 @@
+<h2>引导页布局方案</h2>
+<p class="subtitle">4 页滑动引导，每页结构：插画区 → 标题 → 描述 → 底部操作栏</p>
+
+<div class="split">
+  <!-- 左侧：单页结构 -->
+  <div class="mockup">
+    <div class="mockup-header">单页结构（竖屏手机）</div>
+    <div class="mockup-body" style="padding:0;">
+      <div style="display:flex;flex-direction:column;height:580px;background:#FAFAFA;border-radius:8px;overflow:hidden;">
+        <!-- 顶部跳过按钮 -->
+        <div style="display:flex;justify-content:flex-end;padding:16px 20px;">
+          <span style="color:#7C7C7C;font-size:14px;cursor:pointer;">跳过</span>
+        </div>
+        
+        <!-- 插画区域 -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:0 32px;">
+          <div style="width:200px;height:200px;border-radius:50%;background:linear-gradient(135deg,#E3F2FD,#90CAF9);display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:72px;">📺</span>
+          </div>
+        </div>
+        
+        <!-- 文字区域 -->
+        <div style="padding:0 32px;text-align:center;">
+          <h2 style="font-size:24px;font-weight:700;color:#1C1C1C;margin:0 0 8px 0;">追踪你的番剧</h2>
+          <p style="font-size:15px;color:#666;line-height:1.5;margin:0;">记录观看进度，管理追番状态<br>不再忘记看到哪一集</p>
+        </div>
+        
+        <!-- 底部操作栏 -->
+        <div style="padding:32px;display:flex;align-items:center;justify-content:space-between;">
+          <!-- 指示器 -->
+          <div style="display:flex;gap:8px;">
+            <div style="width:24px;height:8px;border-radius:4px;background:#1A1A1A;"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#D0D0D0;"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#D0D0D0;"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#D0D0D0;"></div>
+          </div>
+          <!-- 按钮 -->
+          <div style="background:#1A1A1A;color:white;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:500;">下一步</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：4页总览 -->
+  <div class="mockup">
+    <div class="mockup-header">4 页内容总览</div>
+    <div class="mockup-body" style="padding:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <!-- Page 1 -->
+        <div style="background:#F5F5F5;border-radius:12px;padding:16px;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#E3F2FD,#90CAF9);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;">
+            <span style="font-size:22px;">📺</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#1C1C1C;">追踪番剧</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">记录进度·管理状态</div>
+        </div>
+        <!-- Page 2 -->
+        <div style="background:#F5F5F5;border-radius:12px;padding:16px;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FCE4EC,#F48FB1);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;">
+            <span style="font-size:22px;">🔄</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#1C1C1C;">多平台同步</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">B站·Bangumi</div>
+        </div>
+        <!-- Page 3 -->
+        <div style="background:#F5F5F5;border-radius:12px;padding:16px;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#E8F5E9,#81C784);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;">
+            <span style="font-size:22px;">☁️</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#1C1C1C;">数据备份</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">WebDAV·看板</div>
+        </div>
+        <!-- Page 4 -->
+        <div style="background:#F5F5F5;border-radius:12px;padding:16px;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#F3E5F5,#CE93D8);display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px;">
+            <span style="font-size:22px;">✨</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#1C1C1C;">个性定制</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">主题·导航·问候语</div>
+        </div>
+      </div>
+      
+      <div style="margin-top:16px;padding:12px;background:#E8EAF6;border-radius:8px;">
+        <div style="font-size:12px;font-weight:600;color:#3949AB;margin-bottom:6px;">最后一页变化</div>
+        <div style="font-size:12px;color:#5C6BC0;">跳过按钮隐藏，按钮文字变为「立即开启」</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <h3>交互细节</h3>
+  <ul style="color:var(--text-secondary);font-size:14px;line-height:1.8;">
+    <li><strong>左右滑动</strong> 切换页面，带平滑动画</li>
+    <li><strong>小圆点指示器</strong>：当前页为长条形（24×8dp），其余为圆形（8×8dp），带颜色过渡</li>
+    <li><strong>按钮文字</strong>：前 3 页显示「下一步」，最后一页显示「立即开启」</li>
+    <li><strong>跳过按钮</strong>：前 3 页右上角显示，最后一页隐藏</li>
+    <li><strong>点击「立即开启」</strong>：写入 isFirstLaunch=false，淡入过渡到 HomeScreen</li>
+  </ul>
+</div>

@@ -68,9 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.aiexile.animetrack.util.formatDate
 
 data class AddAnimeFormState(
     val title: String = "",
@@ -570,8 +568,6 @@ private fun DateSelectors(
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showFinishDatePicker by remember { mutableStateOf(false) }
     
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
-    
     Column(modifier = modifier.fillMaxWidth()) {
         when (status) {
             AnimeStatus.WATCHING -> {
@@ -586,7 +582,6 @@ private fun DateSelectors(
                 DatePickerField(
                     label = "完成日期",
                     date = finishDate,
-                    dateFormat = dateFormat,
                     onClick = { showFinishDatePicker = true },
                     onClear = { onFinishDateChange(null) },
                     modifier = Modifier.fillMaxWidth()
@@ -596,7 +591,6 @@ private fun DateSelectors(
                 DatePickerField(
                     label = "弃番日期",
                     date = finishDate,
-                    dateFormat = dateFormat,
                     onClick = { showFinishDatePicker = true },
                     onClear = { onFinishDateChange(null) },
                     modifier = Modifier.fillMaxWidth()
@@ -666,7 +660,6 @@ private fun DateSelectors(
 private fun DatePickerField(
     label: String,
     date: Long?,
-    dateFormat: SimpleDateFormat,
     onClick: () -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier
@@ -698,7 +691,7 @@ private fun DatePickerField(
                     tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = if (date != null) dateFormat.format(Date(date)) else "选择日期",
+                    text = if (date != null) formatDate(date) else "选择日期",
                     fontSize = 16.sp,
                     color = if (date != null) MaterialTheme.colorScheme.onSurface 
                            else MaterialTheme.colorScheme.onSurfaceVariant

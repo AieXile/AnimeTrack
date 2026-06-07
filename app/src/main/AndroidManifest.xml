@@ -14,9 +14,11 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" android:host="t.me" />
         </intent>
+        <package android:name="tv.danmaku.bili" />
     </queries>
 
     <application
+        android:name=".AnimeTrackApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

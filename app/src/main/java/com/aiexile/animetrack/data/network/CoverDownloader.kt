@@ -40,7 +40,8 @@ object CoverDownloader {
         if (bangumiId == null) return coverUrl
 
         if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
-            return coverUrl
+            val localFile = File(coverUrl.removePrefix("file://"))
+            return if (localFile.exists() && localFile.length() > 0) coverUrl else null
         }
 
         val destFile = getCoverFile(context, bangumiId)
@@ -66,8 +67,14 @@ object CoverDownloader {
     }
 
     private fun downloadTo(url: String, destFile: File) {
-        val request = Request.Builder().url(url).build()
-        val response = client.newCall(request).execute()
+        val requestBuilder = Request.Builder().url(url)
+
+        // B站图片防盗链：hdslb.com 域名必须附带 Referer
+        if (url.contains("hdslb.com", ignoreCase = true)) {
+            requestBuilder.header("Referer", "https://www.bilibili.com/")
+        }
+
+        val response = client.newCall(requestBuilder.build()).execute()
 
         if (!response.isSuccessful && response.code != HttpURLConnection.HTTP_OK) {
             throw Exception("HTTP ${response.code}")

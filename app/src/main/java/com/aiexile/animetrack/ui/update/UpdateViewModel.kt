@@ -14,6 +14,7 @@ import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.remote.UpdateInfo
 import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +39,8 @@ data class UpdateUiState(
     val error: String? = null,
     val isUpToDate: Boolean = false,
     val pendingInstallAfterPermission: Boolean = false,
-    val apkAlreadyDownloaded: Boolean = false
+    val apkAlreadyDownloaded: Boolean = false,
+    val isSimulated: Boolean = false
 )
 
 class UpdateViewModel(
@@ -83,10 +85,18 @@ class UpdateViewModel(
                         Log.d(TAG, "Version ${updateInfo.versionName} was skipped")
                         _uiState.value = _uiState.value.copy(isChecking = false)
                     } else {
+                        // 检查该版本的 APK 是否已下载完成
+                        val apkAlreadyExists = checkApkAlreadyDownloaded(updateInfo.versionName)
                         _uiState.value = _uiState.value.copy(
                             updateInfo = updateInfo,
-                            isChecking = false
+                            isChecking = false,
+                            downloadComplete = apkAlreadyExists,
+                            downloadProgress = if (apkAlreadyExists) 100 else 0,
+                            apkAlreadyDownloaded = apkAlreadyExists
                         )
+                        if (apkAlreadyExists) {
+                            cachedApkFile = findApkFileByVersion(updateInfo.versionName)
+                        }
                     }
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -116,7 +126,8 @@ class UpdateViewModel(
             updateInfo = null,
             isUpToDate = false,
             pendingInstallAfterPermission = false,
-            apkAlreadyDownloaded = false
+            apkAlreadyDownloaded = false,
+            isSimulated = false
         )
     }
 
@@ -340,6 +351,17 @@ class UpdateViewModel(
     }
 
     fun installApk(context: Context) {
+        if (_uiState.value.isSimulated) {
+            _uiState.value = _uiState.value.copy(
+                isDownloading = false,
+                downloadComplete = false,
+                downloadProgress = 0,
+                updateInfo = null,
+                isSimulated = false
+            )
+            return
+        }
+
         try {
             val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
                 _uiState.value = _uiState.value.copy(error = "未找到安装包文件")
@@ -457,6 +479,20 @@ class UpdateViewModel(
         return null
     }
 
+    private fun checkApkAlreadyDownloaded(versionName: String): Boolean {
+        val fileName = buildApkFileName(versionName)
+        val updateDir = File(AppContainer.getApplication().cacheDir, APK_DIR)
+        val targetFile = File(updateDir, fileName)
+        return targetFile.exists() && targetFile.length() > 0
+    }
+
+    private fun findApkFileByVersion(versionName: String): File? {
+        val fileName = buildApkFileName(versionName)
+        val updateDir = File(AppContainer.getApplication().cacheDir, APK_DIR)
+        val targetFile = File(updateDir, fileName)
+        return if (targetFile.exists()) targetFile else null
+    }
+
     private fun buildApkFileName(versionName: String): String {
         val tag = versionName.removePrefix("v")
         return "AnimeTrack_${tag}.apk"
@@ -483,5 +519,57 @@ class UpdateViewModel(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun simulateUpdate() {
+        if (_uiState.value.isDownloading || _uiState.value.isChecking) return
+
+        val fakeInfo = UpdateInfo(
+            versionName = "v9.9.9",
+            changelog = "## 模拟更新\n\n这是一个**开发者模拟更新**，用于测试更新流程。\n\n- 模拟下载进度\n- 模拟安装按钮\n- 不会下载真实文件\n\n### 注意\n此更新为模拟数据，不会影响正常更新功能。",
+            downloadUrl = "",
+            apkSize = 0L,
+            releaseUrl = ""
+        )
+
+        _uiState.value = _uiState.value.copy(
+            updateInfo = fakeInfo,
+            isSimulated = true,
+            isUpToDate = false,
+            isDownloading = false,
+            downloadProgress = 0,
+            downloadComplete = false,
+            error = null,
+            pendingInstallAfterPermission = false,
+            apkAlreadyDownloaded = false
+        )
+    }
+
+    fun startSimulatedDownload() {
+        downloadJob?.cancel()
+        downloadJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isDownloading = true,
+                downloadProgress = 0,
+                downloadComplete = false,
+                error = null
+            )
+
+            try {
+                var progress = 0
+                while (progress < 100) {
+                    kotlinx.coroutines.delay(60)
+                    progress = (progress + (1..5).random()).coerceAtMost(100)
+                    _uiState.value = _uiState.value.copy(downloadProgress = progress)
+                }
+                _uiState.value = _uiState.value.copy(
+                    isDownloading = false,
+                    downloadComplete = true,
+                    downloadProgress = 100
+                )
+            } catch (e: CancellationException) {
+                _uiState.value = _uiState.value.copy(isDownloading = false)
+            }
+        }
     }
 }

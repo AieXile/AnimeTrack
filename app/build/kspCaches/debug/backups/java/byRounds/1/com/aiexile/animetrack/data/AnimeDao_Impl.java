@@ -58,7 +58,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`,`currentEpisodes`,`hasNewUpdate`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`,`currentEpisodes`,`hasNewUpdate`,`syncRemarks`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -116,6 +116,11 @@ public final class AnimeDao_Impl implements AnimeDao {
         statement.bindLong(16, entity.getCurrentEpisodes());
         final int _tmp_2 = entity.getHasNewUpdate() ? 1 : 0;
         statement.bindLong(17, _tmp_2);
+        if (entity.getSyncRemarks() == null) {
+          statement.bindNull(18);
+        } else {
+          statement.bindString(18, entity.getSyncRemarks());
+        }
       }
     };
     this.__deletionAdapterOfAnime = new EntityDeletionOrUpdateAdapter<Anime>(__db) {
@@ -135,7 +140,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ?,`currentEpisodes` = ?,`hasNewUpdate` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ?,`currentEpisodes` = ?,`hasNewUpdate` = ?,`syncRemarks` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -193,7 +198,12 @@ public final class AnimeDao_Impl implements AnimeDao {
         statement.bindLong(16, entity.getCurrentEpisodes());
         final int _tmp_2 = entity.getHasNewUpdate() ? 1 : 0;
         statement.bindLong(17, _tmp_2);
-        statement.bindLong(18, entity.getId());
+        if (entity.getSyncRemarks() == null) {
+          statement.bindNull(18);
+        } else {
+          statement.bindString(18, entity.getSyncRemarks());
+        }
+        statement.bindLong(19, entity.getId());
       }
     };
     this.__preparedStmtOfClearNewUpdate = new SharedSQLiteStatement(__db) {
@@ -398,6 +408,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -473,7 +484,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;
@@ -517,6 +534,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -592,7 +610,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;
@@ -634,6 +658,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -708,7 +733,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
           } else {
             _result = null;
           }
@@ -750,6 +781,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -824,7 +856,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
           } else {
             _result = null;
           }
@@ -871,6 +909,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -946,7 +985,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_3;
             _tmp_3 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_3 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;
@@ -992,6 +1037,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1066,7 +1112,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
           } else {
             _result = null;
           }
@@ -1110,6 +1162,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1184,7 +1237,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
           } else {
             _result = null;
           }
@@ -1225,6 +1284,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1300,7 +1360,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;
@@ -1339,6 +1405,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1414,7 +1481,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;
@@ -1458,6 +1531,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfIsFinished = CursorUtil.getColumnIndexOrThrow(_cursor, "isFinished");
           final int _cursorIndexOfCurrentEpisodes = CursorUtil.getColumnIndexOrThrow(_cursor, "currentEpisodes");
           final int _cursorIndexOfHasNewUpdate = CursorUtil.getColumnIndexOrThrow(_cursor, "hasNewUpdate");
+          final int _cursorIndexOfSyncRemarks = CursorUtil.getColumnIndexOrThrow(_cursor, "syncRemarks");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1533,7 +1607,13 @@ public final class AnimeDao_Impl implements AnimeDao {
             final int _tmp_2;
             _tmp_2 = _cursor.getInt(_cursorIndexOfHasNewUpdate);
             _tmpHasNewUpdate = _tmp_2 != 0;
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate);
+            final String _tmpSyncRemarks;
+            if (_cursor.isNull(_cursorIndexOfSyncRemarks)) {
+              _tmpSyncRemarks = null;
+            } else {
+              _tmpSyncRemarks = _cursor.getString(_cursorIndexOfSyncRemarks);
+            }
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks);
             _result.add(_item);
           }
           return _result;

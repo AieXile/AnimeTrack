@@ -12,6 +12,7 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.util.cleanSummary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -267,8 +268,4 @@ class SettingsViewModel(
             return SettingsViewModel(AppContainer.getAnimeRepository()) as T
         }
     }
-}
-
-private fun String.cleanSummary(): String {
-    return trim().replace(Regex("\n{3,}"), "\n\n")
 }

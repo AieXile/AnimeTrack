@@ -32,8 +32,10 @@ class SettingsRepository(private val context: Context) {
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
         private val HIDE_BANGUMI_AVATAR_KEY = booleanPreferencesKey("hide_bangumi_avatar")
+        private val GREETING_TYPING_EFFECT_KEY = booleanPreferencesKey("greeting_typing_effect")
         private val SHOW_UPDATE_BANNER_KEY = booleanPreferencesKey("show_update_banner")
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
+        private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
         private val WEBDAV_URL_KEY = stringPreferencesKey("webdav_url")
         private val WEBDAV_USERNAME_KEY = stringPreferencesKey("webdav_username")
@@ -41,6 +43,8 @@ class SettingsRepository(private val context: Context) {
         private val WEBDAV_BACKUP_STRATEGY_KEY = intPreferencesKey("webdav_backup_strategy")
         private val WEBDAV_RESTORE_MODE_KEY = intPreferencesKey("webdav_restore_mode")
         private val WEBDAV_LAST_SYNC_TIME_KEY = longPreferencesKey("webdav_last_sync_time")
+        private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
+        private val DEVELOPER_MODE_KEY = booleanPreferencesKey("developer_mode")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data
@@ -61,11 +65,11 @@ class SettingsRepository(private val context: Context) {
 
     val themePreset: Flow<ThemePreset> = context.dataStore.data
         .map { preferences ->
-            val presetString = preferences[THEME_PRESET_KEY] ?: ThemePreset.VIBRANT_BLUE.name
+            val presetString = preferences[THEME_PRESET_KEY] ?: ThemePreset.MONO_BLACK.name
             try {
                 ThemePreset.valueOf(presetString)
             } catch (e: IllegalArgumentException) {
-                ThemePreset.VIBRANT_BLUE
+                ThemePreset.MONO_BLACK
             }
         }
 
@@ -184,6 +188,17 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    val greetingTypingEffect: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[GREETING_TYPING_EFFECT_KEY] ?: true
+        }
+
+    suspend fun setGreetingTypingEffect(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[GREETING_TYPING_EFFECT_KEY] = enabled
+        }
+    }
+
     val showUpdateBanner: Flow<Boolean> = context.dataStore.data
         .map { preferences ->
             preferences[SHOW_UPDATE_BANNER_KEY] ?: true
@@ -203,6 +218,17 @@ class SettingsRepository(private val context: Context) {
     suspend fun setShowCalendarButton(show: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[SHOW_CALENDAR_BUTTON_KEY] = show
+        }
+    }
+
+    val showSearchButton: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SHOW_SEARCH_BUTTON_KEY] ?: true
+        }
+
+    suspend fun setShowSearchButton(show: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_SEARCH_BUTTON_KEY] = show
         }
     }
 
@@ -280,6 +306,28 @@ class SettingsRepository(private val context: Context) {
     suspend fun setWebdavLastSyncTime(time: Long) {
         context.dataStore.edit { preferences ->
             preferences[WEBDAV_LAST_SYNC_TIME_KEY] = time
+        }
+    }
+
+    val isFirstLaunch: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[IS_FIRST_LAUNCH_KEY] ?: true
+        }
+
+    suspend fun setFirstLaunchCompleted() {
+        context.dataStore.edit { preferences ->
+            preferences[IS_FIRST_LAUNCH_KEY] = false
+        }
+    }
+
+    val developerMode: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[DEVELOPER_MODE_KEY] ?: false
+        }
+
+    suspend fun setDeveloperMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DEVELOPER_MODE_KEY] = enabled
         }
     }
 }

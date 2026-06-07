@@ -4,7 +4,7 @@
             "outputFile": "com.aiexile.animetrack.app-mergeDebugResources-73:/values-v16/values-v16.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\5deb771e7db03fe0d5228c4f05485151\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
+                    "source": "C:\\Users\\AieXile\\.gradle\\caches\\transforms-3\\f74bd300cbb530c68f13a17ba28dd29e\\transformed\\appcompat-1.6.1\\res\\values-v16\\values-v16.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

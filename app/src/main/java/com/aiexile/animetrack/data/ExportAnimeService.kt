@@ -2,12 +2,9 @@ package com.aiexile.animetrack.data
 
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.aiexile.animetrack.util.formatDate
 
 object ExportAnimeService {
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     fun exportToMarkdown(animes: List<Anime>): String {
         if (animes.isEmpty()) return ""
@@ -64,7 +61,7 @@ object ExportAnimeService {
             if (needsSeparator) sb.appendLine()
             needsSeparator = true
 
-            val dateStr = dateFormat.format(entry.key!!)
+            val dateStr = formatDate(entry.key!!)
             sb.appendLine("## $heading - $dateStr")
             for (anime in entry.value) {
                 sb.appendLine(formatAnimeItem(anime))
@@ -73,10 +70,20 @@ object ExportAnimeService {
     }
 
     private fun formatAnimeItem(anime: Anime): String {
+        val episodeSuffix = when {
+            anime.status == AnimeStatus.WATCHING && anime.totalEpisodes > 0 -> {
+                " ${anime.watchedEpisodes}/${anime.totalEpisodes}"
+            }
+            anime.status == AnimeStatus.WATCHING && anime.totalEpisodes == 0 && anime.watchedEpisodes > 0 -> {
+                " ${anime.watchedEpisodes}/?"
+            }
+            else -> ""
+        }
+
         return if (anime.notes.isNotBlank()) {
-            "- ${anime.title} (${anime.notes})"
+            "- ${anime.title}${episodeSuffix} (${anime.notes})"
         } else {
-            "- ${anime.title}"
+            "- ${anime.title}${episodeSuffix}"
         }
     }
 }

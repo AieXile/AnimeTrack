@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,7 +49,7 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
     }
 
     LaunchedEffect(info?.versionName) {
-        if (info != null && !uiState.isDownloading && !uiState.downloadComplete) {
+        if (info != null && !uiState.isDownloading && !uiState.downloadComplete && !uiState.isSimulated) {
             viewModel.tryRecoverDownload(context)
         }
     }
@@ -63,20 +62,6 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
     if (info == null) return
 
     when {
-        uiState.isDownloading -> {
-            DownloadProgressDialog(
-                progress = uiState.downloadProgress,
-                versionName = info.versionName
-            )
-        }
-        uiState.downloadComplete -> {
-            DownloadCompleteDialog(
-                versionName = info.versionName,
-                alreadyDownloaded = uiState.apkAlreadyDownloaded,
-                onInstall = { viewModel.installApk(context) },
-                onDismiss = { viewModel.dismissUpdate() }
-            )
-        }
         uiState.error != null -> {
             ErrorDialog(
                 message = uiState.error ?: "未知错误",
@@ -91,9 +76,13 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
                 currentVersion = uiState.currentVersion,
                 newVersion = info.versionName,
                 changelog = info.changelog,
-                onUpdate = { viewModel.startDownload(context) },
+                isDownloading = uiState.isDownloading,
+                downloadProgress = uiState.downloadProgress,
+                downloadComplete = uiState.downloadComplete,
+                onUpdate = { if (uiState.isSimulated) viewModel.startSimulatedDownload() else viewModel.startDownload(context) },
+                onInstall = { viewModel.installApk(context) },
                 onDismiss = { viewModel.dismissUpdate() },
-                onSkip = { viewModel.skipVersion() }
+                onSkip = { if (uiState.isSimulated) viewModel.dismissUpdate() else viewModel.skipVersion() }
             )
         }
     }
@@ -104,12 +93,16 @@ private fun UpdateAvailableDialog(
     currentVersion: String,
     newVersion: String,
     changelog: String,
+    isDownloading: Boolean,
+    downloadProgress: Int,
+    downloadComplete: Boolean,
     onUpdate: () -> Unit,
+    onInstall: () -> Unit,
     onDismiss: () -> Unit,
     onSkip: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = if (isDownloading) ({}) else onDismiss,
         title = {
             Text(
                 text = "发现新版本",
@@ -173,14 +166,29 @@ private fun UpdateAvailableDialog(
         },
         confirmButton = {
             Row {
-                TextButton(onClick = onSkip) {
-                    Text("跳过该版本")
+                if (!isDownloading && !downloadComplete) {
+                    TextButton(onClick = onSkip) {
+                        Text("跳过该版本")
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("取消")
+                    }
                 }
-                TextButton(onClick = onDismiss) {
-                    Text("取消")
-                }
-                TextButton(onClick = onUpdate) {
-                    Text("立即更新")
+                if (downloadComplete) {
+                    TextButton(onClick = onDismiss) {
+                        Text("稍后")
+                    }
+                    Button(onClick = onInstall) {
+                        Text("安装")
+                    }
+                } else if (isDownloading) {
+                    TextButton(onClick = onDismiss, enabled = false) {
+                        Text("$downloadProgress%")
+                    }
+                } else {
+                    Button(onClick = onUpdate) {
+                        Text("立即更新")
+                    }
                 }
             }
         }
@@ -389,77 +397,6 @@ private fun UpToDateDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text("确定")
-            }
-        }
-    )
-}
-
-@Composable
-private fun DownloadProgressDialog(
-    progress: Int,
-    versionName: String
-) {
-    AlertDialog(
-        onDismissRequest = {},
-        title = {
-            Text(
-                text = "正在下载",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = versionName,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                LinearProgressIndicator(
-                    progress = { progress / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "$progress%",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {}
-    )
-}
-
-@Composable
-private fun DownloadCompleteDialog(
-    versionName: String,
-    alreadyDownloaded: Boolean,
-    onInstall: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (alreadyDownloaded) "安装更新" else "下载完成",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Text(
-                if (alreadyDownloaded) "新版本 $versionName 已下载，是否立即安装？"
-                else "新版本 $versionName 已下载完成，是否立即安装？"
-            )
-        },
-        confirmButton = {
-            Button(onClick = onInstall) {
-                Text("安装")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("稍后")
             }
         }
     )

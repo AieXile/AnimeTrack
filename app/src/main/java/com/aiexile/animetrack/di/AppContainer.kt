@@ -6,7 +6,9 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.AnimeRepositoryImpl
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
+import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 
 object AppContainer {
     
@@ -15,7 +17,9 @@ object AppContainer {
     private var repository: AnimeRepository? = null
     private var settingsRepository: SettingsRepository? = null
     private var authManager: AuthManager? = null
+    private var bilibiliAuthManager: BilibiliAuthManager? = null
     private var syncManager: BangumiSyncManager? = null
+    private var bilibiliSyncManager: BilibiliSyncManager? = null
     
     fun initialize(context: Context) {
         this.context = context.applicationContext
@@ -23,7 +27,9 @@ object AppContainer {
         repository = AnimeRepositoryImpl(database!!.animeDao(), this.context!!)
         settingsRepository = SettingsRepository(this.context!!)
         authManager = AuthManager(this.context!!)
+        bilibiliAuthManager = BilibiliAuthManager(this.context!!)
         syncManager = BangumiSyncManager(authManager!!, repository!!)
+        bilibiliSyncManager = BilibiliSyncManager(bilibiliAuthManager!!, repository!!)
     }
     
     fun getApplication(): android.app.Application {
@@ -48,6 +54,16 @@ object AppContainer {
 
     fun getSyncManager(): BangumiSyncManager {
         return syncManager
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getBilibiliAuthManager(): BilibiliAuthManager {
+        return bilibiliAuthManager
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getBilibiliSyncManager(): BilibiliSyncManager {
+        return bilibiliSyncManager
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 }

@@ -26,8 +26,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "v0.3.6-alpha"
+        versionCode = 18
+        versionName = "v0.4.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -111,6 +111,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.sardine)
     implementation(libs.splashscreen)
+    implementation(libs.zxing.core)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

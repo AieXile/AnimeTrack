@@ -8,10 +8,14 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
+import com.aiexile.animetrack.util.cleanSummary
+import com.aiexile.animetrack.util.computeIsFinished
+import com.aiexile.animetrack.util.getCurrentWeekday
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,12 +29,7 @@ class ScheduleViewModel(
         private const val TAG = "ScheduleViewModel"
     }
 
-    private val todayWeekday = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-        when (it) {
-            Calendar.SUNDAY -> 7
-            else -> it - 1
-        }
-    }
+    private val todayWeekday = getCurrentWeekday()
 
     val currentTodayWeekday: Int = todayWeekday
 
@@ -81,13 +80,7 @@ class ScheduleViewModel(
     private fun backfillMissingDetails() {
         viewModelScope.launch {
             try {
-                val animes = repository.getAiringAnimes()
-                    .stateIn(
-                        scope = viewModelScope,
-                        started = SharingStarted.Eagerly,
-                        initialValue = emptyList()
-                    )
-                    .value
+                val animes = repository.getAiringAnimes().first()
 
                 val needsBackfill = animes.filter {
                     it.bangumiId != null && it.airWeekday == null
@@ -98,11 +91,14 @@ class ScheduleViewModel(
                 for (anime in needsBackfill) {
                     try {
                         val detail = RetrofitClient.bangumiApi.getSubjectDetail(anime.bangumiId!!)
+                        val updatedAirDate = anime.airDate ?: detail.date
+                        val updatedAirWeekday = detail.airWeekday ?: anime.airWeekday
                         val updatedAnime = anime.copy(
-                            airWeekday = detail.airWeekday ?: anime.airWeekday,
-                            airDate = detail.date ?: anime.airDate,
-                            summary = detail.summary?.trim()?.replace(Regex("\n{3,}"), "\n\n")
-                                ?: anime.summary
+                            airWeekday = updatedAirWeekday,
+                            airDate = updatedAirDate,
+                            summary = detail.summary?.cleanSummary()
+                                ?: anime.summary,
+                            isFinished = computeIsFinished(updatedAirDate, anime.totalEpisodes, anime.status)
                         )
                         repository.updateAnime(updatedAnime)
                         Log.d(TAG, "Backfill: updated ${anime.title} airWeekday=${updatedAnime.airWeekday}")
