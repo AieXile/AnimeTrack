@@ -2,25 +2,41 @@ package com.aiexile.animetrack.ui.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.AlertDialog
@@ -38,11 +55,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -61,12 +80,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.MarkdownText
+import com.aiexile.animetrack.ui.components.UsageStatsDialog
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.util.AppNavigator
@@ -76,7 +98,7 @@ private const val GITHUB_URL = "https://github.com/AieXile/AnimeTrack"
 private const val QQ_GROUP_NUMBER = "951059178"
 private const val TG_URL = "https://t.me/AnimeTrackovo"
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
@@ -92,6 +114,7 @@ fun AboutScreen(
 
     var avatarTapCount by remember { mutableStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
+    var showSponsorDialog by remember { mutableStateOf(false) }
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -105,6 +128,10 @@ fun AboutScreen(
     )
 
     UpdateDialog(viewModel = updateViewModel)
+
+    if (showSponsorDialog) {
+        SponsorDialog(onDismiss = { showSponsorDialog = false })
+    }
 
     Scaffold(
         topBar = {
@@ -209,7 +236,8 @@ fun AboutScreen(
                 onQqClick = { AppNavigator.joinAnimeTrackGroup(context) },
                 onQqLongClick = { copyToClipboard(context, QQ_GROUP_NUMBER, "已复制 QQ 群号") },
                 onTgClick = { uriHandler.openUri(TG_URL) },
-                onTgLongClick = { copyToClipboard(context, TG_URL, "已复制 Telegram 链接") }
+                onTgLongClick = { copyToClipboard(context, TG_URL, "已复制 Telegram 链接") },
+                onSponsorClick = { showSponsorDialog = true }
             )
 
             HorizontalDivider(
@@ -223,12 +251,19 @@ fun AboutScreen(
                     .padding(horizontal = 24.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                var showStatsDialog by remember { mutableStateOf(false) }
+
                 Text(
                     text = "AnimeTrack",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.clickable { showStatsDialog = true }
                 )
+
+                if (showStatsDialog) {
+                    UsageStatsDialog(onDismiss = { showStatsDialog = false })
+                }
 
                 Spacer(modifier = Modifier.size(4.dp))
 
@@ -240,14 +275,22 @@ fun AboutScreen(
 
                 Spacer(modifier = Modifier.size(16.dp))
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(if (developerMode) 6.dp else 12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
+                    val buttonModifier = Modifier.weight(1f)
+                    val contentPadding = if (developerMode)
+                        PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                    else
+                        PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+
                     FilledTonalButton(
-                        onClick = { updateViewModel.checkForUpdate(force = true) }
+                        onClick = { updateViewModel.checkForUpdate(force = true) },
+                        modifier = buttonModifier,
+                        contentPadding = contentPadding
                     ) {
-                        Text(text = "检查更新")
+                        Text(text = "检查更新", maxLines = 1)
                     }
 
                     var changelogLoading by remember { mutableStateOf(false) }
@@ -269,7 +312,9 @@ fun AboutScreen(
                                 }
                             }
                         },
-                        enabled = !changelogLoading
+                        enabled = !changelogLoading,
+                        modifier = buttonModifier,
+                        contentPadding = contentPadding
                     ) {
                         if (changelogLoading) {
                             CircularProgressIndicator(
@@ -278,7 +323,7 @@ fun AboutScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         } else {
-                            Text(text = "更新日志")
+                            Text(text = "更新日志", maxLines = 1)
                         }
                     }
 
@@ -292,9 +337,11 @@ fun AboutScreen(
 
                     if (developerMode) {
                         FilledTonalButton(
-                            onClick = onNavigateDeveloper
+                            onClick = onNavigateDeveloper,
+                            modifier = buttonModifier,
+                            contentPadding = contentPadding
                         ) {
-                            Text(text = "开发者")
+                            Text(text = "开发者", maxLines = 1)
                         }
                     }
                 }
@@ -313,7 +360,8 @@ private fun SocialLinksRow(
     onQqClick: () -> Unit,
     onQqLongClick: () -> Unit,
     onTgClick: () -> Unit,
-    onTgLongClick: () -> Unit
+    onTgLongClick: () -> Unit,
+    onSponsorClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -341,6 +389,13 @@ private fun SocialLinksRow(
             label = "Telegram",
             onClick = onTgClick,
             onLongClick = onTgLongClick,
+            modifier = Modifier.weight(1f)
+        )
+        SocialLinkItem(
+            icon = { Icon(imageVector = Icons.Default.Favorite, contentDescription = "赞助", modifier = Modifier.size(24.dp)) },
+            label = "赞助",
+            onClick = onSponsorClick,
+            onLongClick = onSponsorClick,
             modifier = Modifier.weight(1f)
         )
     }
@@ -428,20 +483,7 @@ private fun ChangelogDialog(
                             .padding(12.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        changelog.lines().forEach { line ->
-                            if (line.isBlank()) {
-                                Spacer(modifier = Modifier.size(6.dp))
-                            } else {
-                                val isHeading = line.startsWith("#")
-                                Text(
-                                    text = line.removePrefix("#").trimStart(),
-                                    fontSize = if (isHeading) 14.sp else 13.sp,
-                                    fontWeight = if (isHeading) FontWeight.SemiBold else FontWeight.Normal,
-                                    lineHeight = 20.sp,
-                                    color = if (isHeading) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        MarkdownText(markdown = changelog)
                     }
                 }
             }
@@ -452,4 +494,163 @@ private fun ChangelogDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun SponsorDialog(
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
+    var selected by remember { mutableStateOf(0) } // 0=微信, 1=支付宝
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "赞赏支持",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.size(16.dp))
+
+            // 赞赏码图片
+            val imageRes = if (selected == 0) R.drawable.sponsor_wechat else R.drawable.sponsor_alipay
+            val imageLabel = if (selected == 0) "微信赞赏码" else "支付宝赞赏码"
+
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = imageLabel,
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = {
+                            saveDrawableToGallery(context, imageRes, imageLabel)
+                        }
+                    ),
+                contentScale = ContentScale.Fit
+            )
+
+            Spacer(modifier = Modifier.size(4.dp))
+
+            Text(
+                text = "长按图片可保存到相册",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+
+            Spacer(modifier = Modifier.size(20.dp))
+
+            // 微信 / 支付宝 选择 - 滑动指示器
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(4.dp)
+            ) {
+                BoxWithConstraints {
+                    val indicatorWidth = maxWidth / 2
+                    val animatedFraction by animateFloatAsState(
+                        targetValue = if (selected == 0) 0f else 1f,
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+                        label = "indicatorFraction"
+                    )
+
+                    // 滑动指示器（底层）
+                    Box(
+                        modifier = Modifier
+                            .offset(x = lerp(0.dp, indicatorWidth, animatedFraction))
+                            .width(indicatorWidth)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    )
+
+                    // 文字层（上层）
+                    Row(modifier = Modifier.fillMaxHeight()) {
+                        listOf("微信" to 0, "支付宝" to 1).forEach { (label, index) ->
+                            val isSelected = selected == index
+                            val interactionSource = remember { MutableInteractionSource() }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable(
+                                        interactionSource = interactionSource,
+                                        indication = null
+                                    ) { selected = index },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = 15.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun saveDrawableToGallery(context: Context, drawableRes: Int, label: String) {
+    try {
+        val drawable = context.resources.getDrawable(drawableRes, null)
+        val bitmap = (drawable as? BitmapDrawable)?.bitmap ?: run {
+            Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val filename = "AnimeTrack_${label}_${System.currentTimeMillis()}.png"
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/AnimeTrack")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            ?: run {
+                Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+        resolver.openOutputStream(uri)?.use { stream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, contentValues, null, null)
+        }
+
+        Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+    }
 }

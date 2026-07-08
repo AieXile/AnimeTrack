@@ -8,16 +8,16 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ExportAnimeService
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.data.MarkdownParser
-import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.util.cleanSummary
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class SettingsUiState(
@@ -33,16 +33,29 @@ data class SettingsUiState(
 )
 
 class SettingsViewModel(
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val settingsRepository: com.aiexile.animetrack.data.SettingsRepository
 ) : ViewModel() {
-    
+
     companion object {
         private const val TAG = "SettingsViewModel"
-        private const val API_DELAY_MS = 800L
     }
-    
+
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    val tmdbApiKey: StateFlow<String?> = settingsRepository.tmdbApiKey
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null
+        )
+
+    fun setTmdbApiKey(key: String) {
+        viewModelScope.launch {
+            settingsRepository.setTmdbApiKey(key)
+        }
+    }
     
     fun parseMarkdown(content: String) {
         val result = MarkdownParser.parse(content)
@@ -91,129 +104,12 @@ class SettingsViewModel(
             
             _uiState.value = _uiState.value.copy(isImporting = false)
             
-            doAutoSyncAnimeCovers(insertedAnimes)
-        }
-    }
-    
-    private suspend fun doAutoSyncAnimeCovers(animesToSync: List<Anime> = emptyList()) {
-        val animesWithoutCover = if (animesToSync.isNotEmpty()) {
-            animesToSync
-        } else {
-            animeRepository.getAnimesWithoutCover()
-        }
-        
-        Log.d(TAG, "Found ${animesWithoutCover.size} animes without cover")
-        
-        if (animesWithoutCover.isEmpty()) {
-            return
-        }
-        
-        _uiState.value = _uiState.value.copy(
-            isSyncing = true,
-            totalToSync = animesWithoutCover.size,
-            syncedCount = 0,
-            syncProgress = null
-        )
-        
-        var syncedCount = 0
-        
-        try {
-            for (anime in animesWithoutCover) {
-                try {
-                    _uiState.value = _uiState.value.copy(
-                        syncProgress = "正在补全: ${anime.title}"
-                    )
-                    
-                    val (cleanTitle, extractedNote) = cleanTitleAndExtractNote(anime.title)
-                    
-                    Log.d(TAG, "Searching for: $cleanTitle")
-                    
-                    val results = animeRepository.searchBangumi(cleanTitle)
-                    val bestMatch = results.firstOrNull()
-                    
-                    if (bestMatch != null) {
-                        val detail = try {
-                            RetrofitClient.bangumiApi.getSubjectDetail(bestMatch.id)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to fetch detail for: ${anime.title}", e)
-                            null
-                        }
-
-                        val summary = detail?.summary?.cleanSummary()
-                            ?: bestMatch.summary
-                            ?: tryFetchSummary(bestMatch.id)
-
-                        val apiEps = detail?.eps
-                        val apiTotalEps = detail?.totalEpisodes
-
-                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
-                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-
-                        val finalTotalEpisodes = when {
-                            mainEps > 0 -> mainEps
-                            allEps > 0 -> allEps
-                            else -> anime.totalEpisodes
-                        }
-                        val finalCurrentEpisodes = if (mainEps > 0 || allEps > 0) 0 else anime.currentEpisodes
-
-                        val newWatchedEpisodes = if (
-                            anime.status == AnimeStatus.COMPLETED
-                            && anime.watchedEpisodes == 0
-                            && finalTotalEpisodes > 0
-                        ) finalTotalEpisodes else anime.watchedEpisodes
-
-                        val updatedAnime = anime.copy(
-                            title = cleanTitle,
-                            coverUrl = bestMatch.coverUrl,
-                            rating = detail?.score?.toFloat() ?: bestMatch.score?.toFloat(),
-                            totalEpisodes = finalTotalEpisodes,
-                            currentEpisodes = finalCurrentEpisodes,
-                            watchedEpisodes = newWatchedEpisodes,
-                            summary = summary,
-                            bangumiId = bestMatch.id,
-                            airDate = detail?.date ?: anime.airDate,
-                            airWeekday = detail?.airWeekday ?: anime.airWeekday,
-                            notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
-                        )
-                        
-                        animeRepository.updateAnime(updatedAnime)
-                        animeRepository.downloadCoverAsync(
-                            animeId = updatedAnime.id,
-                            coverUrl = updatedAnime.coverUrl,
-                            bangumiId = updatedAnime.bangumiId
-                        )
-                        syncedCount++
-                        
-                        Log.d(TAG, "Synced cover for: ${anime.title} -> ${bestMatch.coverUrl}")
-                    } else {
-                        Log.d(TAG, "No match found for: ${anime.title}")
-                    }
-                    
-                    _uiState.value = _uiState.value.copy(syncedCount = syncedCount)
-                    
-                    delay(API_DELAY_MS)
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync cover for: ${anime.title}", e)
-                }
-            }
-        } finally {
-            _uiState.value = _uiState.value.copy(
-                isSyncing = false,
-                syncProgress = null,
-                syncCompleted = true
-            )
-            Log.d(TAG, "Auto sync completed. Synced $syncedCount/${animesWithoutCover.size} animes")
+            animeRepository.syncCoversInBackground(insertedAnimes)
         }
     }
     
     private suspend fun tryFetchSummary(bangumiId: Int): String? {
-        return try {
-            RetrofitClient.bangumiApi.getSubjectDetail(bangumiId).summary?.cleanSummary()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch summary for bangumiId: $bangumiId", e)
-            null
-        }
+        return animeRepository.fetchBangumiDetail(bangumiId)?.summary?.cleanSummary()
     }
     
     fun resetSyncCompleted() {
@@ -265,7 +161,10 @@ class SettingsViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel(AppContainer.getAnimeRepository()) as T
+            return SettingsViewModel(
+                AppContainer.getAnimeRepository(),
+                AppContainer.getSettingsRepository()
+            ) as T
         }
     }
 }

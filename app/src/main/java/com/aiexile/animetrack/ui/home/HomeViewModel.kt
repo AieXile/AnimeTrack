@@ -7,12 +7,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.data.network.BangumiSubject
-import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.network.TmdbTvDetail
 import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.domain.SearchUseCase
+import com.aiexile.animetrack.domain.UpdateCheckUseCase
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.model.SearchResult
+import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
 import com.aiexile.animetrack.util.getCurrentWeekday
@@ -27,12 +31,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
+
+sealed class AutoSyncState {
+    object Idle : AutoSyncState()
+    object Syncing : AutoSyncState()
+    data class Completed(val count: Int) : AutoSyncState()
+    data class Failed(val message: String) : AutoSyncState()
+}
 
 data class HomeUiState(
     val selectedFilter: AnimeFilter = AnimeFilter.ALL,
@@ -44,14 +53,16 @@ data class HomeUiState(
     val shouldScrollToTop: Boolean = false,
     val selectedAnimeId: Long? = null,
     val searchQuery: String = "",
-    val searchResults: List<BangumiSubject> = emptyList(),
+    val searchResults: List<SearchResult> = emptyList(),
     val isSearching: Boolean = false,
     val searchError: String? = null,
     val hasSearched: Boolean = false,
+    val searchSource: SearchSource = SearchSource.BANGUMI,
     val showCompletedToast: Boolean = false,
     val showDuplicateToast: Boolean = false,
     val showFormDialog: Boolean = false,
     val highlightedAnimeIds: Set<Long> = emptySet(),
+    val todayUpdatePinnedIds: Set<Long> = emptySet(),
     val localSearchQuery: String = "",
     val isLocalSearchActive: Boolean = false
 )
@@ -68,7 +79,9 @@ enum class AnimeFilter(val displayName: String) {
 class HomeViewModel(
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
-    val updateViewModel: UpdateViewModel
+    val updateViewModel: UpdateViewModel,
+    private val searchUseCase: SearchUseCase,
+    private val updateCheckUseCase: UpdateCheckUseCase
 ) : ViewModel() {
     
     companion object {
@@ -117,15 +130,27 @@ class HomeViewModel(
     private val _bannerDismissed = MutableStateFlow(false)
     val bannerDismissed: StateFlow<Boolean> = _bannerDismissed.asStateFlow()
 
+    private val _autoSyncState = MutableStateFlow<AutoSyncState>(AutoSyncState.Idle)
+    val autoSyncState: StateFlow<AutoSyncState> = _autoSyncState.asStateFlow()
+
+    private var autoSyncTriggered = false
+
     fun highlightTodayUpdates() {
         val todayAnimeIds = animeList.value
             .filter { it.airWeekday == todayWeekday && !it.isFinished }
             .map { it.id.toLong() }
             .toSet()
         if (todayAnimeIds.isEmpty()) return
-        _uiState.update { it.copy(highlightedAnimeIds = todayAnimeIds) }
-        viewModelScope.launch {
-            delay(250)
+        _uiState.update {
+            it.copy(
+                highlightedAnimeIds = todayAnimeIds,
+                todayUpdatePinnedIds = todayAnimeIds
+            )
+        }
+    }
+
+    fun clearHighlight() {
+        if (_uiState.value.highlightedAnimeIds.isNotEmpty()) {
             _uiState.update { it.copy(highlightedAnimeIds = emptySet()) }
         }
     }
@@ -141,71 +166,62 @@ class HomeViewModel(
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
+        // App 启动时重新识别 seriesKey 并持久化（仅一次）
+        viewModelScope.launch {
+            repository.reassignSeriesKeys()
+        }
         updateViewModel.checkForUpdate()
         checkAiringAnimeUpdates()
         viewModelScope.launch {
             val syncManager = AppContainer.getSyncManager()
             syncManager.syncRemoteToLocal()
         }
+        triggerAutoSync()
+    }
+
+    fun triggerAutoSync() {
+        if (autoSyncTriggered) return
+        autoSyncTriggered = true
+        viewModelScope.launch {
+            try {
+                val bilibiliAuthManager = AppContainer.getBilibiliAuthManager()
+                val isLoggedIn = bilibiliAuthManager.isLoggedIn.first()
+                if (!isLoggedIn) return@launch
+
+                val autoSyncEnabled = bilibiliAuthManager.bilibiliAutoSync.first()
+                if (!autoSyncEnabled) return@launch
+
+                val lastSyncTime = bilibiliAuthManager.lastSyncTime.first()
+                val oneHourAgo = System.currentTimeMillis() - 3600000
+                if (lastSyncTime > oneHourAgo) return@launch
+
+                _autoSyncState.value = AutoSyncState.Syncing
+
+                val bilibiliSyncManager = AppContainer.getBilibiliSyncManager()
+                val result = bilibiliSyncManager.fetchAndSyncFiltered()
+
+                _autoSyncState.value = if (result.isSuccess) {
+                    AutoSyncState.Completed(result.getOrDefault(0))
+                } else {
+                    Log.e(TAG, "Auto sync failed: ${result.exceptionOrNull()?.message}")
+                    AutoSyncState.Failed(result.exceptionOrNull()?.message ?: "同步失败")
+                }
+
+                // 3 秒后自动消失
+                delay(3000)
+                _autoSyncState.value = AutoSyncState.Idle
+            } catch (e: Exception) {
+                Log.e(TAG, "Auto sync error", e)
+                _autoSyncState.value = AutoSyncState.Failed(e.message ?: "同步失败")
+                delay(3000)
+                _autoSyncState.value = AutoSyncState.Idle
+            }
+        }
     }
 
     fun checkAiringAnimeUpdates() {
         viewModelScope.launch {
-            try {
-                val airingAnimes = repository.getAiringAnimesWithBangumiId()
-                if (airingAnimes.isEmpty()) return@launch
-
-                Log.d(TAG, "Checking updates for ${airingAnimes.size} airing animes")
-
-                val deferredResults = airingAnimes.map { anime ->
-                    async {
-                        try {
-                            val bangumiId = anime.bangumiId ?: return@async null
-                            val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
-
-                            val remoteEps = detail.eps ?: 0
-                            val remoteTotal = detail.totalEpisodes ?: 0
-
-                            val resolvedTotal = when {
-                                remoteEps > 0 -> remoteEps
-                                remoteTotal > 0 -> remoteTotal
-                                else -> anime.totalEpisodes
-                            }
-
-                            if (remoteEps > anime.currentEpisodes) {
-                                Log.d(TAG, "New episode found: ${anime.title} local=${anime.currentEpisodes} remote=$remoteEps")
-                                val updatedAnime = anime.copy(
-                                    currentEpisodes = remoteEps,
-                                    hasNewUpdate = true,
-                                    isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
-                                )
-                                repository.updateAnime(updatedAnime)
-                                return@async anime.title to remoteEps
-                            } else if (resolvedTotal > 0 && anime.totalEpisodes == 0) {
-                                val updatedAnime = anime.copy(
-                                    totalEpisodes = resolvedTotal,
-                                    hasNewUpdate = false,
-                                    isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
-                                )
-                                repository.updateAnime(updatedAnime)
-                            }
-                            null
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to check update for: ${anime.title}", e)
-                            null
-                        }
-                    }
-                }
-
-                val results = deferredResults.awaitAll().filterNotNull()
-                if (results.isNotEmpty()) {
-                    results.forEach { (title, eps) ->
-                        Log.d(TAG, "Update detected: $title -> $eps episodes")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "checkAiringAnimeUpdates failed", e)
-            }
+            updateCheckUseCase.checkAiringAnimeUpdates()
         }
     }
     
@@ -373,6 +389,15 @@ class HomeViewModel(
                 }
             }
 
+            if (formState.tmdbId != null) {
+                val existing = repository.getAnimeByTmdbId(formState.tmdbId)
+                if (existing != null) {
+                    Log.d(TAG, "Duplicate tmdbId: ${formState.tmdbId}")
+                    _uiState.update { it.copy(showDuplicateToast = true) }
+                    return@launch
+                }
+            }
+
             val anime = Anime(
                 title = formState.title.trim(),
                 totalEpisodes = formState.totalEpisodes,
@@ -385,6 +410,7 @@ class HomeViewModel(
                 coverUrl = formState.coverUrl,
                 summary = formState.summary,
                 bangumiId = formState.bangumiId,
+                tmdbId = formState.tmdbId,
                 airDate = formState.airDate,
                 airWeekday = formState.airWeekday,
                 currentEpisodes = formState.currentEpisodes,
@@ -411,13 +437,14 @@ class HomeViewModel(
                 repository.downloadCoverAsync(
                     animeId = id.toInt(),
                     coverUrl = anime.coverUrl,
-                    bangumiId = anime.bangumiId
+                    bangumiId = anime.bangumiId,
+                    tmdbId = anime.tmdbId
                 )
 
                 if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null)) {
                     viewModelScope.launch(Dispatchers.IO) {
                         try {
-                            val detail = RetrofitClient.bangumiApi.getSubjectDetail(anime.bangumiId)
+                            val detail = repository.fetchBangumiDetail(anime.bangumiId) ?: return@launch
                             val dbAnime = repository.getAnimeById(id.toInt()) ?: return@launch
                             val updatedAirDate = dbAnime.airDate ?: detail.date
                             val updatedAirWeekday = dbAnime.airWeekday ?: detail.airWeekday
@@ -448,7 +475,7 @@ class HomeViewModel(
         _uiState.update { it.copy(newlyAddedAnimeId = null) }
     }
     
-    fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter, searchQuery: String = ""): List<Anime> {
+    fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter, searchQuery: String = "", pinnedIds: Set<Long> = emptySet()): List<Anime> {
         Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery")
         
         val filtered = when (filter) {
@@ -482,9 +509,23 @@ class HomeViewModel(
 
         return if (searchQuery.isNotBlank()) {
             sorted.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        } else if (pinnedIds.isNotEmpty()) {
+            val pinned = sorted.filter { it.id.toLong() in pinnedIds }
+            val unpinned = sorted.filter { it.id.toLong() !in pinnedIds }
+            pinned + unpinned
         } else {
             sorted
         }
+    }
+
+    fun getFilteredAnimeListItems(
+        animeList: List<Anime>,
+        filter: AnimeFilter,
+        searchQuery: String = "",
+        pinnedIds: Set<Long> = emptySet()
+    ): List<AnimeListItem> {
+        val filteredAnime = getFilteredAnimeList(animeList, filter, searchQuery, pinnedIds)
+        return SeriesMatcher.groupAnimeList(filteredAnime)
     }
     
     fun updateLocalSearchQuery(query: String) {
@@ -502,21 +543,26 @@ class HomeViewModel(
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }
-    
+
+    fun updateSearchSource(source: SearchSource) {
+        _uiState.update { it.copy(searchSource = source) }
+    }
+
     fun searchAnime() {
         val query = _uiState.value.searchQuery.trim()
         if (query.isBlank()) {
             _uiState.update { it.copy(searchResults = emptyList(), searchError = null) }
             return
         }
-        
+
+        val source = _uiState.value.searchSource
         viewModelScope.launch {
             _uiState.update { it.copy(isSearching = true, searchError = null, hasSearched = true) }
-            
+
             try {
-                val results = repository.searchBangumi(query)
-                Log.d(TAG, "Search results: ${results.size} items")
-                _uiState.update { 
+                val results = searchUseCase.search(query, source)
+                Log.d(TAG, "Search results: ${results.size} items (source=$source)")
+                _uiState.update {
                     it.copy(
                         searchResults = results,
                         isSearching = false
@@ -524,7 +570,7 @@ class HomeViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Search failed", e)
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         isSearching = false,
                         searchError = "搜索失败: ${resolveSearchError(e)}",
@@ -535,20 +581,20 @@ class HomeViewModel(
         }
     }
     
-    fun selectSearchResult(subject: BangumiSubject) {
-        val rating = subject.score?.toFloat()
-        val totalEpisodes = subject.episodeCount ?: 12
-        val summary = subject.summary?.cleanSummary()
+    fun selectSearchResult(result: SearchResult) {
+        val totalEpisodes = result.episodeCount ?: 12
+        val summary = result.summary?.cleanSummary()
 
         _uiState.update {
             it.copy(
                 formState = it.formState.copy(
-                    title = subject.displayName,
+                    title = result.title,
                     totalEpisodes = totalEpisodes,
-                    coverUrl = subject.coverUrl,
-                    rating = rating,
+                    coverUrl = result.coverUrl,
+                    rating = result.rating,
                     summary = summary,
-                    bangumiId = subject.id
+                    bangumiId = if (result.source == SearchSource.BANGUMI) result.sourceId else null,
+                    tmdbId = if (result.source == SearchSource.TMDB) result.sourceId else null
                 ),
                 showFormDialog = true
             )
@@ -556,38 +602,64 @@ class HomeViewModel(
 
         viewModelScope.launch {
             try {
-                val detail = RetrofitClient.bangumiApi.getSubjectDetail(subject.id)
-                val apiEps = detail.eps
-                val apiTotalEps = detail.totalEpisodes
+                when (result.source) {
+                    SearchSource.BANGUMI -> {
+                        val detail = repository.fetchBangumiDetail(result.sourceId) ?: return@launch
+                        val apiEps = detail.eps
+                        val apiTotalEps = detail.totalEpisodes
 
-                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
-                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
 
-                val finalTotal = when {
-                    mainEps > 0 -> mainEps
-                    allEps > 0 -> allEps
-                    else -> 0
-                }
+                        val finalTotal = when {
+                            mainEps > 0 -> mainEps
+                            allEps > 0 -> allEps
+                            else -> 0
+                        }
 
-                _uiState.update { state ->
-                    val updatedAirDate = detail.date ?: state.formState.airDate
-                    val isNotYetAired = updatedAirDate != null && try {
-                        java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
-                    } catch (_: Exception) { false }
-                    state.copy(
-                        formState = state.formState.copy(
-                            totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
-                            currentEpisodes = if (finalTotal > 0) 0 else if (mainEps > 0) 0 else state.formState.currentEpisodes,
-                            airDate = updatedAirDate,
-                            airWeekday = detail.airWeekday ?: state.formState.airWeekday,
-                            summary = detail.summary?.cleanSummary()
-                                ?: state.formState.summary,
-                            status = if (isNotYetAired) AnimeStatus.PLANNED else state.formState.status
-                        )
-                    )
+                        _uiState.update { state ->
+                            val updatedAirDate = detail.date ?: state.formState.airDate
+                            val isNotYetAired = updatedAirDate != null && try {
+                                java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
+                            } catch (_: Exception) { false }
+                            state.copy(
+                                formState = state.formState.copy(
+                                    totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
+                                    currentEpisodes = if (finalTotal > 0) 0 else if (mainEps > 0) 0 else state.formState.currentEpisodes,
+                                    airDate = updatedAirDate,
+                                    airWeekday = detail.airWeekday ?: state.formState.airWeekday,
+                                    summary = detail.summary?.cleanSummary()
+                                        ?: state.formState.summary,
+                                    status = if (isNotYetAired) AnimeStatus.PLANNED else state.formState.status
+                                )
+                            )
+                        }
+                    }
+                    SearchSource.TMDB -> {
+                        val detail = repository.getTmdbTvDetail(result.sourceId)
+                        val eps = detail.numberOfEpisodes
+                        val finalTotal = if (eps != null && eps > 0) eps else 0
+
+                        _uiState.update { state ->
+                            val updatedAirDate = detail.firstAirDate ?: state.formState.airDate
+                            val isNotYetAired = updatedAirDate != null && try {
+                                java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
+                            } catch (_: Exception) { false }
+                            state.copy(
+                                formState = state.formState.copy(
+                                    totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
+                                    airDate = updatedAirDate,
+                                    summary = detail.overview?.cleanSummary()
+                                        ?: state.formState.summary,
+                                    status = if (isNotYetAired) AnimeStatus.PLANNED else state.formState.status
+                                )
+                            )
+                        }
+                    }
+                    SearchSource.ALL -> { /* ALL 模式下结果已标记具体来源，不会走到这里 */ }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch detail for bangumiId: ${subject.id}", e)
+                Log.e(TAG, "Failed to fetch detail for ${result.source}Id: ${result.sourceId}", e)
             }
         }
     }
@@ -599,7 +671,9 @@ class HomeViewModel(
             val settingsRepository = AppContainer.getSettingsRepository()
             val updateRepository = UpdateRepository()
             val updateViewModel = UpdateViewModel(updateRepository, settingsRepository)
-            return HomeViewModel(repository, settingsRepository, updateViewModel) as T
+            val searchUseCase = SearchUseCase(repository)
+            val updateCheckUseCase = UpdateCheckUseCase(repository)
+            return HomeViewModel(repository, settingsRepository, updateViewModel, searchUseCase, updateCheckUseCase) as T
         }
     }
 }

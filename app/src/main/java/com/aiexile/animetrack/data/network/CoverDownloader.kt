@@ -16,8 +16,7 @@ object CoverDownloader {
     private const val COVERS_DIR = "anime_covers"
 
     private val client: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .dns(SafeDns())
+        RetrofitClient.baseOkHttpClient.newBuilder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .followRedirects(true)
@@ -29,6 +28,12 @@ object CoverDownloader {
         val dir = File(context.filesDir, COVERS_DIR)
         if (!dir.exists()) dir.mkdirs()
         return File(dir, "${bangumiId}.jpg")
+    }
+
+    fun getCoverFileById(context: Context, id: Int, prefix: String = "bgm"): File {
+        val dir = File(context.filesDir, COVERS_DIR)
+        if (!dir.exists()) dir.mkdirs()
+        return File(dir, "${prefix}_${id}.jpg")
     }
 
     suspend fun downloadAndLocalize(
@@ -66,15 +71,64 @@ object CoverDownloader {
         }
     }
 
+    suspend fun downloadAndLocalizeById(
+        context: Context,
+        coverUrl: String?,
+        id: Int,
+        prefix: String = "bgm"
+    ): String? {
+        if (coverUrl.isNullOrBlank()) return coverUrl
+
+        if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+            val localFile = File(coverUrl.removePrefix("file://"))
+            return if (localFile.exists() && localFile.length() > 0) coverUrl else null
+        }
+
+        val destFile = getCoverFileById(context, id, prefix)
+        if (destFile.exists() && destFile.length() > 0) {
+            return destFile.absolutePath
+        }
+
+        return try {
+            withContext(Dispatchers.IO) {
+                downloadTo(coverUrl, destFile)
+            }
+            if (destFile.exists() && destFile.length() > 0) {
+                Log.d(TAG, "Cover downloaded: ${prefix}_$id")
+                destFile.absolutePath
+            } else {
+                Log.w(TAG, "Cover download produced empty file: ${prefix}_$id")
+                coverUrl
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Cover download failed: ${prefix}_$id url=$coverUrl", e)
+            coverUrl
+        }
+    }
+
     private fun downloadTo(url: String, destFile: File) {
-        val requestBuilder = Request.Builder().url(url)
+        // lain.bgm.tv 图片走 wsrv.nl 代理加速
+        val proxiedUrl = if (url.contains("lain.bgm.tv")) {
+            "https://wsrv.nl/?url=$url"
+        } else {
+            url
+        }
+
+        val requestBuilder = Request.Builder().url(proxiedUrl)
 
         // B站图片防盗链：hdslb.com 域名必须附带 Referer
         if (url.contains("hdslb.com", ignoreCase = true)) {
             requestBuilder.header("Referer", "https://www.bilibili.com/")
         }
 
-        val response = client.newCall(requestBuilder.build()).execute()
+        var response = client.newCall(requestBuilder.build()).execute()
+
+        // wsrv.nl 代理失败时回退到原始 URL
+        if (!response.isSuccessful && proxiedUrl != url) {
+            response.close()
+            val fallbackRequest = Request.Builder().url(url).build()
+            response = client.newCall(fallbackRequest).execute()
+        }
 
         if (!response.isSuccessful && response.code != HttpURLConnection.HTTP_OK) {
             throw Exception("HTTP ${response.code}")

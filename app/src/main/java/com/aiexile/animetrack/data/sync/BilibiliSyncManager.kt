@@ -123,6 +123,8 @@ class BilibiliSyncManager(
 
             Log.d(TAG, "syncSelectedItems completed: $syncedCount items")
             bilibiliAuthManager.saveLastSyncTime(System.currentTimeMillis())
+            // 批量同步完成后，防抖触发后端订阅同步
+            repository.triggerSyncSubscriptionsFromServerDebounced()
             Result.success(syncedCount)
         } catch (e: Exception) {
             Log.e(TAG, "syncSelectedItems failed", e)
@@ -137,6 +139,45 @@ class BilibiliSyncManager(
         val fetchResult = fetchFollowList()
         if (fetchResult.isFailure) return Result.failure(fetchResult.exceptionOrNull()!!)
         return syncSelectedItems(fetchResult.getOrDefault(emptyList()))
+    }
+
+    /**
+     * 自动同步：仅拉取并合并连载中和已完结还在看的番剧
+     * 过滤条件：isFinish==0（连载中）或 isFinish==1 && followStatus==2（已完结在看）
+     * @return 同步的条目数量
+     */
+    suspend fun fetchAndSyncFiltered(): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val isLoggedIn = bilibiliAuthManager.isLoggedIn.first()
+            if (!isLoggedIn) {
+                return@withContext Result.failure(Exception("未登录Bilibili"))
+            }
+
+            val fetchResult = fetchFollowList()
+            if (fetchResult.isFailure) return@withContext Result.failure(fetchResult.exceptionOrNull()!!)
+
+            val allItems = fetchResult.getOrDefault(emptyList())
+            val filteredItems = allItems.filter { item ->
+                // 连载中
+                item.isFinish == 0 ||
+                // 已完结但在看
+                (item.isFinish == 1 && item.followStatus == 2)
+            }
+
+            if (filteredItems.isEmpty()) {
+                Log.d(TAG, "fetchAndSyncFiltered: no matching items")
+                return@withContext Result.success(0)
+            }
+
+            val syncResult = syncSelectedItems(filteredItems)
+            if (syncResult.isSuccess) {
+                Log.d(TAG, "fetchAndSyncFiltered: synced ${syncResult.getOrNull()} items (filtered from ${allItems.size})")
+            }
+            syncResult
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchAndSyncFiltered failed", e)
+            Result.failure(e)
+        }
     }
 
     private suspend fun mergeFollowItem(item: BilibiliFollowItem) {
@@ -186,7 +227,8 @@ class BilibiliSyncManager(
                 repository.downloadCoverAsync(
                     animeId = id.toInt(),
                     coverUrl = coverUrl,
-                    bangumiId = null
+                    bangumiId = null,
+                    tmdbId = null
                 )
             }
             Log.d(TAG, "Inserted from Bilibili: $title ep=$watchedEps total=$totalEps")

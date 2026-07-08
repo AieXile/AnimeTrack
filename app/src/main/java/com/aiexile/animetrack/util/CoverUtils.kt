@@ -21,6 +21,8 @@ fun resolveCoverModel(coverUrl: String?): Any? {
     if (coverUrl == null) return null
     return if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
         File(coverUrl.removePrefix("file://"))
+    } else if (coverUrl.contains("lain.bgm.tv")) {
+        "https://wsrv.nl/?url=$coverUrl"
     } else {
         coverUrl
     }
@@ -44,7 +46,9 @@ fun computeIsFinished(
     if (airDate == null || totalEpisodes <= 0) return false
 
     return try {
-        val startDate = LocalDate.parse(airDate, DateTimeFormatter.ISO_LOCAL_DATE)
+        // 兼容 UTC ISO 8601 格式（如 2020-01-10T16:00:00.000Z），统一转为 yyyy-MM-dd
+        val normalizedDate = formatAirDate(airDate) ?: airDate
+        val startDate = LocalDate.parse(normalizedDate, DateTimeFormatter.ISO_LOCAL_DATE)
         val today = LocalDate.now()
         val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
         diffWeeks > (totalEpisodes + 1)

@@ -22,8 +22,10 @@ dependencyResolutionManagement {
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://jitpack.io") }
+        flatDir { dirs("${rootProject.projectDir}/jiguang/libs") }
     }
 }
 
 rootProject.name = "AnimeTrack"
 include(":app")
+include(":jiguang")

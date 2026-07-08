@@ -521,6 +521,22 @@ class UpdateViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    fun redownload(context: Context) {
+        val info = _uiState.value.updateInfo ?: return
+        // 删除已有 APK 文件
+        val fileName = buildApkFileName(info.versionName)
+        val updateDir = File(context.cacheDir, APK_DIR)
+        val targetFile = File(updateDir, fileName)
+        if (targetFile.exists()) {
+            targetFile.delete()
+            Log.d(TAG, "Deleted existing APK for redownload: ${targetFile.name}")
+        }
+        cachedApkFile = null
+        clearDownloadState(context)
+        // 重新开始下载
+        startDownload(context)
+    }
+
     fun simulateUpdate() {
         if (_uiState.value.isDownloading || _uiState.value.isChecking) return
 

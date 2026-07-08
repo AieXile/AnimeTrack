@@ -65,7 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.settings.SettingsGroup
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -80,7 +81,7 @@ fun ScheduleScreen(
     modifier: Modifier = Modifier,
     onAnimeClick: (Int) -> Unit = {},
     viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.Factory()),
-    themeViewModel: ThemeViewModel? = null
+    settingsRepository: SettingsRepository? = null
 ) {
     val groupedAnimes by viewModel.groupedAnimes.collectAsState()
     val selectedWeekday by viewModel.selectedWeekday.collectAsState()
@@ -88,7 +89,7 @@ fun ScheduleScreen(
     val tomorrowAnimes by viewModel.tomorrowAnimes.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val showCalendarButton by (themeViewModel?.showCalendarButton?.collectAsState() ?: mutableStateOf(true))
+    val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: mutableStateOf(true))
 
     var showScheduleSheet by remember { mutableStateOf(false) }
     val scheduleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -252,7 +253,7 @@ private fun ScheduleSheetContent(
                                 Column(horizontalAlignment = Alignment.End) {
                                     anime.airDate?.let { date ->
                                         Text(
-                                            text = "放送日期：$date",
+                                            text = "放送日期：${formatAirDate(date)}",
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -305,7 +306,7 @@ private fun ScheduleSheetContent(
                                 Column(horizontalAlignment = Alignment.End) {
                                     anime.airDate?.let { date ->
                                         Text(
-                                            text = "放送日期：$date",
+                                            text = "放送日期：${formatAirDate(date)}",
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -342,8 +343,7 @@ private fun WeekdaySelector(
             .padding(vertical = 8.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            modifier = Modifier.fillMaxWidth()
         ) {
             weekdayLabels.forEachIndexed { index, label ->
                 val isSelected = index == selectedWeekday
@@ -351,9 +351,10 @@ private fun WeekdaySelector(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
+                        .weight(1f)
                         .clip(CircleShape)
                         .clickable { onWeekdaySelected(index) }
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .padding(vertical = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier

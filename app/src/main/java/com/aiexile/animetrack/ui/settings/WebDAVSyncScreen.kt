@@ -38,26 +38,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.util.formatDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebDAVSyncScreen(
-    themeViewModel: ThemeViewModel,
-    onBack: () -> Unit
+    settingsRepository: SettingsRepository,
+    onBack: () -> Unit,
+    onNavigateAutoSync: () -> Unit = {}
 ) {
     val viewModel: DataManageViewModel = viewModel(factory = DataManageViewModel.Factory())
     val snackbarHostState = remember { SnackbarHostState() }
-    val lastSyncTime by themeViewModel.webdavLastSyncTime.collectAsState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val lastSyncTime by settingsRepository.webdavLastSyncTime.collectAsState(0L)
+    val lastAutoSyncTime by settingsRepository.webdavLastAutoSyncTime.collectAsState(0L)
 
     val webdavUrl by viewModel.webdavUrl.collectAsState()
     val webdavUsername by viewModel.webdavUsername.collectAsState()
@@ -68,8 +74,17 @@ fun WebDAVSyncScreen(
     val loadingMessage by viewModel.loadingMessage.collectAsState()
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
 
+    var configLoaded by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        viewModel.loadConfig(themeViewModel)
+        viewModel.loadConfig()
+        configLoaded = true
+    }
+
+    if (configLoaded) {
+        LaunchedEffect(backupStrategy, restoreMode) {
+            viewModel.saveConfig()
+        }
     }
 
     LaunchedEffect(snackbarMessage) {
@@ -158,7 +173,10 @@ fun WebDAVSyncScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Button(
-                                onClick = { viewModel.testConnection(themeViewModel) },
+                                onClick = {
+                                    keyboardController?.hide()
+                                    viewModel.testConnection()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
@@ -176,6 +194,11 @@ fun WebDAVSyncScreen(
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "该策略同样影响恢复功能",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -259,7 +282,7 @@ fun WebDAVSyncScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Button(
-                                    onClick = { viewModel.backupNow(themeViewModel) },
+                                    onClick = { viewModel.backupNow() },
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
@@ -272,7 +295,7 @@ fun WebDAVSyncScreen(
                                     Text("立即备份")
                                 }
                                 Button(
-                                    onClick = { viewModel.restoreNow(themeViewModel) },
+                                    onClick = { viewModel.restoreNow() },
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
@@ -286,10 +309,39 @@ fun WebDAVSyncScreen(
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = onNavigateAutoSync,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudUpload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("自动同步")
+                            }
+
                             if (lastSyncTime > 0L) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "上次同步：${formatDateTime(lastSyncTime)}",
+                                    text = "上次手动同步：${formatDateTime(lastSyncTime)}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            if (lastAutoSyncTime > 0L) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "上次自动同步：${formatDateTime(lastAutoSyncTime)}",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -100,7 +100,8 @@ class BangumiSyncManager(
             repository.downloadCoverAsync(
                 animeId = id.toInt(),
                 coverUrl = newAnime.coverUrl,
-                bangumiId = newAnime.bangumiId
+                bangumiId = newAnime.bangumiId,
+                tmdbId = newAnime.tmdbId
             )
             Log.d(TAG, "Inserted new anime from remote: ${newAnime.title} ep=$remoteEps")
         } else {

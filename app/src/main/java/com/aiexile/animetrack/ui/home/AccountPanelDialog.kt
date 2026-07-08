@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -51,17 +52,20 @@ import coil.request.ImageRequest
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
 
 @Composable
 fun AccountPanelDialog(
     onDismiss: () -> Unit,
+    onNavigateUserLogin: () -> Unit,
     onNavigateBilibiliLogin: () -> Unit,
     onNavigateBangumiLogin: () -> Unit
 ) {
     val authManager = remember { AppContainer.getAuthManager() }
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
+    val userAuthManager = remember { AppContainer.getUserAuthManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -74,10 +78,18 @@ fun AccountPanelDialog(
     val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
     val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
 
-    val anyLoggedIn = bangumiLoggedIn || bilibiliLoggedIn
-    val displayAvatar = customAvatarUri ?: bilibiliAvatar ?: bangumiAvatar
-    val displayName = bilibiliNickname ?: bangumiNickname ?: "未登录"
+    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+    val userUsername by userAuthManager.username.collectAsState(initial = null)
+    val userAvatarPath by userAuthManager.avatar.collectAsState(initial = null)
+    // 服务器头像存储的是相对路径，需拼接为完整 URL
+    val userAvatar = userAvatarPath?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 
+    val anyLoggedIn = userLoggedIn || bangumiLoggedIn || bilibiliLoggedIn
+    // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
+    val displayAvatar = customAvatarUri ?: userAvatar ?: bilibiliAvatar ?: bangumiAvatar
+    val displayName = userUsername ?: bilibiliNickname ?: bangumiNickname ?: "未登录"
+
+    var showUserActions by remember { mutableStateOf(false) }
     var showBilibiliActions by remember { mutableStateOf(false) }
     var showBangumiActions by remember { mutableStateOf(false) }
     var showAvatarActions by remember { mutableStateOf(false) }
@@ -92,6 +104,34 @@ fun AccountPanelDialog(
         }
     }
 
+    // AnimeTrack 服务器账号操作弹窗
+    if (showUserActions) {
+        AlertDialog(
+            onDismissRequest = { showUserActions = false },
+            title = { Text("AnimeTrack 账号") },
+            text = { Text("已登录为 ${userUsername ?: "未知用户"}") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUserActions = false
+                    onDismiss()
+                    onNavigateUserLogin()
+                }) { Text("账号管理") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { showUserActions = false }) { Text("取消") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        showUserActions = false
+                        scope.launch { userAuthManager.logout() }
+                    }) {
+                        Text("退出登录", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        )
+    }
+
     // Bilibili 操作弹窗
     if (showBilibiliActions) {
         AlertDialog(
@@ -101,10 +141,9 @@ fun AccountPanelDialog(
             confirmButton = {
                 TextButton(onClick = {
                     showBilibiliActions = false
-                    scope.launch { bilibiliAuthManager.logout() }
                     onDismiss()
                     onNavigateBilibiliLogin()
-                }) { Text("重新登录") }
+                }) { Text("同步") }
             },
             dismissButton = {
                 Row {
@@ -239,6 +278,24 @@ fun AccountPanelDialog(
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
+
+                // AnimeTrack 服务器账号条目（排第一）
+                AccountServiceRow(
+                    title = "AnimeTrack",
+                    subtitle = if (userLoggedIn) (userUsername ?: "已连接") else "登录后可同步数据",
+                    icon = Icons.Default.AccountCircle,
+                    isConnected = userLoggedIn,
+                    onClick = {
+                        if (userLoggedIn) {
+                            showUserActions = true
+                        } else {
+                            onDismiss()
+                            onNavigateUserLogin()
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Bilibili 条目
                 AccountServiceRow(

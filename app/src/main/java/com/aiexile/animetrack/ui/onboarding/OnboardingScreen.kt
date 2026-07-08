@@ -152,11 +152,7 @@ private fun OnboardingPageContent(page: Int) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .graphicsLayer {
-                    scaleX = 0.82f
-                    scaleY = 0.82f
-                    alpha = 0.95f
-                },
+                .padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center
         ) {
             when (page) {

@@ -13,11 +13,11 @@ import com.aiexile.animetrack.data.MarkdownParser
 import com.aiexile.animetrack.data.backup.BackupManager
 import com.aiexile.animetrack.data.backup.WebDAVClient
 import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.util.cleanSummary
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,12 +26,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class DataManageViewModel(
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "DataManageViewModel"
-        private const val API_DELAY_MS = 800L
     }
 
     // 表单输入状态 — 公开可写
@@ -60,44 +60,32 @@ class DataManageViewModel(
     private val _pendingContent = MutableStateFlow<String?>(null)
     val pendingContent: StateFlow<String?> = _pendingContent.asStateFlow()
 
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
-
-    private val _syncProgress = MutableStateFlow<String?>(null)
-    val syncProgress: StateFlow<String?> = _syncProgress.asStateFlow()
-
-    private val _syncedCount = MutableStateFlow(0)
-    val syncedCount: StateFlow<Int> = _syncedCount.asStateFlow()
-
-    private val _totalToSync = MutableStateFlow(0)
-    val totalToSync: StateFlow<Int> = _totalToSync.asStateFlow()
-
     private val _exportMarkdown = MutableStateFlow<String?>(null)
     val exportMarkdown: StateFlow<String?> = _exportMarkdown.asStateFlow()
 
-    fun loadConfig(themeViewModel: ThemeViewModel) {
+    fun loadConfig() {
         viewModelScope.launch {
-            webdavUrl.value = themeViewModel.webdavUrl.value
-            webdavUsername.value = themeViewModel.webdavUsername.value
-            webdavPassword.value = themeViewModel.webdavPassword.value
-            backupStrategy.value = themeViewModel.webdavBackupStrategy.value
-            restoreMode.value = themeViewModel.webdavRestoreMode.value
+            webdavUrl.value = settingsRepository.webdavUrl.first()
+            webdavUsername.value = settingsRepository.webdavUsername.first()
+            webdavPassword.value = settingsRepository.webdavPassword.first()
+            backupStrategy.value = settingsRepository.webdavBackupStrategy.first()
+            restoreMode.value = settingsRepository.webdavRestoreMode.first()
         }
     }
 
-    fun saveConfig(themeViewModel: ThemeViewModel) {
+    fun saveConfig() {
         viewModelScope.launch {
-            themeViewModel.setWebdavUrl(webdavUrl.value)
-            themeViewModel.setWebdavUsername(webdavUsername.value)
-            themeViewModel.setWebdavPassword(webdavPassword.value)
-            themeViewModel.setWebdavBackupStrategy(backupStrategy.value)
-            themeViewModel.setWebdavRestoreMode(restoreMode.value)
+            settingsRepository.setWebdavUrl(webdavUrl.value)
+            settingsRepository.setWebdavUsername(webdavUsername.value)
+            settingsRepository.setWebdavPassword(webdavPassword.value)
+            settingsRepository.setWebdavBackupStrategy(backupStrategy.value)
+            settingsRepository.setWebdavRestoreMode(restoreMode.value)
         }
     }
 
-    fun testConnection(themeViewModel: ThemeViewModel) {
+    fun testConnection() {
         viewModelScope.launch {
-            saveConfig(themeViewModel)
+            saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在测试连接..."
             try {
@@ -116,9 +104,9 @@ class DataManageViewModel(
         }
     }
 
-    fun backupNow(themeViewModel: ThemeViewModel) {
+    fun backupNow() {
         viewModelScope.launch {
-            saveConfig(themeViewModel)
+            saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在备份..."
             try {
@@ -131,7 +119,7 @@ class DataManageViewModel(
                     backupFile, backupStrategy.value
                 )
                 if (result.isSuccess) {
-                    themeViewModel.setWebdavLastSyncTime(System.currentTimeMillis())
+                    settingsRepository.setWebdavLastSyncTime(System.currentTimeMillis())
                     _snackbarMessage.value = "备份成功！"
                 } else {
                     _snackbarMessage.value = "上传失败：${result.exceptionOrNull()?.message}"
@@ -145,9 +133,9 @@ class DataManageViewModel(
         }
     }
 
-    fun restoreNow(themeViewModel: ThemeViewModel) {
+    fun restoreNow() {
         viewModelScope.launch {
-            saveConfig(themeViewModel)
+            saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在下载..."
             try {
@@ -171,6 +159,8 @@ class DataManageViewModel(
                 )
                 _snackbarMessage.value = "恢复完成：共 ${restoreResult.totalCount} 部，新增 ${restoreResult.insertedCount} 部，跳过 ${restoreResult.skippedCount} 部"
                 downloadFile.delete()
+                // 恢复完成后，防抖触发后端订阅同步（WebDAV 恢复绕过 Repository，需显式补同步）
+                animeRepository.triggerSyncSubscriptionsFromServerDebounced()
             } catch (e: Exception) {
                 _snackbarMessage.value = "恢复失败：${e.message}"
             } finally {
@@ -233,99 +223,9 @@ class DataManageViewModel(
             _loadingMessage.value = ""
             _snackbarMessage.value = "成功导入 ${animesToInsert.size} 部番剧"
 
-            doAutoSyncAnimeCovers(insertedAnimes)
-        }
-    }
-
-    private suspend fun doAutoSyncAnimeCovers(animesToSync: List<Anime> = emptyList()) {
-        val animesWithoutCover = if (animesToSync.isNotEmpty()) {
-            animesToSync
-        } else {
-            animeRepository.getAnimesWithoutCover()
-        }
-
-        if (animesWithoutCover.isEmpty()) return
-
-        _isSyncing.value = true
-        _totalToSync.value = animesWithoutCover.size
-        _syncedCount.value = 0
-        _syncProgress.value = null
-
-        var count = 0
-
-        try {
-            for (anime in animesWithoutCover) {
-                try {
-                    _syncProgress.value = "正在补全: ${anime.title}"
-
-                    val (cleanTitle, extractedNote) = cleanTitleAndExtractNote(anime.title)
-
-                    val results = animeRepository.searchBangumi(cleanTitle)
-                    val bestMatch = results.firstOrNull()
-
-                    if (bestMatch != null) {
-                        val detail = try {
-                            RetrofitClient.bangumiApi.getSubjectDetail(bestMatch.id)
-                        } catch (_: Exception) {
-                            null
-                        }
-
-                        val summary = detail?.summary?.cleanSummary()
-                            ?: bestMatch.summary
-
-                        val apiEps = detail?.eps
-                        val apiTotalEps = detail?.totalEpisodes
-
-                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
-                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-
-                        val finalTotalEpisodes = when {
-                            mainEps > 0 -> mainEps
-                            allEps > 0 -> allEps
-                            else -> anime.totalEpisodes
-                        }
-                        val finalCurrentEpisodes = if (mainEps > 0 || allEps > 0) 0 else anime.currentEpisodes
-
-                        val newWatchedEpisodes = if (
-                            anime.status == AnimeStatus.COMPLETED
-                            && anime.watchedEpisodes == 0
-                            && finalTotalEpisodes > 0
-                        ) finalTotalEpisodes else anime.watchedEpisodes
-
-                        val updatedAnime = anime.copy(
-                            title = cleanTitle,
-                            coverUrl = bestMatch.coverUrl,
-                            rating = detail?.score?.toFloat() ?: bestMatch.score?.toFloat(),
-                            totalEpisodes = finalTotalEpisodes,
-                            currentEpisodes = finalCurrentEpisodes,
-                            watchedEpisodes = newWatchedEpisodes,
-                            summary = summary,
-                            bangumiId = bestMatch.id,
-                            airDate = detail?.date ?: anime.airDate,
-                            airWeekday = detail?.airWeekday ?: anime.airWeekday,
-                            notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
-                        )
-
-                        animeRepository.updateAnime(updatedAnime)
-                        animeRepository.downloadCoverAsync(
-                            animeId = updatedAnime.id,
-                            coverUrl = updatedAnime.coverUrl,
-                            bangumiId = updatedAnime.bangumiId
-                        )
-                        count++
-                    }
-
-                    _syncedCount.value = count
-                    delay(API_DELAY_MS)
-                } catch (_: Exception) {
-                }
-            }
-        } finally {
-            _isSyncing.value = false
-            _syncProgress.value = null
-            if (count > 0) {
-                _snackbarMessage.value = "已补全 $count 个番剧封面"
-            }
+            animeRepository.syncCoversInBackground(insertedAnimes)
+            // 导入完成后，防抖触发后端订阅同步
+            animeRepository.triggerSyncSubscriptionsFromServerDebounced()
         }
     }
 
@@ -373,7 +273,10 @@ class DataManageViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return DataManageViewModel(AppContainer.getAnimeRepository()) as T
+            return DataManageViewModel(
+                AppContainer.getAnimeRepository(),
+                AppContainer.getSettingsRepository()
+            ) as T
         }
     }
 }

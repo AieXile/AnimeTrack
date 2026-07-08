@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">AnimeTrack</string>
+
+    <!-- OPPO 厂商推送 -->
+    <string name="oppo_appkey">2a79183a0f2d46399c9145163508bdac</string>
+    <string name="oppo_appid">37329868</string>
+    <string name="oppo_appsecret">c8297731abbf4fd08ace31b8e3870801</string>
+
+    <!-- VIVO 厂商推送 -->
+    <string name="vivo_appkey">8ecf87a2b93dfbfb8d09b559892bc878</string>
+    <string name="vivo_appid">106098613</string>
+
+    <!-- 魅族厂商推送 -->
+    <string name="meizu_appkey">MZ-e727a73627ec412fa04da4a02d3859eb</string>
+    <string name="meizu_appid">MZ-157334</string>
 </resources>

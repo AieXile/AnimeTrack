@@ -32,6 +32,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +48,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.aiexile.animetrack.di.AppContainer
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +57,8 @@ fun LoginScreen(
     onBack: () -> Unit,
     onNavigateBilibiliLogin: () -> Unit,
     onNavigateBangumiLogin: () -> Unit,
-    themeViewModel: ThemeViewModel? = null
+    onNavigateUserLogin: () -> Unit = {},
+    settingsRepository: SettingsRepository? = null
 ) {
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
     val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
@@ -67,7 +70,9 @@ fun LoginScreen(
     val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
     val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
 
-    val hideAvatar by (themeViewModel?.hideBangumiAvatar?.collectAsState() ?: remember { mutableStateOf(false) })
+    val scope = rememberCoroutineScope()
+    val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
+    val autoSyncVisible by (settingsRepository?.autoSyncVisible?.collectAsState(false) ?: remember { mutableStateOf(false) })
 
     Scaffold(
         topBar = {
@@ -96,6 +101,18 @@ fun LoginScreen(
             contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
         ) {
             item {
+                val userAuthManager = remember { AppContainer.getUserAuthManager() }
+                val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+                val userUsername by userAuthManager.username.collectAsState(initial = null)
+
+                LoginServiceCard(
+                    title = "AnimeTrack",
+                    subtitle = if (userLoggedIn) (userUsername ?: "已连接") else "登录后可同步数据",
+                    icon = Icons.Default.Person,
+                    onClick = onNavigateUserLogin
+                )
+            }
+            item {
                 LoginServiceCard(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: "已登录") else "登录后可同步追番列表",
@@ -122,6 +139,33 @@ fun LoginScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
+                            text = "自动同步",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "在Bilibili同步界面显示自动同步开关",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoSyncVisible,
+                        onCheckedChange = { scope.launch { settingsRepository?.setAutoSyncVisible(it) } }
+                    )
+                }
+            }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
                             text = "隐藏主界面头像",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
@@ -136,7 +180,7 @@ fun LoginScreen(
                     }
                     Switch(
                         checked = hideAvatar,
-                        onCheckedChange = { themeViewModel?.setHideBangumiAvatar(it) }
+                        onCheckedChange = { scope.launch { settingsRepository?.setHideBangumiAvatar(it) } }
                     )
                 }
             }

@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,11 +59,14 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToPlayerSettings: () -> Unit = {}
 ) {
     val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val animeRepository = remember { AppContainer.getAnimeRepository() }
     val developerMode by settingsRepository.developerMode.collectAsState(initial = true)
+    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
+    val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -140,6 +146,98 @@ fun DeveloperScreen(
                         }
                     }
                 )
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "分享按钮",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "在详情页显示分享番剧按钮",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = shareButtonEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            settingsRepository.setShareButtonEnabled(enabled)
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "更新通知",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "在设置界面显示更新通知入口",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = updateNotificationVisible,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            settingsRepository.setUpdateNotificationVisible(enabled)
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Text(
+                text = "测试通知",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "立即发送一条测试通知",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Button(
+                onClick = {
+                    com.aiexile.animetrack.data.notification.UpdateNotificationManager
+                        .triggerTestNotification(context)
+                    Toast.makeText(context, "3秒后发送测试通知", Toast.LENGTH_SHORT).show()
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(text = "发送测试通知")
             }
 
             Spacer(modifier = Modifier.size(24.dp))
@@ -269,6 +367,42 @@ fun DeveloperScreen(
             ) {
                 Text(text = "触发模拟更新")
             }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Text(
+                text = "视频播放器",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "播放器设置与测试",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Button(
+                onClick = onNavigateToPlayerSettings,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "播放器设置")
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
         }
     }
 }
