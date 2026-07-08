@@ -20,14 +20,14 @@ val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
 
 android {
     namespace = "com.aiexile.animetrack"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "v0.4.0-beta"
+        versionCode = 21
+        versionName = "v0.4.3-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -35,6 +35,23 @@ android {
         }
 
         buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+
+        manifestPlaceholders["JPUSH_PKGNAME"] = applicationId!!
+        manifestPlaceholders["JPUSH_APPKEY"] = "b9ce1be738b374cd17feed0c"
+        manifestPlaceholders["JPUSH_CHANNEL"] = "developer-default"
+        manifestPlaceholders["MEIZU_APPKEY"] = ""
+        manifestPlaceholders["MEIZU_APPID"] = ""
+        manifestPlaceholders["OPPO_APPKEY"] = ""
+        manifestPlaceholders["OPPO_APPID"] = ""
+        manifestPlaceholders["OPPO_APPSECRET"] = ""
+        manifestPlaceholders["VIVO_APPKEY"] = ""
+        manifestPlaceholders["VIVO_APPID"] = ""
+        manifestPlaceholders["HONOR_APPID"] = ""
+        manifestPlaceholders["NIO_APPID"] = ""
     }
 
     signingConfigs {
@@ -112,6 +129,16 @@ dependencies {
     implementation(libs.sardine)
     implementation(libs.splashscreen)
     implementation(libs.zxing.core)
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.datasource.okhttp)
+    implementation(libs.media3.ui.compose)
+    implementation(project(":jiguang"))
+    implementation(files("../jiguang/libs/jcore-android-5.4.0.aar"))
+    implementation(files("../jiguang/libs/com.heytap.msp_V3.9.8.aar"))
+    implementation(files("../jiguang/libs/HiPushSDK-10.0.13.305.aar"))
+    implementation(files("../jiguang/libs/push-internal-5.0.5.aar"))
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -48,23 +48,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavigationCustomizeScreen(
-    themeViewModel: ThemeViewModel,
+    settingsRepository: SettingsRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
 
-    val showFavorites by themeViewModel.showFavorites.collectAsState()
-    val showTimeline by themeViewModel.showTimeline.collectAsState()
-    val showSchedule by themeViewModel.showSchedule.collectAsState()
-    val navigationStyle by themeViewModel.navigationStyle.collectAsState()
-    val fabLocation by themeViewModel.fabLocation.collectAsState()
+    val scope = rememberCoroutineScope()
+    val showFavorites by settingsRepository.showFavorites.collectAsState(true)
+    val showTimeline by settingsRepository.showTimeline.collectAsState(true)
+    val showSchedule by settingsRepository.showSchedule.collectAsState(true)
+    val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
+    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
 
     Scaffold(
         topBar = {
@@ -102,12 +105,12 @@ fun NavigationCustomizeScreen(
                         NavigationStyleCard(
                             style = NavigationStyle.BOTTOM,
                             isSelected = navigationStyle == NavigationStyle.BOTTOM,
-                            onClick = { themeViewModel.setNavigationStyle(NavigationStyle.BOTTOM) }
+                            onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.BOTTOM) } }
                         )
                         NavigationStyleCard(
                             style = NavigationStyle.CAPSULE,
                             isSelected = navigationStyle == NavigationStyle.CAPSULE,
-                            onClick = { themeViewModel.setNavigationStyle(NavigationStyle.CAPSULE) }
+                            onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
                         )
                     }
                 }
@@ -119,12 +122,12 @@ fun NavigationCustomizeScreen(
                         FabLocationCard(
                             location = FabLocation.BOTTOM_RIGHT,
                             isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
-                            onClick = { themeViewModel.setFabLocation(FabLocation.BOTTOM_RIGHT) }
+                            onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
                         )
                         FabLocationCard(
                             location = FabLocation.TOP_BAR,
                             isSelected = fabLocation == FabLocation.TOP_BAR,
-                            onClick = { themeViewModel.setFabLocation(FabLocation.TOP_BAR) }
+                            onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
                         )
                     }
                 }
@@ -140,19 +143,19 @@ fun NavigationCustomizeScreen(
                             title = "显示收藏",
                             description = "在导航栏显示收藏入口",
                             checked = showFavorites,
-                            onCheckedChange = { themeViewModel.setShowFavorites(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowFavorites(it) } }
                         )
                         SwitchItem(
                             title = "显示时间线",
                             description = "在导航栏显示时间线入口",
                             checked = showTimeline,
-                            onCheckedChange = { themeViewModel.setShowTimeline(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowTimeline(it) } }
                         )
                         SwitchItem(
                             title = "显示追番看板",
                             description = "在导航栏显示追番看板入口",
                             checked = showSchedule,
-                            onCheckedChange = { themeViewModel.setShowSchedule(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowSchedule(it) } }
                         )
                     }
                 }
@@ -164,16 +167,16 @@ fun NavigationCustomizeScreen(
                     subtitle = "设置首页标题栏显示的欢迎语"
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val greetingTypingEffect by themeViewModel.greetingTypingEffect.collectAsState()
+                        val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
                         SwitchItem(
                             title = "打字效果",
                             description = "欢迎语逐字显示的打字机动画",
                             checked = greetingTypingEffect,
-                            onCheckedChange = { themeViewModel.setGreetingTypingEffect(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setGreetingTypingEffect(it) } }
                         )
                         CustomGreetingField(
-                            customGreeting = themeViewModel.customGreeting.collectAsState().value,
-                            onGreetingChange = { themeViewModel.setCustomGreeting(it) }
+                            customGreeting = settingsRepository.customGreeting.collectAsState("").value,
+                            onGreetingChange = { scope.launch { settingsRepository.setCustomGreeting(it) } }
                         )
                     }
                 }

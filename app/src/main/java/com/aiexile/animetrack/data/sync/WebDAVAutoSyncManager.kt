@@ -1,0 +1,160 @@
+package com.aiexile.animetrack.data.sync
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.util.Log
+import com.aiexile.animetrack.data.AnimeDao
+import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.backup.BackupManager
+import com.aiexile.animetrack.data.backup.WebDAVClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
+
+class WebDAVAutoSyncManager(
+    private val settingsRepository: SettingsRepository,
+    private val animeDao: AnimeDao,
+    private val context: Context
+) {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val isSyncing = AtomicBoolean(false)
+
+    /**
+     * 番剧数据发生变化时调用
+     */
+    fun notifyDataChanged() {
+        scope.launch {
+            val enabled = settingsRepository.webdavAutoSyncEnabled.first()
+            if (!enabled) return@launch
+
+            val onDataChange = settingsRepository.webdavAutoSyncOnDataChange.first()
+            if (!onDataChange) return@launch
+
+            performAutoSync("数据变化")
+        }
+    }
+
+    /**
+     * App 启动时调用
+     */
+    fun onAppOpen() {
+        scope.launch {
+            val enabled = settingsRepository.webdavAutoSyncEnabled.first()
+            if (!enabled) return@launch
+
+            val onAppOpen = settingsRepository.webdavAutoSyncOnAppOpen.first()
+            if (onAppOpen) {
+                performAutoSync("App启动")
+            }
+
+            checkScheduledSync()
+        }
+    }
+
+    /**
+     * 根据系统时间判断定时同步是否到期
+     */
+    private suspend fun checkScheduledSync() {
+        val scheduled = settingsRepository.webdavAutoSyncScheduled.first()
+        if (!scheduled) return
+
+        val intervalHours = when (settingsRepository.webdavAutoSyncInterval.first()) {
+            0 -> 6
+            1 -> 12
+            else -> 24
+        }
+        val intervalMs = intervalHours * 60 * 60 * 1000L
+
+        val lastScheduledTime = settingsRepository.webdavAutoSyncLastScheduledTime.first()
+        val now = System.currentTimeMillis()
+
+        if (lastScheduledTime == 0L || now - lastScheduledTime >= intervalMs) {
+            val success = performAutoSync("定时同步")
+            if (success) {
+                settingsRepository.setWebdavAutoSyncLastScheduledTime(now)
+            }
+        }
+    }
+
+    /**
+     * 执行自动备份，返回是否成功
+     */
+    private suspend fun performAutoSync(reason: String): Boolean {
+        if (!isSyncing.compareAndSet(false, true)) {
+            Log.d(TAG, "自动同步正在进行中，跳过（触发原因：$reason）")
+            return false
+        }
+
+        try {
+            val url = settingsRepository.webdavUrl.first()
+            val username = settingsRepository.webdavUsername.first()
+            val password = settingsRepository.webdavPassword.first()
+
+            if (url.isBlank()) {
+                Log.w(TAG, "WebDAV 地址为空，跳过自动同步")
+                return false
+            }
+
+            val wifiOnly = settingsRepository.webdavAutoSyncWifiOnly.first()
+            if (wifiOnly && !isWifiConnected()) {
+                Log.d(TAG, "非 Wi-Fi 网络，跳过自动同步（触发原因：$reason）")
+                return false
+            }
+
+            val useCustom = settingsRepository.webdavAutoSyncUseCustomStrategy.first()
+            val strategy = if (useCustom) {
+                settingsRepository.webdavAutoSyncBackupStrategy.first()
+            } else {
+                settingsRepository.webdavBackupStrategy.first()
+            }
+
+            Log.d(TAG, "开始自动同步（触发原因：$reason，策略：${if (strategy == 0) "JSON" else "ZIP"}）")
+
+            val backupFile = BackupManager.backup(context, strategy, animeDao)
+
+            val result = WebDAVClient.upload(url, username, password, backupFile, strategy)
+            if (result.isSuccess) {
+                settingsRepository.setWebdavLastAutoSyncTime(System.currentTimeMillis())
+                Log.d(TAG, "自动同步成功（触发原因：$reason）")
+                return true
+            } else {
+                Log.e(TAG, "自动同步上传失败（触发原因：$reason）", result.exceptionOrNull())
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "自动同步异常（触发原因：$reason）", e)
+            return false
+        } finally {
+            isSyncing.set(false)
+        }
+    }
+
+    private fun isWifiConnected(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return true
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    companion object {
+        private const val TAG = "WebDAVAutoSync"
+
+        @Volatile
+        private var instance: WebDAVAutoSyncManager? = null
+
+        fun getInstance(): WebDAVAutoSyncManager {
+            return instance ?: throw IllegalStateException("WebDAVAutoSyncManager not initialized")
+        }
+
+        fun initialize(context: Context, settingsRepository: SettingsRepository, animeDao: AnimeDao) {
+            if (instance != null) return
+            instance = WebDAVAutoSyncManager(settingsRepository, animeDao, context.applicationContext)
+        }
+    }
+}

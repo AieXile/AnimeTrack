@@ -45,6 +45,9 @@ interface AnimeDao {
 
     @Query("SELECT * FROM anime WHERE bangumiId = :bangumiId LIMIT 1")
     suspend fun getAnimeByBangumiId(bangumiId: Int): Anime?
+
+    @Query("SELECT * FROM anime WHERE tmdbId = :tmdbId LIMIT 1")
+    suspend fun getAnimeByTmdbId(tmdbId: Int): Anime?
     
     @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
     suspend fun getAnimesWithoutCover(): List<Anime>
@@ -63,4 +66,7 @@ interface AnimeDao {
 
     @Query("DELETE FROM anime")
     suspend fun deleteAllAnimes()
+
+    @Query("SELECT * FROM anime WHERE airWeekday = :weekday AND status IN ('WATCHING', 'PLANNED') AND isFinished = 0 ORDER BY title ASC")
+    suspend fun getAiringAnimesByWeekday(weekday: Int): List<Anime>
 }

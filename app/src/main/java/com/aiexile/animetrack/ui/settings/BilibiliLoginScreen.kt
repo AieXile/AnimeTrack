@@ -3,8 +3,12 @@ package com.aiexile.animetrack.ui.settings
 import android.graphics.Bitmap
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,13 +59,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -80,6 +88,7 @@ fun BilibiliLoginScreen(
 ) {
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
     val bilibiliSyncManager = remember { AppContainer.getBilibiliSyncManager() }
+    val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -87,6 +96,8 @@ fun BilibiliLoginScreen(
     val userAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
     val userNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
     val lastSyncTime by bilibiliAuthManager.lastSyncTime.collectAsState(initial = 0L)
+    val autoSyncEnabled by bilibiliAuthManager.bilibiliAutoSync.collectAsState(initial = false)
+    val autoSyncVisible by settingsRepository.autoSyncVisible.collectAsState(initial = false)
 
     var qrCodeUrl by remember { mutableStateOf<String?>(null) }
     var qrCodeKey by remember { mutableStateOf<String?>(null) }
@@ -173,17 +184,16 @@ fun BilibiliLoginScreen(
                         }
                     }
 
+                    // 先保存基本 session，让 bilibiliCookieJar 能注入 Cookie
+                    bilibiliAuthManager.saveSession(sessData, biliJct, 0L)
+
                     val navResp = RetrofitClient.bilibiliApi.getNavInfo()
                     if (navResp.code == 0 && navResp.data != null) {
-                        bilibiliAuthManager.saveSession(
-                            sessData = sessData,
-                            biliJct = biliJct,
-                            mid = navResp.data.mid,
+                        bilibiliAuthManager.saveUserProfile(
                             avatar = navResp.data.face,
-                            nickname = navResp.data.uname
+                            nickname = navResp.data.uname,
+                            mid = navResp.data.mid
                         )
-                    } else if (sessData.isNotEmpty()) {
-                        bilibiliAuthManager.saveSession(sessData, biliJct, 0L)
                     }
                     loginMessage = "登录成功"
                     break
@@ -317,6 +327,39 @@ fun BilibiliLoginScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
+                // 自动同步开关
+                if (autoSyncVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "自动同步",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "打开 App 时自动同步连载中和在看番剧的更新",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = autoSyncEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    bilibiliAuthManager.setBilibiliAutoSync(enabled)
+                                }
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Button(
                     onClick = {
                         if (!isSyncing) {
@@ -410,20 +453,7 @@ fun BilibiliLoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("正在生成二维码...")
                 } else if (qrBitmap != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(220.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            bitmap = qrBitmap!!.asImageBitmap(),
-                            contentDescription = "二维码",
-                            modifier = Modifier.size(200.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
+                    ScanLineQrBox(qrBitmap = qrBitmap!!)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "请使用B站手机客户端扫描二维码",
@@ -434,16 +464,24 @@ fun BilibiliLoginScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = {
-                            val launchIntent = context.packageManager.getLaunchIntentForPackage("tv.danmaku.bili")
-                            if (launchIntent != null) {
-                                context.startActivity(launchIntent)
-                            } else {
+                            val url = qrCodeUrl
+                            if (url != null) {
                                 try {
-                                    val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=tv.danmaku.bili"))
-                                    context.startActivity(marketIntent)
+                                    val encodedUrl = Uri.encode(url)
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        data = Uri.parse("bilibili://browser?url=$encodedUrl")
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
                                 } catch (_: Exception) {
-                                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.bilibili.com"))
-                                    context.startActivity(webIntent)
+                                    // 未安装B站App，尝试打开应用市场
+                                    try {
+                                        val marketIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=tv.danmaku.bili"))
+                                        context.startActivity(marketIntent)
+                                    } catch (_: Exception) {
+                                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.bilibili.com"))
+                                        context.startActivity(webIntent)
+                                    }
                                 }
                             }
                         },
@@ -574,4 +612,79 @@ private fun SyncSelectionDialog(
             }
         }
     )
+}
+
+/**
+ * 扫描线擦除过渡容器：生成新二维码时，旧图自上而下被擦除，
+ * 新图同步自上而下显露，形成"复印机"式方向感擦除过渡。
+ * 参考 AyuGram QrCodeLoginView 的扫描线擦除动效（精简版）。
+ */
+@Composable
+private fun ScanLineQrBox(qrBitmap: Bitmap) {
+    // 双缓冲：oldBitmap 擦除淡出，currentBitmap 显露淡入
+    var oldBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var currentBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // 用 Animatable 手动驱动动画，避免 animateFloatAsState 初始值与目标值相同导致无动画
+    val scanProgress = remember { Animatable(1f) }
+
+    LaunchedEffect(qrBitmap) {
+        if (currentBitmap != qrBitmap) {
+            oldBitmap = currentBitmap
+            currentBitmap = qrBitmap
+            // 重置到 0（旧图完整显示，新图未显露），然后动画到 1（旧图擦除完毕，新图完整显露）
+            scanProgress.snapTo(0f)
+            // 短暂延迟让旧图（若有）可见
+            kotlinx.coroutines.delay(80)
+            scanProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1000, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(220.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center
+    ) {
+        val progress = scanProgress.value
+        // 旧图：随扫描线从顶向下擦除（只显示扫描线下方区域）
+        oldBitmap?.let { old ->
+            Image(
+                bitmap = old.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(200.dp)
+                    .drawWithContent {
+                        val scanY = progress * size.height
+                        if (scanY < size.height) {
+                            clipRect(0f, scanY, size.width, size.height) {
+                                this@drawWithContent.drawContent()
+                            }
+                        }
+                    },
+                contentScale = ContentScale.Fit
+            )
+        }
+        // 新图：随扫描线从顶向下显露（只显示扫描线上方区域）
+        currentBitmap?.let { current ->
+            Image(
+                bitmap = current.asImageBitmap(),
+                contentDescription = "二维码",
+                modifier = Modifier
+                    .size(200.dp)
+                    .drawWithContent {
+                        val scanY = progress * size.height
+                        if (scanY > 0f) {
+                            clipRect(0f, 0f, size.width, scanY) {
+                                this@drawWithContent.drawContent()
+                            }
+                        }
+                    },
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
 }

@@ -19,21 +19,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +53,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,9 +70,59 @@ fun SettingsScreen(
     onNavigateFeatures: () -> Unit = {},
     onNavigateDataManage: () -> Unit = {},
     onNavigateLogin: () -> Unit = {},
+    onNavigateUpdateNotification: () -> Unit = {},
+    onNavigateBangumiProxy: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
-    themeViewModel: com.aiexile.animetrack.ui.theme.ThemeViewModel? = null
+    settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
 ) {
+    val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
+    val tmdbApiKey by settingsViewModel.tmdbApiKey.collectAsState()
+    var showTmdbApiKeyDialog by remember { mutableStateOf(false) }
+    var tmdbApiKeyInput by remember { mutableStateOf("") }
+
+    val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsState(initial = false)
+        ?: remember { mutableStateOf(false) }
+    val updateNotificationEnabled by settingsRepository?.updateNotificationEnabled?.collectAsState(initial = false)
+        ?: remember { mutableStateOf(false) }
+    val updateNotificationHour by settingsRepository?.updateNotificationHour?.collectAsState(initial = 9)
+        ?: remember { mutableStateOf(9) }
+    val updateNotificationMinute by settingsRepository?.updateNotificationMinute?.collectAsState(initial = 0)
+        ?: remember { mutableStateOf(0) }
+
+    if (showTmdbApiKeyDialog) {
+        AlertDialog(
+            onDismissRequest = { showTmdbApiKeyDialog = false },
+            title = { Text("TMDB API Key") },
+            text = {
+                OutlinedTextField(
+                    value = tmdbApiKeyInput,
+                    onValueChange = { tmdbApiKeyInput = it },
+                    label = { Text("API Key") },
+                    singleLine = false,
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        settingsViewModel.setTmdbApiKey(tmdbApiKeyInput)
+                        showTmdbApiKeyDialog = false
+                    }
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showTmdbApiKeyDialog = false }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
@@ -124,8 +186,8 @@ fun SettingsScreen(
                     )
                 }
                 item {
-                    val currentPreset = themeViewModel?.themePreset?.collectAsState()?.value
-                    val currentMode = themeViewModel?.themeMode?.collectAsState()?.value
+                    val currentPreset = settingsRepository?.themePreset?.collectAsState(ThemePreset.MONO_BLACK)?.value
+                    val currentMode = settingsRepository?.themeMode?.collectAsState(ThemeMode.SYSTEM)?.value
                     val modeLabel = when (currentMode) {
                         com.aiexile.animetrack.model.ThemeMode.LIGHT -> "浅色"
                         com.aiexile.animetrack.model.ThemeMode.DARK -> "深色"
@@ -154,10 +216,51 @@ fun SettingsScreen(
                 }
                 item {
                     SettingCard(
+                        title = "代理设置",
+                        subtitle = "Bangumi 反向代理、HTTP 代理",
+                        icon = Icons.Default.CloudQueue,
+                        onClick = onNavigateBangumiProxy
+                    )
+                }
+                item {
+                    SettingCard(
                         title = "数据管理",
                         subtitle = "导入导出、WebDAV 云同步",
                         icon = Icons.Default.Storage,
                         onClick = onNavigateDataManage
+                    )
+                }
+                // 更新通知入口（受开发者开关控制）
+                if (updateNotificationVisible == true) {
+                    item {
+                        SettingCard(
+                            title = "更新通知",
+                            subtitle = if (updateNotificationEnabled) {
+                                String.format("每天 %02d:%02d 推送番剧更新", updateNotificationHour, updateNotificationMinute)
+                            } else {
+                                "未开启"
+                            },
+                            icon = Icons.Default.Notifications,
+                            onClick = onNavigateUpdateNotification
+                        )
+                    }
+                }
+                item {
+                    val maskedKey = tmdbApiKey?.let { key ->
+                        if (key.length > 8) {
+                            key.take(4) + "****" + key.takeLast(4)
+                        } else if (key.isNotBlank()) {
+                            "****"
+                        } else null
+                    }
+                    SettingCard(
+                        title = "TMDB API Key",
+                        subtitle = maskedKey ?: "未设置",
+                        icon = Icons.Default.Key,
+                        onClick = {
+                            tmdbApiKeyInput = tmdbApiKey ?: ""
+                            showTmdbApiKeyDialog = true
+                        }
                     )
                 }
                 item {

@@ -15,6 +15,7 @@ enum class AnimeStatus(val displayName: String) {
     tableName = "anime",
     indices = [
         Index(value = ["bangumiId"], unique = true),
+        Index(value = ["tmdbId"], unique = true),
         Index(value = ["title"]),
         Index(value = ["coverUrl"]),
         Index(value = ["isFinished", "status"])
@@ -39,7 +40,12 @@ data class Anime(
     val isFinished: Boolean = false,
     val currentEpisodes: Int = 0,
     val hasNewUpdate: Boolean = false,
-    val syncRemarks: String? = null
+    val syncRemarks: String? = null,
+    val tmdbId: Int? = null,
+    /** 系列识别 key（= baseTitle），同系列多季番剧共享。null 表示未识别为系列。 */
+    val seriesKey: String? = null,
+    /** 远程封面 URL（wsrv.nl 代理或原始 URL），用于同步到后端。coverUrl 被本地化后仍保留此值。 */
+    val remoteCoverUrl: String? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

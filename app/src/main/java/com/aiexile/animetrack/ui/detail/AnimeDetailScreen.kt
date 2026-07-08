@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
@@ -52,16 +53,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +91,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,23 +123,40 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import android.net.Uri
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.aiexile.animetrack.data.network.BangumiSubject
+import coil.Coil
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.model.SearchResult
+import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.resolveCoverModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val CoverAspectRatio = 2f / 3f
 private val CardCornerRadius = 16.dp
@@ -147,6 +170,7 @@ fun AnimeDetailScreen(
     animeId: Int,
     coverUrl: String? = null,
     onNavigateBack: () -> Unit,
+    onNavigateToPlayer: (Int) -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     viewModel: AnimeDetailViewModel = viewModel(
@@ -156,10 +180,18 @@ fun AnimeDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val editState = uiState.editState
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
+    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
+
+    val showMatchDialog by viewModel.showMatchDialog.collectAsState()
+    val matchSearchQuery by viewModel.matchSearchQuery.collectAsState()
+    val matchSearchState by viewModel.matchSearchState.collectAsState()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -221,6 +253,36 @@ fun AnimeDetailScreen(
                                 Text("保存", color = MaterialTheme.colorScheme.primary)
                             }
                         } else if (uiState.anime != null) {
+                            val anime = uiState.anime!!
+                            IconButton(onClick = { onNavigateToPlayer(animeId) }) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "播放",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            val missingBangumi = anime.bangumiId == null
+                            val missingTmdb = anime.tmdbId == null
+                            if (missingBangumi || missingTmdb) {
+                                IconButton(onClick = { viewModel.showMatchDialog() }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Link,
+                                        contentDescription = "匹配数据源",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            if (shareButtonEnabled) {
+                                IconButton(onClick = { showShareDialog = true }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Share,
+                                        contentDescription = "分享",
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
@@ -282,12 +344,21 @@ fun AnimeDetailScreen(
                             editState = editState,
                             onEditCoverSearch = { viewModel.showCoverSearch() },
                             onEditCoverUpload = { imagePickerLauncher.launch("image/*") },
+                            onEditCoverSave = {
+                                val coverUrl = editState.localCoverUri ?: editState.coverUrl ?: uiState.anime?.coverUrl
+                                if (coverUrl != null) {
+                                    scope.launch { saveCoverToGallery(context, coverUrl) }
+                                } else {
+                                    Toast.makeText(context, "无封面可保存", Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             onEditTitleChange = { viewModel.updateEditTitle(it) },
                             onEditTitleStart = { viewModel.setEditingTitle(true) },
                             onEditTitleDone = { viewModel.setEditingTitle(false) },
                             onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
                             onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
                             onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
+                            onEditSummaryChange = { viewModel.updateEditSummary(it) },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -302,9 +373,11 @@ fun AnimeDetailScreen(
                 results = uiState.coverSearch.results,
                 isSearching = uiState.coverSearch.isSearching,
                 error = uiState.coverSearch.error,
+                searchSource = uiState.coverSearch.source,
                 onQueryChange = { viewModel.updateCoverSearchQuery(it) },
                 onSearch = { viewModel.searchCover() },
                 onSelectResult = { viewModel.selectCoverResult(it) },
+                onSourceChange = { viewModel.updateCoverSearchSource(it) },
                 onDismiss = { viewModel.hideCoverSearch() }
             )
         }
@@ -345,6 +418,30 @@ fun AnimeDetailScreen(
                 }
             )
         }
+
+        if (showShareDialog && uiState.anime != null) {
+            ShareNotesDialog(
+                initialNotes = uiState.anime!!.notes,
+                onConfirm = { notes ->
+                    showShareDialog = false
+                    viewModel.shareAnime(context, notes)
+                },
+                onDismiss = { showShareDialog = false }
+            )
+        }
+
+        if (showMatchDialog) {
+            val missingSource = viewModel.missingSearchSource
+            MatchDialog(
+                searchQuery = matchSearchQuery,
+                searchState = matchSearchState,
+                searchSource = missingSource,
+                onQueryChange = { viewModel.updateMatchSearchQuery(it) },
+                onSearch = { viewModel.searchForMatch() },
+                onSelectResult = { viewModel.selectMatchResult(it) },
+                onDismiss = { viewModel.hideMatchDialog() }
+            )
+        }
     }
 }
 
@@ -352,14 +449,18 @@ fun AnimeDetailScreen(
 @Composable
 private fun CoverSearchOverlay(
     query: String,
-    results: List<BangumiSubject>,
+    results: List<SearchResult>,
     isSearching: Boolean,
     error: String?,
+    searchSource: SearchSource,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
-    onSelectResult: (BangumiSubject) -> Unit,
+    onSelectResult: (SearchResult) -> Unit,
+    onSourceChange: (SearchSource) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var sourceExpanded by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f)
@@ -383,7 +484,7 @@ private fun CoverSearchOverlay(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            text = "搜索番剧封面...",
+                            text = "搜索番剧...",
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     },
@@ -407,6 +508,63 @@ private fun CoverSearchOverlay(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
                         )
+                    },
+                    trailingIcon = {
+                        Box {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(1.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { sourceExpanded = true }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = when (searchSource) {
+                                        SearchSource.BANGUMI -> "Bangumi"
+                                        SearchSource.TMDB -> "TMDB"
+                                        SearchSource.ALL -> "全部"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = sourceExpanded,
+                                onDismissRequest = { sourceExpanded = false },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                SearchSource.entries.forEach { source ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = when (source) {
+                                                    SearchSource.BANGUMI -> "Bangumi"
+                                                    SearchSource.TMDB -> "TMDB"
+                                                    SearchSource.ALL -> "全部"
+                                                },
+                                                fontSize = 14.sp,
+                                                fontWeight = if (source == searchSource) FontWeight.SemiBold else FontWeight.Normal,
+                                                color = if (source == searchSource) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        },
+                                        onClick = {
+                                            onSourceChange(source)
+                                            sourceExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 )
 
@@ -455,10 +613,10 @@ private fun CoverSearchOverlay(
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(results, key = { it.id }) { subject ->
+                    items(results, key = { "${it.source}_${it.sourceId}" }) { result ->
                         CoverSearchResultItem(
-                            subject = subject,
-                            onClick = { onSelectResult(subject) }
+                            result = result,
+                            onClick = { onSelectResult(result) }
                         )
                     }
                 }
@@ -480,7 +638,7 @@ private fun CoverSearchOverlay(
 
 @Composable
 private fun CoverSearchResultItem(
-    subject: BangumiSubject,
+    result: SearchResult,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -498,8 +656,8 @@ private fun CoverSearchResultItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = resolveCoverModel(subject.coverUrl),
-                contentDescription = subject.displayName,
+                model = resolveCoverModel(result.coverUrl),
+                contentDescription = result.title,
                 modifier = Modifier
                     .size(52.dp, 70.dp)
                     .clip(RoundedCornerShape(12.dp)),
@@ -511,7 +669,7 @@ private fun CoverSearchResultItem(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = subject.displayName,
+                    text = result.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -523,12 +681,12 @@ private fun CoverSearchResultItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = subject.episodeCountText,
+                        text = result.episodeCountText,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    val score = subject.score
-                    if (score != null && score > 0) {
+                    val rating = result.rating
+                    if (rating != null && rating > 0) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -540,12 +698,21 @@ private fun CoverSearchResultItem(
                                 modifier = Modifier.size(12.dp)
                             )
                             Text(
-                                text = String.format("%.1f", score),
+                                text = String.format("%.1f", rating),
                                 fontSize = 12.sp,
                                 color = LocalAnimeColors.current.starFilled
                             )
                         }
                     }
+                    Text(
+                        text = when (result.source) {
+                            SearchSource.BANGUMI -> "Bangumi"
+                            SearchSource.TMDB -> "TMDB"
+                            SearchSource.ALL -> "全部"
+                        },
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    )
                 }
             }
         }
@@ -570,12 +737,14 @@ private fun AnimeDetailContent(
     editState: EditState = EditState(),
     onEditCoverSearch: () -> Unit = {},
     onEditCoverUpload: () -> Unit = {},
+    onEditCoverSave: () -> Unit = {},
     onEditTitleChange: (String) -> Unit = {},
     onEditTitleStart: () -> Unit = {},
     onEditTitleDone: () -> Unit = {},
     onEditAirWeekdayChange: (Int?) -> Unit = {},
     onUpdateEditTotalEpisodes: (Int) -> Unit = {},
     onAdjustEditTotalEpisodes: (Int) -> Unit = {},
+    onEditSummaryChange: (String) -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -604,37 +773,41 @@ private fun AnimeDetailContent(
                     modifier = Modifier
                         .width(130.dp)
                         .aspectRatio(2f / 3f)
+                        .then(
+                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        rememberSharedContentState(key = "cover_${anime.id}"),
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .clip(RoundedCornerShape(CardCornerRadius))
                 ) {
                     val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
 
                     val coverClipShape = RoundedCornerShape(CardCornerRadius)
-
-                    val coverImageModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                        with(sharedTransitionScope) {
-                            Modifier
-                                .fillMaxSize()
-                                .sharedElement(
-                                    rememberSharedContentState(key = "cover_${anime.id}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                                .clip(coverClipShape)
-                        }
-                    } else {
-                        Modifier
-                            .fillMaxSize()
-                            .clip(coverClipShape)
-                    }
 
                     Crossfade(
                         targetState = displayCoverUrl,
                         label = "cover_crossfade"
                     ) { url ->
                         if (url != null) {
+                            val context = LocalContext.current
+                            val request = remember(url) {
+                                ImageRequest.Builder(context)
+                                    .data(resolveCoverModel(url))
+                                    .crossfade(false)
+                                    .build()
+                            }
                             AsyncImage(
-                                model = resolveCoverModel(url),
+                                model = request,
                                 contentDescription = anime.title,
                                 contentScale = ContentScale.Crop,
-                                modifier = coverImageModifier
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
                             EmptyCoverPlaceholder(
@@ -656,6 +829,18 @@ private fun AnimeDetailContent(
                                 .padding(end = 6.dp, bottom = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            SmallFloatingActionButton(
+                                onClick = onEditCoverSave,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = "保存封面",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                             SmallFloatingActionButton(
                                 onClick = onEditCoverSearch,
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -790,7 +975,7 @@ private fun AnimeDetailContent(
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         if (!anime.airDate.isNullOrBlank()) {
                             Text(
-                                text = "放送: ${anime.airDate}",
+                                text = "放送: ${formatAirDate(anime.airDate)}",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -856,7 +1041,9 @@ private fun AnimeDetailContent(
 
         SummaryCard(
             summary = if (editState.isEditing) editState.summary else anime.summary,
-            isFetchingDetail = isFetchingDetail
+            isFetchingDetail = isFetchingDetail,
+            isEditing = editState.isEditing,
+            onSummaryChange = onEditSummaryChange
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -917,6 +1104,8 @@ private fun DetailCard(
 private fun SummaryCard(
     summary: String?,
     isFetchingDetail: Boolean,
+    isEditing: Boolean = false,
+    onSummaryChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -932,7 +1121,28 @@ private fun SummaryCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (!summary.isNullOrBlank()) {
+        if (isEditing) {
+            OutlinedTextField(
+                value = summary ?: "",
+                onValueChange = onSummaryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                placeholder = {
+                    Text(
+                        text = "添加简介...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+        } else if (!summary.isNullOrBlank()) {
             Column(
                 modifier = Modifier
                     .clickable(
@@ -1658,5 +1868,320 @@ private fun Int.toWeekdayName(): String {
         6 -> "六"
         7 -> "日"
         else -> ""
+    }
+}
+
+@Composable
+private fun ShareNotesDialog(
+    initialNotes: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var notes by remember { mutableStateOf(initialNotes) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "分享番剧",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "添加备注（将显示在分享卡片上）",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("写点什么...") },
+                    maxLines = 3,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(notes) },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("分享")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MatchDialog(
+    searchQuery: String,
+    searchState: MatchSearchState,
+    searchSource: SearchSource?,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onSelectResult: (SearchResult) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sourceName = when (searchSource) {
+        SearchSource.BANGUMI -> "Bangumi"
+        SearchSource.TMDB -> "TMDB"
+        SearchSource.ALL -> "数据源"
+        null -> "数据源"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "匹配 $sourceName",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "输入关键词搜索...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { onSearch() }
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                when (searchState) {
+                    is MatchSearchState.Idle -> {
+                        Text(
+                            text = "输入关键词后点击搜索",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    is MatchSearchState.Searching -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    is MatchSearchState.Results -> {
+                        if (searchState.results.isEmpty()) {
+                            Text(
+                                text = "未找到匹配结果",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 320.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(searchState.results, key = { "${it.source}_${it.sourceId}" }) { result ->
+                                    MatchResultItem(
+                                        result = result,
+                                        onClick = { onSelectResult(result) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    is MatchSearchState.Failed -> {
+                        Text(
+                            text = searchState.message,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSearch) {
+                Text("搜索")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MatchResultItem(
+    result: SearchResult,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = resolveCoverModel(result.coverUrl),
+                contentDescription = result.title,
+                modifier = Modifier
+                    .size(52.dp, 70.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = result.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = result.episodeCountText,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val rating = result.rating
+                    if (rating != null && rating > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = LocalAnimeColors.current.starFilled,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = String.format("%.1f", rating),
+                                fontSize = 12.sp,
+                                color = LocalAnimeColors.current.starFilled
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = withContext(Dispatchers.IO) {
+    try {
+        val imageLoader = Coil.imageLoader(context)
+        val request = ImageRequest.Builder(context)
+            .data(coverUrl)
+            .allowHardware(false)
+            .build()
+        val result = imageLoader.execute(request)
+
+        if (result !is SuccessResult) {
+            withContext(Dispatchers.Main) { Toast.makeText(context, "无法加载封面图片", Toast.LENGTH_SHORT).show() }
+            return@withContext
+        }
+
+        val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: run {
+            withContext(Dispatchers.Main) { Toast.makeText(context, "无法获取图片", Toast.LENGTH_SHORT).show() }
+            return@withContext
+        }
+
+        val filename = "AnimeTrack_Cover_${System.currentTimeMillis()}.png"
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/AnimeTrack")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues) ?: run {
+            withContext(Dispatchers.Main) { Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show() }
+            return@withContext
+        }
+
+        resolver.openOutputStream(uri)?.use { stream: java.io.OutputStream ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, contentValues, null, null)
+        }
+
+        withContext(Dispatchers.Main) { Toast.makeText(context, "封面已保存到相册", Toast.LENGTH_SHORT).show() }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        withContext(Dispatchers.Main) { Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show() }
     }
 }

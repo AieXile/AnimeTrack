@@ -1,0 +1,53 @@
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'cn.jiguang.sdk'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+}
+
+dependencies {
+    api fileTree(dir: 'libs', include: ['*.jar'])
+    // AAR files cannot be included in library modules, they are referenced from app module
+
+    //fcm_dependencies_start
+    //谷歌请按照厂商文档配置主 gradle 谷歌镜像依赖和添加 google-services.json 后再打开此依赖
+//    implementation 'com.google.firebase:firebase-messaging:23.1.2'
+    //fcm_dependencies_end
+
+    //huawei_dependencies_start
+    //华为请按照厂商文档配置主 gradle 华为镜像依赖和添加 agconnect-services.json 后再打开此依赖
+//    implementation 'com.huawei.hms:push:6.9.0.300'
+    //huawei_dependencies_end
+
+
+}

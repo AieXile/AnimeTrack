@@ -7,13 +7,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.data.network.BangumiSubject
-import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.domain.SearchUseCase
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.model.SearchResult
+import com.aiexile.animetrack.model.SearchSource
+import com.aiexile.animetrack.util.ShareCardRenderer
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
+import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.resolveSearchError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
@@ -30,9 +34,10 @@ import java.time.temporal.ChronoUnit
 data class CoverSearchState(
     val isVisible: Boolean = false,
     val query: String = "",
-    val results: List<BangumiSubject> = emptyList(),
+    val results: List<SearchResult> = emptyList(),
     val isSearching: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val source: SearchSource = SearchSource.BANGUMI
 )
 
 data class EditState(
@@ -43,10 +48,18 @@ data class EditState(
     val airDate: String? = null,
     val airWeekday: Int? = null,
     val bangumiId: Int? = null,
+    val tmdbId: Int? = null,
     val summary: String? = null,
     val isEditingTitle: Boolean = false,
     val localCoverUri: String? = null
 )
+
+sealed class MatchSearchState {
+    object Idle : MatchSearchState()
+    object Searching : MatchSearchState()
+    data class Results(val results: List<SearchResult>) : MatchSearchState()
+    data class Failed(val message: String) : MatchSearchState()
+}
 
 data class AnimeDetailUiState(
     val anime: Anime? = null,
@@ -65,7 +78,8 @@ class AnimeDetailViewModel(
     private val application: Application,
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
-    private val animeId: Int
+    private val animeId: Int,
+    private val searchUseCase: SearchUseCase
 ) : ViewModel() {
 
     companion object {
@@ -90,6 +104,25 @@ class AnimeDetailViewModel(
     private val _showCompletedToast = MutableStateFlow(false)
 
     private val _editState = MutableStateFlow(EditState())
+
+    private val _matchSearchState = MutableStateFlow<MatchSearchState>(MatchSearchState.Idle)
+    val matchSearchState: StateFlow<MatchSearchState> = _matchSearchState.asStateFlow()
+
+    private val _matchSearchQuery = MutableStateFlow("")
+    val matchSearchQuery: StateFlow<String> = _matchSearchQuery.asStateFlow()
+
+    private val _showMatchDialog = MutableStateFlow(false)
+    val showMatchDialog: StateFlow<Boolean> = _showMatchDialog.asStateFlow()
+
+    val missingSearchSource: SearchSource?
+        get() {
+            val anime = animeFlow.value ?: return null
+            return when {
+                anime.bangumiId == null -> SearchSource.BANGUMI
+                anime.tmdbId == null -> SearchSource.TMDB
+                else -> null
+            }
+        }
 
     private data class UiExtras(
         val isFetchingDetail: Boolean = false,
@@ -189,7 +222,7 @@ class AnimeDetailViewModel(
                 val bangumiId = anime.bangumiId ?: return@launch
                 Log.d(TAG, "Fetching detail from API for bangumiId: $bangumiId")
 
-                val detail = RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
+                val detail = repository.fetchBangumiDetail(bangumiId) ?: return@launch
 
                 val apiEps = detail.eps
                 val apiTotalEps = detail.totalEpisodes
@@ -252,7 +285,9 @@ class AnimeDetailViewModel(
     }
 
     private fun computeAirStatus(anime: Anime): String? {
-        val airDate = anime.airDate ?: return null
+        val rawAirDate = anime.airDate ?: return null
+        // 统一格式化为 yyyy-MM-dd，兼容 UTC ISO 8601 格式
+        val airDate = formatAirDate(rawAirDate) ?: rawAirDate
         val totalEpisodes = anime.totalEpisodes
         val currentEpisodes = anime.currentEpisodes
 
@@ -404,6 +439,54 @@ class AnimeDetailViewModel(
         _editState.value = EditState()
     }
 
+    fun showMatchDialog() {
+        val anime = animeFlow.value ?: return
+        _showMatchDialog.value = true
+        _matchSearchState.value = MatchSearchState.Idle
+        _matchSearchQuery.value = anime.title
+    }
+
+    fun hideMatchDialog() {
+        _showMatchDialog.value = false
+        _matchSearchState.value = MatchSearchState.Idle
+    }
+
+    fun updateMatchSearchQuery(query: String) {
+        _matchSearchQuery.value = query
+    }
+
+    fun searchForMatch() {
+        val query = _matchSearchQuery.value.trim()
+        if (query.isBlank()) return
+
+        val anime = animeFlow.value ?: return
+        val searchSource = if (anime.bangumiId == null) SearchSource.BANGUMI else SearchSource.TMDB
+
+        viewModelScope.launch {
+            _matchSearchState.value = MatchSearchState.Searching
+            try {
+                val results = searchUseCase.search(query, searchSource)
+                _matchSearchState.value = MatchSearchState.Results(results)
+            } catch (e: Exception) {
+                _matchSearchState.value = MatchSearchState.Failed(e.message ?: "搜索失败")
+            }
+        }
+    }
+
+    fun selectMatchResult(result: SearchResult) {
+        val anime = animeFlow.value ?: return
+        viewModelScope.launch {
+            val updatedAnime = when (result.source) {
+                SearchSource.BANGUMI -> anime.copy(bangumiId = result.sourceId)
+                SearchSource.TMDB -> anime.copy(tmdbId = result.sourceId)
+                SearchSource.ALL -> anime // ALL 不会出现在匹配结果中
+            }
+            repository.updateAnime(updatedAnime)
+            _showMatchDialog.value = false
+            _matchSearchState.value = MatchSearchState.Idle
+        }
+    }
+
     fun hasUnsavedChanges(): Boolean {
         val anime = animeFlow.value ?: return false
         val edit = _editState.value
@@ -424,6 +507,10 @@ class AnimeDetailViewModel(
 
     fun updateEditAirWeekday(weekday: Int?) {
         _editState.value = _editState.value.copy(airWeekday = weekday)
+    }
+
+    fun updateEditSummary(summary: String) {
+        _editState.value = _editState.value.copy(summary = summary)
     }
 
     fun updateEditTotalEpisodes(total: Int) {
@@ -582,6 +669,10 @@ class AnimeDetailViewModel(
         _coverSearch.value = _coverSearch.value.copy(query = query)
     }
 
+    fun updateCoverSearchSource(source: SearchSource) {
+        _coverSearch.value = _coverSearch.value.copy(source = source)
+    }
+
     fun searchCover() {
         val query = _coverSearch.value.query.trim()
         if (query.isBlank()) {
@@ -592,6 +683,7 @@ class AnimeDetailViewModel(
             return
         }
 
+        val source = _coverSearch.value.source
         viewModelScope.launch {
             _coverSearch.value = _coverSearch.value.copy(
                 isSearching = true,
@@ -599,7 +691,7 @@ class AnimeDetailViewModel(
             )
 
             try {
-                val results = repository.searchBangumi(query)
+                val results = searchUseCase.search(query, source)
                 _coverSearch.value = _coverSearch.value.copy(
                     results = results,
                     isSearching = false
@@ -614,100 +706,180 @@ class AnimeDetailViewModel(
         }
     }
 
-    fun selectCoverResult(subject: BangumiSubject) {
-        val newCoverUrl = subject.coverUrl ?: return
+    fun selectCoverResult(result: SearchResult) {
+        val newCoverUrl = result.coverUrl ?: return
 
         if (_editState.value.isEditing) {
             viewModelScope.launch {
-                val detail = tryFetchDetail(subject.id)
-                val apiEps = detail?.eps
-                val apiTotalEps = detail?.totalEpisodes
-                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
-                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-                val subjectEps = subject.episodeCount
-                val finalEps = when {
-                    mainEps > 0 -> mainEps
-                    allEps > 0 -> allEps
-                    subjectEps != null && subjectEps > 0 -> subjectEps
-                    else -> _editState.value.totalEpisodes
+                when (result.source) {
+                    SearchSource.BANGUMI -> {
+                        val detail = tryFetchDetail(result.sourceId)
+                        val apiEps = detail?.eps
+                        val apiTotalEps = detail?.totalEpisodes
+                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                        val subjectEps = result.episodeCount
+                        val finalEps = when {
+                            mainEps > 0 -> mainEps
+                            allEps > 0 -> allEps
+                            subjectEps != null && subjectEps > 0 -> subjectEps
+                            else -> _editState.value.totalEpisodes
+                        }
+                        val newSummary = detail?.summary?.cleanSummary() ?: result.summary ?: _editState.value.summary
+                        _editState.value = _editState.value.copy(
+                            title = result.title,
+                            coverUrl = newCoverUrl,
+                            localCoverUri = null,
+                            totalEpisodes = finalEps,
+                            airDate = detail?.date ?: result.airDate ?: _editState.value.airDate,
+                            airWeekday = detail?.airWeekday ?: _editState.value.airWeekday,
+                            bangumiId = result.sourceId,
+                            summary = newSummary
+                        )
+                    }
+                    SearchSource.TMDB -> {
+                        val detail = try { repository.getTmdbTvDetail(result.sourceId) } catch (_: Exception) { null }
+                        val eps = detail?.numberOfEpisodes
+                        val finalEps = if (eps != null && eps > 0) eps else result.episodeCount ?: _editState.value.totalEpisodes
+                        val newSummary = detail?.overview?.cleanSummary() ?: result.summary ?: _editState.value.summary
+                        _editState.value = _editState.value.copy(
+                            title = result.title,
+                            coverUrl = newCoverUrl,
+                            localCoverUri = null,
+                            totalEpisodes = finalEps,
+                            airDate = detail?.firstAirDate ?: result.airDate ?: _editState.value.airDate,
+                            tmdbId = result.sourceId,
+                            summary = newSummary
+                        )
+                    }
+                    SearchSource.ALL -> { /* ALL 模式下结果已标记具体来源，不会走到这里 */ }
                 }
-                val newSummary = detail?.summary?.cleanSummary() ?: subject.summary ?: _editState.value.summary
-                _editState.value = _editState.value.copy(
-                    title = subject.displayName,
-                    coverUrl = newCoverUrl,
-                    localCoverUri = null,
-                    totalEpisodes = finalEps,
-                    airDate = detail?.date ?: _editState.value.airDate,
-                    airWeekday = detail?.airWeekday ?: _editState.value.airWeekday,
-                    bangumiId = subject.id,
-                    summary = newSummary
-                )
             }
         } else {
             val anime = animeFlow.value ?: return
             viewModelScope.launch {
-                val detail = tryFetchDetail(subject.id)
-                val summary = subject.summary
-                    ?: detail?.summary?.cleanSummary()
-                val airDate = detail?.date ?: anime.airDate
-                val airWeekday = detail?.airWeekday ?: anime.airWeekday
+                when (result.source) {
+                    SearchSource.BANGUMI -> {
+                        val detail = tryFetchDetail(result.sourceId)
+                        val summary = result.summary ?: detail?.summary?.cleanSummary()
+                        val airDate = detail?.date ?: result.airDate ?: anime.airDate
+                        val airWeekday = detail?.airWeekday ?: anime.airWeekday
 
-                val apiEps = detail?.eps
-                val apiTotalEps = detail?.totalEpisodes
-                val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
-                val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
-                val finalTotalEpisodes = when {
-                    mainEps > 0 -> mainEps
-                    allEps > 0 -> allEps
-                    else -> anime.totalEpisodes
+                        val apiEps = detail?.eps
+                        val apiTotalEps = detail?.totalEpisodes
+                        val mainEps = if (apiEps != null && apiEps > 0) apiEps else 0
+                        val allEps = if (apiTotalEps != null && apiTotalEps > 0) apiTotalEps else 0
+                        val finalTotalEpisodes = when {
+                            mainEps > 0 -> mainEps
+                            allEps > 0 -> allEps
+                            else -> anime.totalEpisodes
+                        }
+                        val clampedWatched = if (finalTotalEpisodes > 0) {
+                            anime.watchedEpisodes.coerceAtMost(finalTotalEpisodes)
+                        } else {
+                            anime.watchedEpisodes
+                        }
+
+                        val isFinished = computeIsFinished(
+                            airDate = airDate,
+                            totalEpisodes = finalTotalEpisodes,
+                            localStatus = anime.status
+                        )
+
+                        val updatedAnime = anime.copy(
+                            coverUrl = newCoverUrl,
+                            summary = summary ?: anime.summary,
+                            airDate = airDate,
+                            airWeekday = airWeekday,
+                            totalEpisodes = finalTotalEpisodes,
+                            watchedEpisodes = clampedWatched,
+                            isFinished = isFinished,
+                            bangumiId = result.sourceId
+                        )
+                        repository.updateAnime(updatedAnime)
+                        repository.downloadCoverAsync(
+                            animeId = updatedAnime.id,
+                            coverUrl = updatedAnime.coverUrl,
+                            bangumiId = updatedAnime.bangumiId,
+                            tmdbId = updatedAnime.tmdbId
+                        )
+                    }
+                    SearchSource.TMDB -> {
+                        val detail = try { repository.getTmdbTvDetail(result.sourceId) } catch (_: Exception) { null }
+                        val eps = detail?.numberOfEpisodes
+                        val finalTotalEpisodes = if (eps != null && eps > 0) eps else anime.totalEpisodes
+                        val clampedWatched = if (finalTotalEpisodes > 0) {
+                            anime.watchedEpisodes.coerceAtMost(finalTotalEpisodes)
+                        } else {
+                            anime.watchedEpisodes
+                        }
+                        val airDate = detail?.firstAirDate ?: result.airDate ?: anime.airDate
+                        val summary = detail?.overview?.cleanSummary() ?: result.summary ?: anime.summary
+
+                        val isFinished = computeIsFinished(
+                            airDate = airDate,
+                            totalEpisodes = finalTotalEpisodes,
+                            localStatus = anime.status
+                        )
+
+                        val updatedAnime = anime.copy(
+                            coverUrl = newCoverUrl,
+                            summary = summary,
+                            airDate = airDate,
+                            totalEpisodes = finalTotalEpisodes,
+                            watchedEpisodes = clampedWatched,
+                            isFinished = isFinished,
+                            tmdbId = result.sourceId
+                        )
+                        repository.updateAnime(updatedAnime)
+                        repository.downloadCoverAsync(
+                            animeId = updatedAnime.id,
+                            coverUrl = updatedAnime.coverUrl,
+                            bangumiId = updatedAnime.bangumiId,
+                            tmdbId = updatedAnime.tmdbId
+                        )
+                    }
+                    SearchSource.ALL -> { /* ALL 模式下结果已标记具体来源，不会走到这里 */ }
                 }
-                val clampedWatched = if (finalTotalEpisodes > 0) {
-                    anime.watchedEpisodes.coerceAtMost(finalTotalEpisodes)
-                } else {
-                    anime.watchedEpisodes
-                }
-
-                val isFinished = computeIsFinished(
-                    airDate = airDate,
-                    totalEpisodes = finalTotalEpisodes,
-                    localStatus = anime.status
-                )
-
-                val updatedAnime = anime.copy(
-                    coverUrl = newCoverUrl,
-                    summary = summary ?: anime.summary,
-                    airDate = airDate,
-                    airWeekday = airWeekday,
-                    totalEpisodes = finalTotalEpisodes,
-                    watchedEpisodes = clampedWatched,
-                    isFinished = isFinished
-                )
-                repository.updateAnime(updatedAnime)
-                repository.downloadCoverAsync(
-                    animeId = updatedAnime.id,
-                    coverUrl = updatedAnime.coverUrl,
-                    bangumiId = updatedAnime.bangumiId
-                )
             }
         }
         _coverSearch.value = CoverSearchState()
     }
 
     private suspend fun tryFetchDetail(bangumiId: Int): com.aiexile.animetrack.data.network.BangumiSubjectDetail? {
-        return try {
-            RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch detail for bangumiId: $bangumiId", e)
-            null
-        }
+        return repository.fetchBangumiDetail(bangumiId)
     }
 
     private suspend fun tryFetchSummary(bangumiId: Int): String? {
-        return try {
-            RetrofitClient.bangumiApi.getSubjectDetail(bangumiId).summary?.cleanSummary()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch summary for bangumiId: $bangumiId", e)
-            null
+        return repository.fetchBangumiDetail(bangumiId)?.summary?.cleanSummary()
+    }
+
+    fun shareAnime(context: android.content.Context, shareNotes: String) {
+        val anime = uiState.value.anime ?: return
+        viewModelScope.launch {
+            try {
+                val bitmap = ShareCardRenderer.renderShareCard(context, anime, shareNotes, settingsRepository)
+                val file = ShareCardRenderer.saveShareImage(context, bitmap)
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    putExtra(android.content.Intent.EXTRA_TEXT, anime.title)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(android.content.Intent.createChooser(shareIntent, "分享番剧"))
+                // 延迟清理临时文件，给系统分享足够时间读取
+                viewModelScope.launch {
+                    delay(5000)
+                    ShareCardRenderer.cleanupShareImages(context)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "分享失败", e)
+            }
         }
     }
 
@@ -719,7 +891,8 @@ class AnimeDetailViewModel(
             val application = AppContainer.getApplication()
             val repository = AppContainer.getAnimeRepository()
             val settingsRepository = AppContainer.getSettingsRepository()
-            return AnimeDetailViewModel(application, repository, settingsRepository, animeId) as T
+            val searchUseCase = SearchUseCase(repository)
+            return AnimeDetailViewModel(application, repository, settingsRepository, animeId, searchUseCase) as T
         }
     }
 }

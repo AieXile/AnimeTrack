@@ -1,98 +1,106 @@
 [
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/drawable_my_avatar.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/drawable/my_avatar.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\drawable_ic_splash_logo.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\drawable\\ic_splash_logo.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxxhdpi_ic_launcher.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxxhdpi/ic_launcher.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-mdpi\\ic_launcher.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/xml_backup_rules.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/xml/backup_rules.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-mdpi\\ic_launcher_round.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-mdpi/ic_launcher_foreground.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-hdpi_ic_launcher_foreground.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-hdpi\\ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxhdpi_ic_launcher.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxhdpi/ic_launcher.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-hdpi\\ic_launcher_round.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xhdpi_ic_launcher_round.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xhdpi/ic_launcher_round.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-anydpi-v26\\ic_launcher_round.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-hdpi/ic_launcher_foreground.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\xml_file_paths.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\xml\\file_paths.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/drawable_ic_launcher_background.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/drawable/ic_launcher_background.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xhdpi\\ic_launcher.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-hdpi_ic_launcher.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-hdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-82:/drawable_sponsor_wechat.png.flat",
+        "source": "com.aiexile.animetrack.app-main-84:/drawable/sponsor_wechat.png"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xhdpi/ic_launcher_foreground.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxxhdpi\\ic_launcher_round.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-mdpi_ic_launcher_foreground.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-mdpi\\ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/drawable/ic_launcher_foreground.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-anydpi-v26\\ic_launcher.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-hdpi_ic_launcher_round.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-hdpi/ic_launcher_round.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxhdpi\\ic_launcher.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-mdpi_ic_launcher.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-mdpi/ic_launcher.webp"
+        "merged": "com.aiexile.animetrack.app-merged_res-82:/drawable_sponsor_alipay.jpg.flat",
+        "source": "com.aiexile.animetrack.app-main-84:/drawable/sponsor_alipay.jpg"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxxhdpi/ic_launcher_round.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxhdpi\\ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxhdpi/ic_launcher_foreground.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xhdpi\\ic_launcher_round.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-mdpi_ic_launcher_round.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-mdpi/ic_launcher_round.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-hdpi\\ic_launcher.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/xml_file_paths.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/xml/file_paths.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\drawable_ic_launcher_background.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\drawable\\ic_launcher_background.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/drawable_ic_splash_logo.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/drawable/ic_splash_logo.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\drawable\\ic_launcher_foreground.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\xml_data_extraction_rules.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\xml\\data_extraction_rules.xml"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxxhdpi\\ic_launcher.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xxhdpi/ic_launcher_round.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxxhdpi\\ic_launcher_foreground.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/mipmap-xhdpi_ic_launcher.webp.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/mipmap-xhdpi/ic_launcher.webp"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xxhdpi\\ic_launcher_round.webp"
     },
     {
-        "merged": "com.aiexile.animetrack.app-merged_res-75:/xml_data_extraction_rules.xml.flat",
-        "source": "com.aiexile.animetrack.app-main-77:/xml/data_extraction_rules.xml"
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\drawable_my_avatar.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\drawable\\my_avatar.webp"
+    },
+    {
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\mipmap-xhdpi_ic_launcher_foreground.webp.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\mipmap-xhdpi\\ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-merged_res-82:\\xml_backup_rules.xml.flat",
+        "source": "C:\\Users\\AieXile\\.gradle\\daemon\\8.5\\com.aiexile.animetrack.app-main-84:\\xml\\backup_rules.xml"
     }
 ]

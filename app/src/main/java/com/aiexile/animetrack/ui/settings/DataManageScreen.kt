@@ -57,13 +57,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.ui.components.ImportPreviewDialog
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataManageScreen(
-    themeViewModel: ThemeViewModel,
+    settingsRepository: SettingsRepository,
     onBack: () -> Unit,
     onNavigateWebDAV: () -> Unit = {}
 ) {
@@ -80,7 +80,7 @@ fun DataManageScreen(
     val exportMarkdown by viewModel.exportMarkdown.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.loadConfig(themeViewModel)
+        viewModel.loadConfig()
     }
 
     LaunchedEffect(snackbarMessage) {

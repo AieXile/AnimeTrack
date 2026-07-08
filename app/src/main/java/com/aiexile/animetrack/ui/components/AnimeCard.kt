@@ -89,21 +89,20 @@ fun AnimeCard(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     
-    val highlightScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    val highlightTriggerCount = remember { mutableStateOf(0) }
     LaunchedEffect(isHighlighted) {
         if (isHighlighted) {
+            highlightTriggerCount.value++
+        }
+    }
+    
+    val highlightScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(highlightTriggerCount.value) {
+        if (highlightTriggerCount.value > 0) {
             highlightScale.animateTo(
                 targetValue = 0.92f,
                 animationSpec = tween(durationMillis = 150)
             )
-            highlightScale.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = 0.4f,
-                    stiffness = 400f
-                )
-            )
-        } else {
             highlightScale.animateTo(
                 targetValue = 1f,
                 animationSpec = spring(
@@ -134,7 +133,7 @@ fun AnimeCard(
     }
     
     val elevation by animateDpAsState(
-        targetValue = if (isSelected) 0.dp else 2.dp,
+        targetValue = if (isSelected || isHighlighted) 0.dp else 2.dp,
         animationSpec = spring(
             dampingRatio = 0.55f,
             stiffness = 400f
@@ -143,14 +142,25 @@ fun AnimeCard(
     )
     
     var showStatusMenu by remember { mutableStateOf(false) }
-    
+
+    // 启用共享元素过渡时，外层 Box 不应用 selectScale/highlightScale 缩放，
+    // 避免与 sharedElement 动画的缩放叠加导致点击导航时闪烁。
+    // 高亮/选择的视觉反馈通过 Card 内部 elevation 和 overlay 体现。
+    val enableScaleFeedback = sharedTransitionScope == null || animatedVisibilityScope == null
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = selectScale.value * highlightScale.value
-                scaleY = selectScale.value * highlightScale.value
-            }
+            .then(
+                if (enableScaleFeedback) {
+                    Modifier.graphicsLayer {
+                        scaleX = selectScale.value * highlightScale.value
+                        scaleY = selectScale.value * highlightScale.value
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Card(
             modifier = Modifier
@@ -346,16 +356,11 @@ fun AnimeCard(
         }
         
         if (isHighlighted && !isSelected) {
-            val highlightAlpha by animateFloatAsState(
-                targetValue = if (isHighlighted) 0.2f else 0f,
-                animationSpec = tween(durationMillis = 300),
-                label = "highlightAlpha"
-            )
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .clip(RoundedCornerShape(CardCornerRadius))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
             )
         }
     }

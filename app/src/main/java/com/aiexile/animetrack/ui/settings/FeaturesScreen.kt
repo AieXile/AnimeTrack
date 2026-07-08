@@ -26,26 +26,31 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import com.aiexile.animetrack.data.SettingsRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeaturesScreen(
-    themeViewModel: ThemeViewModel,
+    settingsRepository: SettingsRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
 
-    val autoCompleteEnabled by themeViewModel.autoCompleteEnabled.collectAsState()
-    val completedToastEnabled by themeViewModel.completedToastEnabled.collectAsState()
-    val showSearchButton by themeViewModel.showSearchButton.collectAsState()
-    val showUpdateBanner by themeViewModel.showUpdateBanner.collectAsState()
-    val showCalendarButton by themeViewModel.showCalendarButton.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    val autoCompleteEnabled by settingsRepository.autoCompleteEnabled.collectAsState(true)
+    val completedToastEnabled by settingsRepository.completedToastEnabled.collectAsState(true)
+    val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
+    val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
+    val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
+    val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(true)
 
     Scaffold(
         topBar = {
@@ -84,7 +89,7 @@ fun FeaturesScreen(
                             title = "搜索按钮",
                             description = "在主界面右上角显示搜索按钮",
                             checked = showSearchButton,
-                            onCheckedChange = { themeViewModel.setShowSearchButton(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } }
                         )
                     }
                 }
@@ -97,13 +102,26 @@ fun FeaturesScreen(
                             title = "今日更新提醒",
                             description = "在主界面顶部显示今日番剧更新提醒卡片",
                             checked = showUpdateBanner,
-                            onCheckedChange = { themeViewModel.setShowUpdateBanner(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } }
                         )
                         SwitchItem(
                             title = "日程预览按钮",
                             description = "在看板右上角显示日历按钮，查看今明日更新",
                             checked = showCalendarButton,
-                            onCheckedChange = { themeViewModel.setShowCalendarButton(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } }
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsGroup(title = "番剧显示") {
+                    Column {
+                        SwitchItem(
+                            title = "多季堆叠",
+                            description = "将同系列多季番剧合并为堆叠卡片，长按展开各季",
+                            checked = seriesStackEnabled,
+                            onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } }
                         )
                     }
                 }
@@ -116,13 +134,13 @@ fun FeaturesScreen(
                             title = "自动完结",
                             description = "观看进度拉满时自动标记为已看完",
                             checked = autoCompleteEnabled,
-                            onCheckedChange = { themeViewModel.setAutoCompleteEnabled(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } }
                         )
                         SwitchItem(
                             title = "完结撒花提示",
                             description = "标记为已看完时显示完结撒花提示",
                             checked = completedToastEnabled,
-                            onCheckedChange = { themeViewModel.setCompletedToastEnabled(it) }
+                            onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } }
                         )
                     }
                 }

@@ -8,6 +8,9 @@ local.properties
 # Log/OS Files
 *.log
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Android Studio generated files and folders
 captures/
@@ -18,17 +21,12 @@ captures/
 *.ap_
 output-metadata.json
 
-# IntelliJ
+# IntelliJ / Android Studio
 *.iml
 .idea/
-.idea/caches
-.idea/libraries
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
 misc.xml
 deploymentTargetDropDown.xml
+deploymentTargetSelector.xml
 render.experimental.xml
 
 # Keystore files
@@ -39,8 +37,9 @@ render.experimental.xml
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
-# Secrets
+# Secrets / API keys
 secrets.properties
+*.secret
 
 # Android Profiling
 *.hprof
@@ -48,3 +47,15 @@ secrets.properties
 # Compiled files
 *.dex
 *.class
+
+# Release output
+app/release/
+
+# Editor / AI assistant working dirs
+.trae/
+.zcode/
+.docs/
+.vscode/
+.fleet/
+.docs/
+

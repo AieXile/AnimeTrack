@@ -32,16 +32,17 @@ public final class AnimeDatabase_Impl extends AnimeDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(8) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(13) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS `anime` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `totalEpisodes` INTEGER NOT NULL, `watchedEpisodes` INTEGER NOT NULL, `status` TEXT NOT NULL, `rating` REAL, `notes` TEXT NOT NULL, `startDate` INTEGER, `finishDate` INTEGER, `coverUrl` TEXT, `airDate` TEXT, `summary` TEXT, `bangumiId` INTEGER, `airWeekday` INTEGER, `isFinished` INTEGER NOT NULL, `currentEpisodes` INTEGER NOT NULL, `hasNewUpdate` INTEGER NOT NULL, `syncRemarks` TEXT)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `anime` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `totalEpisodes` INTEGER NOT NULL, `watchedEpisodes` INTEGER NOT NULL, `status` TEXT NOT NULL, `rating` REAL, `notes` TEXT NOT NULL, `startDate` INTEGER, `finishDate` INTEGER, `coverUrl` TEXT, `airDate` TEXT, `summary` TEXT, `bangumiId` INTEGER, `airWeekday` INTEGER, `isFinished` INTEGER NOT NULL, `currentEpisodes` INTEGER NOT NULL, `hasNewUpdate` INTEGER NOT NULL, `syncRemarks` TEXT, `tmdbId` INTEGER, `seriesKey` TEXT, `remoteCoverUrl` TEXT)");
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_bangumiId` ON `anime` (`bangumiId`)");
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_tmdbId` ON `anime` (`tmdbId`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_anime_title` ON `anime` (`title`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_anime_coverUrl` ON `anime` (`coverUrl`)");
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_anime_isFinished_status` ON `anime` (`isFinished`, `status`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5ff501bcc9d5f5e7e2c785b6fcb9b46f')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd255d00bb5653bc5c7dab1e214140b43')");
       }
 
       @Override
@@ -90,7 +91,7 @@ public final class AnimeDatabase_Impl extends AnimeDatabase {
       @NonNull
       public RoomOpenHelper.ValidationResult onValidateSchema(
           @NonNull final SupportSQLiteDatabase db) {
-        final HashMap<String, TableInfo.Column> _columnsAnime = new HashMap<String, TableInfo.Column>(18);
+        final HashMap<String, TableInfo.Column> _columnsAnime = new HashMap<String, TableInfo.Column>(21);
         _columnsAnime.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAnime.put("title", new TableInfo.Column("title", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAnime.put("totalEpisodes", new TableInfo.Column("totalEpisodes", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -109,9 +110,13 @@ public final class AnimeDatabase_Impl extends AnimeDatabase {
         _columnsAnime.put("currentEpisodes", new TableInfo.Column("currentEpisodes", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAnime.put("hasNewUpdate", new TableInfo.Column("hasNewUpdate", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAnime.put("syncRemarks", new TableInfo.Column("syncRemarks", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAnime.put("tmdbId", new TableInfo.Column("tmdbId", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAnime.put("seriesKey", new TableInfo.Column("seriesKey", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsAnime.put("remoteCoverUrl", new TableInfo.Column("remoteCoverUrl", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysAnime = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesAnime = new HashSet<TableInfo.Index>(4);
+        final HashSet<TableInfo.Index> _indicesAnime = new HashSet<TableInfo.Index>(5);
         _indicesAnime.add(new TableInfo.Index("index_anime_bangumiId", true, Arrays.asList("bangumiId"), Arrays.asList("ASC")));
+        _indicesAnime.add(new TableInfo.Index("index_anime_tmdbId", true, Arrays.asList("tmdbId"), Arrays.asList("ASC")));
         _indicesAnime.add(new TableInfo.Index("index_anime_title", false, Arrays.asList("title"), Arrays.asList("ASC")));
         _indicesAnime.add(new TableInfo.Index("index_anime_coverUrl", false, Arrays.asList("coverUrl"), Arrays.asList("ASC")));
         _indicesAnime.add(new TableInfo.Index("index_anime_isFinished_status", false, Arrays.asList("isFinished", "status"), Arrays.asList("ASC", "ASC")));
@@ -124,7 +129,7 @@ public final class AnimeDatabase_Impl extends AnimeDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "5ff501bcc9d5f5e7e2c785b6fcb9b46f", "3b345aeb7fad59df2b9ead6d87bbb9fb");
+    }, "d255d00bb5653bc5c7dab1e214140b43", "0931ddc3632d6160a8d3dbe8973c3352");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

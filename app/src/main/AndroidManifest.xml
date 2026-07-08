@@ -3,7 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="${applicationId}.permission.JPUSH_MESSAGE" />
 
     <queries>
         <intent>
@@ -48,6 +53,62 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- JPush SDK Service -->
+        <service
+            android:name=".push.PushService"
+            android:enabled="true"
+            android:exported="false"
+            android:process=":pushcore">
+            <intent-filter>
+                <action android:name="cn.jiguang.user.service.action" />
+            </intent-filter>
+        </service>
+
+        <!-- JPush SDK Receiver -->
+        <receiver
+            android:name=".push.PushReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="cn.jpush.android.intent.RECEIVER_MESSAGE" />
+                <category android:name="${applicationId}" />
+            </intent-filter>
+        </receiver>
+
+        <!-- OPPO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+        <meta-data
+            android:name="OPPO_APPKEY"
+            android:value="@string/oppo_appkey"
+            tools:node="replace" />
+        <meta-data
+            android:name="OPPO_APPID"
+            android:value="@string/oppo_appid"
+            tools:node="replace" />
+        <meta-data
+            android:name="OPPO_APPSECRET"
+            android:value="@string/oppo_appsecret"
+            tools:node="replace" />
+
+        <!-- VIVO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+        <meta-data
+            android:name="com.vivo.push.api_key"
+            android:value="@string/vivo_appkey"
+            tools:node="replace" />
+        <meta-data
+            android:name="com.vivo.push.app_id"
+            android:value="@string/vivo_appid"
+            tools:node="replace" />
+
+        <!-- 魅族厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+        <meta-data
+            android:name="MEIZU_APPKEY"
+            android:value="@string/meizu_appkey"
+            tools:node="replace" />
+        <meta-data
+            android:name="MEIZU_APPID"
+            android:value="@string/meizu_appid"
+            tools:node="replace" />
     </application>
 
 </manifest>

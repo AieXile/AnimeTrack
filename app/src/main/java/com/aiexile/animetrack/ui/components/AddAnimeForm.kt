@@ -82,6 +82,7 @@ data class AddAnimeFormState(
     val coverUrl: String? = null,
     val summary: String? = null,
     val bangumiId: Int? = null,
+    val tmdbId: Int? = null,
     val airDate: String? = null,
     val airWeekday: Int? = null,
     val currentEpisodes: Int = 0

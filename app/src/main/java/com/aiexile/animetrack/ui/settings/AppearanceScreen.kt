@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,9 +51,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.theme.ThemePreset
-import com.aiexile.animetrack.ui.theme.ThemeViewModel
+import kotlinx.coroutines.launch
 
 private val TopLeftTriangleShape = GenericShape { size, _ ->
     moveTo(0f, 0f)
@@ -85,13 +87,14 @@ private val DarkPrimary = Color(0xFFE0E0E0)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceScreen(
-    themeViewModel: ThemeViewModel,
+    settingsRepository: SettingsRepository,
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
 
-    val currentPreset by themeViewModel.themePreset.collectAsState()
-    val currentThemeMode by themeViewModel.themeMode.collectAsState()
+    val scope = rememberCoroutineScope()
+    val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
+    val currentThemeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
 
     Scaffold(
         topBar = {
@@ -142,7 +145,7 @@ fun AppearanceScreen(
                         modifier = Modifier.weight(1f),
                         label = "浅色",
                         selected = currentThemeMode == ThemeMode.LIGHT,
-                        onClick = { themeViewModel.setThemeMode(ThemeMode.LIGHT) }
+                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.LIGHT) } }
                     ) {
                         LightPreviewContent()
                     }
@@ -150,7 +153,7 @@ fun AppearanceScreen(
                         modifier = Modifier.weight(1f),
                         label = "深色",
                         selected = currentThemeMode == ThemeMode.DARK,
-                        onClick = { themeViewModel.setThemeMode(ThemeMode.DARK) }
+                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.DARK) } }
                     ) {
                         DarkPreviewContent()
                     }
@@ -158,7 +161,7 @@ fun AppearanceScreen(
                         modifier = Modifier.weight(1f),
                         label = "自动",
                         selected = currentThemeMode == ThemeMode.SYSTEM,
-                        onClick = { themeViewModel.setThemeMode(ThemeMode.SYSTEM) }
+                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.SYSTEM) } }
                     ) {
                         AutoPreviewContent()
                     }
@@ -180,7 +183,7 @@ fun AppearanceScreen(
                             ColorSwatch(
                                 preset = preset,
                                 isSelected = preset == currentPreset,
-                                onClick = { themeViewModel.setThemePreset(preset) }
+                                onClick = { scope.launch { settingsRepository.setThemePreset(preset) } }
                             )
                         }
                     }

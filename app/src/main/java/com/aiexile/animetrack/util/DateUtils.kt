@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 /**
  * 获取今天是周几（1=周一, 7=周日），与 Bangumi 的 airWeekday 对齐
@@ -48,3 +49,48 @@ fun formatDateDotSeparated(date: Date): String {
 fun formatDateTime(timestamp: Long): String {
     return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
 }
+
+/**
+ * 将日期字符串格式化为本地日期显示（yyyy-MM-dd）。
+ * - ISO UTC 时间（如 "2020-01-10T16:00:00.000Z"）→ 转为本地时区日期
+ * - 纯日期（如 "2020-01-10"）→ 原样返回
+ * - 解析失败 → 原样返回
+ */
+fun formatAirDate(airDate: String?): String? {
+    if (airDate.isNullOrBlank()) return null
+    // 已是 yyyy-MM-dd 格式，直接返回
+    if (airDate.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$"))) return airDate
+    return try {
+        // 兼容带时区的 ISO 8601（如 2020-01-10T16:00:00.000Z）
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val date = sdf.parse(airDate) ?: return airDate
+        formatDate(date)
+    } catch (e: Exception) {
+        try {
+            // 兼容不带毫秒的 ISO 8601（如 2020-01-10T16:00:00Z）
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+            sdf.timeZone = TimeZone.getTimeZone("UTC")
+            val date = sdf.parse(airDate) ?: return airDate
+            formatDate(date)
+        } catch (e2: Exception) {
+            airDate
+        }
+    }
+}
+
+/**
+ * 将 yyyy-MM-dd 日期字符串解析为本地时间戳（毫秒）。
+ * 解析失败返回 null。
+ */
+fun parseDateToTimestamp(dateStr: String?): Long? {
+    if (dateStr.isNullOrBlank()) return null
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        sdf.timeZone = TimeZone.getDefault()
+        sdf.parse(dateStr)?.time
+    } catch (e: Exception) {
+        null
+    }
+}
+

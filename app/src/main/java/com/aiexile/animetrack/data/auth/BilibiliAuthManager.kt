@@ -28,6 +28,7 @@ class BilibiliAuthManager(private val context: Context) {
         private val USER_AVATAR_KEY = stringPreferencesKey("bilibili_user_avatar")
         private val USER_NICKNAME_KEY = stringPreferencesKey("bilibili_user_nickname")
         private val LAST_SYNC_TIME_KEY = longPreferencesKey("bilibili_last_sync_time")
+        private val BILIBILI_AUTO_SYNC_KEY = booleanPreferencesKey("bilibili_auto_sync")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -85,6 +86,9 @@ class BilibiliAuthManager(private val context: Context) {
     val lastSyncTime: Flow<Long> = context.bilibiliAuthDataStore.data
         .map { preferences -> preferences[LAST_SYNC_TIME_KEY] ?: 0L }
 
+    val bilibiliAutoSync: Flow<Boolean> = context.bilibiliAuthDataStore.data
+        .map { preferences -> preferences[BILIBILI_AUTO_SYNC_KEY] ?: false }
+
     suspend fun saveSession(sessData: String, biliJct: String, mid: Long, avatar: String? = null, nickname: String? = null) {
         cachedSessData = sessData
         cachedBiliJct = biliJct
@@ -99,16 +103,24 @@ class BilibiliAuthManager(private val context: Context) {
         }
     }
 
-    suspend fun saveUserProfile(avatar: String?, nickname: String?) {
+    suspend fun saveUserProfile(avatar: String? = null, nickname: String? = null, mid: Long? = null) {
+        if (mid != null) cachedMid = mid
         context.bilibiliAuthDataStore.edit { preferences ->
             if (avatar != null) preferences[USER_AVATAR_KEY] = avatar
             if (nickname != null) preferences[USER_NICKNAME_KEY] = nickname
+            if (mid != null) preferences[MID_KEY] = mid
         }
     }
 
     suspend fun saveLastSyncTime(time: Long) {
         context.bilibiliAuthDataStore.edit { preferences ->
             preferences[LAST_SYNC_TIME_KEY] = time
+        }
+    }
+
+    suspend fun setBilibiliAutoSync(enabled: Boolean) {
+        context.bilibiliAuthDataStore.edit { preferences ->
+            preferences[BILIBILI_AUTO_SYNC_KEY] = enabled
         }
     }
 
