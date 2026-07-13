@@ -57,7 +57,8 @@ fun Modifier.animateEnter(
     index: Int = 0,
     key: Any? = Unit,
     isInitialLoad: Boolean = true,
-    animationEnabled: Boolean = true
+    animationEnabled: Boolean = true,
+    skipAnimation: Boolean = false
 ): Modifier = composed {
     if (!animationEnabled) return@composed this
 
@@ -66,11 +67,17 @@ fun Modifier.animateEnter(
     }
     val initialOffsetY = 60f
 
-    var animationStarted by remember(key) { mutableStateOf(false) }
+    // 首次组合时若正处于共享元素过渡（从详情页返回主页），直接就位不播放进场，
+    // 避免 graphicsLayer 的 scale/translation 与飞出动画的落点叠加导致卡片抖动
+    var animationStarted by remember(key) { mutableStateOf(skipAnimation) }
 
     val delayMs = (index * motionPolicy.staggerStepMs).coerceAtMost(motionPolicy.maxStaggerMs)
 
     LaunchedEffect(key) {
+        if (skipAnimation) {
+            animationStarted = true
+            return@LaunchedEffect
+        }
         delay(delayMs.toLong())
         animationStarted = true
     }

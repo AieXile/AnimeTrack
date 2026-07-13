@@ -1552,6 +1552,13 @@ private fun AnimeGrid(
         }
     }
 
+    // 首次组合时是否处于共享元素过渡（从详情页返回主页）。
+    // 此时卡片是飞出动画的落点，进场动画需跳过以免与飞出叠加抖动。
+    // 仅捕获首帧值：正常滚入/首次进入 app 时为 false，照常播放进场。
+    val skipEnterForTransition = remember {
+        sharedTransitionScope?.isTransitionActive == true
+    }
+
     // 首次加载动画标记：初始为 true，延迟后切换为 false
     // 切换后滚入的卡片只播轻量动效（alpha=1），避免快速滑动白屏
     var isInitialLoad by remember { mutableStateOf(true) }
@@ -1623,7 +1630,8 @@ private fun AnimeGrid(
                             index = index,
                             key = Unit,
                             isInitialLoad = isInitialLoad,
-                            animationEnabled = true
+                            animationEnabled = true,
+                            skipAnimation = skipEnterForTransition
                         )
                     ) {
                         val anime = item.anime
@@ -1665,7 +1673,8 @@ private fun AnimeGrid(
                                 index = index,
                                 key = Unit,
                                 isInitialLoad = isInitialLoad,
-                                animationEnabled = true
+                                animationEnabled = true,
+                                skipAnimation = skipEnterForTransition
                             )
                             .onGloballyPositioned { coords ->
                                 // 记录堆叠卡在窗口中的位置，作为展开卡片的平移起点
