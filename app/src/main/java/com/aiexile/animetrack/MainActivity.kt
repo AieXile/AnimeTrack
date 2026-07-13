@@ -9,6 +9,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
@@ -20,8 +23,26 @@ import com.aiexile.animetrack.push.PushRegistrationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.io.File
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        // 在 Activity 创建前应用语言设置
+        AppContainer.initialize(newBase.applicationContext)
+        val languageName = AppContainer.getSettingsRepository()
+            .getAppLanguageBlocking()
+        val locale = when (languageName) {
+            "ENGLISH" -> Locale("en")
+            "TRADITIONAL_CHINESE" -> Locale("zh", "TW")
+            else -> Locale("zh", "CN")
+        }
+        val config = newBase.resources.configuration
+        config.setLocale(locale)
+        val context = newBase.createConfigurationContext(config)
+        super.attachBaseContext(context)
+    }
 
     override fun onStart() {
         super.onStart()
@@ -30,6 +51,8 @@ class MainActivity : ComponentActivity() {
             AppContainer.getUsageStatsRepository().incrementOpenCount()
             // 冷启动 / 从后台切回前台时，拉取服务器订阅列表到本地（只下载不上传）
             AppContainer.getAnimeRepository().triggerPullSubscriptionsFromServer()
+            // 用户当日首次启动时上报活跃（失败静默）
+            com.aiexile.animetrack.data.ActivityReportHelper.reportActivityIfNeeded()
         }
     }
 
@@ -82,6 +105,28 @@ class MainActivity : ComponentActivity() {
             val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
             val systemDarkTheme = isSystemInDarkTheme()
 
+            val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
+            val customFontPath by settingsRepository.customFontPathFlow.collectAsState(initial = "")
+
+            val currentFontFamily = remember(fontFamily, customFontPath) {
+                when (fontFamily) {
+                    "MISANS" -> FontFamily(
+                        Font(R.font.misans_regular),
+                        Font(R.font.misans_bold),
+                        Font(R.font.misans_medium)
+                    )
+                    "CUSTOM" -> {
+                        val path = customFontPath.takeIf { it.isNotBlank() }
+                        if (path != null && File(path).exists()) {
+                            FontFamily(android.graphics.Typeface.createFromFile(path))
+                        } else {
+                            FontFamily.Default
+                        }
+                    }
+                    else -> FontFamily.Default
+                }
+            }
+
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> systemDarkTheme
                 ThemeMode.LIGHT -> false
@@ -90,7 +135,8 @@ class MainActivity : ComponentActivity() {
 
             AnimeTrackTheme(
                 darkTheme = darkTheme,
-                themePreset = themePreset
+                themePreset = themePreset,
+                fontFamily = currentFontFamily
             ) {
                 AnimeTrackApp(settingsRepository = settingsRepository, isDataLoaded = isDataLoaded)
             }

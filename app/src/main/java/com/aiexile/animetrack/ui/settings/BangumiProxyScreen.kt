@@ -33,10 +33,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -71,7 +73,7 @@ fun BangumiProxyScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "代理设置",
+                        text = stringResource(R.string.bangumi_proxy_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -80,7 +82,7 @@ fun BangumiProxyScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -97,7 +99,7 @@ fun BangumiProxyScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                SettingsGroup(title = "Bangumi 反向代理") {
+                SettingsGroup(title = stringResource(R.string.bangumi_proxy_reverse_group)) {
                     Column {
                         HostItem(
                             host = proxyHost,
@@ -107,11 +109,11 @@ fun BangumiProxyScreen(
                             }
                         )
                         SwitchItem(
-                            title = "启用反向代理",
+                            title = stringResource(R.string.bangumi_proxy_enable_reverse),
                             description = if (proxyHost.isBlank()) {
-                                "请先设置代理地址"
+                                stringResource(R.string.bangumi_proxy_set_address_first)
                             } else {
-                                "通过 ${proxyHost} 代理访问 api.bgm.tv，解决直连不可达问题"
+                                stringResource(R.string.bangumi_proxy_reverse_desc, proxyHost)
                             },
                             checked = proxyEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setBangumiProxyEnabled(it) } }
@@ -121,7 +123,7 @@ fun BangumiProxyScreen(
             }
 
             item {
-                SettingsGroup(title = "HTTP 代理") {
+                SettingsGroup(title = stringResource(R.string.bangumi_proxy_http_group)) {
                     Column {
                         HostPortItem(
                             host = httpProxyHost,
@@ -133,11 +135,11 @@ fun BangumiProxyScreen(
                             }
                         )
                         SwitchItem(
-                            title = "启用 HTTP 代理",
+                            title = stringResource(R.string.bangumi_proxy_enable_http),
                             description = if (httpProxyHost.isBlank()) {
-                                "请先设置代理地址"
+                                stringResource(R.string.bangumi_proxy_set_address_first)
                             } else {
-                                "通过 ${httpProxyHost}:${httpProxyPort} 代理所有网络请求（修改后需重启应用生效）"
+                                stringResource(R.string.bangumi_proxy_http_desc, httpProxyHost, httpProxyPort)
                             },
                             checked = httpProxyEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setHttpProxyEnabled(it) } }
@@ -154,12 +156,12 @@ fun BangumiProxyScreen(
     if (showBangumiHostDialog) {
         AlertDialog(
             onDismissRequest = { showBangumiHostDialog = false },
-            title = { Text("代理地址") },
+            title = { Text(stringResource(R.string.bangumi_proxy_dialog_title)) },
             text = {
                 OutlinedTextField(
                     value = bangumiHostInput,
                     onValueChange = { bangumiHostInput = it },
-                    label = { Text("域名") },
+                    label = { Text(stringResource(R.string.bangumi_proxy_domain)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth()
@@ -173,10 +175,10 @@ fun BangumiProxyScreen(
                         }
                         showBangumiHostDialog = false
                     }
-                ) { Text("确定") }
+                ) { Text(stringResource(R.string.common_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showBangumiHostDialog = false }) { Text("取消") }
+                TextButton(onClick = { showBangumiHostDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -185,13 +187,13 @@ fun BangumiProxyScreen(
     if (showHttpProxyDialog) {
         AlertDialog(
             onDismissRequest = { showHttpProxyDialog = false },
-            title = { Text("HTTP 代理") },
+            title = { Text(stringResource(R.string.bangumi_proxy_http_group)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = httpHostInput,
                         onValueChange = { httpHostInput = it },
-                        label = { Text("地址") },
+                        label = { Text(stringResource(R.string.bangumi_proxy_address)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         modifier = Modifier.fillMaxWidth()
@@ -199,7 +201,7 @@ fun BangumiProxyScreen(
                     OutlinedTextField(
                         value = httpPortInput,
                         onValueChange = { httpPortInput = it },
-                        label = { Text("端口") },
+                        label = { Text(stringResource(R.string.bangumi_proxy_port)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth()
@@ -216,10 +218,10 @@ fun BangumiProxyScreen(
                         }
                         showHttpProxyDialog = false
                     }
-                ) { Text("确定") }
+                ) { Text(stringResource(R.string.common_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showHttpProxyDialog = false }) { Text("取消") }
+                TextButton(onClick = { showHttpProxyDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -238,19 +240,19 @@ private fun HostItem(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "代理域名",
+                text = stringResource(R.string.bangumi_proxy_domain_label),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = host.ifBlank { "未设置" },
+                text = host.ifBlank { stringResource(R.string.common_not_set) },
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        TextButton(onClick = onClick) { Text("修改") }
+        TextButton(onClick = onClick) { Text(stringResource(R.string.bangumi_proxy_modify)) }
     }
 }
 
@@ -268,19 +270,19 @@ private fun HostPortItem(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "代理地址",
+                text = stringResource(R.string.bangumi_proxy_address_label),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = if (host.isNotBlank() && port > 0) "${host}:${port}" else "未设置",
+                text = if (host.isNotBlank() && port > 0) "${host}:${port}" else stringResource(R.string.common_not_set),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        TextButton(onClick = onClick) { Text("修改") }
+        TextButton(onClick = onClick) { Text(stringResource(R.string.bangumi_proxy_modify)) }
     }
 }
 

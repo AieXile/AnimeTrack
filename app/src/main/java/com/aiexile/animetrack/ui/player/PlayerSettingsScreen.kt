@@ -37,9 +37,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
@@ -69,7 +71,7 @@ fun PlayerSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "播放器设置",
+                        text = stringResource(R.string.player_settings_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -78,7 +80,7 @@ fun PlayerSettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -103,7 +105,7 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "默认播放速度",
+                        text = stringResource(R.string.player_settings_default_speed),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -134,14 +136,14 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "长按加速速度",
+                        text = stringResource(R.string.player_settings_long_press_speed),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "长按屏幕时以 ${longPressSpeed}x 播放，松手恢复",
+                        text = stringResource(R.string.player_settings_long_press_speed_hint, longPressSpeed),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -163,14 +165,14 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "硬件加速",
+                        text = stringResource(R.string.player_settings_hardware_acceleration),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "使用硬件解码器提升播放性能",
+                        text = stringResource(R.string.player_settings_hardware_acceleration_hint),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -192,14 +194,14 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "记忆播放位置",
+                        text = stringResource(R.string.player_settings_remember_position),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "继续上次播放进度",
+                        text = stringResource(R.string.player_settings_remember_position_hint),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -221,14 +223,14 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "自动播放下一集",
+                        text = stringResource(R.string.player_settings_auto_play_next),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "当前视频播放结束后自动播放下一个",
+                        text = stringResource(R.string.player_settings_auto_play_next_hint),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -252,14 +254,14 @@ fun PlayerSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "WebDAV 媒体路径",
+                        text = stringResource(R.string.player_settings_webdav_path),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (webdavMediaPath.isBlank()) "未设置" else webdavMediaPath,
+                        text = if (webdavMediaPath.isBlank()) stringResource(R.string.common_not_set) else webdavMediaPath,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -291,7 +293,7 @@ fun PlayerSettingsScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "打开播放器")
+                Text(text = stringResource(R.string.player_settings_open_player))
             }
 
             Spacer(modifier = Modifier.size(24.dp))
@@ -313,7 +315,7 @@ fun PlayerSettingsScreen(
     // 长按加速速度选择对话框
     if (showLongPressSpeedDialog) {
         SpeedSelectionDialog(
-            title = "长按加速速度",
+            title = stringResource(R.string.player_settings_long_press_speed),
             currentSpeed = longPressSpeed,
             speeds = listOf(1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 5.0f),
             onSpeedSelected = { speed ->
@@ -327,7 +329,7 @@ fun PlayerSettingsScreen(
 
 @Composable
 private fun SpeedSelectionDialog(
-    title: String = "默认播放速度",
+    title: String = stringResource(R.string.player_settings_default_speed),
     currentSpeed: Float,
     speeds: List<Float> = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f),
     onSpeedSelected: (Float) -> Unit,
@@ -364,7 +366,7 @@ private fun SpeedSelectionDialog(
         },
         confirmButton = {
             Text(
-                text = "取消",
+                text = stringResource(R.string.common_cancel),
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onDismiss() }.padding(8.dp)
             )

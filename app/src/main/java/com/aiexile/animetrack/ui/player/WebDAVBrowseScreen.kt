@@ -36,11 +36,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +62,7 @@ fun WebDAVBrowseScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "WebDAV 文件",
+                        text = stringResource(R.string.webdav_browse_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -69,7 +71,7 @@ fun WebDAVBrowseScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -106,7 +108,7 @@ fun WebDAVBrowseScreen(
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "加载中...",
+                            text = stringResource(R.string.webdav_browse_loading),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
@@ -122,7 +124,7 @@ fun WebDAVBrowseScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "加载失败",
+                            text = stringResource(R.string.webdav_browse_load_failed),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -144,13 +146,13 @@ fun WebDAVBrowseScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "未配置 WebDAV",
+                            text = stringResource(R.string.webdav_browse_not_configured),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "请先在设置中配置 WebDAV 服务器地址",
+                            text = stringResource(R.string.webdav_browse_not_configured_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -207,7 +209,7 @@ private fun FileItemRow(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "返回上级",
+                    text = stringResource(R.string.webdav_browse_parent_dir),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface

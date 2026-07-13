@@ -52,7 +52,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
@@ -73,6 +75,7 @@ fun TimelineScreen(
     val watchingAnimeList by viewModel.watchingAnimeList.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val monthFormat = stringResource(R.string.timeline_month_format)
     
     var selectedIndex by remember { mutableIntStateOf(-1) }
     
@@ -107,7 +110,7 @@ fun TimelineScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "时间线",
+                        text = stringResource(R.string.nav_timeline),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -144,7 +147,7 @@ fun TimelineScreen(
                 )
                 
                 MonthIndexer(
-                    months = timelineData.map { "${it.month}月" },
+                    months = timelineData.map { String.format(monthFormat, it.month) },
                     hasWatchingSection = hasWatchingSection,
                     currentIndex = selectedIndex,
                     onIndexClick = { index ->
@@ -181,12 +184,12 @@ private fun EmptyTimelinePlaceholder(
                 tint = MaterialTheme.colorScheme.outline
             )
             Text(
-                text = "暂无时间线记录",
+                text = stringResource(R.string.timeline_empty_title),
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "添加番剧并设置日期后，这里将显示时间线",
+                text = stringResource(R.string.timeline_empty_hint),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.outline
             )
@@ -233,7 +236,7 @@ private fun WatchingSection(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "正在观看",
+            text = stringResource(R.string.timeline_watching),
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -291,7 +294,7 @@ private fun WatchingAnimeCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "${anime.watchedEpisodes}/${anime.totalEpisodes}集",
+                            text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -315,7 +318,7 @@ private fun WatchingAnimeCard(
             }
             
             Text(
-                text = "观看中",
+                text = stringResource(R.string.timeline_watching_status),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary,
@@ -452,7 +455,7 @@ private fun TimelineAnimeCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "${anime.watchedEpisodes}/${anime.totalEpisodes}集",
+                            text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

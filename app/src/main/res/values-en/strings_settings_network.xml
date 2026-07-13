@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WebDAVSyncScreen -->
+    <string name="webdav_sync_title">WebDAV Sync</string>
+    <string name="webdav_sync_server_address">Server address</string>
+    <string name="webdav_sync_username">Username</string>
+    <string name="webdav_sync_password">Password</string>
+    <string name="webdav_sync_test_connection">Test connection</string>
+    <string name="webdav_sync_backup_strategy">Backup strategy</string>
+    <string name="webdav_sync_strategy_affects_restore">This strategy also affects restore</string>
+    <string name="webdav_sync_format_json">JSON</string>
+    <string name="webdav_sync_format_json_desc">Data only, faster transfer, shorter time</string>
+    <string name="webdav_sync_format_zip">Full ZIP</string>
+    <string name="webdav_sync_format_zip_desc">With images, slower transfer, longer time</string>
+    <string name="webdav_sync_restore_mode">Restore mode</string>
+    <string name="webdav_sync_restore_overwrite">Overwrite local</string>
+    <string name="webdav_sync_restore_merge">Merge</string>
+    <string name="webdav_sync_backup_now">Backup now</string>
+    <string name="webdav_sync_restore_now">Restore now</string>
+    <string name="webdav_sync_auto_sync">Auto sync</string>
+    <string name="webdav_sync_last_manual_sync">Last manual sync: %1$s</string>
+    <string name="webdav_sync_last_auto_sync">Last auto sync: %1$s</string>
+
+    <!-- WebDAVAutoSyncScreen -->
+    <string name="webdav_auto_title">Auto sync</string>
+    <string name="webdav_auto_enable">Enable auto sync</string>
+    <string name="webdav_auto_enable_desc">When enabled, will automatically backup to WebDAV based on settings</string>
+    <string name="webdav_auto_trigger_section">Sync triggers</string>
+    <string name="webdav_auto_enable_first">Please enable auto sync first</string>
+    <string name="webdav_auto_trigger_data_change">On data change</string>
+    <string name="webdav_auto_trigger_data_change_desc">Auto sync after adding, editing or deleting anime</string>
+    <string name="webdav_auto_trigger_app_open">On app open</string>
+    <string name="webdav_auto_trigger_app_open_desc">Auto sync when app launches</string>
+    <string name="webdav_auto_trigger_scheduled">Scheduled sync</string>
+    <string name="webdav_auto_trigger_scheduled_desc">Auto sync at fixed intervals</string>
+    <string name="webdav_auto_sync_interval">Sync interval</string>
+    <string name="webdav_auto_interval_6h">Every 6 hours</string>
+    <string name="webdav_auto_interval_12h">Every 12 hours</string>
+    <string name="webdav_auto_interval_daily">Daily</string>
+    <string name="webdav_auto_wifi_only">Sync on Wi-Fi only</string>
+    <string name="webdav_auto_wifi_only_desc">Avoid mobile data usage</string>
+    <string name="webdav_auto_strategy_section">Sync strategy</string>
+    <string name="webdav_auto_custom_strategy">Use custom strategy</string>
+    <string name="webdav_auto_custom_strategy_on">Use independent config below</string>
+    <string name="webdav_auto_custom_strategy_off">Keep same as sync screen</string>
+    <string name="webdav_auto_backup_format">Backup format</string>
+    <string name="webdav_auto_format_json">JSON</string>
+    <string name="webdav_auto_format_json_desc">Data only, faster transfer</string>
+    <string name="webdav_auto_format_zip">Full ZIP</string>
+    <string name="webdav_auto_format_zip_desc">With images, slower transfer</string>
+
+    <!-- BangumiProxyScreen -->
+    <string name="bangumi_proxy_title">Proxy settings</string>
+    <string name="bangumi_proxy_reverse_group">Bangumi reverse proxy</string>
+    <string name="bangumi_proxy_enable_reverse">Enable reverse proxy</string>
+    <string name="bangumi_proxy_set_address_first">Please set proxy address first</string>
+    <string name="bangumi_proxy_reverse_desc">Access api.bgm.tv via %1$s proxy to resolve direct connection issues</string>
+    <string name="bangumi_proxy_http_group">HTTP proxy</string>
+    <string name="bangumi_proxy_enable_http">Enable HTTP proxy</string>
+    <string name="bangumi_proxy_http_desc">Proxy all network requests via %1$s:%2$d (requires app restart after change)</string>
+    <string name="bangumi_proxy_dialog_title">Proxy address</string>
+    <string name="bangumi_proxy_domain">Domain</string>
+    <string name="bangumi_proxy_address">Address</string>
+    <string name="bangumi_proxy_port">Port</string>
+    <string name="bangumi_proxy_domain_label">Proxy domain</string>
+    <string name="bangumi_proxy_address_label">Proxy address</string>
+    <string name="bangumi_proxy_modify">Modify</string>
+
+    <!-- BangumiLoginScreen -->
+    <string name="bangumi_login_title">Bangumi Login</string>
+    <string name="bangumi_login_loading">Logging in...</string>
+    <string name="bangumi_login_failed">Login failed</string>
+
+    <!-- BilibiliLoginScreen -->
+    <string name="bilibili_login_title">Bilibili Login</string>
+    <string name="bilibili_login_avatar">Avatar</string>
+    <string name="bilibili_login_logged_in">Logged in</string>
+    <string name="bilibili_login_last_sync">Last sync: %1$s</string>
+    <string name="bilibili_login_auto_sync">Auto sync</string>
+    <string name="bilibili_login_auto_sync_desc">Auto sync ongoing and watching anime updates when app opens</string>
+    <string name="bilibili_login_fetching">Fetching list...</string>
+    <string name="bilibili_login_resync">Re-sync</string>
+    <string name="bilibili_login_sync_list">Sync anime list</string>
+    <string name="bilibili_login_logout">Log out</string>
+    <string name="bilibili_login_generating_qr">Generating QR code...</string>
+    <string name="bilibili_login_scan_qr">Please scan the QR code with Bilibili mobile app</string>
+    <string name="bilibili_login_open_bilibili">Open Bilibili</string>
+    <string name="bilibili_login_regenerate_qr">Regenerate QR code</string>
+    <string name="bilibili_login_generate_failed">Failed to generate multiple times, please check network and retry</string>
+    <string name="bilibili_login_qr_code">QR code</string>
+    <string name="bilibili_login_dialog_title">The following anime are not watched</string>
+    <string name="bilibili_login_selected_count">Selected %1$d/%2$d to add as \"Plan to Watch\"</string>
+    <string name="bilibili_login_skip">Skip</string>
+    <string name="bilibili_login_confirm_add">Confirm add</string>
+    <string name="bilibili_login_qr_generate_failed">Failed to generate QR code: %1$s</string>
+    <string name="bilibili_login_network_error">Network error: %1$s</string>
+    <string name="bilibili_login_success">Login successful</string>
+    <string name="bilibili_login_qr_expired">QR code expired, please regenerate</string>
+    <string name="bilibili_login_qr_confirm">Please confirm login on your phone</string>
+    <string name="bilibili_login_sync_complete">Sync complete, %1$d anime</string>
+    <string name="bilibili_login_sync_failed">Sync failed: %1$s</string>
+</resources>

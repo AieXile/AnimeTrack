@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.aiexile.animetrack"
-4    android:versionCode="20"
-5    android:versionName="v0.4.2-beta" >
+4    android:versionCode="21"
+5    android:versionName="v0.4.3-beta" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="26"

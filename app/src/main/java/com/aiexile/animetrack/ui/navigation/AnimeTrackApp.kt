@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.ui.navigation
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -37,12 +38,14 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
@@ -61,6 +64,7 @@ import com.aiexile.animetrack.ui.settings.BilibiliLoginScreen
 import com.aiexile.animetrack.ui.settings.DataManageScreen
 import com.aiexile.animetrack.ui.settings.DeveloperScreen
 import com.aiexile.animetrack.ui.settings.FeaturesScreen
+import com.aiexile.animetrack.ui.settings.FontSettingsScreen
 import com.aiexile.animetrack.ui.settings.LoginScreen
 import com.aiexile.animetrack.ui.settings.UserLoginScreen
 import com.aiexile.animetrack.ui.settings.UserRegisterScreen
@@ -260,6 +264,14 @@ fun AnimeTrackApp(
                 // Bangumi 反向代理
                 composable(Routes.BANGUMI_PROXY) {
                     BangumiProxyScreen(
+                        settingsRepository = settingsRepository,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                // 字体设置
+                composable(Routes.FONT_SETTINGS) {
+                    FontSettingsScreen(
                         settingsRepository = settingsRepository,
                         onBack = { navController.popBackStack() }
                     )
@@ -573,7 +585,7 @@ private fun MainPagerContent(
             onNavigateBangumiLogin = { onNavigateToScreen(Routes.BANGUMI_LOGIN) },
             onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) }
         )
-        "favorites" -> PlaceholderScreen(title = "收藏", showBottomBar = false)
+        "favorites" -> PlaceholderScreen(title = stringResource(R.string.nav_app_favorites), showBottomBar = false)
         "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
         "schedule" -> ScheduleScreen(
             onAnimeClick = { animeId ->
@@ -591,6 +603,7 @@ private fun MainPagerContent(
             onNavigateUpdateNotification = { onNavigateToScreen(Routes.UPDATE_NOTIFICATION) },
             onNavigateLogin = { onNavigateToScreen(Routes.LOGIN) },
             onNavigateBangumiProxy = { onNavigateToScreen(Routes.BANGUMI_PROXY) },
+            onNavigateFontSettings = { onNavigateToScreen(Routes.FONT_SETTINGS) },
             onNavigate = { },
             settingsRepository = settingsRepository
         )
@@ -631,7 +644,7 @@ fun PlaceholderScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "$title 页面开发中...",
+                text = stringResource(R.string.nav_app_page_in_development_format, title),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

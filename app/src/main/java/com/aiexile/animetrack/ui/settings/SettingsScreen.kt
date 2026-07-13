@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Key
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +56,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
@@ -72,6 +75,7 @@ fun SettingsScreen(
     onNavigateLogin: () -> Unit = {},
     onNavigateUpdateNotification: () -> Unit = {},
     onNavigateBangumiProxy: () -> Unit = {},
+    onNavigateFontSettings: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
 ) {
@@ -110,14 +114,14 @@ fun SettingsScreen(
                         showTmdbApiKeyDialog = false
                     }
                 ) {
-                    Text("保存")
+                    Text(stringResource(R.string.common_save))
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showTmdbApiKeyDialog = false }
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -140,7 +144,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "设置",
+                        text = stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -175,12 +179,15 @@ fun SettingsScreen(
                     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
 
                     val statusParts = mutableListOf<String>()
-                    if (bilibiliLoggedIn) statusParts.add("Bilibili 已连接")
-                    if (bangumiLoggedIn) statusParts.add("Bangumi 已连接")
+                    val bilibiliConnectedText = stringResource(R.string.settings_bilibili_connected)
+                    val bangumiConnectedText = stringResource(R.string.settings_bangumi_connected)
+                    val loginSubtitle = stringResource(R.string.settings_login_subtitle)
+                    if (bilibiliLoggedIn) statusParts.add(bilibiliConnectedText)
+                    if (bangumiLoggedIn) statusParts.add(bangumiConnectedText)
 
                     SettingCard(
-                        title = "登录",
-                        subtitle = if (statusParts.isEmpty()) "同步你的追番数据" else statusParts.joinToString(" · "),
+                        title = stringResource(R.string.settings_login),
+                        subtitle = if (statusParts.isEmpty()) loginSubtitle else statusParts.joinToString(" · "),
                         icon = Icons.AutoMirrored.Filled.Login,
                         onClick = onNavigateLogin
                     )
@@ -189,43 +196,53 @@ fun SettingsScreen(
                     val currentPreset = settingsRepository?.themePreset?.collectAsState(ThemePreset.MONO_BLACK)?.value
                     val currentMode = settingsRepository?.themeMode?.collectAsState(ThemeMode.SYSTEM)?.value
                     val modeLabel = when (currentMode) {
-                        com.aiexile.animetrack.model.ThemeMode.LIGHT -> "浅色"
-                        com.aiexile.animetrack.model.ThemeMode.DARK -> "深色"
-                        else -> "跟随系统"
+                        com.aiexile.animetrack.model.ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                        com.aiexile.animetrack.model.ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+                        else -> stringResource(R.string.settings_theme_system)
                     }
+                    val themeSubtitleFormat = stringResource(R.string.settings_theme_subtitle_format)
+                    val defaultAppearanceSubtitle = stringResource(R.string.settings_appearance_default_subtitle)
                     SettingCard(
-                        title = "外观与主题",
-                        subtitle = currentPreset?.let { "${it.displayName} · $modeLabel" } ?: "清透蓝 · 跟随系统",
+                        title = stringResource(R.string.settings_appearance),
+                        subtitle = currentPreset?.let { themeSubtitleFormat.format(it.displayName, modeLabel) } ?: defaultAppearanceSubtitle,
                         icon = Icons.Default.Palette,
                         onClick = onNavigateAppearance
                     )
                 }
                 item {
                     SettingCard(
-                        title = "定制导航栏",
+                        title = stringResource(R.string.settings_font),
+                        subtitle = stringResource(R.string.settings_font_subtitle),
+                        icon = Icons.Default.TextFields,
+                        onClick = onNavigateFontSettings
+                    )
+                }
+                item {
+                    SettingCard(
+                        title = stringResource(R.string.settings_customize_nav),
                         icon = Icons.Default.Navigation,
                         onClick = onNavigateCustomize
                     )
                 }
                 item {
                     SettingCard(
-                        title = "功能",
+                        title = stringResource(R.string.settings_features),
                         icon = Icons.Default.Tune,
                         onClick = onNavigateFeatures
                     )
                 }
                 item {
                     SettingCard(
-                        title = "代理设置",
-                        subtitle = "Bangumi 反向代理、HTTP 代理",
+                        title = stringResource(R.string.settings_proxy),
+                        subtitle = stringResource(R.string.settings_proxy_subtitle),
                         icon = Icons.Default.CloudQueue,
                         onClick = onNavigateBangumiProxy
                     )
                 }
                 item {
                     SettingCard(
-                        title = "数据管理",
-                        subtitle = "导入导出、WebDAV 云同步",
+                        title = stringResource(R.string.settings_data_manage),
+                        subtitle = stringResource(R.string.settings_data_manage_subtitle),
                         icon = Icons.Default.Storage,
                         onClick = onNavigateDataManage
                     )
@@ -233,12 +250,13 @@ fun SettingsScreen(
                 // 更新通知入口（受开发者开关控制）
                 if (updateNotificationVisible == true) {
                     item {
+                        val updateNotificationSummaryFormat = stringResource(R.string.settings_update_notification_summary)
                         SettingCard(
-                            title = "更新通知",
+                            title = stringResource(R.string.settings_update_notification),
                             subtitle = if (updateNotificationEnabled) {
-                                String.format("每天 %02d:%02d 推送番剧更新", updateNotificationHour, updateNotificationMinute)
+                                String.format(updateNotificationSummaryFormat, updateNotificationHour, updateNotificationMinute)
                             } else {
-                                "未开启"
+                                stringResource(R.string.settings_update_notification_disabled)
                             },
                             icon = Icons.Default.Notifications,
                             onClick = onNavigateUpdateNotification
@@ -255,7 +273,7 @@ fun SettingsScreen(
                     }
                     SettingCard(
                         title = "TMDB API Key",
-                        subtitle = maskedKey ?: "未设置",
+                        subtitle = maskedKey ?: stringResource(R.string.common_not_set),
                         icon = Icons.Default.Key,
                         onClick = {
                             tmdbApiKeyInput = tmdbApiKey ?: ""
@@ -265,7 +283,7 @@ fun SettingsScreen(
                 }
                 item {
                     SettingCard(
-                        title = "关于",
+                        title = stringResource(R.string.settings_about),
                         icon = Icons.Default.Info,
                         onClick = onNavigateAbout
                     )

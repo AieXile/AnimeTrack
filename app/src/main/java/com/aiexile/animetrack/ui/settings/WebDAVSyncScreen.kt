@@ -44,11 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.util.formatDateTime
 
@@ -99,7 +101,7 @@ fun WebDAVSyncScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "WebDAV 同步",
+                        text = stringResource(R.string.webdav_sync_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -108,7 +110,7 @@ fun WebDAVSyncScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -138,12 +140,12 @@ fun WebDAVSyncScreen(
                 item { Spacer(modifier = Modifier.height(4.dp)) }
 
                 item {
-                    SettingsGroup(title = "WebDAV 同步") {
+                    SettingsGroup(title = stringResource(R.string.webdav_sync_title)) {
                         Column {
                             OutlinedTextField(
                                 value = webdavUrl,
                                 onValueChange = { viewModel.webdavUrl.value = it },
-                                label = { Text("服务器地址") },
+                                label = { Text(stringResource(R.string.webdav_sync_server_address)) },
                                 placeholder = { Text("https://dav.jianguoyun.com/dav/") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -154,7 +156,7 @@ fun WebDAVSyncScreen(
                             OutlinedTextField(
                                 value = webdavUsername,
                                 onValueChange = { viewModel.webdavUsername.value = it },
-                                label = { Text("用户名") },
+                                label = { Text(stringResource(R.string.webdav_sync_username)) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -164,7 +166,7 @@ fun WebDAVSyncScreen(
                             OutlinedTextField(
                                 value = webdavPassword,
                                 onValueChange = { viewModel.webdavPassword.value = it },
-                                label = { Text("密码") },
+                                label = { Text(stringResource(R.string.webdav_sync_password)) },
                                 visualTransformation = PasswordVisualTransformation(),
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -184,19 +186,19 @@ fun WebDAVSyncScreen(
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             ) {
-                                Text("测试连接")
+                                Text(stringResource(R.string.webdav_sync_test_connection))
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "备份策略",
+                                text = stringResource(R.string.webdav_sync_backup_strategy),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "该策略同样影响恢复功能",
+                                text = stringResource(R.string.webdav_sync_strategy_affects_restore),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -216,9 +218,9 @@ fun WebDAVSyncScreen(
                                         .weight(1f)
                                         .clickable { viewModel.backupStrategy.value = 0 }
                                 ) {
-                                    Text(text = "JSON")
+                                    Text(text = stringResource(R.string.webdav_sync_format_json))
                                     Text(
-                                        text = "仅数据，传输速度快，时间短",
+                                        text = stringResource(R.string.webdav_sync_format_json_desc),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -232,9 +234,9 @@ fun WebDAVSyncScreen(
                                         .weight(1f)
                                         .clickable { viewModel.backupStrategy.value = 1 }
                                 ) {
-                                    Text(text = "完整 ZIP")
+                                    Text(text = stringResource(R.string.webdav_sync_format_zip))
                                     Text(
-                                        text = "带图片，传输速度慢，时间长",
+                                        text = stringResource(R.string.webdav_sync_format_zip_desc),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -244,7 +246,7 @@ fun WebDAVSyncScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "恢复模式",
+                                text = stringResource(R.string.webdav_sync_restore_mode),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary
@@ -261,7 +263,7 @@ fun WebDAVSyncScreen(
                                     onClick = { viewModel.restoreMode.value = 0 }
                                 )
                                 Text(
-                                    text = "覆盖本地",
+                                    text = stringResource(R.string.webdav_sync_restore_overwrite),
                                     modifier = Modifier.clickable { viewModel.restoreMode.value = 0 }
                                 )
                                 Spacer(modifier = Modifier.width(16.dp))
@@ -270,7 +272,7 @@ fun WebDAVSyncScreen(
                                     onClick = { viewModel.restoreMode.value = 1 }
                                 )
                                 Text(
-                                    text = "兼容合并",
+                                    text = stringResource(R.string.webdav_sync_restore_merge),
                                     modifier = Modifier.clickable { viewModel.restoreMode.value = 1 }
                                 )
                             }
@@ -292,7 +294,7 @@ fun WebDAVSyncScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("立即备份")
+                                    Text(stringResource(R.string.webdav_sync_backup_now))
                                 }
                                 Button(
                                     onClick = { viewModel.restoreNow() },
@@ -305,7 +307,7 @@ fun WebDAVSyncScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("立即恢复")
+                                    Text(stringResource(R.string.webdav_sync_restore_now))
                                 }
                             }
 
@@ -326,13 +328,13 @@ fun WebDAVSyncScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("自动同步")
+                                Text(stringResource(R.string.webdav_sync_auto_sync))
                             }
 
                             if (lastSyncTime > 0L) {
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "上次手动同步：${formatDateTime(lastSyncTime)}",
+                                    text = stringResource(R.string.webdav_sync_last_manual_sync, formatDateTime(lastSyncTime)),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -341,7 +343,7 @@ fun WebDAVSyncScreen(
                             if (lastAutoSyncTime > 0L) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "上次自动同步：${formatDateTime(lastAutoSyncTime)}",
+                                    text = stringResource(R.string.webdav_sync_last_auto_sync, formatDateTime(lastAutoSyncTime)),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

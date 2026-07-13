@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- UserLoginScreen -->
+    <string name="user_login_title">AnimeTrack Account</string>
+    <string name="user_login_avatar">Avatar</string>
+    <string name="user_login_user_default">User</string>
+    <string name="user_login_email_not_set">Email not set</string>
+    <string name="user_login_register_time">Registered: %1$s</string>
+    <string name="user_login_logged_in">Logged in</string>
+    <string name="user_login_change_password">Change Password</string>
+    <string name="user_login_logout">Log Out</string>
+    <string name="user_login_username">Username</string>
+    <string name="user_login_password">Password</string>
+    <string name="user_login_login">Log In</string>
+    <string name="user_login_no_account_register">No account? Register</string>
+    <string name="user_login_old_password">Old Password</string>
+    <string name="user_login_new_password">New Password</string>
+    <string name="user_login_password_min_hint">At least 6 characters</string>
+    <string name="user_login_confirm_new_password">Confirm New Password</string>
+    <string name="user_login_confirm_change">Confirm Change</string>
+    <string name="user_login_read_image_failed">Unable to read image</string>
+    <string name="user_login_image_too_large">Image size must not exceed 2MB</string>
+    <string name="user_login_upload_failed">Upload failed</string>
+    <string name="user_login_network_upload_failed">Network error, upload failed</string>
+    <string name="user_login_login_failed">Login failed</string>
+    <string name="user_login_network_error">Network error, please check your connection</string>
+    <string name="user_login_enter_old_password">Please enter old password</string>
+    <string name="user_login_password_too_short">Password must be at least 6 characters</string>
+    <string name="user_login_password_mismatch">Passwords do not match</string>
+    <string name="user_login_password_same_as_old">New password cannot be the same as old password</string>
+    <string name="user_login_change_failed">Change failed</string>
+
+    <!-- UserRegisterScreen -->
+    <string name="user_register_title">Register</string>
+    <string name="user_register_username">Username</string>
+    <string name="user_register_username_hint">3-20 characters</string>
+    <string name="user_register_password">Password</string>
+    <string name="user_register_password_hint">At least 6 characters</string>
+    <string name="user_register_confirm_password">Confirm Password</string>
+    <string name="user_register_email_optional">Email (optional)</string>
+    <string name="user_register_button">Register</string>
+    <string name="user_register_has_account_login">Already have an account? Log in</string>
+    <string name="user_register_username_length_error">Username must be 3-20 characters</string>
+    <string name="user_register_password_length_error">Password must be at least 6 characters</string>
+    <string name="user_register_password_mismatch">Passwords do not match</string>
+    <string name="user_register_success">Registration successful, please log in</string>
+    <string name="user_register_failed">Registration failed</string>
+    <string name="user_register_network_error">Network error, please check your connection</string>
+
+    <!-- LoginScreen -->
+    <string name="login_screen_title">Login</string>
+    <string name="login_screen_connected">Connected</string>
+    <string name="login_screen_sync_data">Log in to sync data</string>
+    <string name="login_screen_logged_in">Logged in</string>
+    <string name="login_screen_bilibili_subtitle">Log in to sync anime list</string>
+    <string name="login_screen_bangumi_subtitle">Log in to sync anime data</string>
+    <string name="login_screen_auto_sync">Auto Sync</string>
+    <string name="login_screen_auto_sync_desc">Show auto-sync toggle on Bilibili sync screen</string>
+    <string name="login_screen_hide_avatar">Hide Home Avatar</string>
+    <string name="login_screen_hide_avatar_desc">Hide the login avatar button at the top of the home screen</string>
+
+    <!-- AboutScreen -->
+    <string name="about_title">About</string>
+    <string name="about_avatar">Avatar</string>
+    <string name="about_app_slogan">A simple anime tracking app</string>
+    <string name="about_check_update">Check for Updates</string>
+    <string name="about_changelog">Changelog</string>
+    <string name="about_developer">Developer</string>
+    <string name="about_no_changelog">No changelog available</string>
+    <string name="about_sponsor">Sponsor</string>
+    <string name="about_wechat_code">WeChat Sponsor Code</string>
+    <string name="about_alipay_code">Alipay Sponsor Code</string>
+    <string name="about_save_image_hint">Long press image to save to gallery</string>
+    <string name="about_wechat">WeChat</string>
+    <string name="about_alipay">Alipay</string>
+    <string name="about_qq_group">QQ Group</string>
+    <string name="about_tg_group">TG Group</string>
+    <string name="about_sponsor_label">Sponsor</string>
+    <string name="about_dev_mode_enabled">Developer mode enabled</string>
+    <string name="about_dev_mode_hint">Tap 2 more times to enable developer mode</string>
+    <string name="about_copied_github">GitHub link copied</string>
+    <string name="about_copied_qq">QQ group number copied</string>
+    <string name="about_copied_tg">Telegram link copied</string>
+    <string name="about_save_failed">Save failed</string>
+    <string name="about_saved_to_album">Saved to gallery</string>
+    <string name="about_save_failed_with_msg">Save failed: %1$s</string>
+
+    <!-- DeveloperScreen -->
+    <string name="developer_title">Developer Options</string>
+    <string name="developer_mode">Developer Mode</string>
+    <string name="developer_mode_desc">Hide developer options when off</string>
+    <string name="developer_share_button">Share Button</string>
+    <string name="developer_share_button_desc">Show share anime button on detail page</string>
+    <string name="developer_update_notification">Update Notification</string>
+    <string name="developer_update_notification_desc">Show update notification entry in settings</string>
+    <string name="developer_test_notification">Test Notification</string>
+    <string name="developer_test_notification_desc">Send a test notification now</string>
+    <string name="developer_send_test_notification">Send Test Notification</string>
+    <string name="developer_debug_cards">Debug Cards</string>
+    <string name="developer_debug_cards_desc">Add placeholder anime cards for UI debugging</string>
+    <string name="developer_decrease">Decrease</string>
+    <string name="developer_increase">Increase</string>
+    <string name="developer_simulate_update">Simulate Update</string>
+    <string name="developer_simulate_update_desc">Simulate full update flow without downloading real files</string>
+    <string name="developer_trigger_simulate_update">Trigger Simulated Update</string>
+    <string name="developer_video_player">Video Player</string>
+    <string name="developer_video_player_desc">Player settings and testing</string>
+    <string name="developer_player_settings">Player Settings</string>
+    <string name="developer_mode_disabled">Developer mode disabled</string>
+    <string name="developer_test_notification_toast">Test notification will be sent in 3 seconds</string>
+    <string name="developer_added_debug_cards">Added %1$d debug cards</string>
+    <string name="developer_deleted_debug_cards">Deleted %1$d debug cards</string>
+    <string name="developer_no_debug_cards">No debug cards</string>
+    <string name="developer_debug_anime_prefix">Debug Anime</string>
+
+    <!-- DataManageScreen -->
+    <string name="data_manage_title">Data Management</string>
+    <string name="data_manage_import_export">Import &amp; Export</string>
+    <string name="data_manage_import_markdown">Import Markdown</string>
+    <string name="data_manage_import_markdown_subtitle">Import anime list from Markdown file</string>
+    <string name="data_manage_export_data">Export Anime Data</string>
+    <string name="data_manage_export_data_subtitle">Export anime list as Markdown file</string>
+    <string name="data_manage_cloud_sync">Cloud Sync</string>
+    <string name="data_manage_webdav_sync">WebDAV Sync</string>
+    <string name="data_manage_webdav_sync_subtitle">Configure WebDAV server for cloud backup and restore</string>
+    <string name="data_manage_import_guide_title">Import Markdown</string>
+    <string name="data_manage_import_guide_format_hint">Please ensure your Markdown file follows this format:</string>
+    <string name="data_manage_select_file">Ready, select file</string>
+    <string name="data_manage_export_success">Export successful!</string>
+    <string name="data_manage_export_failed">Export failed: %1$s</string>
+
+    <!-- FeaturesScreen -->
+    <string name="features_title">Features</string>
+    <string name="features_search_button">Search Button</string>
+    <string name="features_search_button_desc">Show search button in top right of home screen</string>
+    <string name="features_update_reminder">Update Reminders</string>
+    <string name="features_today_update_reminder">Today\'s Update Reminder</string>
+    <string name="features_today_update_reminder_desc">Show today\'s anime update reminder card at top of home screen</string>
+    <string name="features_calendar_preview_button">Schedule Preview Button</string>
+    <string name="features_calendar_preview_button_desc">Show calendar button in watching board to view today/tomorrow updates</string>
+    <string name="features_anime_display">Anime Display</string>
+    <string name="features_series_stack">Series Stacking</string>
+    <string name="features_series_stack_desc">Merge multi-season anime into stacked cards, long press to expand</string>
+    <string name="features_watching">Watching</string>
+    <string name="features_auto_complete">Auto Complete</string>
+    <string name="features_auto_complete_desc">Auto-mark as completed when progress is full</string>
+    <string name="features_completed_celebration">Completion Celebration</string>
+    <string name="features_completed_celebration_desc">Show celebration when marked as completed</string>
+
+    <!-- UpdateNotificationScreen -->
+    <string name="update_notif_title">Update Notifications</string>
+    <string name="update_notif_select_time">Select Notification Time</string>
+    <string name="update_notif_anime_update">Anime Update Notification</string>
+    <string name="update_notif_anime_update_desc">Daily push for today\'s anime update reminders</string>
+    <string name="update_notif_time">Notification Time</string>
+    <string name="update_notif_time_desc">Push anime update notifications daily at the set time</string>
+    <string name="update_notif_custom_time">Custom Time</string>
+    <string name="update_notif_custom_time_format">Custom %1$02d:%2$02d</string>
+    <string name="update_notif_morning_9">Morning 9:00</string>
+    <string name="update_notif_noon_12">Noon 12:00</string>
+    <string name="update_notif_evening_7">Evening 7:00</string>
+</resources>

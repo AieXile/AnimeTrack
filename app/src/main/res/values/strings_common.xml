@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 通用操作 -->
+    <string name="common_confirm">确认</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_save">保存</string>
+    <string name="common_delete">删除</string>
+    <string name="common_back">返回</string>
+    <string name="common_close">关闭</string>
+    <string name="common_retry">重试</string>
+    <string name="common_ok">确定</string>
+    <string name="common_add">添加</string>
+    <string name="common_edit">编辑</string>
+    <string name="common_clear">清除</string>
+    <string name="common_share">分享</string>
+    <string name="common_search">搜索</string>
+    <string name="common_all">全部</string>
+    <string name="common_yes">是</string>
+    <string name="common_no">否</string>
+    <string name="common_loading">加载中…</string>
+    <string name="common_error">错误</string>
+    <string name="common_success">成功</string>
+    <string name="common_failed">失败</string>
+    <string name="common_copy">复制</string>
+    <string name="common_copy_success">已复制</string>
+    <string name="common_copy_failed">复制失败</string>
+    <string name="common_not_set">未设置</string>
+    <string name="common_unknown">未知</string>
+    <string name="common_default">默认</string>
+    <string name="common_custom">自定义</string>
+    <string name="common_system">系统</string>
+    <string name="common_enable">开启</string>
+    <string name="common_disable">关闭</string>
+    <string name="common_enabled">已开启</string>
+    <string name="common_disabled">已关闭</string>
+
+    <!-- 通用状态 -->
+    <string name="status_watching">在看</string>
+    <string name="status_watched">已看完</string>
+    <string name="status_plan_to_watch">想看</string>
+    <string name="status_dropped">弃番</string>
+
+    <!-- 通用页面/区域 -->
+    <string name="nav_home">首页</string>
+    <string name="nav_timeline">时间线</string>
+    <string name="nav_schedule">时间表</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 通用星期 -->
+    <string name="weekday_mon">周一</string>
+    <string name="weekday_tue">周二</string>
+    <string name="weekday_wed">周三</string>
+    <string name="weekday_thu">周四</string>
+    <string name="weekday_fri">周五</string>
+    <string name="weekday_sat">周六</string>
+    <string name="weekday_sun">周日</string>
+</resources>

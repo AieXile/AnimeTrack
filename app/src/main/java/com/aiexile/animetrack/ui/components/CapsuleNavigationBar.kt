@@ -43,9 +43,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -227,13 +229,13 @@ private fun CapsuleNavItem(
     ) {
         Icon(
             imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-            contentDescription = item.title,
+            contentDescription = stringResource(item.titleRes),
             tint = iconColor,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.height(1.dp))
         Text(
-            text = item.title,
+            text = stringResource(item.titleRes),
             fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = textColor,

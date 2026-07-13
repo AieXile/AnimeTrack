@@ -28,6 +28,7 @@ object Routes {
     const val BANGUMI_PROXY = "bangumiProxy"
     const val USER_LOGIN = "userLogin"
     const val USER_REGISTER = "userRegister"
+    const val FONT_SETTINGS = "fontSettings"
 
     /** 带参数的详情路由 */
     fun animeDetail(animeId: Int, coverUrl: String?) =
@@ -66,7 +67,7 @@ object Routes {
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN,
         DEVELOPER, UPDATE_NOTIFICATION,
         PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, BANGUMI_PROXY,
-        USER_LOGIN, USER_REGISTER
+        USER_LOGIN, USER_REGISTER, FONT_SETTINGS
     )
 
     /** 二级页面过渡对（parent → child），使用 Set<Pair> 避免重复 key 覆盖 */

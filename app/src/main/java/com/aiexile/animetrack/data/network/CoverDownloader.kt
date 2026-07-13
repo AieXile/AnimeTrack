@@ -7,7 +7,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
-import java.net.HttpURLConnection
 import java.util.concurrent.TimeUnit
 
 object CoverDownloader {
@@ -49,26 +48,7 @@ object CoverDownloader {
             return if (localFile.exists() && localFile.length() > 0) coverUrl else null
         }
 
-        val destFile = getCoverFile(context, bangumiId)
-        if (destFile.exists() && destFile.length() > 0) {
-            return destFile.absolutePath
-        }
-
-        return try {
-            withContext(Dispatchers.IO) {
-                downloadTo(coverUrl, destFile)
-            }
-            if (destFile.exists() && destFile.length() > 0) {
-                Log.d(TAG, "Cover downloaded: bangumiId=$bangumiId")
-                destFile.absolutePath
-            } else {
-                Log.w(TAG, "Cover download produced empty file: bangumiId=$bangumiId")
-                coverUrl
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Cover download failed: bangumiId=$bangumiId url=$coverUrl", e)
-            coverUrl
-        }
+        return localizeTo(coverUrl, getCoverFile(context, bangumiId), "bangumiId=$bangumiId")
     }
 
     suspend fun downloadAndLocalizeById(
@@ -84,7 +64,14 @@ object CoverDownloader {
             return if (localFile.exists() && localFile.length() > 0) coverUrl else null
         }
 
-        val destFile = getCoverFileById(context, id, prefix)
+        return localizeTo(coverUrl, getCoverFileById(context, id, prefix), "${prefix}_$id")
+    }
+
+    /**
+     * 将远程封面下载到指定目标文件的通用实现。
+     * @param tag 仅用于日志标识
+     */
+    private suspend fun localizeTo(coverUrl: String, destFile: File, tag: String): String? {
         if (destFile.exists() && destFile.length() > 0) {
             return destFile.absolutePath
         }
@@ -94,14 +81,14 @@ object CoverDownloader {
                 downloadTo(coverUrl, destFile)
             }
             if (destFile.exists() && destFile.length() > 0) {
-                Log.d(TAG, "Cover downloaded: ${prefix}_$id")
+                Log.d(TAG, "Cover downloaded: $tag")
                 destFile.absolutePath
             } else {
-                Log.w(TAG, "Cover download produced empty file: ${prefix}_$id")
+                Log.w(TAG, "Cover download produced empty file: $tag")
                 coverUrl
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Cover download failed: ${prefix}_$id url=$coverUrl", e)
+            Log.e(TAG, "Cover download failed: $tag url=$coverUrl", e)
             coverUrl
         }
     }
@@ -130,7 +117,7 @@ object CoverDownloader {
             response = client.newCall(fallbackRequest).execute()
         }
 
-        if (!response.isSuccessful && response.code != HttpURLConnection.HTTP_OK) {
+        if (!response.isSuccessful) {
             throw Exception("HTTP ${response.code}")
         }
 

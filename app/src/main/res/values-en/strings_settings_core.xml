@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FontSettingsScreen -->
+    <string name="font_title">Font</string>
+    <string name="font_select_font">Select the font used in the app</string>
+    <string name="font_system_default_desc">Use system default font</string>
+    <string name="font_misans_desc">Built-in MiSans font</string>
+    <string name="font_not_imported">No custom font imported</string>
+    <string name="font_import_first">Please import a custom font first</string>
+    <string name="font_import_success">Font imported successfully</string>
+    <string name="font_import_failed">Font import failed</string>
+    <string name="font_custom_title">Custom Font</string>
+    <string name="font_custom_subtitle">Import .ttf font file, save permanently to device</string>
+    <string name="font_current">Current Font</string>
+    <string name="font_not_imported_short">Not imported</string>
+    <string name="font_import_button">Import Font</string>
+    <string name="font_language_title">Language</string>
+    <string name="font_language_subtitle">Switch app language</string>
+    <string name="font_restart_to_apply">Restart app to take effect</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_login">Login</string>
+    <string name="settings_login_subtitle">Sync your anime tracking data</string>
+    <string name="settings_bilibili_connected">Bilibili Connected</string>
+    <string name="settings_bangumi_connected">Bangumi Connected</string>
+    <string name="settings_appearance">Appearance &amp; Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_system">Follow System</string>
+    <string name="settings_theme_subtitle_format">%1$s · %2$s</string>
+    <string name="settings_appearance_default_subtitle">Clear Blue · Follow System</string>
+    <string name="settings_font">Font</string>
+    <string name="settings_font_subtitle">Font, Language</string>
+    <string name="settings_customize_nav">Customize Navigation</string>
+    <string name="settings_features">Features</string>
+    <string name="settings_proxy">Proxy Settings</string>
+    <string name="settings_proxy_subtitle">Bangumi reverse proxy, HTTP proxy</string>
+    <string name="settings_data_manage">Data Management</string>
+    <string name="settings_data_manage_subtitle">Import/Export, WebDAV cloud sync</string>
+    <string name="settings_update_notification">Update Notifications</string>
+    <string name="settings_update_notification_summary">Push anime updates daily at %1$02d:%2$02d</string>
+    <string name="settings_update_notification_disabled">Disabled</string>
+    <string name="settings_about">About</string>
+
+    <!-- AppearanceScreen -->
+    <string name="appearance_title">Appearance &amp; Theme</string>
+    <string name="appearance_mode_title">Appearance Mode</string>
+    <string name="appearance_mode_light">Light</string>
+    <string name="appearance_mode_dark">Dark</string>
+    <string name="appearance_mode_auto">Auto</string>
+    <string name="appearance_color_title">Theme Color</string>
+    <string name="appearance_color_subtitle">Choose your favorite color scheme</string>
+
+    <!-- NavigationCustomizeScreen -->
+    <string name="nav_custom_title">Customize Navigation</string>
+    <string name="nav_custom_style_title">Navigation Style</string>
+    <string name="nav_custom_style_bottom_desc">Classic Material Design bottom navigation bar</string>
+    <string name="nav_custom_style_capsule_desc">Floating capsule navigation bar with rounded corners</string>
+    <string name="nav_custom_fab_title">Add Anime Button Position</string>
+    <string name="nav_custom_fab_bottom_right_desc">Floating at bottom right, classic Material style</string>
+    <string name="nav_custom_fab_top_bar_desc">Embedded in top bar right, more minimal</string>
+    <string name="nav_custom_content_title">Navigation Content</string>
+    <string name="nav_custom_content_subtitle">Choose entries shown in navigation</string>
+    <string name="nav_custom_show_favorites">Show Favorites</string>
+    <string name="nav_custom_show_favorites_desc">Show favorites entry in navigation</string>
+    <string name="nav_custom_show_timeline">Show Timeline</string>
+    <string name="nav_custom_show_timeline_desc">Show timeline entry in navigation</string>
+    <string name="nav_custom_show_schedule">Show Schedule</string>
+    <string name="nav_custom_show_schedule_desc">Show schedule entry in navigation</string>
+    <string name="nav_custom_greeting_title">Custom Greeting</string>
+    <string name="nav_custom_greeting_subtitle">Set greeting text shown in home title bar</string>
+    <string name="nav_custom_typing_effect">Typing Effect</string>
+    <string name="nav_custom_typing_effect_desc">Typewriter animation for greeting</string>
+    <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
+    <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
+</resources>

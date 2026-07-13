@@ -15,6 +15,7 @@ import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
 import com.aiexile.animetrack.model.Anime;
 import com.aiexile.animetrack.model.AnimeStatus;
+import java.lang.Boolean;
 import java.lang.Class;
 import java.lang.Exception;
 import java.lang.Float;
@@ -58,7 +59,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`,`currentEpisodes`,`hasNewUpdate`,`syncRemarks`,`tmdbId`,`seriesKey`,`remoteCoverUrl`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        return "INSERT OR IGNORE INTO `anime` (`id`,`title`,`totalEpisodes`,`watchedEpisodes`,`status`,`rating`,`notes`,`startDate`,`finishDate`,`coverUrl`,`airDate`,`summary`,`bangumiId`,`airWeekday`,`isFinished`,`currentEpisodes`,`hasNewUpdate`,`syncRemarks`,`tmdbId`,`seriesKey`,`remoteCoverUrl`,`summaryFetched`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -135,6 +136,12 @@ public final class AnimeDao_Impl implements AnimeDao {
           statement.bindNull(21);
         } else {
           statement.bindString(21, entity.getRemoteCoverUrl());
+        }
+        final Integer _tmp_3 = entity.getSummaryFetched() == null ? null : (entity.getSummaryFetched() ? 1 : 0);
+        if (_tmp_3 == null) {
+          statement.bindNull(22);
+        } else {
+          statement.bindLong(22, _tmp_3);
         }
       }
     };
@@ -155,7 +162,7 @@ public final class AnimeDao_Impl implements AnimeDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ?,`currentEpisodes` = ?,`hasNewUpdate` = ?,`syncRemarks` = ?,`tmdbId` = ?,`seriesKey` = ?,`remoteCoverUrl` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `anime` SET `id` = ?,`title` = ?,`totalEpisodes` = ?,`watchedEpisodes` = ?,`status` = ?,`rating` = ?,`notes` = ?,`startDate` = ?,`finishDate` = ?,`coverUrl` = ?,`airDate` = ?,`summary` = ?,`bangumiId` = ?,`airWeekday` = ?,`isFinished` = ?,`currentEpisodes` = ?,`hasNewUpdate` = ?,`syncRemarks` = ?,`tmdbId` = ?,`seriesKey` = ?,`remoteCoverUrl` = ?,`summaryFetched` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -233,7 +240,13 @@ public final class AnimeDao_Impl implements AnimeDao {
         } else {
           statement.bindString(21, entity.getRemoteCoverUrl());
         }
-        statement.bindLong(22, entity.getId());
+        final Integer _tmp_3 = entity.getSummaryFetched() == null ? null : (entity.getSummaryFetched() ? 1 : 0);
+        if (_tmp_3 == null) {
+          statement.bindNull(22);
+        } else {
+          statement.bindLong(22, _tmp_3);
+        }
+        statement.bindLong(23, entity.getId());
       }
     };
     this.__preparedStmtOfClearNewUpdate = new SharedSQLiteStatement(__db) {
@@ -442,6 +455,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -541,7 +555,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -589,6 +611,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -688,7 +711,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -734,6 +765,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -832,7 +864,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
           } else {
             _result = null;
           }
@@ -878,6 +918,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -976,7 +1017,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
           } else {
             _result = null;
           }
@@ -1027,6 +1076,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1126,7 +1176,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_4;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_4 = null;
+            } else {
+              _tmp_4 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_4 == null ? null : _tmp_4 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -1176,6 +1234,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1274,7 +1333,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
           } else {
             _result = null;
           }
@@ -1322,6 +1389,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1420,7 +1488,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
           } else {
             _result = null;
           }
@@ -1467,6 +1543,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final Anime _result;
           if (_cursor.moveToFirst()) {
             final int _tmpId;
@@ -1565,7 +1642,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _result = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
           } else {
             _result = null;
           }
@@ -1610,6 +1695,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1709,7 +1795,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -1752,6 +1846,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1851,7 +1946,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -1899,6 +2002,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -1998,7 +2102,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;
@@ -2045,6 +2157,7 @@ public final class AnimeDao_Impl implements AnimeDao {
           final int _cursorIndexOfTmdbId = CursorUtil.getColumnIndexOrThrow(_cursor, "tmdbId");
           final int _cursorIndexOfSeriesKey = CursorUtil.getColumnIndexOrThrow(_cursor, "seriesKey");
           final int _cursorIndexOfRemoteCoverUrl = CursorUtil.getColumnIndexOrThrow(_cursor, "remoteCoverUrl");
+          final int _cursorIndexOfSummaryFetched = CursorUtil.getColumnIndexOrThrow(_cursor, "summaryFetched");
           final List<Anime> _result = new ArrayList<Anime>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final Anime _item;
@@ -2144,7 +2257,15 @@ public final class AnimeDao_Impl implements AnimeDao {
             } else {
               _tmpRemoteCoverUrl = _cursor.getString(_cursorIndexOfRemoteCoverUrl);
             }
-            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl);
+            final Boolean _tmpSummaryFetched;
+            final Integer _tmp_3;
+            if (_cursor.isNull(_cursorIndexOfSummaryFetched)) {
+              _tmp_3 = null;
+            } else {
+              _tmp_3 = _cursor.getInt(_cursorIndexOfSummaryFetched);
+            }
+            _tmpSummaryFetched = _tmp_3 == null ? null : _tmp_3 != 0;
+            _item = new Anime(_tmpId,_tmpTitle,_tmpTotalEpisodes,_tmpWatchedEpisodes,_tmpStatus,_tmpRating,_tmpNotes,_tmpStartDate,_tmpFinishDate,_tmpCoverUrl,_tmpAirDate,_tmpSummary,_tmpBangumiId,_tmpAirWeekday,_tmpIsFinished,_tmpCurrentEpisodes,_tmpHasNewUpdate,_tmpSyncRemarks,_tmpTmdbId,_tmpSeriesKey,_tmpRemoteCoverUrl,_tmpSummaryFetched);
             _result.add(_item);
           }
           return _result;

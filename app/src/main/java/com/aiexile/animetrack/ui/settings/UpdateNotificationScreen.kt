@@ -41,10 +41,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.notification.UpdateNotificationManager
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -98,9 +100,9 @@ fun UpdateNotificationScreen(
     // 预设时间选项
     data class PresetTime(val hour: Int, val minute: Int, val label: String)
     val presetTimes = listOf(
-        PresetTime(9, 0, "早上 9:00"),
-        PresetTime(12, 0, "中午 12:00"),
-        PresetTime(19, 0, "晚上 7:00")
+        PresetTime(9, 0, stringResource(R.string.update_notif_morning_9)),
+        PresetTime(12, 0, stringResource(R.string.update_notif_noon_12)),
+        PresetTime(19, 0, stringResource(R.string.update_notif_evening_7))
     )
     val isCustomTime = presetTimes.none { it.hour == hour && it.minute == minute }
 
@@ -132,7 +134,7 @@ fun UpdateNotificationScreen(
             onDismissRequest = { showTimePicker = false },
             title = {
                 Text(
-                    text = "选择通知时间",
+                    text = stringResource(R.string.update_notif_select_time),
                     fontWeight = FontWeight.SemiBold
                 )
             },
@@ -153,14 +155,14 @@ fun UpdateNotificationScreen(
                         showTimePicker = false
                     }
                 ) {
-                    Text("确定")
+                    Text(stringResource(R.string.common_ok))
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showTimePicker = false }
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -187,7 +189,7 @@ fun UpdateNotificationScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "更新通知",
+                        text = stringResource(R.string.update_notif_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -196,7 +198,7 @@ fun UpdateNotificationScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -220,14 +222,14 @@ fun UpdateNotificationScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "番剧更新通知",
+                            text = stringResource(R.string.update_notif_anime_update),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "每天推送今日更新番剧提醒",
+                            text = stringResource(R.string.update_notif_anime_update_desc),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -256,14 +258,14 @@ fun UpdateNotificationScreen(
             if (enabled) {
                 item {
                     Text(
-                        text = "通知时间",
+                        text = stringResource(R.string.update_notif_time),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "每天在设定时间推送番剧更新通知",
+                        text = stringResource(R.string.update_notif_time_desc),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -321,9 +323,9 @@ fun UpdateNotificationScreen(
                         )
                         Text(
                             text = if (isCustomTime) {
-                                String.format("自定义 %02d:%02d", hour, minute)
+                                stringResource(R.string.update_notif_custom_time_format, hour, minute)
                             } else {
-                                "自定义时间"
+                                stringResource(R.string.update_notif_custom_time)
                             },
                             fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onSurface

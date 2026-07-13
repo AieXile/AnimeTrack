@@ -80,6 +80,17 @@ fun formatAirDate(airDate: String?): String? {
 }
 
 /**
+ * 判断开播日期是否晚于今天（尚未开播）。
+ * 解析失败返回 false。
+ */
+fun isAirDateInFuture(airDate: String?): Boolean {
+    if (airDate.isNullOrBlank()) return false
+    return runCatching {
+        java.time.LocalDate.parse(airDate).isAfter(java.time.LocalDate.now())
+    }.getOrDefault(false)
+}
+
+/**
  * 将 yyyy-MM-dd 日期字符串解析为本地时间戳（毫秒）。
  * 解析失败返回 null。
  */

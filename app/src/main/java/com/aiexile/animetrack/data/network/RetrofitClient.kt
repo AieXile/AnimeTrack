@@ -324,12 +324,13 @@ object RetrofitClient {
             .build()
     }
 
-    // 用户认证客户端（10s 超时 + 请求头 + URL 重写）
+    // 用户认证客户端（10s 超时 + 请求头 + 403自动刷新 + URL 重写）
     private val userAuthOkHttpClient: OkHttpClient by lazy {
         baseOkHttpClient.newBuilder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .addInterceptor(userAuthHeaderInterceptor)
+            .addInterceptor(UserAuthInterceptor())
             .addInterceptor(userAuthUrlRewriteInterceptor)
             .addInterceptor(userAuthDebugInterceptor)
             .build()

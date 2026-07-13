@@ -20,13 +20,17 @@ import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
 import com.aiexile.animetrack.util.getCurrentWeekday
+import com.aiexile.animetrack.util.isAirDateInFuture
 import com.aiexile.animetrack.util.resolveSearchError
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
+import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -80,6 +84,7 @@ class HomeViewModel(
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
     val updateViewModel: UpdateViewModel,
+    val announcementViewModel: AnnouncementViewModel,
     private val searchUseCase: SearchUseCase,
     private val updateCheckUseCase: UpdateCheckUseCase
 ) : ViewModel() {
@@ -113,22 +118,61 @@ class HomeViewModel(
     val animeList: StateFlow<List<Anime>> = repository.getAllAnimes()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Lazily,
+            started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    private val todayWeekday = getCurrentWeekday()
-
     val todayUpdateCount: StateFlow<Int> = animeList.map { animes ->
+        val todayWeekday = getCurrentWeekday()
         animes.count { it.airWeekday == todayWeekday && !it.isFinished }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Lazily,
+        started = SharingStarted.WhileSubscribed(5000),
         initialValue = 0
     )
 
+    /** 影响列表排序/分组的筛选参数，用于派生列表的去重防抖 */
+    private data class ListParams(
+        val filter: AnimeFilter,
+        val searchQuery: String,
+        val pinnedIds: Set<Long>
+    )
+
+    private val listParams: StateFlow<ListParams> = _uiState.map {
+        ListParams(it.selectedFilter, it.localSearchQuery, it.todayUpdatePinnedIds)
+    }.distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ListParams(AnimeFilter.ALL, "", emptySet())
+        )
+
+    /**
+     * 派生的首页列表：仅在数据或筛选参数变化时重新排序/分组，
+     * 配合 distinctUntilChanged 避免 Compose 每帧重复计算。
+     */
+    val filteredAnimeListItems: StateFlow<List<AnimeListItem>> =
+        combine(animeList, listParams) { animes, params ->
+            val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds)
+            SeriesMatcher.groupAnimeList(filtered)
+        }.distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
     private val _bannerDismissed = MutableStateFlow(false)
     val bannerDismissed: StateFlow<Boolean> = _bannerDismissed.asStateFlow()
+
+    // 系列堆叠开关：hoist 到 ViewModel，避免 Composable 重建时 collectAsState 初始值闪烁
+    // 导致 displayList item 数量变化（true=堆叠少项 / false=拆分多项），从而引发滚动位置漂移
+    val seriesStackEnabled: StateFlow<Boolean> = settingsRepository.seriesStackEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
 
     private val _autoSyncState = MutableStateFlow<AutoSyncState>(AutoSyncState.Idle)
     val autoSyncState: StateFlow<AutoSyncState> = _autoSyncState.asStateFlow()
@@ -136,6 +180,7 @@ class HomeViewModel(
     private var autoSyncTriggered = false
 
     fun highlightTodayUpdates() {
+        val todayWeekday = getCurrentWeekday()
         val todayAnimeIds = animeList.value
             .filter { it.airWeekday == todayWeekday && !it.isFinished }
             .map { it.id.toLong() }
@@ -161,16 +206,17 @@ class HomeViewModel(
     
     init {
         viewModelScope.launch {
-            animeList.collect { animes ->
-                Log.d(TAG, "Database changed, anime count: ${animes.size}")
-                _uiState.update { it.copy(isLoading = false) }
-            }
+            // 仅需在首次拿到数据后关闭 loading，无需常驻收集
+            val animes = animeList.first()
+            Log.d(TAG, "Initial data loaded, anime count: ${animes.size}")
+            _uiState.update { it.copy(isLoading = false) }
         }
         // App 启动时重新识别 seriesKey 并持久化（仅一次）
         viewModelScope.launch {
             repository.reassignSeriesKeys()
         }
         updateViewModel.checkForUpdate()
+        announcementViewModel.fetchAnnouncements()
         checkAiringAnimeUpdates()
         viewModelScope.launch {
             val syncManager = AppContainer.getSyncManager()
@@ -454,7 +500,7 @@ class HomeViewModel(
                                 summary = dbAnime.summary ?: detail.summary?.cleanSummary(),
                                 isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status)
                             )
-                            repository.updateAnime(updated)
+                            repository.updateAnimeInternal(updated)
                             Log.d(TAG, "Backfilled detail for animeId=$id")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to backfill detail for animeId=$id", e)
@@ -518,16 +564,6 @@ class HomeViewModel(
         }
     }
 
-    fun getFilteredAnimeListItems(
-        animeList: List<Anime>,
-        filter: AnimeFilter,
-        searchQuery: String = "",
-        pinnedIds: Set<Long> = emptySet()
-    ): List<AnimeListItem> {
-        val filteredAnime = getFilteredAnimeList(animeList, filter, searchQuery, pinnedIds)
-        return SeriesMatcher.groupAnimeList(filteredAnime)
-    }
-    
     fun updateLocalSearchQuery(query: String) {
         _uiState.update { it.copy(localSearchQuery = query) }
     }
@@ -619,9 +655,7 @@ class HomeViewModel(
 
                         _uiState.update { state ->
                             val updatedAirDate = detail.date ?: state.formState.airDate
-                            val isNotYetAired = updatedAirDate != null && try {
-                                java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
-                            } catch (_: Exception) { false }
+                            val isNotYetAired = isAirDateInFuture(updatedAirDate)
                             state.copy(
                                 formState = state.formState.copy(
                                     totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
@@ -642,9 +676,7 @@ class HomeViewModel(
 
                         _uiState.update { state ->
                             val updatedAirDate = detail.firstAirDate ?: state.formState.airDate
-                            val isNotYetAired = updatedAirDate != null && try {
-                                java.time.LocalDate.parse(updatedAirDate).isAfter(java.time.LocalDate.now())
-                            } catch (_: Exception) { false }
+                            val isNotYetAired = isAirDateInFuture(updatedAirDate)
                             state.copy(
                                 formState = state.formState.copy(
                                     totalEpisodes = if (finalTotal > 0) finalTotal else state.formState.totalEpisodes,
@@ -671,9 +703,10 @@ class HomeViewModel(
             val settingsRepository = AppContainer.getSettingsRepository()
             val updateRepository = UpdateRepository()
             val updateViewModel = UpdateViewModel(updateRepository, settingsRepository)
+            val announcementViewModel = AnnouncementViewModel(settingsRepository)
             val searchUseCase = SearchUseCase(repository)
             val updateCheckUseCase = UpdateCheckUseCase(repository)
-            return HomeViewModel(repository, settingsRepository, updateViewModel, searchUseCase, updateCheckUseCase) as T
+            return HomeViewModel(repository, settingsRepository, updateViewModel, announcementViewModel, searchUseCase, updateCheckUseCase) as T
         }
     }
 }

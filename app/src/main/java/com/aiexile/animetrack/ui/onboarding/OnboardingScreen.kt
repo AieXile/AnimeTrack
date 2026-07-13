@@ -59,6 +59,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.aiexile.animetrack.R
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(
@@ -66,17 +68,31 @@ private data class OnboardingPage(
     val description: String
 )
 
-private val pages = listOf(
-    OnboardingPage(title = "追踪你的番剧", description = "本地记录观看进度，手动管理追番状态\n不再因时间过长忘记看到哪一集"),
-    OnboardingPage(title = "多平台同步", description = "一键导入 B站 与 Bangumi 追番列表\n自动同步观看进度"),
-    OnboardingPage(title = "数据备份与看板", description = "WebDAV 云端备份守护数据\n番剧时间表不再错过更新"),
-    OnboardingPage(title = "个性定制", description = "主题配色、导航样式、自定义欢迎语\n自定义应用体验")
+@Composable
+private fun onboardingPages(): List<OnboardingPage> = listOf(
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_page1_title),
+        description = stringResource(R.string.onboarding_page1_description)
+    ),
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_page2_title),
+        description = stringResource(R.string.onboarding_page2_description)
+    ),
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_page3_title),
+        description = stringResource(R.string.onboarding_page3_description)
+    ),
+    OnboardingPage(
+        title = stringResource(R.string.onboarding_page4_title),
+        description = stringResource(R.string.onboarding_page4_description)
+    )
 )
 
 @Composable
 fun OnboardingScreen(
     onStartReveal: (Offset) -> Unit
 ) {
+    val pages = onboardingPages()
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
     val isLastPage = pagerState.currentPage == pages.size - 1
@@ -94,7 +110,7 @@ fun OnboardingScreen(
                     onClick = { scope.launch { pagerState.animateScrollToPage(pages.size - 1) } },
                     modifier = Modifier.align(Alignment.TopEnd)
                 ) {
-                    Text("跳过", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.onboarding_skip), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -128,14 +144,14 @@ fun OnboardingScreen(
                     },
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Text(text = "开始体验", modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.onboarding_start), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
                 }
             } else {
                 FilledTonalButton(
                     onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Text(text = "下一步", modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                    Text(text = stringResource(R.string.onboarding_next), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                 }
             }
         }
@@ -144,6 +160,7 @@ fun OnboardingScreen(
 
 @Composable
 private fun OnboardingPageContent(page: Int) {
+    val pages = onboardingPages()
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally

@@ -26,10 +26,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.MarkdownText
 
 @Composable
@@ -38,6 +40,7 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
     val context = LocalContext.current
 
     val info = uiState.updateInfo
+    val unknownError = stringResource(R.string.update_dialog_unknown_error)
 
     LifecycleResumeEffect(Unit) {
         viewModel.checkPendingInstall(context)
@@ -60,7 +63,7 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
     when {
         uiState.error != null -> {
             ErrorDialog(
-                message = uiState.error ?: "未知错误",
+                message = uiState.error ?: unknownError,
                 onDismiss = {
                     viewModel.clearError()
                     viewModel.dismissUpdate()
@@ -75,6 +78,8 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
                 isDownloading = uiState.isDownloading,
                 downloadProgress = uiState.downloadProgress,
                 downloadComplete = uiState.downloadComplete,
+                shaVerifyState = uiState.shaVerifyState,
+                isSimulated = uiState.isSimulated,
                 onUpdate = { if (uiState.isSimulated) viewModel.startSimulatedDownload() else viewModel.startDownload(context) },
                 onInstall = { viewModel.installApk(context) },
                 onRedownload = { if (!uiState.isSimulated) viewModel.redownload(context) },
@@ -93,22 +98,30 @@ private fun UpdateAvailableDialog(
     isDownloading: Boolean,
     downloadProgress: Int,
     downloadComplete: Boolean,
+    shaVerifyState: ShaVerifyState,
+    isSimulated: Boolean,
     onUpdate: () -> Unit,
     onInstall: () -> Unit,
     onRedownload: () -> Unit,
     onDismiss: () -> Unit,
     onSkip: () -> Unit
 ) {
+    val shaVerifyingText = stringResource(R.string.update_dialog_sha_verifying)
+    val shaVerifiedText = stringResource(R.string.update_dialog_sha_verified)
+    val shaFailedText = stringResource(R.string.update_dialog_sha_failed)
+
     AlertDialog(
         onDismissRequest = if (isDownloading) ({}) else onDismiss,
-        title = {
-            Text(
-                text = "发现新版本",
-                fontWeight = FontWeight.Bold
-            )
-        },
+        title = null,
         text = {
             Column {
+                // "发现新版本"标题与版本号对比紧凑排列
+                Text(
+                    text = stringResource(R.string.update_dialog_new_version),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Text(
                         text = currentVersion,
@@ -129,6 +142,27 @@ private fun UpdateAvailableDialog(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+
+                // SHA 校验状态（非模拟更新时显示）
+                if (!isSimulated && shaVerifyState != ShaVerifyState.NONE) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    ) {
+                        val (shaText, shaColor) = when (shaVerifyState) {
+                            ShaVerifyState.VERIFYING -> shaVerifyingText to MaterialTheme.colorScheme.onSurfaceVariant
+                            ShaVerifyState.VERIFIED -> shaVerifiedText to MaterialTheme.colorScheme.primary
+                            ShaVerifyState.FAILED -> shaFailedText to MaterialTheme.colorScheme.error
+                            ShaVerifyState.NONE -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Text(
+                            text = shaText,
+                            fontSize = 12.sp,
+                            color = shaColor
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     modifier = Modifier
@@ -150,7 +184,7 @@ private fun UpdateAvailableDialog(
                     ) {
                         if (changelog.isBlank()) {
                             Text(
-                                text = "暂无更新日志",
+                                text = stringResource(R.string.update_dialog_no_changelog),
                                 fontSize = 13.sp,
                                 lineHeight = 20.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -166,21 +200,25 @@ private fun UpdateAvailableDialog(
             Row {
                 if (!isDownloading && !downloadComplete) {
                     TextButton(onClick = onSkip) {
-                        Text("跳过该版本")
+                        Text(stringResource(R.string.update_dialog_skip))
                     }
                     TextButton(onClick = onDismiss) {
-                        Text("取消")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
                 if (downloadComplete) {
                     TextButton(onClick = onRedownload) {
-                        Text("重新下载")
+                        Text(stringResource(R.string.update_dialog_redownload))
                     }
                     TextButton(onClick = onDismiss) {
-                        Text("稍后")
+                        Text(stringResource(R.string.update_dialog_later))
                     }
-                    Button(onClick = onInstall) {
-                        Text("安装")
+                    // 校验失败时禁用安装按钮
+                    Button(
+                        onClick = onInstall,
+                        enabled = shaVerifyState != ShaVerifyState.FAILED && shaVerifyState != ShaVerifyState.VERIFYING
+                    ) {
+                        Text(stringResource(R.string.update_dialog_install))
                     }
                 } else if (isDownloading) {
                     TextButton(onClick = onDismiss, enabled = false) {
@@ -188,7 +226,7 @@ private fun UpdateAvailableDialog(
                     }
                 } else {
                     Button(onClick = onUpdate) {
-                        Text("立即更新")
+                        Text(stringResource(R.string.update_dialog_update_now))
                     }
                 }
             }
@@ -204,16 +242,16 @@ private fun UpToDateDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "已是最新版本",
+                text = stringResource(R.string.update_dialog_up_to_date),
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
-            Text("当前已是最新版本，无需更新。")
+            Text(stringResource(R.string.update_dialog_up_to_date_message))
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("确定")
+                Text(stringResource(R.string.common_ok))
             }
         }
     )
@@ -228,7 +266,7 @@ private fun ErrorDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "更新失败",
+                text = stringResource(R.string.update_dialog_failed),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -237,7 +275,7 @@ private fun ErrorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("确定")
+                Text(stringResource(R.string.common_ok))
             }
         }
     )

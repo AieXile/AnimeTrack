@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FontSettingsScreen -->
+    <string name="font_title">字体</string>
+    <string name="font_select_font">选择应用内使用的字体</string>
+    <string name="font_system_default_desc">使用系统默认字体</string>
+    <string name="font_misans_desc">内置 MiSans 字体</string>
+    <string name="font_not_imported">未导入自定义字体</string>
+    <string name="font_import_first">请先导入自定义字体</string>
+    <string name="font_import_success">字体导入成功</string>
+    <string name="font_import_failed">字体导入失败</string>
+    <string name="font_custom_title">自定义字体</string>
+    <string name="font_custom_subtitle">导入 .ttf 字体文件，永久保存到本地</string>
+    <string name="font_current">当前字体</string>
+    <string name="font_not_imported_short">未导入</string>
+    <string name="font_import_button">导入字体</string>
+    <string name="font_language_title">语言</string>
+    <string name="font_language_subtitle">切换应用语言</string>
+    <string name="font_restart_to_apply">需重启应用生效</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">设置</string>
+    <string name="settings_login">登录</string>
+    <string name="settings_login_subtitle">同步你的追番数据</string>
+    <string name="settings_bilibili_connected">Bilibili 已连接</string>
+    <string name="settings_bangumi_connected">Bangumi 已连接</string>
+    <string name="settings_appearance">外观与主题</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_subtitle_format">%1$s · %2$s</string>
+    <string name="settings_appearance_default_subtitle">清透蓝 · 跟随系统</string>
+    <string name="settings_font">字体</string>
+    <string name="settings_font_subtitle">字体、语言</string>
+    <string name="settings_customize_nav">定制导航栏</string>
+    <string name="settings_features">功能</string>
+    <string name="settings_proxy">代理设置</string>
+    <string name="settings_proxy_subtitle">Bangumi 反向代理、HTTP 代理</string>
+    <string name="settings_data_manage">数据管理</string>
+    <string name="settings_data_manage_subtitle">导入导出、WebDAV 云同步</string>
+    <string name="settings_update_notification">更新通知</string>
+    <string name="settings_update_notification_summary">每天 %1$02d:%2$02d 推送番剧更新</string>
+    <string name="settings_update_notification_disabled">未开启</string>
+    <string name="settings_about">关于</string>
+
+    <!-- AppearanceScreen -->
+    <string name="appearance_title">外观与主题</string>
+    <string name="appearance_mode_title">外观模式</string>
+    <string name="appearance_mode_light">浅色</string>
+    <string name="appearance_mode_dark">深色</string>
+    <string name="appearance_mode_auto">自动</string>
+    <string name="appearance_color_title">主题配色</string>
+    <string name="appearance_color_subtitle">选择你喜欢的配色方案</string>
+
+    <!-- NavigationCustomizeScreen -->
+    <string name="nav_custom_title">定制导航栏</string>
+    <string name="nav_custom_style_title">导航栏样式</string>
+    <string name="nav_custom_style_bottom_desc">经典 Material Design 底部导航栏，贴底显示</string>
+    <string name="nav_custom_style_capsule_desc">悬浮胶囊导航栏，圆角浮于内容之上</string>
+    <string name="nav_custom_fab_title">添加番剧按钮位置</string>
+    <string name="nav_custom_fab_bottom_right_desc">悬浮在页面右下角，经典 Material 风格</string>
+    <string name="nav_custom_fab_top_bar_desc">嵌入顶部标题栏右侧，更极简紧凑</string>
+    <string name="nav_custom_content_title">导航栏内容</string>
+    <string name="nav_custom_content_subtitle">选择在导航栏中显示的入口</string>
+    <string name="nav_custom_show_favorites">显示收藏</string>
+    <string name="nav_custom_show_favorites_desc">在导航栏显示收藏入口</string>
+    <string name="nav_custom_show_timeline">显示时间线</string>
+    <string name="nav_custom_show_timeline_desc">在导航栏显示时间线入口</string>
+    <string name="nav_custom_show_schedule">显示追番看板</string>
+    <string name="nav_custom_show_schedule_desc">在导航栏显示追番看板入口</string>
+    <string name="nav_custom_greeting_title">自定义欢迎语</string>
+    <string name="nav_custom_greeting_subtitle">设置首页标题栏显示的欢迎语</string>
+    <string name="nav_custom_typing_effect">打字效果</string>
+    <string name="nav_custom_typing_effect_desc">欢迎语逐字显示的打字机动画</string>
+    <string name="nav_custom_greeting_placeholder">留空则显示随机 Hi, / Hey, / Hello,</string>
+    <string name="nav_custom_greeting_too_long">文案过长可能会被截断</string>
+</resources>

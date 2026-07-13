@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -95,6 +96,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.media3.ui.PlayerView
+import com.aiexile.animetrack.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -403,12 +405,12 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "已暂停",
+                            contentDescription = stringResource(R.string.player_paused),
                             tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "已暂停",
+                            text = stringResource(R.string.player_paused),
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 11.sp
                         )
@@ -534,7 +536,7 @@ private fun TopControlBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "返回",
+                    contentDescription = stringResource(R.string.common_back),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -557,7 +559,7 @@ private fun TopControlBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Replay,
-                        contentDescription = "快进85秒",
+                        contentDescription = stringResource(R.string.player_skip_forward),
                         tint = Color.White,
                         modifier = Modifier
                             .size(28.dp)
@@ -616,7 +618,7 @@ private fun BottomControlBar(
             // Play/Pause button
             Icon(
                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = if (isPlaying) "暂停" else "播放",
+                contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                 tint = Color.White,
                 modifier = Modifier
                     .size(24.dp)
@@ -629,7 +631,7 @@ private fun BottomControlBar(
             if (hasNextEpisode) {
                 Icon(
                     imageVector = Icons.Rounded.SkipNext,
-                    contentDescription = "下一集",
+                    contentDescription = stringResource(R.string.player_next_episode),
                     tint = Color.White,
                     modifier = Modifier
                         .size(24.dp)
@@ -693,7 +695,7 @@ private fun BottomControlBar(
                 Icon(
                     imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit
                     else Icons.Rounded.Fullscreen,
-                    contentDescription = if (isFullscreen) "退出全屏" else "全屏",
+                    contentDescription = if (isFullscreen) stringResource(R.string.player_exit_fullscreen) else stringResource(R.string.player_fullscreen),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
@@ -887,7 +889,7 @@ private fun ErrorOverlay(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("返回")
+                Text(stringResource(R.string.common_back))
             }
 
             Button(
@@ -897,7 +899,7 @@ private fun ErrorOverlay(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("重试")
+                Text(stringResource(R.string.common_retry))
             }
         }
     }
@@ -918,7 +920,7 @@ private fun EmptyMediaState(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "选择视频源",
+            text = stringResource(R.string.player_select_source),
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium
@@ -927,7 +929,7 @@ private fun EmptyMediaState(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "从 WebDAV 或本地文件中选择要播放的视频",
+            text = stringResource(R.string.player_select_source_hint),
             color = Color.White.copy(alpha = 0.6f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center
@@ -950,7 +952,7 @@ private fun EmptyMediaState(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("浏览 WebDAV")
+            Text(stringResource(R.string.player_browse_webdav))
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -970,7 +972,7 @@ private fun EmptyMediaState(
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("选择本地文件")
+            Text(stringResource(R.string.player_select_local_file))
         }
     }
 }
@@ -1039,7 +1041,7 @@ private fun GestureFeedbackOverlay(
                         Icon(
                             imageVector = if (feedback.value < 0.3f) Icons.Rounded.BrightnessLow
                             else Icons.Rounded.BrightnessHigh,
-                            contentDescription = "亮度",
+                            contentDescription = stringResource(R.string.player_brightness),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -1058,7 +1060,7 @@ private fun GestureFeedbackOverlay(
                                 feedback.value < 0.5f -> Icons.AutoMirrored.Rounded.VolumeDown
                                 else -> Icons.AutoMirrored.Rounded.VolumeUp
                             },
-                            contentDescription = "音量",
+                            contentDescription = stringResource(R.string.player_volume),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -1107,7 +1109,7 @@ private fun LongPressSpeedIndicator(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "长按加速中",
+                    text = stringResource(R.string.player_long_press_speed),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )

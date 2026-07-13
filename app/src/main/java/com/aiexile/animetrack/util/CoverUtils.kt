@@ -29,6 +29,17 @@ fun resolveCoverModel(coverUrl: String?): Any? {
 }
 
 /**
+ * 生成稳定的封面内存缓存 key。
+ *
+ * 列表卡片与详情页共用同一 key，使详情页在共享元素转场时能以内存缓存图作占位，
+ * 消除首帧空白导致的封面闪烁。
+ */
+fun coverMemoryCacheKey(coverUrl: String?): String? {
+    if (coverUrl == null) return null
+    return "cover_$coverUrl"
+}
+
+/**
  * 根据开播日期和总集数判断番剧是否已完结。
  *
  * 判定逻辑：

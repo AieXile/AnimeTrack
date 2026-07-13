@@ -40,6 +40,39 @@ class BangumiSyncManager(
 
     private val pushMutex = Mutex()
 
+    /**
+     * 统一处理「登录校验 + IO 调度 + 互斥锁」的推送模板。
+     * 未登录时直接跳过 block。
+     */
+    private suspend fun withAuthAndLock(block: suspend () -> Unit) {
+        withContext(Dispatchers.IO) {
+            if (!authManager.isLoggedIn.first()) return@withContext
+            pushMutex.withLock {
+                block()
+            }
+        }
+    }
+
+    /** 更新收藏状态（读取现有评分/评论后回写），失败静默 */
+    private suspend fun updateCollectionStatus(bangumiId: Int, status: AnimeStatus) {
+        val type = animeStatusToBangumiType(status)
+        val existing = try {
+            RetrofitClient.bangumiApi.getCollectionStatus(bangumiId)
+        } catch (_: Exception) { null }
+
+        val body = CollectionStatusBody(
+            type = type,
+            rate = existing?.rate ?: 0,
+            comment = existing?.comment ?: "",
+            isPrivate = existing?.let { it.type == 0 } ?: false
+        )
+        RetrofitClient.bangumiApi.updateCollectionStatus(
+            subjectId = bangumiId,
+            body = body
+        )
+        Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
+    }
+
     suspend fun syncRemoteToLocal() = withContext(Dispatchers.IO) {
         val isLoggedIn = authManager.isLoggedIn.first()
         if (!isLoggedIn) {
@@ -52,6 +85,11 @@ class BangumiSyncManager(
             val limit = 100
             var hasMore = true
 
+            // 一次性加载本地番剧，避免每条远程数据都查一次数据库
+            val localMap = repository.getAllAnimes().first()
+                .filter { it.bangumiId != null }
+                .associateBy { it.bangumiId!! }
+
             while (hasMore) {
                 val response = RetrofitClient.bangumiApi.getUserCollections(
                     type = 3,
@@ -60,7 +98,7 @@ class BangumiSyncManager(
                 )
 
                 for (item in response.data) {
-                    mergeCollectionItem(item)
+                    mergeCollectionItem(item, localMap[item.subjectId])
                 }
 
                 hasMore = response.offset + response.data.size < response.total
@@ -73,12 +111,13 @@ class BangumiSyncManager(
         }
     }
 
-    private suspend fun mergeCollectionItem(item: com.aiexile.animetrack.data.network.BangumiCollectionItem) {
+    private suspend fun mergeCollectionItem(
+        item: com.aiexile.animetrack.data.network.BangumiCollectionItem,
+        localAnime: Anime?
+    ) {
         val bangumiId = item.subjectId
         val remoteEps = item.epStatus
         val subject = item.subject
-
-        val localAnime = repository.getAnimeByBangumiId(bangumiId)
 
         if (localAnime == null) {
             val status = bangumiTypeToAnimeStatus(item.type)
@@ -123,95 +162,46 @@ class BangumiSyncManager(
     }
 
     suspend fun pushProgressToRemote(bangumiId: Int, newEpisode: Int) {
-        withContext(Dispatchers.IO) {
-            val isLoggedIn = authManager.isLoggedIn.first()
-            if (!isLoggedIn) return@withContext
-
-            pushMutex.withLock {
-                try {
-                    RetrofitClient.bangumiApi.updateEpisodeProgress(
-                        subjectId = bangumiId,
-                        body = EpisodeProgressBody(epStatus = newEpisode)
-                    )
-                    Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
-                }
+        withAuthAndLock {
+            try {
+                RetrofitClient.bangumiApi.updateEpisodeProgress(
+                    subjectId = bangumiId,
+                    body = EpisodeProgressBody(epStatus = newEpisode)
+                )
+                Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
+            } catch (e: Exception) {
+                Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
             }
         }
     }
 
     suspend fun pushStatusToRemote(bangumiId: Int, status: AnimeStatus) {
-        withContext(Dispatchers.IO) {
-            val isLoggedIn = authManager.isLoggedIn.first()
-            if (!isLoggedIn) return@withContext
-
-            pushMutex.withLock {
-                try {
-                    val type = animeStatusToBangumiType(status)
-                    val existing = try {
-                        RetrofitClient.bangumiApi.getCollectionStatus(bangumiId)
-                    } catch (_: Exception) { null }
-
-                    val body = CollectionStatusBody(
-                        type = type,
-                        rate = existing?.rate ?: 0,
-                        comment = existing?.comment ?: "",
-                        isPrivate = existing?.let {
-                            it.type == 0
-                        } ?: false
-                    )
-                    RetrofitClient.bangumiApi.updateCollectionStatus(
-                        subjectId = bangumiId,
-                        body = body
-                    )
-                    Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
-                }
+        withAuthAndLock {
+            try {
+                updateCollectionStatus(bangumiId, status)
+            } catch (e: Exception) {
+                Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
             }
         }
     }
 
     suspend fun pushProgressThenStatus(bangumiId: Int, newEpisode: Int, newStatus: AnimeStatus) {
-        withContext(Dispatchers.IO) {
-            val isLoggedIn = authManager.isLoggedIn.first()
-            if (!isLoggedIn) return@withContext
+        withAuthAndLock {
+            try {
+                RetrofitClient.bangumiApi.updateEpisodeProgress(
+                    subjectId = bangumiId,
+                    body = EpisodeProgressBody(epStatus = newEpisode)
+                )
+                Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
+            } catch (e: Exception) {
+                Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
+                return@withAuthAndLock
+            }
 
-            pushMutex.withLock {
-                try {
-                    RetrofitClient.bangumiApi.updateEpisodeProgress(
-                        subjectId = bangumiId,
-                        body = EpisodeProgressBody(epStatus = newEpisode)
-                    )
-                    Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
-                    return@withContext
-                }
-
-                try {
-                    val type = animeStatusToBangumiType(newStatus)
-                    val existing = try {
-                        RetrofitClient.bangumiApi.getCollectionStatus(bangumiId)
-                    } catch (_: Exception) { null }
-
-                    val body = CollectionStatusBody(
-                        type = type,
-                        rate = existing?.rate ?: 0,
-                        comment = existing?.comment ?: "",
-                        isPrivate = existing?.let {
-                            it.type == 0
-                        } ?: false
-                    )
-                    RetrofitClient.bangumiApi.updateCollectionStatus(
-                        subjectId = bangumiId,
-                        body = body
-                    )
-                    Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
-                }
+            try {
+                updateCollectionStatus(bangumiId, newStatus)
+            } catch (e: Exception) {
+                Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
             }
         }
     }

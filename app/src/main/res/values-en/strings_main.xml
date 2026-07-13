@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HomeScreen -->
+    <string name="home_completed_celebration">Series completed!</string>
+    <string name="home_anime_already_exists">Anime already exists</string>
+    <string name="home_search_anime">Search anime</string>
+    <string name="home_close_search">Close search</string>
+    <string name="home_add_anime">Add anime</string>
+    <string name="home_scroll_to_top">Scroll to top</string>
+    <string name="home_add_new_anime">Add new anime</string>
+    <string name="home_search_anime_hint">Search anime...</string>
+    <string name="home_no_anime_found">No anime found</string>
+    <string name="home_manual_add">Add manually</string>
+    <string name="home_new_anime">New anime</string>
+    <string name="home_total_episodes_format">%1$d episodes total</string>
+    <string name="home_ongoing_with_eps_format">Ongoing (updated to ep %1$d)</string>
+    <string name="home_ongoing">Ongoing</string>
+    <string name="home_watched_exceeds_total">Watched episodes cannot exceed total</string>
+    <string name="home_filter">Filter</string>
+    <string name="home_empty_anime_title">No anime added yet</string>
+    <string name="home_empty_anime_hint">Tap the + button to add</string>
+    <string name="home_season_format">Season %1$d</string>
+    <string name="home_no_anime_in_category">No anime in this category</string>
+    <string name="home_syncing_data">Syncing anime data...</string>
+    <string name="home_synced_count_format">Synced %1$d anime updates</string>
+    <string name="home_sync_failed">Sync failed</string>
+    <string name="home_today_updates_format">%1$d anime updated today</string>
+    <string name="home_user_avatar">User avatar</string>
+    <string name="home_login">Login</string>
+    <string name="home_date_year_month_format">%1$s-%2$d</string>
+
+    <!-- AnimeDetailScreen -->
+    <string name="detail_completed_celebration">Series completed!</string>
+    <string name="detail_play">Play</string>
+    <string name="detail_match_source">Match data source</string>
+    <string name="detail_unknown_error">Unknown error</string>
+    <string name="detail_no_cover_to_save">No cover to save</string>
+    <string name="detail_search_anime_hint">Search anime...</string>
+    <string name="detail_click_to_search_cover">Tap search to find cover</string>
+    <string name="detail_air_date_format">Aired: %1$s</string>
+    <string name="detail_total_episodes_format">%1$d episodes total</string>
+    <string name="detail_ongoing_with_eps_format">Ongoing (updated to ep %1$d)</string>
+    <string name="detail_ongoing">Ongoing</string>
+    <string name="detail_every_week">Every</string>
+    <string name="detail_save_cover">Save cover</string>
+    <string name="detail_search_cover">Search cover</string>
+    <string name="detail_upload_cover">Upload cover</string>
+    <string name="detail_edit_title">Edit title</string>
+    <string name="detail_summary">Summary</string>
+    <string name="detail_add_summary_hint">Add summary...</string>
+    <string name="detail_click_to_expand">Tap to expand</string>
+    <string name="detail_fetching_detail">Fetching details...</string>
+    <string name="detail_no_summary">No summary</string>
+    <string name="detail_total_episodes">Total episodes</string>
+    <string name="detail_watch_progress">Watch progress</string>
+    <string name="detail_episodes_count_format">Ep %1$d</string>
+    <string name="detail_unknown_episodes">Unknown episodes</string>
+    <string name="detail_watched_progress_format">Ep %1$d / %2$d</string>
+    <string name="detail_watched_only_format">Ep %1$d</string>
+    <string name="detail_notes">Notes</string>
+    <string name="detail_add_notes_hint">Add notes...</string>
+    <string name="detail_click_to_add_notes">Tap to add notes...</string>
+    <string name="detail_status">Status</string>
+    <string name="detail_finish_date">Finish date</string>
+    <string name="detail_select_date">Select date</string>
+    <string name="detail_discard_changes">Discard changes</string>
+    <string name="detail_discard_changes_message">You have unsaved changes, discard them?</string>
+    <string name="detail_discard">Discard</string>
+    <string name="detail_delete_anime">Delete anime</string>
+    <string name="detail_delete_confirm_format">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
+    <string name="detail_share_anime">Share anime</string>
+    <string name="detail_share_notes_hint">Add notes (shown on share card)</string>
+    <string name="detail_write_something_hint">Write something...</string>
+    <string name="detail_match_source_format">Match %1$s</string>
+    <string name="detail_data_source">Data source</string>
+    <string name="detail_search_keyword_hint">Enter keyword to search...</string>
+    <string name="detail_input_keyword_hint">Enter keyword then tap search</string>
+    <string name="detail_no_match_found">No matching results</string>
+    <string name="detail_load_cover_failed">Failed to load cover image</string>
+    <string name="detail_get_image_failed">Failed to get image</string>
+    <string name="detail_save_failed">Save failed</string>
+    <string name="detail_cover_saved_to_gallery">Cover saved to gallery</string>
+    <string name="detail_save_failed_with_reason_format">Save failed: %1$s</string>
+    <string name="detail_weekday_short_1">M</string>
+    <string name="detail_weekday_short_2">T</string>
+    <string name="detail_weekday_short_3">W</string>
+    <string name="detail_weekday_short_4">T</string>
+    <string name="detail_weekday_short_5">F</string>
+    <string name="detail_weekday_short_6">S</string>
+    <string name="detail_weekday_short_7">S</string>
+
+    <!-- TimelineScreen -->
+    <string name="timeline_empty_title">No timeline records</string>
+    <string name="timeline_empty_hint">Add anime and set dates to see the timeline here</string>
+    <string name="timeline_watching">Watching</string>
+    <string name="timeline_progress_format">%1$d/%2$d eps</string>
+    <string name="timeline_watching_status">Watching</string>
+    <string name="timeline_month_format">%1$d</string>
+
+    <!-- ScheduleScreen -->
+    <string name="schedule_board_title">Anime Board</string>
+    <string name="schedule_weekly_overview">Weekly updates</string>
+    <string name="schedule_preview">Schedule preview</string>
+    <string name="schedule_today_updates">Today\'s updates</string>
+    <string name="schedule_tomorrow_updates">Tomorrow\'s updates</string>
+    <string name="schedule_no_updates">No updates</string>
+    <string name="schedule_air_date_format">Air date: %1$s</string>
+    <string name="schedule_weekly_update_format">Updates every %1$s</string>
+    <string name="schedule_no_uncategorized">No uncategorized anime</string>
+    <string name="schedule_no_update_format">No updates on %1$s</string>
+    <string name="schedule_all_categorized">All anime categorized</string>
+    <string name="schedule_no_update_today">No updates today, take a break</string>
+    <string name="schedule_weekday_label_format">%1$s</string>
+    <string name="schedule_weekday_1">Mon</string>
+    <string name="schedule_weekday_2">Tue</string>
+    <string name="schedule_weekday_3">Wed</string>
+    <string name="schedule_weekday_4">Thu</string>
+    <string name="schedule_weekday_5">Fri</string>
+    <string name="schedule_weekday_6">Sat</string>
+    <string name="schedule_weekday_7">Sun</string>
+
+    <!-- OnboardingScreen -->
+    <string name="onboarding_page1_title">Track Your Anime</string>
+    <string name="onboarding_page1_description">Record watch progress locally, manage anime status manually\nNever forget which episode you\'re on</string>
+    <string name="onboarding_page2_title">Multi-Platform Sync</string>
+    <string name="onboarding_page2_description">Import from Bilibili and Bangumi\nAuto-sync watch progress</string>
+    <string name="onboarding_page3_title">Backup &amp; Dashboard</string>
+    <string name="onboarding_page3_description">WebDAV cloud backup protects your data\nNever miss anime schedule updates</string>
+    <string name="onboarding_page4_title">Customization</string>
+    <string name="onboarding_page4_description">Theme colors, navigation style, custom greeting\nPersonalize your experience</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_start">Get Started</string>
+    <string name="onboarding_next">Next</string>
+
+    <!-- AnimeTrackApp -->
+    <string name="nav_app_favorites">Favorites</string>
+    <string name="nav_app_page_in_development_format">%1$s page under development...</string>
+
+    <!-- Announcement Dialog -->
+    <string name="announcement_close">Got it</string>
+    <string name="announcement_history">History</string>
+    <string name="announcement_back">Back</string>
+    <string name="announcement_current">Current</string>
+    <string name="announcement_no_content">No content</string>
+</resources>

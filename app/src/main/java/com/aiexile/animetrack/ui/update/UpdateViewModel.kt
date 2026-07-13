@@ -26,8 +26,22 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import java.security.MessageDigest
+
+/** SHA 校验状态 */
+enum class ShaVerifyState {
+    /** 未校验（无 digest 或尚未触发） */
+    NONE,
+    /** 校验中 */
+    VERIFYING,
+    /** 校验通过 */
+    VERIFIED,
+    /** 校验失败 */
+    FAILED
+}
 
 data class UpdateUiState(
     val currentVersion: String = "",
@@ -40,7 +54,8 @@ data class UpdateUiState(
     val isUpToDate: Boolean = false,
     val pendingInstallAfterPermission: Boolean = false,
     val apkAlreadyDownloaded: Boolean = false,
-    val isSimulated: Boolean = false
+    val isSimulated: Boolean = false,
+    val shaVerifyState: ShaVerifyState = ShaVerifyState.NONE
 )
 
 class UpdateViewModel(
@@ -95,7 +110,31 @@ class UpdateViewModel(
                             apkAlreadyDownloaded = apkAlreadyExists
                         )
                         if (apkAlreadyExists) {
-                            cachedApkFile = findApkFileByVersion(updateInfo.versionName)
+                            val apkFile = findApkFileByVersion(updateInfo.versionName)
+                            cachedApkFile = apkFile
+                            // 对已存在的 APK 进行 SHA 校验
+                            if (apkFile != null) {
+                                val digest = updateInfo.apkDigest.takeIf { it.isNotBlank() }
+                                if (digest != null) {
+                                    _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFYING)
+                                    val verified = withContext(Dispatchers.IO) {
+                                        verifySha256(apkFile, digest)
+                                    }
+                                    if (verified) {
+                                        _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFIED)
+                                    } else {
+                                        Log.e(TAG, "本地 APK SHA 校验失败，删除损坏文件")
+                                        apkFile.delete()
+                                        cachedApkFile = null
+                                        _uiState.value = _uiState.value.copy(
+                                            shaVerifyState = ShaVerifyState.FAILED,
+                                            downloadComplete = false,
+                                            downloadProgress = 0,
+                                            apkAlreadyDownloaded = false
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 } else {
@@ -127,7 +166,8 @@ class UpdateViewModel(
             isUpToDate = false,
             pendingInstallAfterPermission = false,
             apkAlreadyDownloaded = false,
-            isSimulated = false
+            isSimulated = false,
+            shaVerifyState = ShaVerifyState.NONE
         )
     }
 
@@ -172,7 +212,8 @@ class UpdateViewModel(
                             downloadProgress = 100,
                             apkAlreadyDownloaded = true
                         )
-                        installApk(context)
+                        // 通过 SHA 校验后再安装
+                        verifyAndInstall(context, targetFile)
                         return@launch
                     }
 
@@ -347,7 +388,69 @@ class UpdateViewModel(
             downloadComplete = true,
             downloadProgress = 100
         )
-        installApk(context)
+        // 下载完成后先校验 SHA，通过后再自动安装
+        verifyAndInstall(context, apkFile)
+    }
+
+    /**
+     * 校验 APK 文件的 SHA-256 与 GitHub Release asset 的 digest 是否一致。
+     * 若 [UpdateInfo.apkDigest] 为空（旧版本 Release 无 digest），跳过校验直接安装。
+     * 校验失败则删除损坏文件并提示用户。
+     */
+    private fun verifyAndInstall(context: Context, apkFile: File) {
+        val info = _uiState.value.updateInfo
+        val digest = info?.apkDigest?.takeIf { it.isNotBlank() }
+
+        // 无 digest 信息，跳过校验
+        if (digest == null) {
+            _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.NONE)
+            installApk(context)
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFYING)
+            val result = withContext(Dispatchers.IO) {
+                verifySha256(apkFile, digest)
+            }
+            if (result) {
+                _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFIED)
+                installApk(context)
+            } else {
+                Log.e(TAG, "SHA-256 校验失败，删除损坏的 APK")
+                apkFile.delete()
+                cachedApkFile = null
+                _uiState.value = _uiState.value.copy(
+                    shaVerifyState = ShaVerifyState.FAILED,
+                    downloadComplete = false,
+                    downloadProgress = 0,
+                    apkAlreadyDownloaded = false,
+                    error = "安装包校验失败，请重新下载"
+                )
+            }
+        }
+    }
+
+    /** 计算 [file] 的 SHA-256 并与 [expectedDigest]（格式 "sha256:xxxx"）比对 */
+    private fun verifySha256(file: File, expectedDigest: String): Boolean {
+        return try {
+            val expected = expectedDigest.substringAfter("sha256:", expectedDigest).trim().lowercase()
+            val md = MessageDigest.getInstance("SHA-256")
+            FileInputStream(file).use { fis ->
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val read = fis.read(buffer)
+                    if (read == -1) break
+                    md.update(buffer, 0, read)
+                }
+            }
+            val actual = md.digest().joinToString("") { "%02x".format(it) }
+            Log.d(TAG, "SHA-256 verify: expected=$expected, actual=$actual")
+            actual == expected
+        } catch (e: Exception) {
+            Log.e(TAG, "SHA-256 计算失败", e)
+            false
+        }
     }
 
     fun installApk(context: Context) {
@@ -359,6 +462,23 @@ class UpdateViewModel(
                 updateInfo = null,
                 isSimulated = false
             )
+            return
+        }
+
+        // 手动点击"安装"时，若尚未校验且有 digest，先校验
+        val info = _uiState.value.updateInfo
+        val digest = info?.apkDigest?.takeIf { it.isNotBlank() }
+        if (digest != null && _uiState.value.shaVerifyState != ShaVerifyState.VERIFIED) {
+            val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
+                _uiState.value = _uiState.value.copy(error = "未找到安装包文件")
+                return
+            }
+            if (!apkFile.exists()) {
+                _uiState.value = _uiState.value.copy(error = "安装包文件不存在")
+                cachedApkFile = null
+                return
+            }
+            verifyAndInstall(context, apkFile)
             return
         }
 
@@ -533,6 +653,7 @@ class UpdateViewModel(
         }
         cachedApkFile = null
         clearDownloadState(context)
+        _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.NONE)
         // 重新开始下载
         startDownload(context)
     }
@@ -557,7 +678,8 @@ class UpdateViewModel(
             downloadComplete = false,
             error = null,
             pendingInstallAfterPermission = false,
-            apkAlreadyDownloaded = false
+            apkAlreadyDownloaded = false,
+            shaVerifyState = ShaVerifyState.NONE
         )
     }
 

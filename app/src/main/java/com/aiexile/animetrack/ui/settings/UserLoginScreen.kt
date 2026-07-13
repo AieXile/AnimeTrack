@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.ChangePasswordRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.UserAuthLoginRequest
@@ -123,7 +125,7 @@ fun UserLoginScreen(
                         tempFile.outputStream().use { output -> input.copyTo(output) }
                     } ?: run {
                         withContext(Dispatchers.Main) {
-                            avatarError = "无法读取图片"
+                            avatarError = context.getString(R.string.user_login_read_image_failed)
                             isUploadingAvatar = false
                         }
                         return@launch
@@ -133,7 +135,7 @@ fun UserLoginScreen(
                     if (tempFile.length() > 2 * 1024 * 1024) {
                         tempFile.delete()
                         withContext(Dispatchers.Main) {
-                            avatarError = "图片大小不能超过 2MB"
+                            avatarError = context.getString(R.string.user_login_image_too_large)
                             isUploadingAvatar = false
                         }
                         return@launch
@@ -152,14 +154,14 @@ fun UserLoginScreen(
                         userAuthManager.updateAvatar(response.avatar)
                     } else {
                         withContext(Dispatchers.Main) {
-                            avatarError = response.message ?: "上传失败"
+                            avatarError = response.message ?: context.getString(R.string.user_login_upload_failed)
                         }
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        avatarError = "网络错误，上传失败"
+                        avatarError = context.getString(R.string.user_login_network_upload_failed)
                     }
                 } finally {
                     withContext(Dispatchers.Main) {
@@ -175,14 +177,14 @@ fun UserLoginScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "AnimeTrack 账号",
+                        text = stringResource(R.string.user_login_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -212,7 +214,7 @@ fun UserLoginScreen(
                     if (avatarUrl != null) {
                         AsyncImage(
                             model = avatarUrl,
-                            contentDescription = "头像",
+                            contentDescription = stringResource(R.string.user_login_avatar),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
@@ -249,20 +251,21 @@ fun UserLoginScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = username ?: "用户",
+                    text = username ?: stringResource(R.string.user_login_user_default),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = email ?: "未设置邮箱",
+                    text = email ?: stringResource(R.string.user_login_email_not_set),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (createdAt != null) {
+                    val createdTime = createdAt!!
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "注册时间: $createdAt",
+                        text = stringResource(R.string.user_login_register_time, createdTime),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -280,7 +283,7 @@ fun UserLoginScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "已登录",
+                        text = stringResource(R.string.user_login_logged_in),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -295,7 +298,7 @@ fun UserLoginScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("修改密码")
+                    Text(stringResource(R.string.user_login_change_password))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
@@ -337,7 +340,7 @@ fun UserLoginScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     } else {
-                        Text("退出登录")
+                        Text(stringResource(R.string.user_login_logout))
                     }
                 }
             } else {
@@ -352,7 +355,7 @@ fun UserLoginScreen(
                 OutlinedTextField(
                     value = inputUsername,
                     onValueChange = { inputUsername = it },
-                    label = { Text("用户名") },
+                    label = { Text(stringResource(R.string.user_login_username)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -360,7 +363,7 @@ fun UserLoginScreen(
                 OutlinedTextField(
                     value = inputPassword,
                     onValueChange = { inputPassword = it },
-                    label = { Text("密码") },
+                    label = { Text(stringResource(R.string.user_login_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -434,14 +437,14 @@ fun UserLoginScreen(
                                     }
                                 } else {
                                     withContext(Dispatchers.Main) {
-                                        errorMessage = response.message ?: "登录失败"
+                                        errorMessage = response.message ?: context.getString(R.string.user_login_login_failed)
                                     }
                                 }
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
-                                    errorMessage = "网络错误，请检查网络连接"
+                                    errorMessage = context.getString(R.string.user_login_network_error)
                                 }
                             } finally {
                                 withContext(Dispatchers.Main) {
@@ -460,12 +463,12 @@ fun UserLoginScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("登录")
+                        Text(stringResource(R.string.user_login_login))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onNavigateRegister) {
-                    Text("没有账号？去注册")
+                    Text(stringResource(R.string.user_login_no_account_register))
                 }
             }
         }
@@ -479,7 +482,7 @@ fun UserLoginScreen(
             },
             title = {
                 Text(
-                    text = "修改密码",
+                    text = stringResource(R.string.user_login_change_password),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -489,7 +492,7 @@ fun UserLoginScreen(
                     OutlinedTextField(
                         value = oldPassword,
                         onValueChange = { oldPassword = it },
-                        label = { Text("旧密码") },
+                        label = { Text(stringResource(R.string.user_login_old_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -500,8 +503,8 @@ fun UserLoginScreen(
                     OutlinedTextField(
                         value = newPassword,
                         onValueChange = { newPassword = it },
-                        label = { Text("新密码") },
-                        placeholder = { Text("至少6位") },
+                        label = { Text(stringResource(R.string.user_login_new_password)) },
+                        placeholder = { Text(stringResource(R.string.user_login_password_min_hint)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -512,7 +515,7 @@ fun UserLoginScreen(
                     OutlinedTextField(
                         value = confirmNewPassword,
                         onValueChange = { confirmNewPassword = it },
-                        label = { Text("确认新密码") },
+                        label = { Text(stringResource(R.string.user_login_confirm_new_password)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -534,19 +537,19 @@ fun UserLoginScreen(
                     onClick = {
                         // 本地校验
                         if (oldPassword.isBlank()) {
-                            changePasswordError = "请输入旧密码"
+                            changePasswordError = context.getString(R.string.user_login_enter_old_password)
                             return@TextButton
                         }
                         if (newPassword.length < 6) {
-                            changePasswordError = "新密码长度不能少于 6 位"
+                            changePasswordError = context.getString(R.string.user_login_password_too_short)
                             return@TextButton
                         }
                         if (newPassword != confirmNewPassword) {
-                            changePasswordError = "两次密码不一致"
+                            changePasswordError = context.getString(R.string.user_login_password_mismatch)
                             return@TextButton
                         }
                         if (newPassword == oldPassword) {
-                            changePasswordError = "新密码不能与旧密码相同"
+                            changePasswordError = context.getString(R.string.user_login_password_same_as_old)
                             return@TextButton
                         }
 
@@ -568,7 +571,7 @@ fun UserLoginScreen(
                                     }
                                 } else {
                                     withContext(Dispatchers.Main) {
-                                        changePasswordError = response.message ?: "修改失败"
+                                        changePasswordError = response.message ?: context.getString(R.string.user_login_change_failed)
                                         isChangingPassword = false
                                     }
                                 }
@@ -576,7 +579,7 @@ fun UserLoginScreen(
                                 throw e
                             } catch (e: Exception) {
                                 withContext(Dispatchers.Main) {
-                                    changePasswordError = "网络错误，请检查网络连接"
+                                    changePasswordError = context.getString(R.string.user_login_network_error)
                                     isChangingPassword = false
                                 }
                             }
@@ -590,7 +593,7 @@ fun UserLoginScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("确认修改")
+                        Text(stringResource(R.string.user_login_confirm_change))
                     }
                 }
             },
@@ -601,7 +604,7 @@ fun UserLoginScreen(
                     },
                     enabled = !isChangingPassword
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )

@@ -111,6 +111,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -145,12 +146,14 @@ import coil.compose.AsyncImage
 import coil.Coil
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.Dispatchers
@@ -201,7 +204,7 @@ fun AnimeDetailScreen(
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
-            Toast.makeText(context, "完结撒花！", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.detail_completed_celebration), Toast.LENGTH_SHORT).show()
             viewModel.dismissCompletedToast()
         }
     }
@@ -239,7 +242,7 @@ fun AnimeDetailScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "返回",
+                                contentDescription = stringResource(R.string.common_back),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -250,14 +253,14 @@ fun AnimeDetailScreen(
                                 viewModel.saveEditChanges()
                                 focusManager.clearFocus()
                             }) {
-                                Text("保存", color = MaterialTheme.colorScheme.primary)
+                                Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
                             }
                         } else if (uiState.anime != null) {
                             val anime = uiState.anime!!
                             IconButton(onClick = { onNavigateToPlayer(animeId) }) {
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "播放",
+                                    contentDescription = stringResource(R.string.detail_play),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -267,7 +270,7 @@ fun AnimeDetailScreen(
                                 IconButton(onClick = { viewModel.showMatchDialog() }) {
                                     Icon(
                                         imageVector = Icons.Filled.Link,
-                                        contentDescription = "匹配数据源",
+                                        contentDescription = stringResource(R.string.detail_match_source),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
                                     )
@@ -276,24 +279,24 @@ fun AnimeDetailScreen(
                             if (shareButtonEnabled) {
                                 IconButton(onClick = { showShareDialog = true }) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Share,
-                                        contentDescription = "分享",
-                                        modifier = Modifier.size(24.dp),
-                                        tint = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = stringResource(R.string.common_share),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
                                 }
                             }
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
-                                    contentDescription = "删除",
+                                    contentDescription = stringResource(R.string.common_delete),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
                             IconButton(onClick = { viewModel.enterEditMode() }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
-                                    contentDescription = "编辑",
+                                    contentDescription = stringResource(R.string.common_edit),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -322,7 +325,7 @@ fun AnimeDetailScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = uiState.error ?: "未知错误",
+                                text = uiState.error ?: stringResource(R.string.detail_unknown_error),
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -349,7 +352,7 @@ fun AnimeDetailScreen(
                                 if (coverUrl != null) {
                                     scope.launch { saveCoverToGallery(context, coverUrl) }
                                 } else {
-                                    Toast.makeText(context, "无封面可保存", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.detail_no_cover_to_save), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             onEditTitleChange = { viewModel.updateEditTitle(it) },
@@ -385,16 +388,16 @@ fun AnimeDetailScreen(
         if (showDiscardDialog) {
             AlertDialog(
                 onDismissRequest = { showDiscardDialog = false },
-                title = { Text("放弃修改") },
-                text = { Text("你有未保存的修改，确定要放弃吗？") },
+                title = { Text(stringResource(R.string.detail_discard_changes)) },
+                text = { Text(stringResource(R.string.detail_discard_changes_message)) },
                 confirmButton = {
                     TextButton(onClick = {
                         showDiscardDialog = false
                         viewModel.exitEditMode()
-                    }) { Text("放弃") }
+                    }) { Text(stringResource(R.string.detail_discard)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDiscardDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showDiscardDialog = false }) { Text(stringResource(R.string.common_cancel)) }
                 }
             )
         }
@@ -402,19 +405,19 @@ fun AnimeDetailScreen(
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
-                title = { Text("删除番剧") },
-                text = { Text("确定要删除「${uiState.anime?.title}」吗？此操作不可撤销。") },
+                title = { Text(stringResource(R.string.detail_delete_anime)) },
+                text = { Text(stringResource(R.string.detail_delete_confirm_format, uiState.anime?.title ?: "")) },
                 confirmButton = {
                     TextButton(onClick = {
                         showDeleteDialog = false
                         viewModel.deleteAnime()
                         onNavigateBack()
                     }) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.common_cancel)) }
                 }
             )
         }
@@ -460,6 +463,7 @@ private fun CoverSearchOverlay(
     onDismiss: () -> Unit
 ) {
     var sourceExpanded by remember { mutableStateOf(false) }
+    val allText = stringResource(R.string.common_all)
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -484,7 +488,7 @@ private fun CoverSearchOverlay(
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text(
-                            text = "搜索番剧...",
+                            text = stringResource(R.string.detail_search_anime_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     },
@@ -523,7 +527,7 @@ private fun CoverSearchOverlay(
                                     text = when (searchSource) {
                                         SearchSource.BANGUMI -> "Bangumi"
                                         SearchSource.TMDB -> "TMDB"
-                                        SearchSource.ALL -> "全部"
+                                        SearchSource.ALL -> allText
                                     },
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
@@ -549,7 +553,7 @@ private fun CoverSearchOverlay(
                                                 text = when (source) {
                                                     SearchSource.BANGUMI -> "Bangumi"
                                                     SearchSource.TMDB -> "TMDB"
-                                                    SearchSource.ALL -> "全部"
+                                                    SearchSource.ALL -> allText
                                                 },
                                                 fontSize = 14.sp,
                                                 fontWeight = if (source == searchSource) FontWeight.SemiBold else FontWeight.Normal,
@@ -571,7 +575,7 @@ private fun CoverSearchOverlay(
                 IconButton(onClick = onSearch) {
                     Icon(
                         imageVector = Icons.Filled.Search,
-                        contentDescription = "搜索",
+                        contentDescription = stringResource(R.string.common_search),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -579,7 +583,7 @@ private fun CoverSearchOverlay(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "关闭",
+                        contentDescription = stringResource(R.string.common_close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -626,7 +630,7 @@ private fun CoverSearchOverlay(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "点击搜索查找封面",
+                        text = stringResource(R.string.detail_click_to_search_cover),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         fontSize = 14.sp
                     )
@@ -708,7 +712,7 @@ private fun CoverSearchResultItem(
                         text = when (result.source) {
                             SearchSource.BANGUMI -> "Bangumi"
                             SearchSource.TMDB -> "TMDB"
-                            SearchSource.ALL -> "全部"
+                            SearchSource.ALL -> stringResource(R.string.common_all)
                         },
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -790,16 +794,39 @@ private fun AnimeDetailContent(
                     val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
 
                     val coverClipShape = RoundedCornerShape(CardCornerRadius)
+                    val context = LocalContext.current
 
-                    Crossfade(
-                        targetState = displayCoverUrl,
-                        label = "cover_crossfade"
-                    ) { url ->
-                        if (url != null) {
-                            val context = LocalContext.current
-                            val request = remember(url) {
+                    if (editState.isEditing) {
+                        Crossfade(
+                            targetState = displayCoverUrl,
+                            label = "cover_crossfade"
+                        ) { url ->
+                            if (url != null) {
+                                val request = remember(url) {
+                                    ImageRequest.Builder(context)
+                                        .data(resolveCoverModel(url))
+                                        .crossfade(false)
+                                        .build()
+                                }
+                                AsyncImage(
+                                    model = request,
+                                    contentDescription = anime.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                EmptyCoverPlaceholder(
+                                    shape = coverClipShape
+                                )
+                            }
+                        }
+                    } else {
+                        if (displayCoverUrl != null) {
+                            val request = remember(displayCoverUrl) {
                                 ImageRequest.Builder(context)
-                                    .data(resolveCoverModel(url))
+                                    .data(resolveCoverModel(displayCoverUrl))
+                                    .memoryCacheKey(coverMemoryCacheKey(displayCoverUrl))
+                                    .placeholderMemoryCacheKey(coverMemoryCacheKey(displayCoverUrl))
                                     .crossfade(false)
                                     .build()
                             }
@@ -837,7 +864,7 @@ private fun AnimeDetailContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Save,
-                                    contentDescription = "保存封面",
+                                    contentDescription = stringResource(R.string.detail_save_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -849,7 +876,7 @@ private fun AnimeDetailContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
-                                    contentDescription = "搜索封面",
+                                    contentDescription = stringResource(R.string.detail_search_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -861,7 +888,7 @@ private fun AnimeDetailContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PhotoCamera,
-                                    contentDescription = "上传封面",
+                                    contentDescription = stringResource(R.string.detail_upload_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -876,6 +903,7 @@ private fun AnimeDetailContent(
                         .padding(top = 0.dp, bottom = 0.dp)
                         .padding(end = 4.dp)
                 ) {
+                    var titleLineCount by remember(anime.id) { mutableIntStateOf(1) }
                     if (editState.isEditing) {
                         if (editState.isEditingTitle) {
                             val focusRequester = remember { FocusRequester() }
@@ -922,7 +950,7 @@ private fun AnimeDetailContent(
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
-                                    contentDescription = "编辑标题",
+                                    contentDescription = stringResource(R.string.detail_edit_title),
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clickable { onEditTitleStart() },
@@ -937,45 +965,25 @@ private fun AnimeDetailContent(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { titleLineCount = it.lineCount }
                         )
                     }
 
-                    if (anime.rating != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = LocalAnimeColors.current.finished.copy(alpha = 0.1f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = LocalAnimeColors.current.starFilled,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = String.format("%.1f", anime.rating),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LocalAnimeColors.current.starFilled
-                                )
-                            }
-                        }
+                    if (anime.rating != null && titleLineCount <= 1) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        RatingBadge(rating = anime.rating)
                     }
 
-                    if (!anime.airDate.isNullOrBlank() || !airStatusText.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.SpaceEvenly
+                    ) {
                         if (!anime.airDate.isNullOrBlank()) {
                             Text(
-                                text = "放送: ${formatAirDate(anime.airDate)}",
+                                text = stringResource(R.string.detail_air_date_format, formatAirDate(anime.airDate) ?: ""),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -983,19 +991,19 @@ private fun AnimeDetailContent(
 
                         if (anime.totalEpisodes > 0) {
                             Text(
-                                text = "全 ${anime.totalEpisodes} 集",
+                                text = stringResource(R.string.detail_total_episodes_format, anime.totalEpisodes),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else if (anime.currentEpisodes > 0) {
                             Text(
-                                text = "连载中 (更新至 ${anime.currentEpisodes} 集)",
+                                text = stringResource(R.string.detail_ongoing_with_eps_format, anime.currentEpisodes),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
                             Text(
-                                text = "连载中",
+                                text = stringResource(R.string.detail_ongoing),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1006,7 +1014,7 @@ private fun AnimeDetailContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "每周",
+                                    text = stringResource(R.string.detail_every_week),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1030,9 +1038,16 @@ private fun AnimeDetailContent(
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusBadge(status = anime.status)
 
-                    StatusBadge(status = anime.status)
+                        if (anime.rating != null && titleLineCount >= 2) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            RatingBadge(rating = anime.rating)
+                        }
+                    }
                 }
             }
         }
@@ -1081,6 +1096,37 @@ private fun AnimeDetailContent(
 }
 
 @Composable
+private fun RatingBadge(
+    rating: Float,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = LocalAnimeColors.current.finished.copy(alpha = 0.1f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                tint = LocalAnimeColors.current.starFilled,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = String.format("%.1f", rating),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = LocalAnimeColors.current.starFilled
+            )
+        }
+    }
+}
+
+@Composable
 private fun DetailCard(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
@@ -1113,7 +1159,7 @@ private fun SummaryCard(
 
     DetailCard(modifier = modifier) {
         Text(
-            text = "简介",
+            text = stringResource(R.string.detail_summary),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -1130,7 +1176,7 @@ private fun SummaryCard(
                     .height(120.dp),
                 placeholder = {
                     Text(
-                        text = "添加简介...",
+                        text = stringResource(R.string.detail_add_summary_hint),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 },
@@ -1174,7 +1220,7 @@ private fun SummaryCard(
 
                 if (hasOverflow && !isExpanded) {
                     Text(
-                        text = "点击展开",
+                        text = stringResource(R.string.detail_click_to_expand),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 4.dp)
@@ -1194,14 +1240,14 @@ private fun SummaryCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "正在获取详情...",
+                    text = stringResource(R.string.detail_fetching_detail),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             Text(
-                text = "暂无简介",
+                text = stringResource(R.string.detail_no_summary),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
@@ -1236,20 +1282,118 @@ private fun ProgressCard(
     }
     var isDragging by remember { mutableStateOf(false) }
 
+    // 非编辑模式始终用 sliderValue：松手时保持松手值，DB 回流后 remember 重置为相同值，避免数字跳动
+    val displayValue = if (isEditMode) currentDisplayValue else sliderValue.toInt()
+
     DetailCard(modifier = modifier) {
+        // 标题行
         Text(
-            text = if (isEditMode) "总集数" else "观看进度",
+            text = if (isEditMode) stringResource(R.string.detail_total_episodes) else stringResource(R.string.detail_watch_progress),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
+        // 集数行（进度条上方，居中）
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isEditing) {
+                BasicTextField(
+                    value = editValue,
+                    onValueChange = { input ->
+                        val filtered = input.copy(text = input.text.filter { it.isDigit() })
+                        editValue = filtered
+                        val num = filtered.text.toIntOrNull()
+                        if (num != null && num >= 0) {
+                            if (isEditMode) {
+                                onUpdateEditTotalEpisodes(num)
+                            } else {
+                                onUpdateWatchedEpisodes(num.coerceAtMost(currentMaxValue))
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .widthIn(min = 60.dp, max = 120.dp)
+                        .focusRequester(focusReq),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            isEditing = false
+                            keyboardController?.hide()
+                        }
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                )
+            } else {
+                if (isEditMode) {
+                    Text(
+                        text = if (editTotalEpisodes > 0) stringResource(R.string.detail_total_episodes_format, editTotalEpisodes) else stringResource(R.string.detail_unknown_episodes),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable {
+                            isEditing = true
+                            val text = editTotalEpisodes.toString()
+                            editValue = TextFieldValue(
+                                text = text,
+                                selection = TextRange(text.length)
+                            )
+                        }
+                    )
+                } else {
+                    val maxEps = anime.effectiveMaxEpisodes
+                    val displayMax = if (anime.totalEpisodes > 0) anime.totalEpisodes else anime.currentEpisodes
+                    Text(
+                        text = if (maxEps > 0) stringResource(R.string.detail_watched_progress_format, displayValue, displayMax) else stringResource(R.string.detail_watched_only_format, displayValue),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable {
+                            isEditing = true
+                            val text = anime.watchedEpisodes.toString()
+                            editValue = TextFieldValue(
+                                text = text,
+                                selection = TextRange(text.length)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        LaunchedEffect(isEditing) {
+            if (isEditing) {
+                val text = currentDisplayValue.toString()
+                editValue = TextFieldValue(
+                    text = text,
+                    selection = TextRange(text.length)
+                )
+                focusReq.requestFocus()
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 控制行：减按钮 + 进度条 + 加按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AcceleratedButton(
                 text = "-",
@@ -1259,132 +1403,23 @@ private fun ProgressCard(
                 onAdjust = { step -> if (isEditMode) onAdjustEditTotalEpisodes(-step) else onAdjustWatchedEpisodes(-step) }
             )
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f)
-            ) {
-                val displayValue = if (isDragging) sliderValue.toInt() else currentDisplayValue
+            // 编辑模式下隐藏进度条，用占位保持两按钮分立两端
+            if (!isEditMode) {
+                val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                val progressColor = MaterialTheme.colorScheme.primary
+                val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
 
-                AnimatedVisibility(
-                    visible = isDragging,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.inverseSurface,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    ) {
-                        Text(
-                            text = "${displayValue} 集",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.inverseOnSurface,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                if (isEditing) {
-                    BasicTextField(
-                        value = editValue,
-                        onValueChange = { input ->
-                            val filtered = input.copy(text = input.text.filter { it.isDigit() })
-                            editValue = filtered
-                            val num = filtered.text.toIntOrNull()
-                            if (num != null && num >= 0) {
-                                if (isEditMode) {
-                                    onUpdateEditTotalEpisodes(num)
-                                } else {
-                                    onUpdateWatchedEpisodes(num.coerceAtMost(currentMaxValue))
-                                }
-                            }
-                        },
+                    val maxEps = anime.effectiveMaxEpisodes
+                    Canvas(
                         modifier = Modifier
-                            .widthIn(min = 60.dp, max = 120.dp)
-                            .focusRequester(focusReq),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                isEditing = false
-                                keyboardController?.hide()
-                            }
-                        ),
-                        singleLine = true,
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
-                    )
-
-                    LaunchedEffect(isEditing) {
-                        if (isEditing) {
-                            val text = currentDisplayValue.toString()
-                            editValue = TextFieldValue(
-                                text = text,
-                                selection = TextRange(text.length)
-                            )
-                            focusReq.requestFocus()
-                        }
-                    }
-                } else {
-                    if (isEditMode) {
-                        Text(
-                            text = if (editTotalEpisodes > 0) "全 ${editTotalEpisodes} 集" else "未知集数",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.clickable {
-                                isEditing = true
-                                val text = editTotalEpisodes.toString()
-                                editValue = TextFieldValue(
-                                    text = text,
-                                    selection = TextRange(text.length)
-                                )
-                            }
-                        )
-                    } else {
-                        val maxEps = anime.effectiveMaxEpisodes
-                        val displayMax = if (anime.totalEpisodes > 0) anime.totalEpisodes else anime.currentEpisodes
-                        Text(
-                            text = if (maxEps > 0) "第 ${anime.watchedEpisodes} / ${displayMax} 集" else "第 ${anime.watchedEpisodes} 集",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.clickable {
-                                isEditing = true
-                                val text = anime.watchedEpisodes.toString()
-                                editValue = TextFieldValue(
-                                    text = text,
-                                    selection = TextRange(text.length)
-                                )
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // 编辑模式下隐藏 Slider
-                if (!isEditMode) {
-                    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    val progressColor = MaterialTheme.colorScheme.primary
-                    val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-
-                    Box {
-                        val maxEps = anime.effectiveMaxEpisodes
-                        Canvas(
-                            modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .height(20.dp)
-                        ) {
-                            val barHeight = 4.dp.toPx()
+                            .fillMaxWidth()
+                            .height(24.dp)
+                    ) {
+                            val barHeight = 6.dp.toPx()
                             val barY = (size.height - barHeight) / 2f
                             val cornerRadius = barHeight / 2f
                             val progress = if (maxEps > 0)
@@ -1422,6 +1457,11 @@ private fun ProgressCard(
                             }
                         }
 
+                        val thumbSize by animateFloatAsState(
+                            targetValue = if (isDragging) 20f else 16f,
+                            animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
+                            label = "thumb_size"
+                        )
                         Slider(
                             value = sliderValue,
                             onValueChange = {
@@ -1435,18 +1475,33 @@ private fun ProgressCard(
                             valueRange = if (maxEps > 0) 0f..maxEps.toFloat() else 0f..100f,
                             steps = if (maxEps > 1) maxEps - 1 else 0,
                             modifier = Modifier
-                                .fillMaxWidth(0.85f)
-                                .height(20.dp)
-                                .offset(y = (-20).dp),
+                                .fillMaxWidth()
+                                .height(24.dp),
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = Color.Transparent,
                                 inactiveTrackColor = Color.Transparent
-                            )
+                            ),
+                            thumb = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(thumbSize.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surface,
+                                            shape = CircleShape
+                                        )
+                                        .padding(2.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = CircleShape
+                                        )
+                                )
+                            }
                         )
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
 
             AcceleratedButton(
                 text = "+",
@@ -1554,7 +1609,7 @@ private fun NotesCard(
 ) {
     DetailCard(modifier = modifier) {
         Text(
-            text = "备注",
+            text = stringResource(R.string.detail_notes),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -1569,7 +1624,7 @@ private fun NotesCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp),
-                placeholder = { Text("添加备注...") },
+                placeholder = { Text(stringResource(R.string.detail_add_notes_hint)) },
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1596,7 +1651,7 @@ private fun NotesCard(
                         contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1608,7 +1663,7 @@ private fun NotesCard(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("保存")
+                    Text(stringResource(R.string.common_save))
                 }
             }
         } else {
@@ -1633,7 +1688,7 @@ private fun NotesCard(
                         )
                     } else {
                         Text(
-                            text = "点击添加备注...",
+                            text = stringResource(R.string.detail_click_to_add_notes),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -1657,7 +1712,7 @@ private fun StatusCard(
 
     DetailCard(modifier = modifier) {
         Text(
-            text = "状态",
+            text = stringResource(R.string.detail_status),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -1695,7 +1750,7 @@ private fun StatusCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "看完日期",
+                            text = stringResource(R.string.detail_finish_date),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1703,7 +1758,7 @@ private fun StatusCard(
                             text = if (finishDate != null) {
                                 com.aiexile.animetrack.util.formatDate(finishDate)
                             } else {
-                                "选择日期"
+                                stringResource(R.string.detail_select_date)
                             },
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
@@ -1723,7 +1778,19 @@ private fun StatusCard(
                 TextButton(
                     onClick = { showDatePicker = false }
                 ) {
-                    Text("确定")
+                    Text(stringResource(R.string.common_ok))
+                }
+            },
+            dismissButton = {
+                if (finishDate != null) {
+                    TextButton(
+                        onClick = {
+                            onFinishDateChange(null)
+                            showDatePicker = false
+                        }
+                    ) {
+                        Text(stringResource(R.string.common_clear))
+                    }
                 }
             }
         ) {
@@ -1819,8 +1886,13 @@ private fun WeekdayChips(
     onSelect: (Int?) -> Unit
 ) {
     val weekdays = listOf(
-        1 to "一", 2 to "二", 3 to "三",
-        4 to "四", 5 to "五", 6 to "六", 7 to "日"
+        1 to stringResource(R.string.detail_weekday_short_1),
+        2 to stringResource(R.string.detail_weekday_short_2),
+        3 to stringResource(R.string.detail_weekday_short_3),
+        4 to stringResource(R.string.detail_weekday_short_4),
+        5 to stringResource(R.string.detail_weekday_short_5),
+        6 to stringResource(R.string.detail_weekday_short_6),
+        7 to stringResource(R.string.detail_weekday_short_7)
     )
 
     Row(
@@ -1883,14 +1955,14 @@ private fun ShareNotesDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "分享番剧",
+                text = stringResource(R.string.detail_share_anime),
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column {
                 Text(
-                    text = "添加备注（将显示在分享卡片上）",
+                    text = stringResource(R.string.detail_share_notes_hint),
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1899,7 +1971,7 @@ private fun ShareNotesDialog(
                     value = notes,
                     onValueChange = { notes = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("写点什么...") },
+                    placeholder = { Text(stringResource(R.string.detail_write_something_hint)) },
                     maxLines = 3,
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -1910,12 +1982,12 @@ private fun ShareNotesDialog(
                 onClick = { onConfirm(notes) },
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("分享")
+                Text(stringResource(R.string.common_share))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
@@ -1932,18 +2004,19 @@ private fun MatchDialog(
     onSelectResult: (SearchResult) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val dataSourceText = stringResource(R.string.detail_data_source)
     val sourceName = when (searchSource) {
         SearchSource.BANGUMI -> "Bangumi"
         SearchSource.TMDB -> "TMDB"
-        SearchSource.ALL -> "数据源"
-        null -> "数据源"
+        SearchSource.ALL -> dataSourceText
+        null -> dataSourceText
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "匹配 $sourceName",
+                text = stringResource(R.string.detail_match_source_format, sourceName),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -1957,7 +2030,7 @@ private fun MatchDialog(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = "输入关键词搜索...",
+                            text = stringResource(R.string.detail_search_keyword_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                     },
@@ -1989,7 +2062,7 @@ private fun MatchDialog(
                 when (searchState) {
                     is MatchSearchState.Idle -> {
                         Text(
-                            text = "输入关键词后点击搜索",
+                            text = stringResource(R.string.detail_input_keyword_hint),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.fillMaxWidth(),
@@ -2013,7 +2086,7 @@ private fun MatchDialog(
                     is MatchSearchState.Results -> {
                         if (searchState.results.isEmpty()) {
                             Text(
-                                text = "未找到匹配结果",
+                                text = stringResource(R.string.detail_no_match_found),
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth(),
@@ -2049,12 +2122,12 @@ private fun MatchDialog(
         },
         confirmButton = {
             TextButton(onClick = onSearch) {
-                Text("搜索")
+                Text(stringResource(R.string.common_search))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
@@ -2144,12 +2217,12 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
         val result = imageLoader.execute(request)
 
         if (result !is SuccessResult) {
-            withContext(Dispatchers.Main) { Toast.makeText(context, "无法加载封面图片", Toast.LENGTH_SHORT).show() }
+            withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_load_cover_failed), Toast.LENGTH_SHORT).show() }
             return@withContext
         }
 
         val bitmap = (result.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: run {
-            withContext(Dispatchers.Main) { Toast.makeText(context, "无法获取图片", Toast.LENGTH_SHORT).show() }
+            withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_get_image_failed), Toast.LENGTH_SHORT).show() }
             return@withContext
         }
 
@@ -2165,7 +2238,7 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
 
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues) ?: run {
-            withContext(Dispatchers.Main) { Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show() }
+            withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_save_failed), Toast.LENGTH_SHORT).show() }
             return@withContext
         }
 
@@ -2179,9 +2252,9 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
             resolver.update(uri, contentValues, null, null)
         }
 
-        withContext(Dispatchers.Main) { Toast.makeText(context, "封面已保存到相册", Toast.LENGTH_SHORT).show() }
+        withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_cover_saved_to_gallery), Toast.LENGTH_SHORT).show() }
     } catch (e: Exception) {
         e.printStackTrace()
-        withContext(Dispatchers.Main) { Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show() }
+        withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_save_failed_with_reason_format, e.message ?: ""), Toast.LENGTH_SHORT).show() }
     }
 }

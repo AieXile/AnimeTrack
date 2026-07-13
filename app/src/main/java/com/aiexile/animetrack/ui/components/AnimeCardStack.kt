@@ -27,11 +27,13 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.util.resolveCoverModel
 
@@ -101,7 +103,7 @@ fun AnimeCardStack(
             color = MaterialTheme.colorScheme.primary
         ) {
             Text(
-                text = "${animeList.size}季",
+                text = stringResource(R.string.card_stack_seasons, animeList.size),
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 9.sp,

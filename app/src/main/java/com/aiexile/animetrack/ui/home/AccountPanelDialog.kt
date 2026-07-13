@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,6 +70,10 @@ fun AccountPanelDialog(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val notLoggedInText = stringResource(R.string.account_panel_not_logged_in)
+    val unknownUserText = stringResource(R.string.account_panel_unknown_user)
+    val connectedText = stringResource(R.string.account_panel_connected)
+
     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
     val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
     val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
@@ -87,7 +92,7 @@ fun AccountPanelDialog(
     val anyLoggedIn = userLoggedIn || bangumiLoggedIn || bilibiliLoggedIn
     // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
     val displayAvatar = customAvatarUri ?: userAvatar ?: bilibiliAvatar ?: bangumiAvatar
-    val displayName = userUsername ?: bilibiliNickname ?: bangumiNickname ?: "未登录"
+    val displayName = userUsername ?: bilibiliNickname ?: bangumiNickname ?: notLoggedInText
 
     var showUserActions by remember { mutableStateOf(false) }
     var showBilibiliActions by remember { mutableStateOf(false) }
@@ -108,24 +113,24 @@ fun AccountPanelDialog(
     if (showUserActions) {
         AlertDialog(
             onDismissRequest = { showUserActions = false },
-            title = { Text("AnimeTrack 账号") },
-            text = { Text("已登录为 ${userUsername ?: "未知用户"}") },
+            title = { Text(stringResource(R.string.account_panel_anime_track_account)) },
+            text = { Text(stringResource(R.string.account_panel_logged_in_as, userUsername ?: unknownUserText)) },
             confirmButton = {
                 TextButton(onClick = {
                     showUserActions = false
                     onDismiss()
                     onNavigateUserLogin()
-                }) { Text("账号管理") }
+                }) { Text(stringResource(R.string.account_panel_account_management)) }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { showUserActions = false }) { Text("取消") }
+                    TextButton(onClick = { showUserActions = false }) { Text(stringResource(R.string.common_cancel)) }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = {
                         showUserActions = false
                         scope.launch { userAuthManager.logout() }
                     }) {
-                        Text("退出登录", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -136,24 +141,24 @@ fun AccountPanelDialog(
     if (showBilibiliActions) {
         AlertDialog(
             onDismissRequest = { showBilibiliActions = false },
-            title = { Text("Bilibili 账号") },
-            text = { Text("已登录为 ${bilibiliNickname ?: "未知用户"}") },
+            title = { Text(stringResource(R.string.account_panel_bilibili_account)) },
+            text = { Text(stringResource(R.string.account_panel_logged_in_as, bilibiliNickname ?: unknownUserText)) },
             confirmButton = {
                 TextButton(onClick = {
                     showBilibiliActions = false
                     onDismiss()
                     onNavigateBilibiliLogin()
-                }) { Text("同步") }
+                }) { Text(stringResource(R.string.account_panel_sync)) }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { showBilibiliActions = false }) { Text("取消") }
+                    TextButton(onClick = { showBilibiliActions = false }) { Text(stringResource(R.string.common_cancel)) }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = {
                         showBilibiliActions = false
                         scope.launch { bilibiliAuthManager.logout() }
                     }) {
-                        Text("解除绑定", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.account_panel_unbind), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -164,25 +169,25 @@ fun AccountPanelDialog(
     if (showBangumiActions) {
         AlertDialog(
             onDismissRequest = { showBangumiActions = false },
-            title = { Text("Bangumi 账号") },
-            text = { Text("已登录为 ${bangumiNickname ?: "未知用户"}") },
+            title = { Text(stringResource(R.string.account_panel_bangumi_account)) },
+            text = { Text(stringResource(R.string.account_panel_logged_in_as, bangumiNickname ?: unknownUserText)) },
             confirmButton = {
                 TextButton(onClick = {
                     showBangumiActions = false
                     scope.launch { authManager.logout() }
                     onDismiss()
                     onNavigateBangumiLogin()
-                }) { Text("重新登录") }
+                }) { Text(stringResource(R.string.account_panel_relogin)) }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { showBangumiActions = false }) { Text("取消") }
+                    TextButton(onClick = { showBangumiActions = false }) { Text(stringResource(R.string.common_cancel)) }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = {
                         showBangumiActions = false
                         scope.launch { authManager.logout() }
                     }) {
-                        Text("注销登录", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.account_panel_logout_account), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -193,7 +198,7 @@ fun AccountPanelDialog(
     if (showAvatarActions) {
         AlertDialog(
             onDismissRequest = { showAvatarActions = false },
-            title = { Text("更换头像") },
+            title = { Text(stringResource(R.string.account_panel_change_avatar)) },
             text = {
                 Column {
                     if (customAvatarUri != null) {
@@ -201,7 +206,7 @@ fun AccountPanelDialog(
                             showAvatarActions = false
                             scope.launch { authManager.saveCustomAvatarUri(null) }
                         }) {
-                            Text("恢复默认头像")
+                            Text(stringResource(R.string.account_panel_reset_avatar))
                         }
                     }
                 }
@@ -210,10 +215,10 @@ fun AccountPanelDialog(
                 TextButton(onClick = {
                     showAvatarActions = false
                     pickImageLauncher.launch("image/*")
-                }) { Text("选择图片") }
+                }) { Text(stringResource(R.string.account_panel_select_image)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAvatarActions = false }) { Text("取消") }
+                TextButton(onClick = { showAvatarActions = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }
@@ -251,7 +256,7 @@ fun AccountPanelDialog(
                                     else displayAvatar
                                 )
                                 .build(),
-                            contentDescription = "头像",
+                            contentDescription = stringResource(R.string.account_panel_avatar),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
                             error = painterResource(id = R.drawable.ic_launcher_foreground),
@@ -260,7 +265,7 @@ fun AccountPanelDialog(
                     } else {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "默认头像",
+                            contentDescription = stringResource(R.string.account_panel_default_avatar),
                             modifier = Modifier.size(32.dp),
                             tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant
@@ -271,7 +276,7 @@ fun AccountPanelDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = if (anyLoggedIn) displayName else "未登录",
+                    text = if (anyLoggedIn) displayName else notLoggedInText,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -282,7 +287,7 @@ fun AccountPanelDialog(
                 // AnimeTrack 服务器账号条目（排第一）
                 AccountServiceRow(
                     title = "AnimeTrack",
-                    subtitle = if (userLoggedIn) (userUsername ?: "已连接") else "登录后可同步数据",
+                    subtitle = if (userLoggedIn) (userUsername ?: connectedText) else stringResource(R.string.account_panel_login_to_sync),
                     icon = Icons.Default.AccountCircle,
                     isConnected = userLoggedIn,
                     onClick = {
@@ -300,7 +305,7 @@ fun AccountPanelDialog(
                 // Bilibili 条目
                 AccountServiceRow(
                     title = "Bilibili",
-                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: "已连接") else "点击绑定B站账号",
+                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bilibili),
                     icon = Icons.AutoMirrored.Filled.Login,
                     isConnected = bilibiliLoggedIn,
                     onClick = {
@@ -318,7 +323,7 @@ fun AccountPanelDialog(
                 // Bangumi 条目
                 AccountServiceRow(
                     title = "Bangumi",
-                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: "已连接") else "点击绑定Bangumi",
+                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bangumi),
                     icon = Icons.Default.Person,
                     isConnected = bangumiLoggedIn,
                     onClick = {
@@ -340,7 +345,7 @@ fun AccountPanelDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        if (customAvatarUri != null) "更换头像" else "自定义头像",
+                        if (customAvatarUri != null) stringResource(R.string.account_panel_change_avatar) else stringResource(R.string.account_panel_custom_avatar),
                         fontSize = 14.sp
                     )
                 }

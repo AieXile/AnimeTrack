@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WebDAVSyncScreen -->
+    <string name="webdav_sync_title">WebDAV 同步</string>
+    <string name="webdav_sync_server_address">伺服器地址</string>
+    <string name="webdav_sync_username">使用者名稱</string>
+    <string name="webdav_sync_password">密碼</string>
+    <string name="webdav_sync_test_connection">測試連線</string>
+    <string name="webdav_sync_backup_strategy">備份策略</string>
+    <string name="webdav_sync_strategy_affects_restore">此策略同樣影響還原功能</string>
+    <string name="webdav_sync_format_json">JSON</string>
+    <string name="webdav_sync_format_json_desc">僅資料，傳輸速度快，時間短</string>
+    <string name="webdav_sync_format_zip">完整 ZIP</string>
+    <string name="webdav_sync_format_zip_desc">含圖片，傳輸速度慢，時間長</string>
+    <string name="webdav_sync_restore_mode">還原模式</string>
+    <string name="webdav_sync_restore_overwrite">覆蓋本地</string>
+    <string name="webdav_sync_restore_merge">相容合併</string>
+    <string name="webdav_sync_backup_now">立即備份</string>
+    <string name="webdav_sync_restore_now">立即還原</string>
+    <string name="webdav_sync_auto_sync">自動同步</string>
+    <string name="webdav_sync_last_manual_sync">上次手動同步：%1$s</string>
+    <string name="webdav_sync_last_auto_sync">上次自動同步：%1$s</string>
+
+    <!-- WebDAVAutoSyncScreen -->
+    <string name="webdav_auto_title">自動同步</string>
+    <string name="webdav_auto_enable">啟用自動同步</string>
+    <string name="webdav_auto_enable_desc">開啟後將按設定條件自動備份到 WebDAV</string>
+    <string name="webdav_auto_trigger_section">同步觸發條件</string>
+    <string name="webdav_auto_enable_first">請先開啟自動同步</string>
+    <string name="webdav_auto_trigger_data_change">資料變化時</string>
+    <string name="webdav_auto_trigger_data_change_desc">新增、編輯或刪除番劇後自動同步</string>
+    <string name="webdav_auto_trigger_app_open">開啟App時</string>
+    <string name="webdav_auto_trigger_app_open_desc">每次啟動應用時自動同步</string>
+    <string name="webdav_auto_trigger_scheduled">定時同步</string>
+    <string name="webdav_auto_trigger_scheduled_desc">按固定時間間隔自動同步</string>
+    <string name="webdav_auto_sync_interval">同步間隔</string>
+    <string name="webdav_auto_interval_6h">每 6 小時</string>
+    <string name="webdav_auto_interval_12h">每 12 小時</string>
+    <string name="webdav_auto_interval_daily">每天</string>
+    <string name="webdav_auto_wifi_only">僅在 Wi-Fi 下同步</string>
+    <string name="webdav_auto_wifi_only_desc">避免行動網路下消耗流量</string>
+    <string name="webdav_auto_strategy_section">同步策略</string>
+    <string name="webdav_auto_custom_strategy">使用自訂策略</string>
+    <string name="webdav_auto_custom_strategy_on">使用下方獨立設定</string>
+    <string name="webdav_auto_custom_strategy_off">與同步介面保持一致</string>
+    <string name="webdav_auto_backup_format">備份格式</string>
+    <string name="webdav_auto_format_json">JSON</string>
+    <string name="webdav_auto_format_json_desc">僅資料，傳輸速度快</string>
+    <string name="webdav_auto_format_zip">完整 ZIP</string>
+    <string name="webdav_auto_format_zip_desc">含圖片，傳輸速度慢</string>
+
+    <!-- BangumiProxyScreen -->
+    <string name="bangumi_proxy_title">代理設定</string>
+    <string name="bangumi_proxy_reverse_group">Bangumi 反向代理</string>
+    <string name="bangumi_proxy_enable_reverse">啟用反向代理</string>
+    <string name="bangumi_proxy_set_address_first">請先設定代理地址</string>
+    <string name="bangumi_proxy_reverse_desc">透過 %1$s 代理存取 api.bgm.tv，解決直連不可達問題</string>
+    <string name="bangumi_proxy_http_group">HTTP 代理</string>
+    <string name="bangumi_proxy_enable_http">啟用 HTTP 代理</string>
+    <string name="bangumi_proxy_http_desc">透過 %1$s:%2$d 代理所有網路請求（修改後需重啟應用生效）</string>
+    <string name="bangumi_proxy_dialog_title">代理地址</string>
+    <string name="bangumi_proxy_domain">網域</string>
+    <string name="bangumi_proxy_address">地址</string>
+    <string name="bangumi_proxy_port">連接埠</string>
+    <string name="bangumi_proxy_domain_label">代理網域</string>
+    <string name="bangumi_proxy_address_label">代理地址</string>
+    <string name="bangumi_proxy_modify">修改</string>
+
+    <!-- BangumiLoginScreen -->
+    <string name="bangumi_login_title">Bangumi 登入</string>
+    <string name="bangumi_login_loading">正在登入...</string>
+    <string name="bangumi_login_failed">登入失敗</string>
+
+    <!-- BilibiliLoginScreen -->
+    <string name="bilibili_login_title">Bilibili 登入</string>
+    <string name="bilibili_login_avatar">頭像</string>
+    <string name="bilibili_login_logged_in">已登入</string>
+    <string name="bilibili_login_last_sync">上次同步: %1$s</string>
+    <string name="bilibili_login_auto_sync">自動同步</string>
+    <string name="bilibili_login_auto_sync_desc">開啟 App 時自動同步連載中和在看番劇的更新</string>
+    <string name="bilibili_login_fetching">正在取得列表...</string>
+    <string name="bilibili_login_resync">重新同步</string>
+    <string name="bilibili_login_sync_list">同步追番列表</string>
+    <string name="bilibili_login_logout">登出</string>
+    <string name="bilibili_login_generating_qr">正在產生二維碼...</string>
+    <string name="bilibili_login_scan_qr">請使用B站手機客戶端掃描二維碼</string>
+    <string name="bilibili_login_open_bilibili">開啟B站</string>
+    <string name="bilibili_login_regenerate_qr">重新產生二維碼</string>
+    <string name="bilibili_login_generate_failed">多次產生失敗，請檢查網路後重試</string>
+    <string name="bilibili_login_qr_code">二維碼</string>
+    <string name="bilibili_login_dialog_title">以下番劇尚未觀看</string>
+    <string name="bilibili_login_selected_count">已選擇 %1$d/%2$d 部新增為「計畫觀看」</string>
+    <string name="bilibili_login_skip">跳過</string>
+    <string name="bilibili_login_confirm_add">確認新增</string>
+    <string name="bilibili_login_qr_generate_failed">產生二維碼失敗: %1$s</string>
+    <string name="bilibili_login_network_error">網路錯誤: %1$s</string>
+    <string name="bilibili_login_success">登入成功</string>
+    <string name="bilibili_login_qr_expired">二維碼已過期，請重新產生</string>
+    <string name="bilibili_login_qr_confirm">請在手機上確認登入</string>
+    <string name="bilibili_login_sync_complete">同步完成，共 %1$d 部番劇</string>
+    <string name="bilibili_login_sync_failed">同步失敗: %1$s</string>
+</resources>

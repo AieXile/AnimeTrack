@@ -64,8 +64,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatDate
@@ -104,8 +106,8 @@ fun AddAnimeForm(
         OutlinedTextField(
             value = formState.title,
             onValueChange = { onFormStateChange(formState.copy(title = it)) },
-            label = { Text("番剧名称") },
-            placeholder = { Text("输入番剧名称") },
+            label = { Text(stringResource(R.string.add_anime_title_label)) },
+            placeholder = { Text(stringResource(R.string.add_anime_title_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
@@ -122,7 +124,7 @@ fun AddAnimeForm(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             NumberInputField(
-                label = "总集数",
+                label = stringResource(R.string.add_anime_total_episodes),
                 value = formState.totalEpisodes,
                 onValueChange = { onFormStateChange(formState.copy(totalEpisodes = it)) },
                 modifier = Modifier.weight(1f),
@@ -131,7 +133,7 @@ fun AddAnimeForm(
             
             if (formState.status != AnimeStatus.COMPLETED) {
                 NumberInputField(
-                    label = "已看集数",
+                    label = stringResource(R.string.add_anime_watched_episodes),
                     value = formState.watchedEpisodes,
                     onValueChange = { onFormStateChange(formState.copy(watchedEpisodes = it)) },
                     modifier = Modifier.weight(1f),
@@ -196,8 +198,8 @@ fun AddAnimeForm(
         OutlinedTextField(
             value = formState.notes,
             onValueChange = { onFormStateChange(formState.copy(notes = it)) },
-            label = { Text("备注") },
-            placeholder = { Text("添加备注...") },
+            label = { Text(stringResource(R.string.add_anime_notes)) },
+            placeholder = { Text(stringResource(R.string.add_anime_notes_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
             maxLines = 3,
@@ -243,7 +245,7 @@ private fun NumberInputField(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Remove,
-                    contentDescription = "减少",
+                    contentDescription = stringResource(R.string.add_anime_decrease),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -314,7 +316,7 @@ private fun NumberInputField(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "增加",
+                    contentDescription = stringResource(R.string.add_anime_increase),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -369,7 +371,7 @@ private fun StatusDropdown(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "观看状态",
+            text = stringResource(R.string.add_anime_watch_status),
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp)
@@ -497,13 +499,13 @@ private fun RatingSelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "评分",
+                text = stringResource(R.string.add_anime_rating),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
             Text(
-                text = if (rating != null) "${rating} 分" else "未评分",
+                text = if (rating != null) stringResource(R.string.add_anime_rating_value, rating) else stringResource(R.string.add_anime_no_rating),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (rating != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -533,7 +535,7 @@ private fun RatingSelector(
                     ) {
                         Icon(
                             imageVector = if (isSelected) Icons.Filled.Star else Icons.Outlined.Star,
-                            contentDescription = "$starValue 星",
+                            contentDescription = stringResource(R.string.add_anime_star, starValue),
                             tint = if (isSelected) LocalAnimeColors.current.starFilled else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.width(28.dp).height(28.dp)
                         )
@@ -546,7 +548,7 @@ private fun RatingSelector(
                     onClick = { onRatingChange(null) }
                 ) {
                     Text(
-                        text = "清除",
+                        text = stringResource(R.string.common_clear),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -573,7 +575,7 @@ private fun DateSelectors(
         when (status) {
             AnimeStatus.WATCHING -> {
                 Text(
-                    text = "正在观看中...",
+                    text = stringResource(R.string.add_anime_watching_status),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -581,7 +583,7 @@ private fun DateSelectors(
             }
             AnimeStatus.COMPLETED -> {
                 DatePickerField(
-                    label = "完成日期",
+                    label = stringResource(R.string.add_anime_finish_date),
                     date = finishDate,
                     onClick = { showFinishDatePicker = true },
                     onClear = { onFinishDateChange(null) },
@@ -590,7 +592,7 @@ private fun DateSelectors(
             }
             AnimeStatus.DROPPED -> {
                 DatePickerField(
-                    label = "弃番日期",
+                    label = stringResource(R.string.add_anime_dropped_date),
                     date = finishDate,
                     onClick = { showFinishDatePicker = true },
                     onClear = { onFinishDateChange(null) },
@@ -599,7 +601,7 @@ private fun DateSelectors(
             }
             AnimeStatus.PLANNED -> {
                 Text(
-                    text = "计划观看",
+                    text = stringResource(R.string.add_anime_planned_status),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -615,7 +617,7 @@ private fun DateSelectors(
                 TextButton(
                     onClick = { showStartDatePicker = false }
                 ) {
-                    Text("确定")
+                    Text(stringResource(R.string.common_ok))
                 }
             }
         ) {
@@ -639,7 +641,7 @@ private fun DateSelectors(
                 TextButton(
                     onClick = { showFinishDatePicker = false }
                 ) {
-                    Text("确定")
+                    Text(stringResource(R.string.common_ok))
                 }
             }
         ) {
@@ -692,7 +694,7 @@ private fun DatePickerField(
                     tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = if (date != null) formatDate(date) else "选择日期",
+                    text = if (date != null) formatDate(date) else stringResource(R.string.add_anime_select_date),
                     fontSize = 16.sp,
                     color = if (date != null) MaterialTheme.colorScheme.onSurface 
                            else MaterialTheme.colorScheme.onSurfaceVariant
@@ -702,7 +704,7 @@ private fun DatePickerField(
             if (date != null) {
                 TextButton(onClick = onClear) {
                     Text(
-                        text = "清除",
+                        text = stringResource(R.string.common_clear),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

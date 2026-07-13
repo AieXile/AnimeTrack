@@ -54,7 +54,7 @@ class TimelineViewModel(
         val sharedAnimeList = repository.getAllAnimes()
             .shareIn(
                 scope = viewModelScope,
-                started = SharingStarted.Lazily,
+                started = SharingStarted.WhileSubscribed(5000),
                 replay = 1
             )
 
@@ -62,7 +62,7 @@ class TimelineViewModel(
             .map { animeList -> animeList.filter { it.status == AnimeStatus.WATCHING } }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Lazily,
+                started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
 
@@ -70,7 +70,7 @@ class TimelineViewModel(
             .map { animeList -> groupAnimeByMonth(animeList) }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Lazily,
+                started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
     }

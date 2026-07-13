@@ -37,9 +37,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
+import com.aiexile.animetrack.R
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
@@ -47,41 +50,41 @@ import kotlinx.coroutines.launch
 
 sealed class BottomNavItem(
     val route: String,
-    val title: String,
+    @StringRes val titleRes: Int,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
     object Home : BottomNavItem(
         route = "home",
-        title = "首页",
+        titleRes = R.string.nav_home,
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home
     )
-    
+
     object Favorites : BottomNavItem(
         route = "favorites",
-        title = "收藏",
+        titleRes = R.string.bottom_nav_favorites,
         selectedIcon = Icons.Filled.CollectionsBookmark,
         unselectedIcon = Icons.Outlined.CollectionsBookmark
     )
-    
+
     object Timeline : BottomNavItem(
         route = "timeline",
-        title = "时间线",
+        titleRes = R.string.nav_timeline,
         selectedIcon = Icons.Filled.Timeline,
         unselectedIcon = Icons.Outlined.Timeline
     )
 
     object Schedule : BottomNavItem(
         route = "schedule",
-        title = "看板",
+        titleRes = R.string.bottom_nav_schedule,
         selectedIcon = Icons.Filled.Schedule,
         unselectedIcon = Icons.Outlined.Schedule
     )
 
     object Settings : BottomNavItem(
         route = "settings",
-        title = "设置",
+        titleRes = R.string.nav_settings,
         selectedIcon = Icons.Filled.Settings,
         unselectedIcon = Icons.Outlined.Settings
     )
@@ -152,12 +155,12 @@ fun BottomNavigationBar(
                     ) {
                         Icon(
                             imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = item.title,
+                            contentDescription = stringResource(item.titleRes),
                             tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = item.title,
+                            text = stringResource(item.titleRes),
                             fontSize = 10.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant

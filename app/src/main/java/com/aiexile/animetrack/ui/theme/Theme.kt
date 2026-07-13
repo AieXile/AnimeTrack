@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
 
 @Composable
@@ -22,6 +23,7 @@ fun AnimeTrackTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themePreset: ThemePreset = ThemePreset.VIBRANT_BLUE,
     useDynamicColor: Boolean = false,
+    fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -68,7 +70,7 @@ fun AnimeTrackTheme(
     CompositionLocalProvider(LocalAnimeColors provides animeColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            typography = buildTypography(fontFamily),
             content = content
         )
     }

@@ -199,7 +199,8 @@ class AnimeDetailViewModel(
             animeFlow.collect { anime ->
                 if (anime != null && !hasFetchedDetail) {
                     if (anime.bangumiId != null) {
-                        val needsDetail = anime.summary.isNullOrBlank()
+                        // 仅在尚未获取过简介时才触发获取，避免无网时反复加载
+                        val needsDetail = anime.summaryFetched != true
                             || anime.airDate == null
                             || anime.airWeekday == null
                         if (needsDetail) {
@@ -222,7 +223,11 @@ class AnimeDetailViewModel(
                 val bangumiId = anime.bangumiId ?: return@launch
                 Log.d(TAG, "Fetching detail from API for bangumiId: $bangumiId")
 
-                val detail = repository.fetchBangumiDetail(bangumiId) ?: return@launch
+                val detail = repository.fetchBangumiDetail(bangumiId)
+                if (detail == null) {
+                    // 获取失败（网络错误等），不标记 summaryFetched，下次有网时可重试
+                    return@launch
+                }
 
                 val apiEps = detail.eps
                 val apiTotalEps = detail.totalEpisodes
@@ -250,17 +255,19 @@ class AnimeDetailViewModel(
                 )
 
                 val updatedAnime = anime.copy(
-                    summary = detail.summary?.cleanSummary() ?: anime.summary,
+                    summary = detail.summary?.cleanSummary()?.takeIf { it.isNotBlank() } ?: anime.summary,
                     airDate = detail.date ?: anime.airDate,
                     airWeekday = detail.airWeekday ?: anime.airWeekday,
                     rating = detail.score?.toFloat() ?: anime.rating,
                     totalEpisodes = finalTotalEpisodes,
                     currentEpisodes = finalCurrentEpisodes,
                     watchedEpisodes = newWatchedEpisodes,
-                    isFinished = isFinished
+                    isFinished = isFinished,
+                    // 标记已获取过简介，避免无网时反复触发加载
+                    summaryFetched = true
                 )
 
-                repository.updateAnime(updatedAnime)
+                repository.updateAnimeInternal(updatedAnime)
 
                 Log.d(TAG, "Detail fetched and updated: summary=${detail.summary?.take(50)}...")
             } catch (e: Exception) {
@@ -279,7 +286,7 @@ class AnimeDetailViewModel(
         )
         if (isFinished != anime.isFinished) {
             viewModelScope.launch {
-                repository.updateAnime(anime.copy(isFinished = isFinished))
+                repository.updateAnimeInternal(anime.copy(isFinished = isFinished))
             }
         }
     }
@@ -628,9 +635,28 @@ class AnimeDetailViewModel(
                     System.currentTimeMillis()
                 } else {
                     anime.finishDate
+                },
+                watchedEpisodes = when {
+                    // 手动切换为已看完时，自动将观看进度设为总集数
+                    newStatus == AnimeStatus.COMPLETED
+                        && anime.totalEpisodes > 0
+                        && anime.watchedEpisodes < anime.totalEpisodes -> anime.totalEpisodes
+                    // 从满进度切回非已看完时，自动退一集，避免满进度却显示正在观看
+                    newStatus != AnimeStatus.COMPLETED
+                        && anime.totalEpisodes > 0
+                        && anime.watchedEpisodes >= anime.totalEpisodes -> anime.totalEpisodes - 1
+                    else -> anime.watchedEpisodes
                 }
             )
             repository.updateAnime(updatedAnime)
+
+            // 手动切换为已看完时显示完结撒花
+            if (newStatus == AnimeStatus.COMPLETED
+                && anime.status != AnimeStatus.COMPLETED
+                && completedToastEnabled.value
+            ) {
+                _showCompletedToast.value = true
+            }
 
             if (anime.bangumiId != null) {
                 val syncManager = AppContainer.getSyncManager()

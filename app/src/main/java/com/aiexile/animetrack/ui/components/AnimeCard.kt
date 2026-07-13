@@ -58,14 +58,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.resolveCoverModel
 import androidx.compose.foundation.layout.offset
 
@@ -269,7 +274,7 @@ fun AnimeCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Edit,
-                                contentDescription = "修改状态",
+                                contentDescription = stringResource(R.string.anime_card_change_status),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -346,7 +351,7 @@ fun AnimeCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
-                            contentDescription = "删除",
+                            contentDescription = stringResource(R.string.common_delete),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
                         )
@@ -399,8 +404,15 @@ private fun AnimeCoverWithStatus(
         }
         
         if (coverUrl != null) {
+            val context = LocalContext.current
+            val request = remember(coverUrl) {
+                ImageRequest.Builder(context)
+                    .data(resolveCoverModel(coverUrl))
+                    .memoryCacheKey(coverMemoryCacheKey(coverUrl))
+                    .build()
+            }
             AsyncImage(
-                model = resolveCoverModel(coverUrl),
+                model = request,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = sharedModifier

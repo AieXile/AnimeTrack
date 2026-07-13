@@ -46,6 +46,13 @@ interface AnimeRepository {
 
     suspend fun updateAnime(anime: Anime)
 
+    /**
+     * 纯本地更新：只写入数据库并通知本地同步（WebDAV），不触发后端订阅同步。
+     * 适用于封面本地化、简介/开播信息回填、完结状态重算等内部字段变更。
+     * @return 更新前的旧数据（不存在则为 null），便于调用方按需比对。
+     */
+    suspend fun updateAnimeInternal(anime: Anime): Anime?
+
     suspend fun deleteAnime(anime: Anime)
 
     suspend fun getAnimeByTitle(title: String): Anime?
@@ -168,7 +175,7 @@ class AnimeRepositoryImpl(
         return id
     }
 
-    override suspend fun updateAnime(anime: Anime) {
+    override suspend fun updateAnimeInternal(anime: Anime): Anime? {
         val oldAnime = animeDao.getAnimeById(anime.id)
         animeDao.updateAnime(anime)
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
@@ -180,8 +187,29 @@ class AnimeRepositoryImpl(
         if (oldAnime?.title != anime.title) {
             reassignSeriesKeys()
         }
-        // 同步修改到后端（POST /api/subscriptions/add 为 upsert 语义，存在则更新）
-        syncSubscriptionToServer(anime, isAdd = true)
+        return oldAnime
+    }
+
+    override suspend fun updateAnime(anime: Anime) {
+        val oldAnime = updateAnimeInternal(anime)
+        // 仅当用户可见字段变化时才同步到后端，避免封面/简介等内部回填触发无谓的 POST
+        if (shouldSyncToServer(oldAnime, anime)) {
+            syncSubscriptionToServer(anime, isAdd = true)
+        }
+    }
+
+    /**
+     * 判断本次更新是否需要同步到后端。
+     * 仅关注用户可见/后端关心的字段：状态、观看进度、评分、备注、标题。
+     * oldAnime 为 null（新数据或查不到）时保守返回 true。
+     */
+    private fun shouldSyncToServer(oldAnime: Anime?, newAnime: Anime): Boolean {
+        if (oldAnime == null) return true
+        return oldAnime.status != newAnime.status
+            || oldAnime.watchedEpisodes != newAnime.watchedEpisodes
+            || oldAnime.rating != newAnime.rating
+            || oldAnime.notes != newAnime.notes
+            || oldAnime.title != newAnime.title
     }
 
     override suspend fun deleteAnime(anime: Anime) {
@@ -306,10 +334,12 @@ class AnimeRepositoryImpl(
         val allAnimes = animeDao.getAllAnimesList()
         if (allAnimes.isEmpty()) return
         val updated = SeriesMatcher.assignSeriesKeys(allAnimes)
+        // 建立 id → 原对象索引，避免在 filter lambda 内做 O(n²) 线性查找
+        val oldById = allAnimes.associateBy { it.id }
         // 仅持久化 seriesKey 变化的项
-        updated.filter { it.seriesKey != allAnimes.find { a -> a.id == it.id }?.seriesKey }
-            .forEach { animeDao.updateAnime(it) }
-        Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${updated.count { it.seriesKey != allAnimes.find { a -> a.id == it.id }?.seriesKey }}")
+        val changed = updated.filter { it.seriesKey != oldById[it.id]?.seriesKey }
+        changed.forEach { animeDao.updateAnime(it) }
+        Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}")
     }
 
     override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?) {
@@ -430,7 +460,9 @@ class AnimeRepositoryImpl(
                             notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
                         )
 
-                        updateAnime(updatedAnime)
+                        // 直接写入 DAO，避免每部番剧触发一次网络同步（updateAnime 会 POST）
+                        animeDao.updateAnime(updatedAnime)
+                        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
                         downloadCoverAsync(
                             animeId = updatedAnime.id,
                             coverUrl = updatedAnime.coverUrl,
@@ -445,6 +477,12 @@ class AnimeRepositoryImpl(
                 } catch (e: Exception) {
                     Log.e(TAG, "Background sync failed for: ${anime.title}", e)
                 }
+            }
+
+            if (count > 0) {
+                // 标题可能变化，统一重算 seriesKey；并只触发一次防抖同步，避免 N 次网络请求
+                reassignSeriesKeys()
+                triggerSyncSubscriptionsFromServerDebounced()
             }
 
             Log.d(TAG, "Background cover sync complete: $count/${animesWithoutCover.size}")
@@ -528,6 +566,46 @@ class AnimeRepositoryImpl(
         return computeRemoteCoverUrl(anime.coverUrl)
     }
 
+    /** 构建上传到后端的订阅请求体（统一逻辑，避免多处重复） */
+    private fun buildSubscribeRequest(anime: Anime, animeId: String): SubscribeRequest {
+        return SubscribeRequest(
+            animeId = animeId,
+            animeTitle = anime.title,
+            animeImage = resolveAnimeImageForServer(anime),
+            airDate = anime.airDate,
+            isAiring = if (anime.isFinished) 0 else 1, // 1=连载中, 0=已完结
+            weekday = anime.airWeekday,
+            totalEpisodes = anime.totalEpisodes,
+            watchedEpisodes = anime.watchedEpisodes,
+            currentEpisodes = anime.currentEpisodes,
+            status = anime.status.toApiString(),
+            rating = anime.rating,
+            notes = anime.notes.ifBlank { null },
+            startDate = anime.startDate?.let { formatDate(it) },
+            finishDate = anime.finishDate?.let { formatDate(it) }
+        )
+    }
+
+    /**
+     * 判断本地番剧与后端订阅是否一致（一致则无需重复上传）。
+     * 仅比对会上传到后端的字段，字符串统一按「空视为 null」归一化。
+     */
+    private fun isRemoteInSync(anime: Anime, remote: com.aiexile.animetrack.data.network.Subscription): Boolean {
+        fun String?.norm() = this?.takeIf { it.isNotBlank() }
+        return anime.title == remote.animeTitle
+            && anime.status.toApiString() == remote.status
+            && anime.watchedEpisodes == (remote.watchedEpisodes ?: 0)
+            && anime.currentEpisodes == (remote.currentEpisodes ?: 0)
+            && anime.totalEpisodes == (remote.totalEpisodes ?: 0)
+            && anime.rating == remote.rating
+            && anime.notes.norm() == remote.notes.norm()
+            && (!anime.isFinished) == remote.isAiring
+            && anime.airWeekday == remote.weekday
+            && anime.airDate.norm() == remote.airDate.norm()
+            && anime.startDate?.let { formatDate(it) } == remote.startDate.norm()
+            && anime.finishDate?.let { formatDate(it) } == remote.finishDate.norm()
+    }
+
     override suspend fun syncSubscriptionsFromServer() {
         Log.d(TAG, "syncSubscriptionsFromServer: start")
         val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
@@ -539,34 +617,27 @@ class AnimeRepositoryImpl(
         Log.d(TAG, "syncSubscriptionsFromServer: user logged in, proceeding")
 
         try {
-            // ===== 第一步：上传本地所有番剧到后端 =====
-            // 本地有 = 已订阅，逐条上传到后端（单条失败不影响整体）
+            // ===== 第一步：先拉取后端订阅列表，用于上传前的差异比对 =====
+            val response = RetrofitClient.userAuthApi.getSubscriptions()
+            val remoteList = response.subscriptions
+            // 以 animeId 建索引，便于本地逐条比对
+            val remoteMap = remoteList?.associateBy { it.animeId } ?: emptyMap()
+
+            // ===== 第二步：仅上传「远程缺失」或「字段不一致」的本地番剧（客户端 Diff） =====
             val localAnimes = animeDao.getAllAnimesList()
-            Log.d(TAG, "syncSubscriptionsFromServer: local animes count=${localAnimes.size}")
+            Log.d(TAG, "syncSubscriptionsFromServer: local animes count=${localAnimes.size}, remote count=${remoteMap.size}")
             var uploadedCount = 0
+            var skippedCount = 0
             for (anime in localAnimes) {
                 val animeId = anime.bangumiId?.toString() ?: continue
-                // 解析可公开访问的封面 URL（优先使用 remoteCoverUrl）
-                val animeImage = resolveAnimeImageForServer(anime)
+                // 远程已存在且字段完全一致 → 跳过上传
+                val remote = remoteMap[animeId]
+                if (remote != null && isRemoteInSync(anime, remote)) {
+                    skippedCount++
+                    continue
+                }
                 try {
-                    RetrofitClient.userAuthApi.addSubscription(
-                        SubscribeRequest(
-                            animeId = animeId,
-                            animeTitle = anime.title,
-                            animeImage = animeImage,
-                            airDate = anime.airDate,
-                            isAiring = if (anime.isFinished) 0 else 1, // 1=连载中, 0=已完结
-                            weekday = anime.airWeekday,
-                            totalEpisodes = anime.totalEpisodes,
-                            watchedEpisodes = anime.watchedEpisodes,
-                            currentEpisodes = anime.currentEpisodes,
-                            status = anime.status.toApiString(),
-                            rating = anime.rating,
-                            notes = anime.notes.ifBlank { null },
-                            startDate = anime.startDate?.let { formatDate(it) },
-                            finishDate = anime.finishDate?.let { formatDate(it) }
-                        )
-                    )
+                    RetrofitClient.userAuthApi.addSubscription(buildSubscribeRequest(anime, animeId))
                     uploadedCount++
                 } catch (e: retrofit2.HttpException) {
                     val errorBody = try {
@@ -579,18 +650,17 @@ class AnimeRepositoryImpl(
                 // 限流：每条上传后间隔，避免短时间内大量请求导致后端拒绝
                 delay(UPLOAD_THROTTLE_MS)
             }
-            Log.d(TAG, "syncSubscriptionsFromServer: uploaded=$uploadedCount/${localAnimes.size}")
+            Log.d(TAG, "syncSubscriptionsFromServer: uploaded=$uploadedCount, skipped(in-sync)=$skippedCount, total=${localAnimes.size}")
 
-            // ===== 第二步：从后端拉取订阅列表，合并到本地 =====
-            val response = RetrofitClient.userAuthApi.getSubscriptions()
-            if (!response.success || response.subscriptions == null) {
+            // ===== 第三步：将后端订阅列表合并到本地（复用第一步已拉取的数据） =====
+            if (!response.success || remoteList == null) {
                 Log.d(TAG, "Sync done: uploaded=$uploadedCount, remote list unavailable")
                 return
             }
 
             var mergedCount = 0
             var insertedCount = 0
-            for (remote in response.subscriptions) {
+            for (remote in remoteList) {
                 val bangumiId = remote.animeId.toIntOrNull() ?: continue
                 val existing = animeDao.getAnimeByBangumiId(bangumiId)
                 if (existing == null) {
@@ -623,7 +693,7 @@ class AnimeRepositoryImpl(
                 TAG,
                 "Sync subscriptions: uploaded=$uploadedCount, " +
                     "remote merged(skipped)=$mergedCount, inserted=$insertedCount, " +
-                    "remote total=${response.subscriptions.size}"
+                    "remote total=${remoteList.size}"
             )
         } catch (e: Exception) {
             Log.w(TAG, "Sync subscriptions from server failed (non-fatal)", e)

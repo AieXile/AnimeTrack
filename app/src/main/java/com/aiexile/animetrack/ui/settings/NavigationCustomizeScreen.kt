@@ -44,11 +44,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
@@ -74,7 +76,7 @@ fun NavigationCustomizeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "定制导航栏",
+                        text = stringResource(R.string.nav_custom_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -83,7 +85,7 @@ fun NavigationCustomizeScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -100,7 +102,7 @@ fun NavigationCustomizeScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                SettingsGroup(title = "导航栏样式") {
+                ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_style_title)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         NavigationStyleCard(
                             style = NavigationStyle.BOTTOM,
@@ -117,7 +119,7 @@ fun NavigationCustomizeScreen(
             }
 
             item {
-                SettingsGroup(title = "添加番剧按钮位置") {
+                ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_fab_title)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FabLocationCard(
                             location = FabLocation.BOTTOM_RIGHT,
@@ -135,25 +137,25 @@ fun NavigationCustomizeScreen(
 
             item {
                 SettingsGroup(
-                    title = "导航栏内容",
-                    subtitle = "选择在导航栏中显示的入口"
+                    title = stringResource(R.string.nav_custom_content_title),
+                    subtitle = stringResource(R.string.nav_custom_content_subtitle)
                 ) {
                     Column {
                         SwitchItem(
-                            title = "显示收藏",
-                            description = "在导航栏显示收藏入口",
+                            title = stringResource(R.string.nav_custom_show_favorites),
+                            description = stringResource(R.string.nav_custom_show_favorites_desc),
                             checked = showFavorites,
                             onCheckedChange = { scope.launch { settingsRepository.setShowFavorites(it) } }
                         )
                         SwitchItem(
-                            title = "显示时间线",
-                            description = "在导航栏显示时间线入口",
+                            title = stringResource(R.string.nav_custom_show_timeline),
+                            description = stringResource(R.string.nav_custom_show_timeline_desc),
                             checked = showTimeline,
                             onCheckedChange = { scope.launch { settingsRepository.setShowTimeline(it) } }
                         )
                         SwitchItem(
-                            title = "显示追番看板",
-                            description = "在导航栏显示追番看板入口",
+                            title = stringResource(R.string.nav_custom_show_schedule),
+                            description = stringResource(R.string.nav_custom_show_schedule_desc),
                             checked = showSchedule,
                             onCheckedChange = { scope.launch { settingsRepository.setShowSchedule(it) } }
                         )
@@ -163,14 +165,14 @@ fun NavigationCustomizeScreen(
 
             item {
                 SettingsGroup(
-                    title = "自定义欢迎语",
-                    subtitle = "设置首页标题栏显示的欢迎语"
+                    title = stringResource(R.string.nav_custom_greeting_title),
+                    subtitle = stringResource(R.string.nav_custom_greeting_subtitle)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
                         SwitchItem(
-                            title = "打字效果",
-                            description = "欢迎语逐字显示的打字机动画",
+                            title = stringResource(R.string.nav_custom_typing_effect),
+                            description = stringResource(R.string.nav_custom_typing_effect_desc),
                             checked = greetingTypingEffect,
                             onCheckedChange = { scope.launch { settingsRepository.setGreetingTypingEffect(it) } }
                         )
@@ -224,8 +226,8 @@ private fun NavigationStyleCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = when (style) {
-                    NavigationStyle.BOTTOM -> "经典 Material Design 底部导航栏，贴底显示"
-                    NavigationStyle.CAPSULE -> "悬浮胶囊导航栏，圆角浮于内容之上"
+                    NavigationStyle.BOTTOM -> stringResource(R.string.nav_custom_style_bottom_desc)
+                    NavigationStyle.CAPSULE -> stringResource(R.string.nav_custom_style_capsule_desc)
                 },
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -349,8 +351,8 @@ private fun FabLocationCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = when (location) {
-                    FabLocation.BOTTOM_RIGHT -> "悬浮在页面右下角，经典 Material 风格"
-                    FabLocation.TOP_BAR -> "嵌入顶部标题栏右侧，更极简紧凑"
+                    FabLocation.BOTTOM_RIGHT -> stringResource(R.string.nav_custom_fab_bottom_right_desc)
+                    FabLocation.TOP_BAR -> stringResource(R.string.nav_custom_fab_top_bar_desc)
                 },
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -490,7 +492,7 @@ private fun CustomGreetingField(
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
-                    text = "留空则显示随机 Hi, / Hey, / Hello,",
+                    text = stringResource(R.string.nav_custom_greeting_placeholder),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             },
@@ -507,7 +509,7 @@ private fun CustomGreetingField(
         )
         if (isOverLimit) {
             Text(
-                text = "文案过长可能会被截断",
+                text = stringResource(R.string.nav_custom_greeting_too_long),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp)

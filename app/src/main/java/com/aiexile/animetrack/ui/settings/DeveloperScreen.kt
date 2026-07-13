@@ -42,10 +42,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -91,7 +93,7 @@ fun DeveloperScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "开发者选项",
+                        text = stringResource(R.string.developer_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -100,7 +102,7 @@ fun DeveloperScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -122,14 +124,14 @@ fun DeveloperScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "开发者模式",
+                        text = stringResource(R.string.developer_mode),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "关闭后将隐藏开发者选项",
+                        text = stringResource(R.string.developer_mode_desc),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -140,7 +142,7 @@ fun DeveloperScreen(
                         scope.launch {
                             settingsRepository.setDeveloperMode(enabled)
                             if (!enabled) {
-                                Toast.makeText(context, "已关闭开发者模式", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.developer_mode_disabled), Toast.LENGTH_SHORT).show()
                                 onBack()
                             }
                         }
@@ -156,14 +158,14 @@ fun DeveloperScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "分享按钮",
+                        text = stringResource(R.string.developer_share_button),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "在详情页显示分享番剧按钮",
+                        text = stringResource(R.string.developer_share_button_desc),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -186,14 +188,14 @@ fun DeveloperScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "更新通知",
+                        text = stringResource(R.string.developer_update_notification),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "在设置界面显示更新通知入口",
+                        text = stringResource(R.string.developer_update_notification_desc),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -211,14 +213,14 @@ fun DeveloperScreen(
             Spacer(modifier = Modifier.size(24.dp))
 
             Text(
-                text = "测试通知",
+                text = stringResource(R.string.developer_test_notification),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "立即发送一条测试通知",
+                text = stringResource(R.string.developer_test_notification_desc),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -229,7 +231,7 @@ fun DeveloperScreen(
                 onClick = {
                     com.aiexile.animetrack.data.notification.UpdateNotificationManager
                         .triggerTestNotification(context)
-                    Toast.makeText(context, "3秒后发送测试通知", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.developer_test_notification_toast), Toast.LENGTH_SHORT).show()
                 },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -237,20 +239,20 @@ fun DeveloperScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text(text = "发送测试通知")
+                Text(text = stringResource(R.string.developer_send_test_notification))
             }
 
             Spacer(modifier = Modifier.size(24.dp))
 
             Text(
-                text = "调试卡片",
+                text = stringResource(R.string.developer_debug_cards),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "添加占位番剧卡片用于界面调试",
+                text = stringResource(R.string.developer_debug_cards_desc),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -267,7 +269,7 @@ fun DeveloperScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Remove,
-                        contentDescription = "减少",
+                        contentDescription = stringResource(R.string.developer_decrease),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -283,7 +285,7 @@ fun DeveloperScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "增加",
+                        contentDescription = stringResource(R.string.developer_increase),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -299,10 +301,11 @@ fun DeveloperScreen(
                     onClick = {
                         scope.launch {
                             val statuses = AnimeStatus.entries
+                            val prefix = context.getString(R.string.developer_debug_anime_prefix)
                             repeat(debugCardCount) { i ->
                                 animeRepository.insertAnime(
                                     Anime(
-                                        title = "调试番剧 ${i + 1}",
+                                        title = "$prefix ${i + 1}",
                                         totalEpisodes = 12,
                                         watchedEpisodes = (0..12).random(),
                                         status = statuses.random(),
@@ -311,7 +314,7 @@ fun DeveloperScreen(
                                     )
                                 )
                             }
-                            Toast.makeText(context, "已添加 $debugCardCount 张调试卡片", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.developer_added_debug_cards, debugCardCount), Toast.LENGTH_SHORT).show()
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
@@ -320,36 +323,37 @@ fun DeveloperScreen(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Text(text = "添加")
+                    Text(text = stringResource(R.string.common_add))
                 }
 
                 OutlinedButton(
                     onClick = {
                         scope.launch {
                             val allAnime = animeRepository.getAllAnimes().first()
-                            val debugAnime = allAnime.filter { it.title.startsWith("调试番剧") }
+                            val prefix = context.getString(R.string.developer_debug_anime_prefix)
+                            val debugAnime = allAnime.filter { it.title.startsWith(prefix) }
                             debugAnime.forEach { animeRepository.deleteAnime(it) }
                             val count = debugAnime.size
-                            Toast.makeText(context, if (count > 0) "已删除 $count 张调试卡片" else "没有调试卡片", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (count > 0) context.getString(R.string.developer_deleted_debug_cards, count) else context.getString(R.string.developer_no_debug_cards), Toast.LENGTH_SHORT).show()
                         }
                     },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(text = "清除")
+                    Text(text = stringResource(R.string.common_clear))
                 }
             }
 
             Spacer(modifier = Modifier.size(24.dp))
 
             Text(
-                text = "模拟更新",
+                text = stringResource(R.string.developer_simulate_update),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "模拟完整更新流程，不会下载真实文件",
+                text = stringResource(R.string.developer_simulate_update_desc),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -365,20 +369,20 @@ fun DeveloperScreen(
                 ),
                 enabled = !uiState.isDownloading && uiState.updateInfo == null
             ) {
-                Text(text = "触发模拟更新")
+                Text(text = stringResource(R.string.developer_trigger_simulate_update))
             }
 
             Spacer(modifier = Modifier.size(24.dp))
 
             Text(
-                text = "视频播放器",
+                text = stringResource(R.string.developer_video_player),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "播放器设置与测试",
+                text = stringResource(R.string.developer_video_player_desc),
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -399,7 +403,7 @@ fun DeveloperScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "播放器设置")
+                Text(text = stringResource(R.string.developer_player_settings))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

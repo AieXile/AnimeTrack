@@ -30,10 +30,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.UserAuthRegisterRequest
 import kotlinx.coroutines.CancellationException
@@ -48,6 +51,7 @@ fun UserRegisterScreen(
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var inputUsername by remember { mutableStateOf("") }
     var inputPassword by remember { mutableStateOf("") }
@@ -62,14 +66,14 @@ fun UserRegisterScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "注册",
+                        text = stringResource(R.string.user_register_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -86,8 +90,8 @@ fun UserRegisterScreen(
             OutlinedTextField(
                 value = inputUsername,
                 onValueChange = { inputUsername = it },
-                label = { Text("用户名") },
-                placeholder = { Text("3-20个字符") },
+                label = { Text(stringResource(R.string.user_register_username)) },
+                placeholder = { Text(stringResource(R.string.user_register_username_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -95,8 +99,8 @@ fun UserRegisterScreen(
             OutlinedTextField(
                 value = inputPassword,
                 onValueChange = { inputPassword = it },
-                label = { Text("密码") },
-                placeholder = { Text("至少6位") },
+                label = { Text(stringResource(R.string.user_register_password)) },
+                placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -106,7 +110,7 @@ fun UserRegisterScreen(
             OutlinedTextField(
                 value = inputConfirmPassword,
                 onValueChange = { inputConfirmPassword = it },
-                label = { Text("确认密码") },
+                label = { Text(stringResource(R.string.user_register_confirm_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -116,7 +120,7 @@ fun UserRegisterScreen(
             OutlinedTextField(
                 value = inputEmail,
                 onValueChange = { inputEmail = it },
-                label = { Text("邮箱（选填）") },
+                label = { Text(stringResource(R.string.user_register_email_optional)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth()
@@ -137,17 +141,17 @@ fun UserRegisterScreen(
                     // 本地验证
                     val trimmedUsername = inputUsername.trim()
                     if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
-                        message = "用户名长度需为3-20个字符"
+                        message = context.getString(R.string.user_register_username_length_error)
                         isMessageError = true
                         return@Button
                     }
                     if (inputPassword.length < 6) {
-                        message = "密码长度至少6位"
+                        message = context.getString(R.string.user_register_password_length_error)
                         isMessageError = true
                         return@Button
                     }
                     if (inputPassword != inputConfirmPassword) {
-                        message = "两次密码不一致"
+                        message = context.getString(R.string.user_register_password_mismatch)
                         isMessageError = true
                         return@Button
                     }
@@ -166,7 +170,7 @@ fun UserRegisterScreen(
                             )
                             if (response.success) {
                                 withContext(Dispatchers.Main) {
-                                    message = "注册成功，请登录"
+                                    message = context.getString(R.string.user_register_success)
                                     isMessageError = false
                                 }
                                 delay(1500)
@@ -175,7 +179,7 @@ fun UserRegisterScreen(
                                 }
                             } else {
                                 withContext(Dispatchers.Main) {
-                                    message = response.message ?: "注册失败"
+                                    message = response.message ?: context.getString(R.string.user_register_failed)
                                     isMessageError = true
                                 }
                             }
@@ -183,7 +187,7 @@ fun UserRegisterScreen(
                             throw e
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                message = "网络错误，请检查网络连接"
+                                message = context.getString(R.string.user_register_network_error)
                                 isMessageError = true
                             }
                         } finally {
@@ -203,12 +207,12 @@ fun UserRegisterScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("注册")
+                    Text(stringResource(R.string.user_register_button))
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(onClick = onBack) {
-                Text("已有账号？去登录")
+                Text(stringResource(R.string.user_register_has_account_login))
             }
         }
     }

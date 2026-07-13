@@ -15,22 +15,27 @@ class UserAuthInterceptor : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val userAuthManager = AppContainer.getUserAuthManager()
+        val request = chain.request()
+
+        // auth/refresh 请求本身不参与 403 刷新，避免递归刷新导致死锁
+        if (request.url.encodedPath.contains("auth/refresh")) {
+            return chain.proceed(request)
+        }
+
         val accessToken = userAuthManager.getCachedAccessToken()
 
-        val request = if (accessToken != null) {
-            chain.request().newBuilder()
+        val authedRequest = if (accessToken != null) {
+            request.newBuilder()
                 .header("Authorization", "Bearer $accessToken")
                 .build()
         } else {
-            chain.request()
+            request
         }
 
-        val response = chain.proceed(request)
+        val response = chain.proceed(authedRequest)
 
         // 收到 403 时尝试刷新 accessToken
         if (response.code == 403 && accessToken != null) {
-            response.close()
-
             val newToken = runBlocking {
                 refreshMutex.withLock {
                     // 双重检查：锁获取期间可能已有其他线程刷新成功
@@ -67,12 +72,14 @@ class UserAuthInterceptor : Interceptor {
             }
 
             if (newToken != null) {
-                // 用新 token 重试原请求
-                val newRequest = chain.request().newBuilder()
+                // 刷新成功：关闭原响应，用新 token 重试原请求
+                response.close()
+                val newRequest = request.newBuilder()
                     .header("Authorization", "Bearer $newToken")
                     .build()
                 return chain.proceed(newRequest)
             }
+            // 刷新失败：返回原 403 响应（未关闭），让上层读取错误信息
         }
 
         return response

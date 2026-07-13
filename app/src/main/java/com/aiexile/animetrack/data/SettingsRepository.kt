@@ -24,6 +24,18 @@ import kotlinx.coroutines.launch
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+enum class FontFamilyType(val displayName: String) {
+    SYSTEM("系统字体"),
+    MISANS("MiSans"),
+    CUSTOM("自定义字体")
+}
+
+enum class AppLanguage(val displayName: String, val code: String) {
+    SIMPLIFIED_CHINESE("简体中文", "zh-CN"),
+    ENGLISH("English", "en"),
+    TRADITIONAL_CHINESE("繁體中文", "zh-TW")
+}
+
 class SettingsRepository(private val context: Context) {
 
     companion object {
@@ -94,6 +106,12 @@ class SettingsRepository(private val context: Context) {
         const val DEFAULT_USER_AUTH_BASE_URL = "https://www.aiexile.top/api"
 
         const val DEFAULT_TMDB_API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZTFhNzUyY2Q3ZWI4ZjE4MzljMzBlZDNjZGRmMTI1ZCIsIm5iZiI6MTc3OTk2NzU2Ny4zMTEsInN1YiI6IjZhMTgyNjRmNTNmZTM5ZjRhNzE1ZGM2NyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.R7iyiJrJR2Fs7uE65xveVGaPnAkzJHnMyQ4OvM0zZ5o"
+
+        private val FONT_FAMILY_KEY = stringPreferencesKey("font_family")
+        private val CUSTOM_FONT_PATH_KEY = stringPreferencesKey("custom_font_path")
+        private val APP_LANGUAGE_KEY = stringPreferencesKey("app_language")
+        private val LAST_ACTIVITY_DATE_KEY = stringPreferencesKey("last_activity_date")
+        private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
     }
 
     private fun <T> preferenceFlow(key: Preferences.Key<T>, default: T): Flow<T> =
@@ -403,4 +421,53 @@ class SettingsRepository(private val context: Context) {
     val playerLongPressSpeed: Flow<Float> = preferenceFlow(PLAYER_LONG_PRESS_SPEED_KEY, 2f)
 
     suspend fun setPlayerLongPressSpeed(speed: Float) = setPreference(PLAYER_LONG_PRESS_SPEED_KEY, speed)
+
+    val fontFamilyFlow: Flow<String> = preferenceFlow(FONT_FAMILY_KEY, FontFamilyType.SYSTEM.name)
+
+    suspend fun setFontFamily(type: FontFamilyType) = setPreference(FONT_FAMILY_KEY, type.name)
+
+    val customFontPathFlow: Flow<String> = preferenceFlow(CUSTOM_FONT_PATH_KEY, "")
+
+    suspend fun setCustomFontPath(path: String) = setPreference(CUSTOM_FONT_PATH_KEY, path)
+
+    val appLanguageFlow: Flow<String> = preferenceFlow(APP_LANGUAGE_KEY, AppLanguage.SIMPLIFIED_CHINESE.name)
+
+    suspend fun setAppLanguage(language: AppLanguage) = setPreference(APP_LANGUAGE_KEY, language.name)
+
+    /**
+     * 同步读取语言设置，仅用于 attachBaseContext（无法使用 suspend）。
+     */
+    fun getAppLanguageBlocking(): String {
+        return kotlinx.coroutines.runBlocking {
+            appLanguageFlow.first()
+        }
+    }
+
+    // ========== 活跃上报 ==========
+
+    /** 上次活跃上报日期（yyyy-MM-dd），用于每日只上报一次 */
+    val lastActivityDateFlow: Flow<String> = preferenceFlow(LAST_ACTIVITY_DATE_KEY, "")
+
+    suspend fun setLastActivityDate(date: String) = setPreference(LAST_ACTIVITY_DATE_KEY, date)
+
+    suspend fun getLastActivityDate(): String = lastActivityDateFlow.first()
+
+    // ========== 公告已读记录 ==========
+
+    /** 已读公告 ID 列表（逗号分隔），用于避免重复弹窗 */
+    val readAnnouncementIdsFlow: Flow<String> = preferenceFlow(READ_ANNOUNCEMENT_IDS_KEY, "")
+
+    suspend fun markAnnouncementAsRead(id: Int) {
+        val current = readAnnouncementIdsFlow.first()
+        val ids = if (current.isBlank()) emptyList() else current.split(",").mapNotNull { it.toIntOrNull() }
+        if (id !in ids) {
+            setPreference(READ_ANNOUNCEMENT_IDS_KEY, (ids + id).joinToString(","))
+        }
+    }
+
+    suspend fun getReadAnnouncementIds(): Set<Int> {
+        val current = readAnnouncementIdsFlow.first()
+        return if (current.isBlank()) emptySet()
+        else current.split(",").mapNotNull { it.toIntOrNull() }.toSet()
+    }
 }

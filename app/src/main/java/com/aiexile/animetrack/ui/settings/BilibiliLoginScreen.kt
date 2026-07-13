@@ -64,12 +64,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
@@ -104,8 +106,10 @@ fun BilibiliLoginScreen(
     var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isGeneratingQr by remember { mutableStateOf(false) }
     var loginMessage by remember { mutableStateOf<String?>(null) }
+    var isLoginMessageInfo by remember { mutableStateOf(false) }
     var isSyncing by remember { mutableStateOf(false) }
     var syncResult by remember { mutableStateOf<String?>(null) }
+    var isSyncSuccess by remember { mutableStateOf(false) }
     var retryCount by remember { mutableIntStateOf(0) }
     var generateTrigger by remember { mutableIntStateOf(0) }
 
@@ -130,13 +134,15 @@ fun BilibiliLoginScreen(
                 qrCodeKey = response.data.qrcodeKey
                 qrBitmap = QrCodeGenerator.generateBitmap(response.data.url, 600)
             } else {
-                loginMessage = "生成二维码失败: ${response.message}"
+                loginMessage = context.getString(R.string.bilibili_login_qr_generate_failed, response.message)
+                isLoginMessageInfo = false
                 retryCount++
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            loginMessage = "网络错误: ${e.message}"
+            loginMessage = context.getString(R.string.bilibili_login_network_error, e.message)
+            isLoginMessageInfo = false
             retryCount++
         } finally {
             isGeneratingQr = false
@@ -195,16 +201,19 @@ fun BilibiliLoginScreen(
                             mid = navResp.data.mid
                         )
                     }
-                    loginMessage = "登录成功"
+                    loginMessage = context.getString(R.string.bilibili_login_success)
+                    isLoginMessageInfo = true
                     break
                 } else if (body != null && body.data?.code == 86038) {
-                    loginMessage = "二维码已过期，请重新生成"
+                    loginMessage = context.getString(R.string.bilibili_login_qr_expired)
+                    isLoginMessageInfo = false
                     qrCodeKey = null
                     qrCodeUrl = null
                     qrBitmap = null
                     break
                 } else if (body != null && body.data?.code == 86090) {
-                    loginMessage = "请在手机上确认登录"
+                    loginMessage = context.getString(R.string.bilibili_login_qr_confirm)
+                    isLoginMessageInfo = true
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -226,10 +235,11 @@ fun BilibiliLoginScreen(
                     isSyncing = true
                     syncResult = null
                     val result = bilibiliSyncManager.syncSelectedItems(itemsToSync)
+                    isSyncSuccess = result.isSuccess
                     syncResult = if (result.isSuccess) {
-                        "同步完成，共 ${result.getOrNull()} 部番剧"
+                        context.getString(R.string.bilibili_login_sync_complete, result.getOrNull() ?: 0)
                     } else {
-                        "同步失败: ${result.exceptionOrNull()?.message}"
+                        context.getString(R.string.bilibili_login_sync_failed, result.exceptionOrNull()?.message)
                     }
                     isSyncing = false
                 }
@@ -241,10 +251,11 @@ fun BilibiliLoginScreen(
                     isSyncing = true
                     syncResult = null
                     val result = bilibiliSyncManager.syncSelectedItems(watchedItems)
+                    isSyncSuccess = result.isSuccess
                     syncResult = if (result.isSuccess) {
-                        "同步完成，共 ${result.getOrNull()} 部番剧"
+                        context.getString(R.string.bilibili_login_sync_complete, result.getOrNull() ?: 0)
                     } else {
-                        "同步失败: ${result.exceptionOrNull()?.message}"
+                        context.getString(R.string.bilibili_login_sync_failed, result.exceptionOrNull()?.message)
                     }
                     isSyncing = false
                 }
@@ -260,14 +271,14 @@ fun BilibiliLoginScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Bilibili 登录",
+                        text = stringResource(R.string.bilibili_login_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -285,7 +296,7 @@ fun BilibiliLoginScreen(
                 if (!userAvatar.isNullOrBlank()) {
                     Image(
                         painter = rememberAsyncImagePainter(userAvatar),
-                        contentDescription = "头像",
+                        contentDescription = stringResource(R.string.bilibili_login_avatar),
                         modifier = Modifier
                             .size(80.dp)
                             .clip(CircleShape),
@@ -294,7 +305,7 @@ fun BilibiliLoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 Text(
-                    text = userNickname ?: "已登录",
+                    text = userNickname ?: stringResource(R.string.bilibili_login_logged_in),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -311,7 +322,7 @@ fun BilibiliLoginScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "已登录",
+                        text = stringResource(R.string.bilibili_login_logged_in),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -320,7 +331,7 @@ fun BilibiliLoginScreen(
                 if (lastSyncTime > 0) {
                     val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
                     Text(
-                        text = "上次同步: ${dateFormat.format(java.util.Date(lastSyncTime))}",
+                        text = stringResource(R.string.bilibili_login_last_sync, dateFormat.format(java.util.Date(lastSyncTime))),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -335,14 +346,14 @@ fun BilibiliLoginScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "自动同步",
+                                text = stringResource(R.string.bilibili_login_auto_sync),
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "打开 App 时自动同步连载中和在看番剧的更新",
+                                text = stringResource(R.string.bilibili_login_auto_sync_desc),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -377,11 +388,11 @@ fun BilibiliLoginScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("拉取列表中...")
+                        Text(stringResource(R.string.bilibili_login_fetching))
                     } else {
                         Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (lastSyncTime > 0) "重新同步" else "同步追番列表")
+                        Text(if (lastSyncTime > 0) stringResource(R.string.bilibili_login_resync) else stringResource(R.string.bilibili_login_sync_list))
                     }
                 }
 
@@ -389,7 +400,8 @@ fun BilibiliLoginScreen(
                     if (isSyncing) {
                         val fetchResult = bilibiliSyncManager.fetchFollowList()
                         if (fetchResult.isFailure) {
-                            syncResult = "同步失败: ${fetchResult.exceptionOrNull()?.message}"
+                            syncResult = context.getString(R.string.bilibili_login_sync_failed, fetchResult.exceptionOrNull()?.message)
+                            isSyncSuccess = false
                             isSyncing = false
                             return@LaunchedEffect
                         }
@@ -403,10 +415,11 @@ fun BilibiliLoginScreen(
                         if (unwatched.isEmpty()) {
                             // 没有未看过的，直接全部同步
                             val result = bilibiliSyncManager.syncSelectedItems(allItems)
+                            isSyncSuccess = result.isSuccess
                             syncResult = if (result.isSuccess) {
-                                "同步完成，共 ${result.getOrNull()} 部番剧"
+                                context.getString(R.string.bilibili_login_sync_complete, result.getOrNull() ?: 0)
                             } else {
-                                "同步失败: ${result.exceptionOrNull()?.message}"
+                                context.getString(R.string.bilibili_login_sync_failed, result.exceptionOrNull()?.message)
                             }
                             isSyncing = false
                         } else {
@@ -425,7 +438,7 @@ fun BilibiliLoginScreen(
                     Text(
                         text = syncResult!!,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (syncResult!!.startsWith("同步完成"))
+                        color = if (isSyncSuccess)
                             MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error
                     )
@@ -445,18 +458,18 @@ fun BilibiliLoginScreen(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("退出登录")
+                    Text(stringResource(R.string.bilibili_login_logout))
                 }
             } else {
                 if (isGeneratingQr) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("正在生成二维码...")
+                    Text(stringResource(R.string.bilibili_login_generating_qr))
                 } else if (qrBitmap != null) {
                     ScanLineQrBox(qrBitmap = qrBitmap!!)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "请使用B站手机客户端扫描二维码",
+                        text = stringResource(R.string.bilibili_login_scan_qr),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -494,7 +507,7 @@ fun BilibiliLoginScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("打开B站")
+                        Text(stringResource(R.string.bilibili_login_open_bilibili))
                     }
                 }
 
@@ -503,7 +516,7 @@ fun BilibiliLoginScreen(
                     Text(
                         text = msg,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (msg.contains("成功") || msg.contains("确认"))
+                        color = if (isLoginMessageInfo)
                             MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error
                     )
@@ -516,11 +529,11 @@ fun BilibiliLoginScreen(
                             loginMessage = null
                             generateTrigger++
                         }) {
-                            Text("重新生成二维码")
+                            Text(stringResource(R.string.bilibili_login_regenerate_qr))
                         }
                     } else {
                         Text(
-                            text = "多次生成失败，请检查网络后重试",
+                            text = stringResource(R.string.bilibili_login_generate_failed),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -530,7 +543,7 @@ fun BilibiliLoginScreen(
                             loginMessage = null
                             generateTrigger++
                         }) {
-                            Text("重试")
+                            Text(stringResource(R.string.common_retry))
                         }
                     }
                 }
@@ -551,12 +564,12 @@ private fun SyncSelectionDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("以下番剧尚未观看")
+            Text(stringResource(R.string.bilibili_login_dialog_title))
         },
         text = {
             Column {
                 Text(
-                    text = "已选择 ${selectedIndices.size}/${items.size} 部添加为「计划观看」",
+                    text = stringResource(R.string.bilibili_login_selected_count, selectedIndices.size, items.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -604,10 +617,10 @@ private fun SyncSelectionDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TextButton(onClick = onSkipUnwatched) {
-                    Text("跳过")
+                    Text(stringResource(R.string.bilibili_login_skip))
                 }
                 Button(onClick = onConfirm) {
-                    Text("确认添加")
+                    Text(stringResource(R.string.bilibili_login_confirm_add))
                 }
             }
         }
@@ -672,7 +685,7 @@ private fun ScanLineQrBox(qrBitmap: Bitmap) {
         currentBitmap?.let { current ->
             Image(
                 bitmap = current.asImageBitmap(),
-                contentDescription = "二维码",
+                contentDescription = stringResource(R.string.bilibili_login_qr_code),
                 modifier = Modifier
                     .size(200.dp)
                     .drawWithContent {

@@ -15,5 +15,7 @@ data class GitHubAsset(
     val name: String = "",
     val size: Long = 0,
     @SerializedName("browser_download_url") val browserDownloadUrl: String = "",
-    @SerializedName("content_type") val contentType: String = ""
+    @SerializedName("content_type") val contentType: String = "",
+    /** GitHub Release asset 的摘要，格式如 "sha256:xxxxxx" */
+    val digest: String = ""
 )

@@ -31,9 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.StatsPeriod
 import com.aiexile.animetrack.data.UsageStats
 import com.aiexile.animetrack.di.AppContainer
@@ -69,7 +71,7 @@ fun UsageStatsDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "使用统计",
+                text = stringResource(R.string.usage_stats_title),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -85,19 +87,19 @@ fun UsageStatsDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatsPeriodTab(
-                        label = "今日",
+                        label = stringResource(R.string.usage_stats_today),
                         selected = selectedPeriod == StatsPeriod.DAY,
                         onClick = { selectedPeriod = StatsPeriod.DAY },
                         modifier = Modifier.weight(1f)
                     )
                     StatsPeriodTab(
-                        label = "本月",
+                        label = stringResource(R.string.usage_stats_this_month),
                         selected = selectedPeriod == StatsPeriod.MONTH,
                         onClick = { selectedPeriod = StatsPeriod.MONTH },
                         modifier = Modifier.weight(1f)
                     )
                     StatsPeriodTab(
-                        label = "本年",
+                        label = stringResource(R.string.usage_stats_this_year),
                         selected = selectedPeriod == StatsPeriod.YEAR,
                         onClick = { selectedPeriod = StatsPeriod.YEAR },
                         modifier = Modifier.weight(1f)
@@ -117,24 +119,24 @@ fun UsageStatsDialog(
                 ) { _ ->
                     Column {
                         StatsItem(
-                            label = "打开次数",
-                            value = "${stats.openCount} 次"
+                            label = stringResource(R.string.usage_stats_open_count),
+                            value = stringResource(R.string.usage_stats_times, stats.openCount)
                         )
                         StatsItem(
-                            label = "使用时长",
-                            value = if (stats.usageSeconds > 0) "${ceil(stats.usageSeconds / 60.0).toInt()} 分钟" else "0 分钟"
+                            label = stringResource(R.string.usage_stats_usage_duration),
+                            value = stringResource(R.string.usage_stats_minutes, if (stats.usageSeconds > 0) ceil(stats.usageSeconds / 60.0).toInt() else 0)
                         )
                         StatsItem(
-                            label = "添加番剧",
-                            value = "${stats.addedAnime} 部"
+                            label = stringResource(R.string.usage_stats_added_anime),
+                            value = stringResource(R.string.usage_stats_count, stats.addedAnime)
                         )
                         StatsItem(
-                            label = "完结番剧",
-                            value = "${stats.completedAnime} 部"
+                            label = stringResource(R.string.usage_stats_completed_anime),
+                            value = stringResource(R.string.usage_stats_count, stats.completedAnime)
                         )
                         StatsItem(
-                            label = "总番剧数",
-                            value = "${totalAnimeCount.size} 部"
+                            label = stringResource(R.string.usage_stats_total_anime),
+                            value = stringResource(R.string.usage_stats_count, totalAnimeCount.size)
                         )
                     }
                 }
@@ -142,7 +144,7 @@ fun UsageStatsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("关闭")
+                Text(stringResource(R.string.common_close))
             }
         }
     )

@@ -19,6 +19,8 @@ class BilibiliSyncManager(
     companion object {
         private const val TAG = "BilibiliSync"
 
+        private val NUMBER_REGEX = Regex("\\d+")
+
         fun bilibiliFollowStatusToAnimeStatus(followStatus: Int): AnimeStatus = when (followStatus) {
             2 -> AnimeStatus.WATCHING
             3 -> AnimeStatus.COMPLETED
@@ -37,8 +39,7 @@ class BilibiliSyncManager(
                 return Pair(0, progress)
             }
 
-            val regex = Regex("\\d+")
-            val match = regex.find(progress)
+            val match = NUMBER_REGEX.find(progress)
             return if (match != null) {
                 val number = match.value.toIntOrNull() ?: 0
                 Pair(number, null)
@@ -115,9 +116,11 @@ class BilibiliSyncManager(
      */
     suspend fun syncSelectedItems(items: List<BilibiliFollowItem>): Result<Int> = withContext(Dispatchers.IO) {
         try {
+            // 一次性加载本地番剧并按标题索引，避免每条追番数据都查一次数据库
+            val localMap = repository.getAllAnimes().first().associateBy { it.title }
             var syncedCount = 0
             for (item in items) {
-                mergeFollowItem(item)
+                mergeFollowItem(item, localMap[item.title])
                 syncedCount++
             }
 
@@ -180,7 +183,7 @@ class BilibiliSyncManager(
         }
     }
 
-    private suspend fun mergeFollowItem(item: BilibiliFollowItem) {
+    private suspend fun mergeFollowItem(item: BilibiliFollowItem, localAnime: Anime?) {
         val title = item.title
         val (watchedEps, progressRemarks) = parseProgressToWatchedEpisodes(item.progress)
         var status = bilibiliFollowStatusToAnimeStatus(item.followStatus)
@@ -203,8 +206,6 @@ class BilibiliSyncManager(
         val rating = item.rating?.let { if (it.score > 0f) it.score else null }
         val airDate = item.publish?.releaseDate?.ifBlank { null }
         val airWeekday = parseRenewalTimeToWeekday(item.renewalTime)
-
-        val localAnime = repository.getAnimeByTitle(title)
 
         if (localAnime == null) {
             val newAnime = Anime(

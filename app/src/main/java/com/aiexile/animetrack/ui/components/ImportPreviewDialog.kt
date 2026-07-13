@@ -14,9 +14,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ImportResult
 
 @Composable
@@ -30,14 +32,14 @@ fun ImportPreviewDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "导入预览",
+                text = stringResource(R.string.import_preview_title),
                 fontWeight = FontWeight.Medium
             )
         },
         text = {
             Column {
                 Text(
-                    text = "检测到以下番剧：",
+                    text = stringResource(R.string.import_preview_detected),
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -46,28 +48,28 @@ fun ImportPreviewDialog(
                 
                 if (importResult.watchingCount > 0) {
                     StatRow(
-                        label = "正在观看",
+                        label = stringResource(R.string.import_preview_watching),
                         count = importResult.watchingCount
                     )
                 }
                 
                 if (importResult.completedCount > 0) {
                     StatRow(
-                        label = "已看完",
+                        label = stringResource(R.string.status_watched),
                         count = importResult.completedCount
                     )
                 }
                 
                 if (importResult.plannedCount > 0) {
                     StatRow(
-                        label = "计划观看",
+                        label = stringResource(R.string.import_preview_planned),
                         count = importResult.plannedCount
                     )
                 }
                 
                 if (importResult.droppedCount > 0) {
                     StatRow(
-                        label = "已弃番",
+                        label = stringResource(R.string.import_preview_dropped),
                         count = importResult.droppedCount
                     )
                 }
@@ -75,7 +77,7 @@ fun ImportPreviewDialog(
                 if (duplicateCount > 0) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "其中 $duplicateCount 部已存在，将被跳过",
+                        text = stringResource(R.string.import_preview_duplicate, duplicateCount),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -85,7 +87,7 @@ fun ImportPreviewDialog(
                 
                 val totalToImport = importResult.animes.size - duplicateCount
                 Text(
-                    text = "共将导入 $totalToImport 部番剧",
+                    text = stringResource(R.string.import_preview_total, totalToImport),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary
@@ -94,12 +96,12 @@ fun ImportPreviewDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("确认导入")
+                Text(stringResource(R.string.import_preview_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
@@ -123,7 +125,7 @@ private fun StatRow(
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = "${count} 部",
+            text = stringResource(R.string.import_preview_count, count),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary

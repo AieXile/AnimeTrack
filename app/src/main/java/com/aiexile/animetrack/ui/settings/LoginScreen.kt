@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
@@ -79,14 +81,14 @@ fun LoginScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "登录",
+                        text = stringResource(R.string.login_screen_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -107,7 +109,7 @@ fun LoginScreen(
 
                 LoginServiceCard(
                     title = "AnimeTrack",
-                    subtitle = if (userLoggedIn) (userUsername ?: "已连接") else "登录后可同步数据",
+                    subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
                     icon = Icons.Default.Person,
                     onClick = onNavigateUserLogin
                 )
@@ -115,7 +117,7 @@ fun LoginScreen(
             item {
                 LoginServiceCard(
                     title = "Bilibili",
-                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: "已登录") else "登录后可同步追番列表",
+                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bilibili_subtitle),
                     icon = Icons.Default.Person,
                     avatarUrl = if (bilibiliLoggedIn) bilibiliAvatar else null,
                     onClick = onNavigateBilibiliLogin
@@ -124,7 +126,7 @@ fun LoginScreen(
             item {
                 LoginServiceCard(
                     title = "Bangumi",
-                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: "已登录") else "登录后可同步番剧数据",
+                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
                     icon = Icons.Default.Person,
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
                     onClick = onNavigateBangumiLogin
@@ -139,14 +141,14 @@ fun LoginScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "自动同步",
+                            text = stringResource(R.string.login_screen_auto_sync),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "在Bilibili同步界面显示自动同步开关",
+                            text = stringResource(R.string.login_screen_auto_sync_desc),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -166,14 +168,14 @@ fun LoginScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "隐藏主界面头像",
+                            text = stringResource(R.string.login_screen_hide_avatar),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "隐藏主界面顶部的登录头像按钮",
+                            text = stringResource(R.string.login_screen_hide_avatar_desc),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

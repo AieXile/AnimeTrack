@@ -48,9 +48,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.theme.ThemePreset
@@ -101,7 +103,7 @@ fun AppearanceScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "外观与主题",
+                        text = stringResource(R.string.appearance_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -110,7 +112,7 @@ fun AppearanceScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -128,7 +130,7 @@ fun AppearanceScreen(
 
             item {
                 Text(
-                    text = "外观模式",
+                    text = stringResource(R.string.appearance_mode_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -143,7 +145,7 @@ fun AppearanceScreen(
                 ) {
                     ThemeModePreviewCard(
                         modifier = Modifier.weight(1f),
-                        label = "浅色",
+                        label = stringResource(R.string.appearance_mode_light),
                         selected = currentThemeMode == ThemeMode.LIGHT,
                         onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.LIGHT) } }
                     ) {
@@ -151,7 +153,7 @@ fun AppearanceScreen(
                     }
                     ThemeModePreviewCard(
                         modifier = Modifier.weight(1f),
-                        label = "深色",
+                        label = stringResource(R.string.appearance_mode_dark),
                         selected = currentThemeMode == ThemeMode.DARK,
                         onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.DARK) } }
                     ) {
@@ -159,7 +161,7 @@ fun AppearanceScreen(
                     }
                     ThemeModePreviewCard(
                         modifier = Modifier.weight(1f),
-                        label = "自动",
+                        label = stringResource(R.string.appearance_mode_auto),
                         selected = currentThemeMode == ThemeMode.SYSTEM,
                         onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.SYSTEM) } }
                     ) {
@@ -172,8 +174,8 @@ fun AppearanceScreen(
 
             item {
                 SettingsGroup(
-                    title = "主题配色",
-                    subtitle = "选择你喜欢的配色方案"
+                    title = stringResource(R.string.appearance_color_title),
+                    subtitle = stringResource(R.string.appearance_color_subtitle)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

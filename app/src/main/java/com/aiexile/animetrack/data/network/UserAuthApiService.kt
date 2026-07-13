@@ -227,6 +227,18 @@ interface UserAuthApiService {
 
     @GET("subscriptions/list")
     suspend fun getSubscriptions(): SubscriptionsResponse
+
+    // ========== 用户活跃上报 ==========
+
+    @POST("user/activity")
+    suspend fun reportActivity(
+        @Body body: EmptyRequestBody
+    ): ActivityReportResponse
+
+    // ========== 公告 ==========
+
+    @GET("announcements")
+    suspend fun getAnnouncements(): AnnouncementsResponse
 }
 
 // ========== 订阅字段转换辅助函数 ==========
@@ -247,3 +259,29 @@ fun parseAnimeStatus(status: String?): AnimeStatus = when (status?.lowercase()) 
     "dropped" -> AnimeStatus.DROPPED
     else -> AnimeStatus.PLANNED
 }
+
+// ========== 活跃上报 ==========
+
+/** 空请求体，Gson 序列化为 {} */
+class EmptyRequestBody
+
+data class ActivityReportResponse(
+    val success: Boolean
+)
+
+// ========== 公告 ==========
+
+data class Announcement(
+    val id: Int,
+    val title: String,
+    val content: String?,
+    @SerializedName("image_url")
+    val imageUrl: String?,
+    @SerializedName("created_at")
+    val createdAt: String?
+)
+
+data class AnnouncementsResponse(
+    val success: Boolean,
+    val announcements: List<Announcement> = emptyList()
+)

@@ -129,6 +129,8 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
+import com.aiexile.animetrack.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
@@ -203,7 +205,7 @@ fun HomeScreen(
     val greetingTypingEffect by (settingsRepository?.greetingTypingEffect?.collectAsState(true) ?: mutableStateOf(true))
     val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: mutableStateOf(true))
     val showSearchButton by (settingsRepository?.showSearchButton?.collectAsState(true) ?: mutableStateOf(true))
-    val seriesStackEnabled by (settingsRepository?.seriesStackEnabled?.collectAsState(true) ?: mutableStateOf(true))
+    val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val autoSyncState by viewModel.autoSyncState.collectAsState()
@@ -220,24 +222,19 @@ fun HomeScreen(
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
-            Toast.makeText(context, "完结撒花！", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.home_completed_celebration), Toast.LENGTH_SHORT).show()
             viewModel.dismissCompletedToast()
         }
     }
 
     LaunchedEffect(uiState.showDuplicateToast) {
         if (uiState.showDuplicateToast) {
-            Toast.makeText(context, "番剧已存在", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.home_anime_already_exists), Toast.LENGTH_SHORT).show()
             viewModel.dismissDuplicateToast()
         }
     }
 
-    val filteredAnimeList = remember(animeList, uiState.selectedFilter, uiState.localSearchQuery, uiState.todayUpdatePinnedIds) {
-        viewModel.getFilteredAnimeList(animeList, uiState.selectedFilter, uiState.localSearchQuery, uiState.todayUpdatePinnedIds)
-    }
-    val filteredAnimeListItems = remember(filteredAnimeList) {
-        SeriesMatcher.groupAnimeList(filteredAnimeList)
-    }
+    val filteredAnimeListItems by viewModel.filteredAnimeListItems.collectAsState()
     val scope = rememberCoroutineScope()
     
     val gridState = viewModel.gridState
@@ -291,6 +288,7 @@ fun HomeScreen(
     }
     
     UpdateDialog(viewModel = viewModel.updateViewModel)
+    com.aiexile.animetrack.ui.announcement.AnnouncementDialog(viewModel = viewModel.announcementViewModel)
     
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -335,7 +333,7 @@ fun HomeScreen(
                                 Box {
                                     if (uiState.localSearchQuery.isEmpty()) {
                                         Text(
-                                            text = "搜索番剧",
+                                            text = stringResource(R.string.home_search_anime),
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -351,7 +349,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "清除",
+                                    contentDescription = stringResource(R.string.common_clear),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -364,7 +362,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "关闭搜索",
+                                contentDescription = stringResource(R.string.home_close_search),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -389,12 +387,12 @@ fun HomeScreen(
                             onAnimated = { viewModel.onGreetingAnimated(it) }
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
-                            val showSearchIcon = showSearchButton && animeList.isNotEmpty() && filteredAnimeList.isNotEmpty()
+                            val showSearchIcon = showSearchButton && animeList.isNotEmpty() && filteredAnimeListItems.isNotEmpty()
                             if (showSearchIcon) {
                                 IconButton(onClick = { viewModel.startLocalSearch() }) {
                                     Icon(
                                         imageVector = Icons.Default.Search,
-                                        contentDescription = "搜索",
+                                        contentDescription = stringResource(R.string.common_search),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
                                     )
@@ -404,7 +402,7 @@ fun HomeScreen(
                                 IconButton(onClick = { viewModel.showBottomSheet() }) {
                                     Icon(
                                         imageVector = Icons.Default.Add,
-                                        contentDescription = "添加番剧",
+                                        contentDescription = stringResource(R.string.home_add_anime),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(26.dp)
                                     )
@@ -461,7 +459,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "添加番剧",
+                            contentDescription = stringResource(R.string.home_add_anime),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -677,7 +675,7 @@ private fun ScrollToTopFab(
     ) {
         Icon(
             imageVector = Icons.Filled.VerticalAlignTop,
-            contentDescription = "返回顶部",
+            contentDescription = stringResource(R.string.home_scroll_to_top),
             modifier = Modifier.size(24.dp)
         )
     }
@@ -761,7 +759,7 @@ private fun AddAnimeBottomSheet(
                 .imePadding()
         ) {
             Text(
-                text = "添加新番剧",
+                text = stringResource(R.string.home_add_new_anime),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -778,7 +776,7 @@ private fun AddAnimeBottomSheet(
                     .padding(horizontal = 24.dp),
                 placeholder = {
                     Text(
-                        "搜索番剧...",
+                        stringResource(R.string.home_search_anime_hint),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 },
@@ -911,7 +909,7 @@ private fun AddAnimeBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "未找到相关番剧",
+                        text = stringResource(R.string.home_no_anime_found),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
@@ -925,7 +923,7 @@ private fun AddAnimeBottomSheet(
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "手动添加番剧",
+                    text = stringResource(R.string.home_manual_add),
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 14.sp
                 )
@@ -946,6 +944,7 @@ private fun SearchSourceDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val allText = stringResource(R.string.common_all)
 
     Row(
         modifier = modifier,
@@ -955,7 +954,7 @@ private fun SearchSourceDropdown(
         if (hasQuery) {
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "搜索",
+                contentDescription = stringResource(R.string.common_search),
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { onSearch() },
@@ -964,7 +963,7 @@ private fun SearchSourceDropdown(
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "清除",
+                contentDescription = stringResource(R.string.common_clear),
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { onClear() },
@@ -986,7 +985,7 @@ private fun SearchSourceDropdown(
                     text = when (selectedSource) {
                         SearchSource.BANGUMI -> "Bangumi"
                         SearchSource.TMDB -> "TMDB"
-                        SearchSource.ALL -> "全部"
+                        SearchSource.ALL -> allText
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -1012,7 +1011,7 @@ private fun SearchSourceDropdown(
                                 text = when (source) {
                                     SearchSource.BANGUMI -> "Bangumi"
                                     SearchSource.TMDB -> "TMDB"
-                                    SearchSource.ALL -> "全部"
+                                    SearchSource.ALL -> allText
                                 },
                                 fontSize = 14.sp,
                                 fontWeight = if (source == selectedSource) FontWeight.SemiBold else FontWeight.Normal,
@@ -1038,6 +1037,8 @@ private fun SearchResultItem(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val yearMonthFormat = stringResource(R.string.home_date_year_month_format)
+    val allText = stringResource(R.string.common_all)
 
     Row(
         modifier = modifier
@@ -1127,7 +1128,7 @@ private fun SearchResultItem(
                 if (!result.airDate.isNullOrBlank()) {
                     val formattedDate = try {
                         val parts = result.airDate.split("-")
-                        if (parts.size >= 2) "${parts[0]}年${parts[1].toInt()}月" else result.airDate
+                        if (parts.size >= 2) String.format(yearMonthFormat, parts[0], parts[1].toInt()) else result.airDate
                     } catch (_: Exception) { result.airDate }
                     Text(
                         text = formattedDate,
@@ -1157,7 +1158,7 @@ private fun SearchResultItem(
                     text = when (result.source) {
                         SearchSource.BANGUMI -> "Bangumi"
                         SearchSource.TMDB -> "TMDB"
-                        SearchSource.ALL -> "全部"
+                        SearchSource.ALL -> allText
                     },
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -1177,7 +1178,7 @@ private fun AddAnimeFormDialog(
     modifier: Modifier = Modifier
 ) {
     val watchedEpisodesError = if (formState.watchedEpisodes > formState.totalEpisodes) {
-        "已看集数不能超过总集数"
+        stringResource(R.string.home_watched_exceeds_total)
     } else {
         null
     }
@@ -1231,7 +1232,7 @@ private fun AddAnimeFormDialog(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "取消",
+                            text = stringResource(R.string.common_cancel),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1247,7 +1248,7 @@ private fun AddAnimeFormDialog(
                         enabled = formError == null && formState.title.isNotBlank()
                     ) {
                         Text(
-                            text = "保存",
+                            text = stringResource(R.string.common_save),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1292,7 +1293,7 @@ private fun FormDialogHeader(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = formState.title.ifBlank { "新番剧" },
+                text = formState.title.ifBlank { stringResource(R.string.home_new_anime) },
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -1303,11 +1304,11 @@ private fun FormDialogHeader(
             Spacer(modifier = Modifier.height(4.dp))
 
             val episodeText = if (formState.totalEpisodes > 0) {
-                "共 ${formState.totalEpisodes} 集"
+                stringResource(R.string.home_total_episodes_format, formState.totalEpisodes)
             } else if (formState.currentEpisodes > 0) {
-                "连载中 (更新至 ${formState.currentEpisodes} 集)"
+                stringResource(R.string.home_ongoing_with_eps_format, formState.currentEpisodes)
             } else {
-                "连载中"
+                stringResource(R.string.home_ongoing)
             }
 
             Text(
@@ -1341,7 +1342,7 @@ private fun FilterMenu(
         IconButton(onClick = { expanded = true }) {
             Icon(
                 imageVector = Icons.Default.FilterList,
-                contentDescription = "筛选",
+                contentDescription = stringResource(R.string.home_filter),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp)
             )
@@ -1427,12 +1428,12 @@ private fun EmptyAnimePlaceholder(
                 modifier = Modifier.size(64.dp)
             )
             Text(
-                text = "还没有添加任何番剧",
+                text = stringResource(R.string.home_empty_anime_title),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 16.sp
             )
             Text(
-                text = "点击右下角的 + 按钮添加",
+                text = stringResource(R.string.home_empty_anime_hint),
                 color = MaterialTheme.colorScheme.outline,
                 fontSize = 14.sp
             )
@@ -1781,7 +1782,7 @@ private fun AnimeGrid(
                             color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
-                                text = "第${item.seasonIndex}季",
+                                text = stringResource(R.string.home_season_format, item.seasonIndex),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontSize = 9.sp,
@@ -1802,7 +1803,7 @@ private fun AnimeGrid(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "该分类下暂无番剧",
+                        text = stringResource(R.string.home_no_anime_in_category),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1860,7 +1861,7 @@ private fun SyncBannerArea(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "正在同步追番数据...",
+                            text = stringResource(R.string.home_syncing_data),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.primary
@@ -1868,7 +1869,7 @@ private fun SyncBannerArea(
                     }
                     is AutoSyncState.Completed -> {
                         Text(
-                            text = "已同步 ${autoSyncState.count} 部番剧更新",
+                            text = stringResource(R.string.home_synced_count_format, autoSyncState.count),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.primary
@@ -1876,7 +1877,7 @@ private fun SyncBannerArea(
                     }
                     is AutoSyncState.Failed -> {
                         Text(
-                            text = "同步失败",
+                            text = stringResource(R.string.home_sync_failed),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.error
@@ -1898,7 +1899,7 @@ private fun SyncBannerArea(
                 .clickable { onBannerClick() }
         ) {
             Text(
-                text = "今日有 $todayUpdateCount 部番剧更新",
+                text = stringResource(R.string.home_today_updates_format, todayUpdateCount),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary,
@@ -2002,14 +2003,14 @@ private fun UserAvatarButton(
                     .data(avatarUrl)
                     .bitmapConfig(Bitmap.Config.HARDWARE)
                     .build(),
-                contentDescription = "用户头像",
+                contentDescription = stringResource(R.string.home_user_avatar),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
         } else {
             Icon(
                 imageVector = Icons.Default.Person,
-                contentDescription = "登录",
+                contentDescription = stringResource(R.string.home_login),
                 modifier = Modifier.size(18.dp),
                 tint = if (isLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant

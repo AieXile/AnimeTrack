@@ -24,7 +24,8 @@ class UpdateRepository {
                     changelog = release.body,
                     downloadUrl = apkAsset?.browserDownloadUrl ?: "",
                     apkSize = apkAsset?.size ?: 0L,
-                    releaseUrl = release.htmlUrl
+                    releaseUrl = release.htmlUrl,
+                    apkDigest = apkAsset?.digest ?: ""
                 )
             } else {
                 Log.d(TAG, "App is up to date")
@@ -52,5 +53,7 @@ data class UpdateInfo(
     val changelog: String,
     val downloadUrl: String,
     val apkSize: Long,
-    val releaseUrl: String
+    val releaseUrl: String,
+    /** GitHub asset 的摘要，格式如 "sha256:xxxxxx"，为空表示无校验信息 */
+    val apkDigest: String = ""
 )

@@ -61,8 +61,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.settings.SettingsGroup
 import com.aiexile.animetrack.data.SettingsRepository
@@ -73,7 +75,17 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 
-private val weekdayLabels = listOf("?", "一", "二", "三", "四", "五", "六", "日")
+@Composable
+private fun weekdayLabels(): List<String> = listOf(
+    "?",
+    stringResource(R.string.schedule_weekday_1),
+    stringResource(R.string.schedule_weekday_2),
+    stringResource(R.string.schedule_weekday_3),
+    stringResource(R.string.schedule_weekday_4),
+    stringResource(R.string.schedule_weekday_5),
+    stringResource(R.string.schedule_weekday_6),
+    stringResource(R.string.schedule_weekday_7)
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +102,9 @@ fun ScheduleScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: mutableStateOf(true))
+
+    val labels = weekdayLabels()
+    val weekdayLabelFormat = stringResource(R.string.schedule_weekday_label_format)
 
     var showScheduleSheet by remember { mutableStateOf(false) }
     val scheduleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -124,13 +139,13 @@ fun ScheduleScreen(
                 title = {
                     Column {
                         Text(
-                            text = "追番看板",
+                            text = stringResource(R.string.schedule_board_title),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "每周更新一览",
+                            text = stringResource(R.string.schedule_weekly_overview),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp)
@@ -142,7 +157,7 @@ fun ScheduleScreen(
                         IconButton(onClick = { showScheduleSheet = true }) {
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = "日程预览",
+                                contentDescription = stringResource(R.string.schedule_preview),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -199,8 +214,8 @@ fun ScheduleScreen(
             ScheduleSheetContent(
                 todayAnimes = todayAnimes,
                 tomorrowAnimes = tomorrowAnimes,
-                todayWeekdayLabel = "周${weekdayLabels[viewModel.currentTodayWeekday]}",
-                tomorrowWeekdayLabel = "周${weekdayLabels[(viewModel.currentTodayWeekday % 7) + 1]}"
+                todayWeekdayLabel = String.format(weekdayLabelFormat, labels[viewModel.currentTodayWeekday]),
+                tomorrowWeekdayLabel = String.format(weekdayLabelFormat, labels[(viewModel.currentTodayWeekday % 7) + 1])
             )
         }
     }
@@ -213,6 +228,10 @@ private fun ScheduleSheetContent(
     todayWeekdayLabel: String,
     tomorrowWeekdayLabel: String
 ) {
+    val labels = weekdayLabels()
+    val weeklyUpdateFormat = stringResource(R.string.schedule_weekly_update_format)
+    val airDateFormat = stringResource(R.string.schedule_air_date_format)
+
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -221,7 +240,7 @@ private fun ScheduleSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            SettingsGroup(title = "今天更新", subtitle = todayWeekdayLabel) {
+            SettingsGroup(title = stringResource(R.string.schedule_today_updates), subtitle = todayWeekdayLabel) {
                 if (todayAnimes.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -230,7 +249,7 @@ private fun ScheduleSheetContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "暂无更新番剧",
+                            text = stringResource(R.string.schedule_no_updates),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -253,14 +272,14 @@ private fun ScheduleSheetContent(
                                 Column(horizontalAlignment = Alignment.End) {
                                     anime.airDate?.let { date ->
                                         Text(
-                                            text = "放送日期：${formatAirDate(date)}",
+                                            text = String.format(airDateFormat, formatAirDate(date)),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     anime.airWeekday?.let { weekday ->
                                         Text(
-                                            text = "每周${weekdayLabels[weekday]}更新",
+                                            text = String.format(weeklyUpdateFormat, labels[weekday]),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -274,7 +293,7 @@ private fun ScheduleSheetContent(
         }
 
         item {
-            SettingsGroup(title = "明天更新", subtitle = tomorrowWeekdayLabel) {
+            SettingsGroup(title = stringResource(R.string.schedule_tomorrow_updates), subtitle = tomorrowWeekdayLabel) {
                 if (tomorrowAnimes.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -283,7 +302,7 @@ private fun ScheduleSheetContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "暂无更新番剧",
+                            text = stringResource(R.string.schedule_no_updates),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -306,14 +325,14 @@ private fun ScheduleSheetContent(
                                 Column(horizontalAlignment = Alignment.End) {
                                     anime.airDate?.let { date ->
                                         Text(
-                                            text = "放送日期：${formatAirDate(date)}",
+                                            text = String.format(airDateFormat, formatAirDate(date)),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     anime.airWeekday?.let { weekday ->
                                         Text(
-                                            text = "每周${weekdayLabels[weekday]}更新",
+                                            text = String.format(weeklyUpdateFormat, labels[weekday]),
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -336,6 +355,8 @@ private fun WeekdaySelector(
     onWeekdaySelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val labels = weekdayLabels()
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -345,7 +366,7 @@ private fun WeekdaySelector(
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
-            weekdayLabels.forEachIndexed { index, label ->
+            labels.forEachIndexed { index, label ->
                 val isSelected = index == selectedWeekday
 
                 Column(
@@ -474,6 +495,9 @@ private fun EmptyWeekdayContent(
     weekday: Int,
     modifier: Modifier = Modifier
 ) {
+    val labels = weekdayLabels()
+    val noUpdateFormat = stringResource(R.string.schedule_no_update_format)
+
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -489,13 +513,13 @@ private fun EmptyWeekdayContent(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
             )
             Text(
-                text = if (weekday == 0) "暂无未分类番剧" else "周${weekdayLabels[weekday]}无更新",
+                text = if (weekday == 0) stringResource(R.string.schedule_no_uncategorized) else String.format(noUpdateFormat, labels[weekday]),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
             Text(
-                text = if (weekday == 0) "所有番剧已归类" else "今日无更新，去休息吧",
+                text = if (weekday == 0) stringResource(R.string.schedule_all_categorized) else stringResource(R.string.schedule_no_update_today),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                 textAlign = TextAlign.Center

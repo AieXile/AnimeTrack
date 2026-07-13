@@ -77,6 +77,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -138,7 +139,7 @@ fun AboutScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "关于",
+                        text = stringResource(R.string.about_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -147,7 +148,7 @@ fun AboutScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -196,17 +197,17 @@ fun AboutScreen(
                                     avatarTapCount = 0
                                     scope.launch {
                                         settingsRepository.setDeveloperMode(true)
-                                        Toast.makeText(context, "已开启开发者模式", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.about_dev_mode_enabled), Toast.LENGTH_SHORT).show()
                                     }
                                 } else if (!developerMode && avatarTapCount == 3) {
-                                    Toast.makeText(context, "再点击 2 次开启开发者模式", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.about_dev_mode_hint), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.my_avatar),
-                        contentDescription = "头像",
+                        contentDescription = stringResource(R.string.about_avatar),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -224,7 +225,7 @@ fun AboutScreen(
                 Spacer(modifier = Modifier.size(6.dp))
 
                 Text(
-                    text = "一款简洁的番剧追踪应用",
+                    text = stringResource(R.string.about_app_slogan),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -232,11 +233,11 @@ fun AboutScreen(
 
             SocialLinksRow(
                 onGithubClick = { uriHandler.openUri(GITHUB_URL) },
-                onGithubLongClick = { copyToClipboard(context, GITHUB_URL, "已复制 GitHub 链接") },
+                onGithubLongClick = { copyToClipboard(context, GITHUB_URL, context.getString(R.string.about_copied_github)) },
                 onQqClick = { AppNavigator.joinAnimeTrackGroup(context) },
-                onQqLongClick = { copyToClipboard(context, QQ_GROUP_NUMBER, "已复制 QQ 群号") },
+                onQqLongClick = { copyToClipboard(context, QQ_GROUP_NUMBER, context.getString(R.string.about_copied_qq)) },
                 onTgClick = { uriHandler.openUri(TG_URL) },
-                onTgLongClick = { copyToClipboard(context, TG_URL, "已复制 Telegram 链接") },
+                onTgLongClick = { copyToClipboard(context, TG_URL, context.getString(R.string.about_copied_tg)) },
                 onSponsorClick = { showSponsorDialog = true }
             )
 
@@ -290,7 +291,7 @@ fun AboutScreen(
                         modifier = buttonModifier,
                         contentPadding = contentPadding
                     ) {
-                        Text(text = "检查更新", maxLines = 1)
+                        Text(text = stringResource(R.string.about_check_update), maxLines = 1)
                     }
 
                     var changelogLoading by remember { mutableStateOf(false) }
@@ -323,7 +324,7 @@ fun AboutScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         } else {
-                            Text(text = "更新日志", maxLines = 1)
+                            Text(text = stringResource(R.string.about_changelog), maxLines = 1)
                         }
                     }
 
@@ -341,7 +342,7 @@ fun AboutScreen(
                             modifier = buttonModifier,
                             contentPadding = contentPadding
                         ) {
-                            Text(text = "开发者", maxLines = 1)
+                            Text(text = stringResource(R.string.about_developer), maxLines = 1)
                         }
                     }
                 }
@@ -378,22 +379,22 @@ private fun SocialLinksRow(
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Forum, contentDescription = "QQ群", modifier = Modifier.size(24.dp)) },
-            label = "QQ群",
+            icon = { Icon(imageVector = Icons.Default.Forum, contentDescription = stringResource(R.string.about_qq_group), modifier = Modifier.size(24.dp)) },
+            label = stringResource(R.string.about_qq_group),
             onClick = onQqClick,
             onLongClick = onQqLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Send, contentDescription = "TG群", modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.Default.Send, contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
             label = "Telegram",
             onClick = onTgClick,
             onLongClick = onTgLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Favorite, contentDescription = "赞助", modifier = Modifier.size(24.dp)) },
-            label = "赞助",
+            icon = { Icon(imageVector = Icons.Default.Favorite, contentDescription = stringResource(R.string.about_sponsor_label), modifier = Modifier.size(24.dp)) },
+            label = stringResource(R.string.about_sponsor_label),
             onClick = onSponsorClick,
             onLongClick = onSponsorClick,
             modifier = Modifier.weight(1f)
@@ -467,7 +468,7 @@ private fun ChangelogDialog(
         text = {
             if (changelog.isNullOrBlank()) {
                 Text(
-                    text = "暂无更新日志",
+                    text = stringResource(R.string.about_no_changelog),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
@@ -490,7 +491,7 @@ private fun ChangelogDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("关闭")
+                Text(stringResource(R.string.common_close))
             }
         }
     )
@@ -518,7 +519,7 @@ private fun SponsorDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "赞赏支持",
+                text = stringResource(R.string.about_sponsor),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -528,7 +529,7 @@ private fun SponsorDialog(
 
             // 赞赏码图片
             val imageRes = if (selected == 0) R.drawable.sponsor_wechat else R.drawable.sponsor_alipay
-            val imageLabel = if (selected == 0) "微信赞赏码" else "支付宝赞赏码"
+            val imageLabel = if (selected == 0) stringResource(R.string.about_wechat_code) else stringResource(R.string.about_alipay_code)
 
             Image(
                 painter = painterResource(id = imageRes),
@@ -549,7 +550,7 @@ private fun SponsorDialog(
             Spacer(modifier = Modifier.size(4.dp))
 
             Text(
-                text = "长按图片可保存到相册",
+                text = stringResource(R.string.about_save_image_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
@@ -585,7 +586,7 @@ private fun SponsorDialog(
 
                     // 文字层（上层）
                     Row(modifier = Modifier.fillMaxHeight()) {
-                        listOf("微信" to 0, "支付宝" to 1).forEach { (label, index) ->
+                        listOf(stringResource(R.string.about_wechat) to 0, stringResource(R.string.about_alipay) to 1).forEach { (label, index) ->
                             val isSelected = selected == index
                             val interactionSource = remember { MutableInteractionSource() }
                             Box(
@@ -618,7 +619,7 @@ private fun saveDrawableToGallery(context: Context, drawableRes: Int, label: Str
     try {
         val drawable = context.resources.getDrawable(drawableRes, null)
         val bitmap = (drawable as? BitmapDrawable)?.bitmap ?: run {
-            Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.about_save_failed), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -635,7 +636,7 @@ private fun saveDrawableToGallery(context: Context, drawableRes: Int, label: Str
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             ?: run {
-                Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.about_save_failed), Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -649,8 +650,8 @@ private fun saveDrawableToGallery(context: Context, drawableRes: Int, label: Str
             resolver.update(uri, contentValues, null, null)
         }
 
-        Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.about_saved_to_album), Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
-        Toast.makeText(context, "保存失败：${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.about_save_failed_with_msg, e.message ?: ""), Toast.LENGTH_SHORT).show()
     }
 }

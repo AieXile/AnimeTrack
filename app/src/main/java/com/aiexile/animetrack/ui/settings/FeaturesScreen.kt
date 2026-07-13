@@ -29,9 +29,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -57,7 +59,7 @@ fun FeaturesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "功能",
+                        text = stringResource(R.string.features_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -66,7 +68,7 @@ fun FeaturesScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -83,11 +85,11 @@ fun FeaturesScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                SettingsGroup(title = "搜索") {
+                SettingsGroup(title = stringResource(R.string.common_search)) {
                     Column {
                         SwitchItem(
-                            title = "搜索按钮",
-                            description = "在主界面右上角显示搜索按钮",
+                            title = stringResource(R.string.features_search_button),
+                            description = stringResource(R.string.features_search_button_desc),
                             checked = showSearchButton,
                             onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } }
                         )
@@ -96,17 +98,17 @@ fun FeaturesScreen(
             }
 
             item {
-                SettingsGroup(title = "更新提醒") {
+                SettingsGroup(title = stringResource(R.string.features_update_reminder)) {
                     Column {
                         SwitchItem(
-                            title = "今日更新提醒",
-                            description = "在主界面顶部显示今日番剧更新提醒卡片",
+                            title = stringResource(R.string.features_today_update_reminder),
+                            description = stringResource(R.string.features_today_update_reminder_desc),
                             checked = showUpdateBanner,
                             onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } }
                         )
                         SwitchItem(
-                            title = "日程预览按钮",
-                            description = "在看板右上角显示日历按钮，查看今明日更新",
+                            title = stringResource(R.string.features_calendar_preview_button),
+                            description = stringResource(R.string.features_calendar_preview_button_desc),
                             checked = showCalendarButton,
                             onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } }
                         )
@@ -115,11 +117,11 @@ fun FeaturesScreen(
             }
 
             item {
-                SettingsGroup(title = "番剧显示") {
+                SettingsGroup(title = stringResource(R.string.features_anime_display)) {
                     Column {
                         SwitchItem(
-                            title = "多季堆叠",
-                            description = "将同系列多季番剧合并为堆叠卡片，长按展开各季",
+                            title = stringResource(R.string.features_series_stack),
+                            description = stringResource(R.string.features_series_stack_desc),
                             checked = seriesStackEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } }
                         )
@@ -128,17 +130,17 @@ fun FeaturesScreen(
             }
 
             item {
-                SettingsGroup(title = "观看") {
+                SettingsGroup(title = stringResource(R.string.features_watching)) {
                     Column {
                         SwitchItem(
-                            title = "自动完结",
-                            description = "观看进度拉满时自动标记为已看完",
+                            title = stringResource(R.string.features_auto_complete),
+                            description = stringResource(R.string.features_auto_complete_desc),
                             checked = autoCompleteEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } }
                         )
                         SwitchItem(
-                            title = "完结撒花提示",
-                            description = "标记为已看完时显示完结撒花提示",
+                            title = stringResource(R.string.features_completed_celebration),
+                            description = stringResource(R.string.features_completed_celebration_desc),
                             checked = completedToastEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } }
                         )

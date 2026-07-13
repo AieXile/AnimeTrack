@@ -32,11 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.ui.login.LoginViewModel
 
@@ -64,7 +66,7 @@ fun BangumiLoginScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Bangumi 登录",
+                        text = stringResource(R.string.bangumi_login_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -75,7 +77,7 @@ fun BangumiLoginScreen(
                         webView = null
                         onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -100,7 +102,7 @@ fun BangumiLoginScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "正在登录...",
+                            text = stringResource(R.string.bangumi_login_loading),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 12.dp)
@@ -117,14 +119,14 @@ fun BangumiLoginScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = uiState.error ?: "登录失败",
+                            text = uiState.error ?: stringResource(R.string.bangumi_login_failed),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.error
                         )
                         TextButton(onClick = {
                             webView?.reload()
                         }) {
-                            Text("重试")
+                            Text(stringResource(R.string.common_retry))
                         }
                     }
                 }

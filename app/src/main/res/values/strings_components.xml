@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AddAnimeForm -->
+    <string name="add_anime_title_label">番剧名称</string>
+    <string name="add_anime_title_placeholder">输入番剧名称</string>
+    <string name="add_anime_total_episodes">总集数</string>
+    <string name="add_anime_watched_episodes">已看集数</string>
+    <string name="add_anime_decrease">减少</string>
+    <string name="add_anime_increase">增加</string>
+    <string name="add_anime_watch_status">观看状态</string>
+    <string name="add_anime_rating">评分</string>
+    <string name="add_anime_rating_value">%1$s 分</string>
+    <string name="add_anime_no_rating">未评分</string>
+    <string name="add_anime_star">%1$d 星</string>
+    <string name="add_anime_watching_status">正在观看中...</string>
+    <string name="add_anime_finish_date">完成日期</string>
+    <string name="add_anime_dropped_date">弃番日期</string>
+    <string name="add_anime_planned_status">计划观看</string>
+    <string name="add_anime_select_date">选择日期</string>
+    <string name="add_anime_notes">备注</string>
+    <string name="add_anime_notes_placeholder">添加备注...</string>
+
+    <!-- AnimeCard -->
+    <string name="anime_card_change_status">修改状态</string>
+
+    <!-- AnimeCardStack -->
+    <string name="card_stack_seasons">%1$d季</string>
+
+    <!-- BottomNavigationBar -->
+    <string name="bottom_nav_favorites">收藏</string>
+    <string name="bottom_nav_schedule">看板</string>
+
+    <!-- AccountPanelDialog -->
+    <string name="account_panel_not_logged_in">未登录</string>
+    <string name="account_panel_anime_track_account">AnimeTrack 账号</string>
+    <string name="account_panel_logged_in_as">已登录为 %1$s</string>
+    <string name="account_panel_unknown_user">未知用户</string>
+    <string name="account_panel_account_management">账号管理</string>
+    <string name="account_panel_logout">退出登录</string>
+    <string name="account_panel_bilibili_account">Bilibili 账号</string>
+    <string name="account_panel_sync">同步</string>
+    <string name="account_panel_unbind">解除绑定</string>
+    <string name="account_panel_bangumi_account">Bangumi 账号</string>
+    <string name="account_panel_relogin">重新登录</string>
+    <string name="account_panel_logout_account">注销登录</string>
+    <string name="account_panel_change_avatar">更换头像</string>
+    <string name="account_panel_reset_avatar">恢复默认头像</string>
+    <string name="account_panel_select_image">选择图片</string>
+    <string name="account_panel_avatar">头像</string>
+    <string name="account_panel_default_avatar">默认头像</string>
+    <string name="account_panel_connected">已连接</string>
+    <string name="account_panel_login_to_sync">登录后可同步数据</string>
+    <string name="account_panel_bind_bilibili">点击绑定B站账号</string>
+    <string name="account_panel_bind_bangumi">点击绑定Bangumi</string>
+    <string name="account_panel_custom_avatar">自定义头像</string>
+
+    <!-- UsageStatsDialog -->
+    <string name="usage_stats_title">使用统计</string>
+    <string name="usage_stats_today">今日</string>
+    <string name="usage_stats_this_month">本月</string>
+    <string name="usage_stats_this_year">本年</string>
+    <string name="usage_stats_open_count">打开次数</string>
+    <string name="usage_stats_times">%1$d 次</string>
+    <string name="usage_stats_usage_duration">使用时长</string>
+    <string name="usage_stats_minutes">%1$d 分钟</string>
+    <string name="usage_stats_added_anime">添加番剧</string>
+    <string name="usage_stats_count">%1$d 部</string>
+    <string name="usage_stats_completed_anime">完结番剧</string>
+    <string name="usage_stats_total_anime">总番剧数</string>
+
+    <!-- ImportPreviewDialog -->
+    <string name="import_preview_title">导入预览</string>
+    <string name="import_preview_detected">检测到以下番剧：</string>
+    <string name="import_preview_watching">正在观看</string>
+    <string name="import_preview_planned">计划观看</string>
+    <string name="import_preview_dropped">已弃番</string>
+    <string name="import_preview_duplicate">其中 %1$d 部已存在，将被跳过</string>
+    <string name="import_preview_total">共将导入 %1$d 部番剧</string>
+    <string name="import_preview_confirm">确认导入</string>
+    <string name="import_preview_count">%1$d 部</string>
+
+    <!-- PlayerScreen -->
+    <string name="player_paused">已暂停</string>
+    <string name="player_skip_forward">快进85秒</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_play">播放</string>
+    <string name="player_next_episode">下一集</string>
+    <string name="player_exit_fullscreen">退出全屏</string>
+    <string name="player_fullscreen">全屏</string>
+    <string name="player_select_source">选择视频源</string>
+    <string name="player_select_source_hint">从 WebDAV 或本地文件中选择要播放的视频</string>
+    <string name="player_browse_webdav">浏览 WebDAV</string>
+    <string name="player_select_local_file">选择本地文件</string>
+    <string name="player_brightness">亮度</string>
+    <string name="player_volume">音量</string>
+    <string name="player_long_press_speed">长按加速中</string>
+
+    <!-- PlayerSettingsScreen -->
+    <string name="player_settings_title">播放器设置</string>
+    <string name="player_settings_default_speed">默认播放速度</string>
+    <string name="player_settings_long_press_speed">长按加速速度</string>
+    <string name="player_settings_long_press_speed_hint">长按屏幕时以 %1$sx 播放，松手恢复</string>
+    <string name="player_settings_hardware_acceleration">硬件加速</string>
+    <string name="player_settings_hardware_acceleration_hint">使用硬件解码器提升播放性能</string>
+    <string name="player_settings_remember_position">记忆播放位置</string>
+    <string name="player_settings_remember_position_hint">继续上次播放进度</string>
+    <string name="player_settings_auto_play_next">自动播放下一集</string>
+    <string name="player_settings_auto_play_next_hint">当前视频播放结束后自动播放下一个</string>
+    <string name="player_settings_webdav_path">WebDAV 媒体路径</string>
+    <string name="player_settings_open_player">打开播放器</string>
+
+    <!-- WebDAVBrowseScreen -->
+    <string name="webdav_browse_title">WebDAV 文件</string>
+    <string name="webdav_browse_loading">加载中...</string>
+    <string name="webdav_browse_load_failed">加载失败</string>
+    <string name="webdav_browse_not_configured">未配置 WebDAV</string>
+    <string name="webdav_browse_not_configured_hint">请先在设置中配置 WebDAV 服务器地址</string>
+    <string name="webdav_browse_parent_dir">返回上级</string>
+
+    <!-- UpdateDialog -->
+    <string name="update_dialog_unknown_error">未知错误</string>
+    <string name="update_dialog_new_version">发现新版本</string>
+    <string name="update_dialog_sha_verifying">SHA 校验中...</string>
+    <string name="update_dialog_sha_verified">SHA-256 ✓ 已验证</string>
+    <string name="update_dialog_sha_failed">SHA-256 ✗ 校验失败</string>
+    <string name="update_dialog_no_changelog">暂无更新日志</string>
+    <string name="update_dialog_skip">跳过该版本</string>
+    <string name="update_dialog_redownload">重新下载</string>
+    <string name="update_dialog_later">稍后</string>
+    <string name="update_dialog_install">安装</string>
+    <string name="update_dialog_update_now">立即更新</string>
+    <string name="update_dialog_up_to_date">已是最新版本</string>
+    <string name="update_dialog_up_to_date_message">当前已是最新版本，无需更新。</string>
+    <string name="update_dialog_failed">更新失败</string>
+</resources>

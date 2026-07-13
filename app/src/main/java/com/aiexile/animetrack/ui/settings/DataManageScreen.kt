@@ -51,10 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
@@ -122,14 +124,14 @@ fun DataManageScreen(
                     }
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "导出成功！",
+                            message = context.getString(R.string.data_manage_export_success),
                             duration = SnackbarDuration.Short
                         )
                     }
                 } catch (e: Exception) {
                     scope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "导出失败：${e.message}",
+                            message = context.getString(R.string.data_manage_export_failed, e.message ?: ""),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -189,7 +191,7 @@ fun DataManageScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "数据管理",
+                        text = stringResource(R.string.data_manage_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -198,7 +200,7 @@ fun DataManageScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.common_back)
                         )
                     }
                 }
@@ -228,18 +230,18 @@ fun DataManageScreen(
                 item { Spacer(modifier = Modifier.height(4.dp)) }
 
                 item {
-                    SettingsGroup(title = "导入与导出") {
+                    SettingsGroup(title = stringResource(R.string.data_manage_import_export)) {
                         Column {
                             SettingActionItem(
-                                title = "导入 Markdown",
-                                subtitle = "从 Markdown 文件导入番剧列表",
+                                title = stringResource(R.string.data_manage_import_markdown),
+                                subtitle = stringResource(R.string.data_manage_import_markdown_subtitle),
                                 icon = Icons.Default.FileOpen,
                                 onClick = { showImportGuide = true }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             SettingActionItem(
-                                title = "导出番剧数据",
-                                subtitle = "将番剧列表导出为 Markdown 文件",
+                                title = stringResource(R.string.data_manage_export_data),
+                                subtitle = stringResource(R.string.data_manage_export_data_subtitle),
                                 icon = Icons.Default.FileDownload,
                                 onClick = { viewModel.prepareExport() }
                             )
@@ -248,10 +250,10 @@ fun DataManageScreen(
                 }
 
                 item {
-                    SettingsGroup(title = "云端同步") {
+                    SettingsGroup(title = stringResource(R.string.data_manage_cloud_sync)) {
                         SettingActionItem(
-                            title = "WebDAV 同步",
-                            subtitle = "配置 WebDAV 服务器以实现云端备份与恢复",
+                            title = stringResource(R.string.data_manage_webdav_sync),
+                            subtitle = stringResource(R.string.data_manage_webdav_sync_subtitle),
                             icon = Icons.Default.CloudUpload,
                             onClick = onNavigateWebDAV
                         )
@@ -354,7 +356,7 @@ private fun ImportGuideBottomSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "导入 Markdown",
+                text = stringResource(R.string.data_manage_import_guide_title),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -363,7 +365,7 @@ private fun ImportGuideBottomSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "请确保你的 Markdown 文件符合以下格式：",
+                text = stringResource(R.string.data_manage_import_guide_format_hint),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -422,7 +424,7 @@ Dropped
                 )
             ) {
                 Text(
-                    text = "准备好了，选择文件",
+                    text = stringResource(R.string.data_manage_select_file),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )

@@ -29,43 +29,41 @@ class ScheduleViewModel(
         private const val TAG = "ScheduleViewModel"
     }
 
-    private val todayWeekday = getCurrentWeekday()
+    // 动态获取，避免 ViewModel 长时间存活时跨午夜失效
+    val currentTodayWeekday: Int get() = getCurrentWeekday()
 
-    val currentTodayWeekday: Int = todayWeekday
-
-    private val tomorrowWeekday = (todayWeekday % 7) + 1
-
-    private val _selectedWeekday = MutableStateFlow(todayWeekday)
+    private val _selectedWeekday = MutableStateFlow(getCurrentWeekday())
     val selectedWeekday: StateFlow<Int> = _selectedWeekday.asStateFlow()
 
     val groupedAnimes: StateFlow<Map<Int, List<Anime>>> = repository.getAiringAnimes()
         .map { animes -> animes.groupBy { it.airWeekday ?: 0 } }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Lazily,
+            started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyMap()
         )
 
-    val todayUpdateCount: StateFlow<Int> = groupedAnimes.map { it[todayWeekday]?.size ?: 0 }
+    val todayUpdateCount: StateFlow<Int> = groupedAnimes.map { it[getCurrentWeekday()]?.size ?: 0 }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Lazily,
+            started = SharingStarted.WhileSubscribed(5000),
             initialValue = 0
         )
 
     val todayAnimes: StateFlow<List<Anime>> = groupedAnimes.map { grouped ->
-        (grouped[todayWeekday] ?: emptyList()).sortedBy { it.airDate }
+        (grouped[getCurrentWeekday()] ?: emptyList()).sortedBy { it.airDate }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Lazily,
+        started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
     val tomorrowAnimes: StateFlow<List<Anime>> = groupedAnimes.map { grouped ->
+        val tomorrowWeekday = (getCurrentWeekday() % 7) + 1
         (grouped[tomorrowWeekday] ?: emptyList()).sortedBy { it.airDate }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Lazily,
+        started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
 
@@ -100,7 +98,7 @@ class ScheduleViewModel(
                                 ?: anime.summary,
                             isFinished = computeIsFinished(updatedAirDate, anime.totalEpisodes, anime.status)
                         )
-                        repository.updateAnime(updatedAnime)
+                        repository.updateAnimeInternal(updatedAnime)
                         Log.d(TAG, "Backfill: updated ${anime.title} airWeekday=${updatedAnime.airWeekday}")
                     } catch (e: Exception) {
                         Log.e(TAG, "Backfill: failed for ${anime.title}", e)

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- UserLoginScreen -->
+    <string name="user_login_title">AnimeTrack 帳號</string>
+    <string name="user_login_avatar">頭像</string>
+    <string name="user_login_user_default">使用者</string>
+    <string name="user_login_email_not_set">未設定信箱</string>
+    <string name="user_login_register_time">註冊時間: %1$s</string>
+    <string name="user_login_logged_in">已登入</string>
+    <string name="user_login_change_password">修改密碼</string>
+    <string name="user_login_logout">登出</string>
+    <string name="user_login_username">使用者名稱</string>
+    <string name="user_login_password">密碼</string>
+    <string name="user_login_login">登入</string>
+    <string name="user_login_no_account_register">沒有帳號？去註冊</string>
+    <string name="user_login_old_password">舊密碼</string>
+    <string name="user_login_new_password">新密碼</string>
+    <string name="user_login_password_min_hint">至少6位</string>
+    <string name="user_login_confirm_new_password">確認新密碼</string>
+    <string name="user_login_confirm_change">確認修改</string>
+    <string name="user_login_read_image_failed">無法讀取圖片</string>
+    <string name="user_login_image_too_large">圖片大小不能超過 2MB</string>
+    <string name="user_login_upload_failed">上傳失敗</string>
+    <string name="user_login_network_upload_failed">網路錯誤，上傳失敗</string>
+    <string name="user_login_login_failed">登入失敗</string>
+    <string name="user_login_network_error">網路錯誤，請檢查網路連線</string>
+    <string name="user_login_enter_old_password">請輸入舊密碼</string>
+    <string name="user_login_password_too_short">新密碼長度不能少於 6 位</string>
+    <string name="user_login_password_mismatch">兩次密碼不一致</string>
+    <string name="user_login_password_same_as_old">新密碼不能與舊密碼相同</string>
+    <string name="user_login_change_failed">修改失敗</string>
+
+    <!-- UserRegisterScreen -->
+    <string name="user_register_title">註冊</string>
+    <string name="user_register_username">使用者名稱</string>
+    <string name="user_register_username_hint">3-20個字元</string>
+    <string name="user_register_password">密碼</string>
+    <string name="user_register_password_hint">至少6位</string>
+    <string name="user_register_confirm_password">確認密碼</string>
+    <string name="user_register_email_optional">信箱（選填）</string>
+    <string name="user_register_button">註冊</string>
+    <string name="user_register_has_account_login">已有帳號？去登入</string>
+    <string name="user_register_username_length_error">使用者名稱長度需為3-20個字元</string>
+    <string name="user_register_password_length_error">密碼長度至少6位</string>
+    <string name="user_register_password_mismatch">兩次密碼不一致</string>
+    <string name="user_register_success">註冊成功，請登入</string>
+    <string name="user_register_failed">註冊失敗</string>
+    <string name="user_register_network_error">網路錯誤，請檢查網路連線</string>
+
+    <!-- LoginScreen -->
+    <string name="login_screen_title">登入</string>
+    <string name="login_screen_connected">已連接</string>
+    <string name="login_screen_sync_data">登入後可同步資料</string>
+    <string name="login_screen_logged_in">已登入</string>
+    <string name="login_screen_bilibili_subtitle">登入後可同步追番列表</string>
+    <string name="login_screen_bangumi_subtitle">登入後可同步番劇資料</string>
+    <string name="login_screen_auto_sync">自動同步</string>
+    <string name="login_screen_auto_sync_desc">在Bilibili同步介面顯示自動同步開關</string>
+    <string name="login_screen_hide_avatar">隱藏主介面頭像</string>
+    <string name="login_screen_hide_avatar_desc">隱藏主介面頂部的登入頭像按鈕</string>
+
+    <!-- AboutScreen -->
+    <string name="about_title">關於</string>
+    <string name="about_avatar">頭像</string>
+    <string name="about_app_slogan">一款簡潔的番劇追蹤應用</string>
+    <string name="about_check_update">檢查更新</string>
+    <string name="about_changelog">更新日誌</string>
+    <string name="about_developer">開發者</string>
+    <string name="about_no_changelog">暫無更新日誌</string>
+    <string name="about_sponsor">讚賞支持</string>
+    <string name="about_wechat_code">微信讚賞碼</string>
+    <string name="about_alipay_code">支付寶讚賞碼</string>
+    <string name="about_save_image_hint">長按圖片可儲存到相簿</string>
+    <string name="about_wechat">微信</string>
+    <string name="about_alipay">支付寶</string>
+    <string name="about_qq_group">QQ群</string>
+    <string name="about_tg_group">TG群</string>
+    <string name="about_sponsor_label">讚助</string>
+    <string name="about_dev_mode_enabled">已開啟開發者模式</string>
+    <string name="about_dev_mode_hint">再點擊 2 次開啟開發者模式</string>
+    <string name="about_copied_github">已複製 GitHub 連結</string>
+    <string name="about_copied_qq">已複製 QQ 群號</string>
+    <string name="about_copied_tg">已複製 Telegram 連結</string>
+    <string name="about_save_failed">儲存失敗</string>
+    <string name="about_saved_to_album">已儲存到相簿</string>
+    <string name="about_save_failed_with_msg">儲存失敗：%1$s</string>
+
+    <!-- DeveloperScreen -->
+    <string name="developer_title">開發者選項</string>
+    <string name="developer_mode">開發者模式</string>
+    <string name="developer_mode_desc">關閉後將隱藏開發者選項</string>
+    <string name="developer_share_button">分享按鈕</string>
+    <string name="developer_share_button_desc">在詳情頁顯示分享番劇按鈕</string>
+    <string name="developer_update_notification">更新通知</string>
+    <string name="developer_update_notification_desc">在設定介面顯示更新通知入口</string>
+    <string name="developer_test_notification">測試通知</string>
+    <string name="developer_test_notification_desc">立即發送一條測試通知</string>
+    <string name="developer_send_test_notification">發送測試通知</string>
+    <string name="developer_debug_cards">除錯卡片</string>
+    <string name="developer_debug_cards_desc">新增佔位番劇卡片用於介面除錯</string>
+    <string name="developer_decrease">減少</string>
+    <string name="developer_increase">增加</string>
+    <string name="developer_simulate_update">模擬更新</string>
+    <string name="developer_simulate_update_desc">模擬完整更新流程，不會下載真實檔案</string>
+    <string name="developer_trigger_simulate_update">觸發模擬更新</string>
+    <string name="developer_video_player">影片播放器</string>
+    <string name="developer_video_player_desc">播放器設定與測試</string>
+    <string name="developer_player_settings">播放器設定</string>
+    <string name="developer_mode_disabled">已關閉開發者模式</string>
+    <string name="developer_test_notification_toast">3秒後發送測試通知</string>
+    <string name="developer_added_debug_cards">已新增 %1$d 張除錯卡片</string>
+    <string name="developer_deleted_debug_cards">已刪除 %1$d 張除錯卡片</string>
+    <string name="developer_no_debug_cards">沒有除錯卡片</string>
+    <string name="developer_debug_anime_prefix">除錯番劇</string>
+
+    <!-- DataManageScreen -->
+    <string name="data_manage_title">資料管理</string>
+    <string name="data_manage_import_export">匯入與匯出</string>
+    <string name="data_manage_import_markdown">匯入 Markdown</string>
+    <string name="data_manage_import_markdown_subtitle">從 Markdown 檔案匯入番劇列表</string>
+    <string name="data_manage_export_data">匯出番劇資料</string>
+    <string name="data_manage_export_data_subtitle">將番劇列表匯出為 Markdown 檔案</string>
+    <string name="data_manage_cloud_sync">雲端同步</string>
+    <string name="data_manage_webdav_sync">WebDAV 同步</string>
+    <string name="data_manage_webdav_sync_subtitle">設定 WebDAV 伺服器以實現雲端備份與還原</string>
+    <string name="data_manage_import_guide_title">匯入 Markdown</string>
+    <string name="data_manage_import_guide_format_hint">請確保你的 Markdown 檔案符合以下格式：</string>
+    <string name="data_manage_select_file">準備好了，選擇檔案</string>
+    <string name="data_manage_export_success">匯出成功！</string>
+    <string name="data_manage_export_failed">匯出失敗：%1$s</string>
+
+    <!-- FeaturesScreen -->
+    <string name="features_title">功能</string>
+    <string name="features_search_button">搜尋按鈕</string>
+    <string name="features_search_button_desc">在主介面右上角顯示搜尋按鈕</string>
+    <string name="features_update_reminder">更新提醒</string>
+    <string name="features_today_update_reminder">今日更新提醒</string>
+    <string name="features_today_update_reminder_desc">在主介面頂部顯示今日番劇更新提醒卡片</string>
+    <string name="features_calendar_preview_button">日程預覽按鈕</string>
+    <string name="features_calendar_preview_button_desc">在看板右上角顯示日曆按鈕，查看今明日更新</string>
+    <string name="features_anime_display">番劇顯示</string>
+    <string name="features_series_stack">多季堆疊</string>
+    <string name="features_series_stack_desc">將同系列多季番劇合併為堆疊卡片，長按展開各季</string>
+    <string name="features_watching">觀看</string>
+    <string name="features_auto_complete">自動完結</string>
+    <string name="features_auto_complete_desc">觀看進度拉滿時自動標記為已看完</string>
+    <string name="features_completed_celebration">完結撒花提示</string>
+    <string name="features_completed_celebration_desc">標記為已看完時顯示完結撒花提示</string>
+
+    <!-- UpdateNotificationScreen -->
+    <string name="update_notif_title">更新通知</string>
+    <string name="update_notif_select_time">選擇通知時間</string>
+    <string name="update_notif_anime_update">番劇更新通知</string>
+    <string name="update_notif_anime_update_desc">每天推送今日更新番劇提醒</string>
+    <string name="update_notif_time">通知時間</string>
+    <string name="update_notif_time_desc">每天在設定時間推送番劇更新通知</string>
+    <string name="update_notif_custom_time">自訂時間</string>
+    <string name="update_notif_custom_time_format">自訂 %1$02d:%2$02d</string>
+    <string name="update_notif_morning_9">早上 9:00</string>
+    <string name="update_notif_noon_12">中午 12:00</string>
+    <string name="update_notif_evening_7">晚上 7:00</string>
+</resources>
