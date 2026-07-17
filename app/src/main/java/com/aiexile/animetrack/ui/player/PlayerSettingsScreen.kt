@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,7 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -177,7 +177,7 @@ fun PlayerSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = hardwareAcceleration,
                     onCheckedChange = { enabled ->
                         scope.launch { settingsRepository.setPlayerHardwareAcceleration(enabled) }
@@ -206,7 +206,7 @@ fun PlayerSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = rememberPosition,
                     onCheckedChange = { enabled ->
                         scope.launch { settingsRepository.setPlayerRememberPosition(enabled) }
@@ -235,7 +235,7 @@ fun PlayerSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = autoPlayNext,
                     onCheckedChange = { enabled ->
                         scope.launch { settingsRepository.setPlayerAutoPlayNext(enabled) }
@@ -280,7 +280,7 @@ fun PlayerSettingsScreen(
             // 打开播放器
             Button(
                 onClick = onNavigateToPlayer,
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary

@@ -141,6 +141,7 @@
     <string name="features_anime_display">Anime Display</string>
     <string name="features_series_stack">Series Stacking</string>
     <string name="features_series_stack_desc">Merge multi-season anime into stacked cards, long press to expand</string>
+    <string name="features_series_stack_badge">WIP</string>
     <string name="features_watching">Watching</string>
     <string name="features_auto_complete">Auto Complete</string>
     <string name="features_auto_complete_desc">Auto-mark as completed when progress is full</string>

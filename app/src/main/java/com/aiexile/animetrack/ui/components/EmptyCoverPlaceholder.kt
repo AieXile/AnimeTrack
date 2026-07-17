@@ -3,12 +3,13 @@ package com.aiexile.animetrack.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
 /**
@@ -17,7 +18,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun EmptyCoverPlaceholder(
     modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(8.dp)
+    shape: Shape = SquircleShape(8.dp)
 ) {
     val gradientBackground = Brush.linearGradient(
         colors = listOf(

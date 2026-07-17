@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.TextSelectionColors
@@ -110,7 +110,7 @@ fun AddAnimeForm(
             placeholder = { Text(stringResource(R.string.add_anime_title_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = SquircleShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 focusedLabelColor = MaterialTheme.colorScheme.primary
@@ -203,7 +203,7 @@ fun AddAnimeForm(
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
             maxLines = 3,
-            shape = RoundedCornerShape(12.dp),
+            shape = SquircleShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 focusedLabelColor = MaterialTheme.colorScheme.primary
@@ -399,7 +399,7 @@ private fun StatusDropdown(
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = statusColor,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
@@ -413,7 +413,7 @@ private fun StatusDropdown(
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(16.dp),
+                shape = SquircleShape(16.dp),
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 AnimeStatus.entries.forEach { status ->

@@ -26,8 +26,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 22
-        versionName = "v0.4.4-beta"
+        versionCode = 24
+        versionName = "v0.4.5-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -116,6 +116,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation("androidx.compose.animation:animation")
     implementation(libs.coil.compose)
+    implementation(libs.graphics.shapes)
     
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)

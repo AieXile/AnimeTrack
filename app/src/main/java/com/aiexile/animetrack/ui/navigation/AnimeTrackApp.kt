@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.navigation
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -12,8 +13,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -30,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +50,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
@@ -52,7 +59,9 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
+import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
+import com.aiexile.animetrack.ui.home.HomeTopBar
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
@@ -86,7 +95,7 @@ fun AnimeTrackApp(
     settingsRepository: SettingsRepository,
     isDataLoaded: java.util.concurrent.atomic.AtomicBoolean
 ) {
-    val showFavorites by settingsRepository.showFavorites.collectAsState(true)
+    val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val isPagerScrollEnabled = remember { mutableStateOf(true) }
@@ -120,6 +129,38 @@ fun AnimeTrackApp(
 
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { mainPages.size })
 
+    // Tab 点击跳转目标（提升到外层，供 MainScreen 与 MainOverlay 共享）
+    var navJumpTarget by remember { mutableStateOf<Int?>(null) }
+    val appScope = rememberCoroutineScope()
+    val onTabNavigate: (String) -> Unit = { route ->
+        val targetIndex = mainPages.indexOfFirst { it.route == route }
+        if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
+            navJumpTarget = targetIndex
+            appScope.launch {
+                pagerState.animateScrollToPage(targetIndex)
+                navJumpTarget = null
+            }
+        }
+    }
+
+    // 当前主页面路由（供 MainOverlay 判断 TopBar/FAB 可见性）
+    val currentMainRoute = mainPages.getOrNull(pagerState.targetPage)?.route ?: "home"
+    val visibleMainPages = mainPages.map { it.route }
+
+    var lastPagerRoute by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pagerState.currentPage, mainPages) {
+        lastPagerRoute = mainPages.getOrNull(pagerState.currentPage)?.route
+    }
+
+    LaunchedEffect(mainPages) {
+        val route = lastPagerRoute ?: return@LaunchedEffect
+        val newIndex = mainPages.indexOfFirst { it.route == route }
+        if (newIndex >= 0 && newIndex != pagerState.currentPage) {
+            pagerState.scrollToPage(newIndex)
+        }
+    }
+
     // 涟漪展开动画
     LaunchedEffect(onboardingRevealCenter) {
         val center = onboardingRevealCenter ?: return@LaunchedEffect
@@ -148,6 +189,10 @@ fun AnimeTrackApp(
     // 等待初始路由确定
     val currentStartRoute = startRoute
     if (currentStartRoute == null) return
+
+    // 跟踪 NavController 当前路由，供 MainOverlay 判断可见性
+    val currentNavRoute by navController.currentBackStackEntryAsState()
+    val isMainRoute = currentNavRoute?.destination?.route == Routes.MAIN
 
     Box(
         modifier = Modifier
@@ -194,7 +239,6 @@ fun AnimeTrackApp(
                         isPagerScrollEnabled = isPagerScrollEnabled.value,
                         navigationStyle = navigationStyle,
                         settingsRepository = settingsRepository,
-                        fabLocation = fabLocation,
                         homeViewModel = homeViewModel,
                         onNavigateToScreen = { route ->
                             navController.navigate(route)
@@ -397,6 +441,25 @@ fun AnimeTrackApp(
             }
         }
 
+        // MainOverlay：在 SharedTransitionLayout 外层渲染 TopBar/BottomBar/FAB，
+        // 使其绘制顺序晚于共享元素 Overlay，避免转场期间被飞行卡片遮盖。
+        // 仅在 MAIN 路由可见，转场期间保持显示以遮盖飞行卡片。
+        if (isMainRoute) {
+            MainOverlay(
+                navigationStyle = navigationStyle,
+                mainPages = mainPages,
+                pagerState = pagerState,
+                homeViewModel = homeViewModel,
+                settingsRepository = settingsRepository,
+                fabLocation = fabLocation,
+                currentRoute = currentMainRoute,
+                visiblePages = visibleMainPages,
+                onNavigate = onTabNavigate,
+                navJumpTarget = navJumpTarget,
+                onAddAnimeClick = { homeViewModel.showBottomSheet() }
+            )
+        }
+
         // 涟漪展开遮罩层
         onboardingRevealCenter?.let { center ->
             val backgroundColor = MaterialTheme.colorScheme.background
@@ -420,8 +483,8 @@ fun AnimeTrackApp(
 }
 
 /**
- * 主屏幕：包含 Pager + 导航栏
- * 根据 navigationStyle 渲染不同的导航栏样式
+ * 主屏幕：仅包含 Pager 内容。TopBar/BottomBar/FAB 已提升到 MainOverlay
+ * （SharedTransitionLayout 外层）渲染，避免转场期间被共享元素 Overlay 遮盖。
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -431,115 +494,95 @@ private fun MainScreen(
     isPagerScrollEnabled: Boolean,
     navigationStyle: NavigationStyle,
     settingsRepository: SettingsRepository,
-    fabLocation: FabLocation,
     homeViewModel: HomeViewModel,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    val currentRoute = mainPages.getOrNull(pagerState.targetPage)?.route ?: "home"
-    val visiblePages = mainPages.map { it.route }
-    val scope = rememberCoroutineScope()
-
-    // 点击 Tab 跳转目标：指示器直线动画到目标，不逐页经过中间项
-    var navJumpTarget by remember { mutableStateOf<Int?>(null) }
-
-    val onNavigate: (String) -> Unit = { route ->
-        val targetIndex = mainPages.indexOfFirst { it.route == route }
-        if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
-            navJumpTarget = targetIndex
-            scope.launch {
-                pagerState.animateScrollToPage(targetIndex)
-                navJumpTarget = null
-            }
-        }
-    }
-
-    val pagerContent: @Composable () -> Unit = {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = isPagerScrollEnabled
-        ) { page ->
-            MainPagerContent(
-                page = page,
-                mainPages = mainPages,
-                pagerState = pagerState,
-                settingsRepository = settingsRepository,
-                fabLocation = fabLocation,
-                navigationStyle = navigationStyle,
-                homeViewModel = homeViewModel,
-                onNavigateToScreen = onNavigateToScreen,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        }
-    }
-
     when (navigationStyle) {
         NavigationStyle.CAPSULE -> CapsuleNavLayout(
-            pagerContent = pagerContent,
-            currentRoute = currentRoute,
-            visiblePages = visiblePages,
-            onNavigate = onNavigate,
+            mainPages = mainPages,
             pagerState = pagerState,
-            jumpTarget = navJumpTarget
+            isPagerScrollEnabled = isPagerScrollEnabled,
+            settingsRepository = settingsRepository,
+            homeViewModel = homeViewModel,
+            onNavigateToScreen = onNavigateToScreen,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
         )
         NavigationStyle.BOTTOM -> BottomNavLayout(
-            pagerContent = pagerContent,
-            currentRoute = currentRoute,
-            visiblePages = visiblePages,
-            onNavigate = onNavigate,
-            pagerState = pagerState
+            mainPages = mainPages,
+            pagerState = pagerState,
+            isPagerScrollEnabled = isPagerScrollEnabled,
+            settingsRepository = settingsRepository,
+            homeViewModel = homeViewModel,
+            onNavigateToScreen = onNavigateToScreen,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
         )
     }
 }
 
-/** 胶囊导航栏布局 */
+/**
+ * 胶囊导航栏布局：仅渲染 Pager 内容。
+ * 实际的 CapsuleNavigationBar 在 MainOverlay 中渲染，胶囊栏为浮动设计，
+ * 内容可滚动到其下方（与原行为一致）。
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun CapsuleNavLayout(
-    pagerContent: @Composable () -> Unit,
-    currentRoute: String,
-    visiblePages: List<String>,
-    onNavigate: (String) -> Unit,
+    mainPages: List<MainPage>,
     pagerState: PagerState,
-    jumpTarget: Int?
+    isPagerScrollEnabled: Boolean,
+    settingsRepository: SettingsRepository,
+    homeViewModel: HomeViewModel,
+    onNavigateToScreen: (String) -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        pagerContent()
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-        ) {
-            CapsuleNavigationBar(
-                currentRoute = currentRoute,
-                visiblePages = visiblePages,
-                onNavigate = onNavigate,
-                pagerState = pagerState,
-                jumpTarget = jumpTarget
-            )
-        }
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+        userScrollEnabled = isPagerScrollEnabled
+    ) { page ->
+        MainPagerContent(
+            page = page,
+            mainPages = mainPages,
+            pagerState = pagerState,
+            settingsRepository = settingsRepository,
+            navigationStyle = NavigationStyle.CAPSULE,
+            homeViewModel = homeViewModel,
+            onNavigateToScreen = onNavigateToScreen,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
     }
 }
 
-/** 底部导航栏布局 */
+/**
+ * 底部导航栏布局：Pager 内容 + 透明占位 BottomBar（保留高度以维持内容区域 padding）。
+ * 实际的 BottomNavigationBar 在 MainOverlay 中渲染。
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun BottomNavLayout(
-    pagerContent: @Composable () -> Unit,
-    currentRoute: String,
-    visiblePages: List<String>,
-    onNavigate: (String) -> Unit,
-    pagerState: PagerState
+    mainPages: List<MainPage>,
+    pagerState: PagerState,
+    isPagerScrollEnabled: Boolean,
+    settingsRepository: SettingsRepository,
+    homeViewModel: HomeViewModel,
+    onNavigateToScreen: (String) -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(
-                currentRoute = currentRoute,
-                visiblePages = visiblePages,
-                onNavigate = onNavigate,
-                pagerState = pagerState
-            )
+            // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
+            // 保留与 BottomNavigationBar 一致的高度（navigationBarsPadding + 68.dp）以维持内容区域 padding。
+            Spacer(modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(68.dp))
         }
     ) { paddingValues ->
         Box(
@@ -547,7 +590,23 @@ private fun BottomNavLayout(
                 .fillMaxSize()
                 .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            pagerContent()
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = isPagerScrollEnabled
+            ) { page ->
+                MainPagerContent(
+                    page = page,
+                    mainPages = mainPages,
+                    pagerState = pagerState,
+                    settingsRepository = settingsRepository,
+                    navigationStyle = NavigationStyle.BOTTOM,
+                    homeViewModel = homeViewModel,
+                    onNavigateToScreen = onNavigateToScreen,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
         }
     }
 }
@@ -560,7 +619,6 @@ private fun MainPagerContent(
     mainPages: List<MainPage>,
     pagerState: PagerState,
     settingsRepository: SettingsRepository,
-    fabLocation: FabLocation,
     navigationStyle: NavigationStyle,
     homeViewModel: HomeViewModel,
     onNavigateToScreen: (String) -> Unit,
@@ -578,7 +636,6 @@ private fun MainPagerContent(
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
             settingsRepository = settingsRepository,
-            fabLocation = fabLocation,
             isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE,
             isCurrentPage = pagerState.currentPage == page,
             onNavigateBilibiliLogin = { onNavigateToScreen(Routes.BILIBILI_LOGIN) },
@@ -607,6 +664,115 @@ private fun MainPagerContent(
             onNavigate = { },
             settingsRepository = settingsRepository
         )
+    }
+}
+
+/**
+ * 主界面 Overlay：在 SharedTransitionLayout 外层渲染 TopBar/BottomBar/FAB。
+ *
+ * 作用：SharedTransitionLayout 在转场期间会于其根节点注入 Overlay 渲染层，
+ * 飞行中的共享元素渲染在 Overlay 上，位于其内部所有 Scaffold 内容之上。
+ * 将 TopBar/BottomBar/FAB 提升到此 Overlay（即 SharedTransitionLayout 外层）之后，
+ * 使其绘制顺序晚于共享元素 Overlay，从而避免被飞行卡片遮盖。
+ *
+ * 可见性：仅在 MAIN 路由可见，转场期间保持显示以遮盖飞行卡片。
+ *
+ * @param currentRoute 当前 Pager 页面对应的路由（用于 BottomBar 高亮与 TopBar/FAB 可见性判断）
+ * @param onNavigate Tab 点击导航回调
+ * @param navJumpTarget CapsuleNav 直线跳转动画目标
+ * @param onAddAnimeClick 添加番剧按钮点击回调
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MainOverlay(
+    navigationStyle: NavigationStyle,
+    mainPages: List<MainPage>,
+    pagerState: PagerState,
+    homeViewModel: HomeViewModel,
+    settingsRepository: SettingsRepository,
+    fabLocation: FabLocation,
+    currentRoute: String,
+    visiblePages: List<String>,
+    onNavigate: (String) -> Unit,
+    navJumpTarget: Int?,
+    onAddAnimeClick: () -> Unit
+) {
+    val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
+    val isHomePage = currentRoute == "home"
+
+    // 从 settingsRepository 读取 HomeTopBar 所需状态
+    val customGreeting by settingsRepository.customGreeting.collectAsState("")
+    val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
+    val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
+
+    // 从 homeViewModel 读取列表状态，用于判断搜索按钮可见性
+    val animeList by homeViewModel.animeList.collectAsState()
+    val filteredAnimeListItems by homeViewModel.filteredAnimeListItems.collectAsState()
+    val hasAnime = animeList.isNotEmpty()
+    val hasFilteredItems = filteredAnimeListItems.isNotEmpty()
+
+    // showScrollToTop：基于 gridState 滚动位置计算（与 HomeScreen 内部逻辑一致）
+    val gridState = homeViewModel.gridState
+    var showScrollToTop by remember { mutableStateOf(false) }
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex }
+            .collect { index ->
+                if (index > 2 && !showScrollToTop) showScrollToTop = true
+                else if (index <= 1 && showScrollToTop) showScrollToTop = false
+            }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 底部导航栏 / 胶囊导航栏
+        if (isCapsuleNav) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
+                CapsuleNavigationBar(
+                    currentRoute = currentRoute,
+                    visiblePages = visiblePages,
+                    onNavigate = onNavigate,
+                    pagerState = pagerState,
+                    jumpTarget = navJumpTarget
+                )
+            }
+        } else {
+            BottomNavigationBar(
+                currentRoute = currentRoute,
+                visiblePages = visiblePages,
+                onNavigate = onNavigate,
+                pagerState = pagerState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+
+        // 主页 TopBar（仅在 home 页可见）
+        if (isHomePage) {
+            HomeTopBar(
+                viewModel = homeViewModel,
+                customGreeting = customGreeting,
+                greetingTypingEffect = greetingTypingEffect,
+                showSearchButton = showSearchButton,
+                fabLocation = fabLocation,
+                isCurrentPage = pagerState.currentPage == mainPages.indexOfFirst { it.route == "home" },
+                hasAnime = hasAnime,
+                hasFilteredItems = hasFilteredItems,
+                onAddClick = onAddAnimeClick,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            // 主页 FAB（仅在 home 页可见）
+            HomeFloatingActions(
+                fabLocation = fabLocation,
+                isCapsuleNav = isCapsuleNav,
+                showScrollToTop = showScrollToTop,
+                onScrollToTop = { homeViewModel.scrollToTop() },
+                onAddClick = onAddAnimeClick,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
+        }
     }
 }
 

@@ -18,7 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -97,7 +97,7 @@ fun WebDAVAutoSyncScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        AppSwitch(
                             checked = autoSyncEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncEnabled(it) } }
                         )
@@ -201,7 +201,7 @@ fun WebDAVAutoSyncScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Switch(
+                            AppSwitch(
                                 checked = wifiOnly,
                                 onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncWifiOnly(it) } },
                                 enabled = autoSyncEnabled
@@ -235,7 +235,7 @@ fun WebDAVAutoSyncScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Switch(
+                            AppSwitch(
                                 checked = useCustomStrategy,
                                 onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncUseCustomStrategy(it) } },
                                 enabled = autoSyncEnabled
@@ -326,7 +326,7 @@ private fun TriggerItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(
+        AppSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
@@ -297,7 +297,7 @@ private fun SettingActionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(SquircleShape(12.dp))
             .clickable { onClick() }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -344,7 +344,7 @@ private fun ImportGuideBottomSheet(
                     .padding(top = 12.dp)
                     .width(32.dp)
                     .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .clip(SquircleShape(2.dp))
                     .background(MaterialTheme.colorScheme.outlineVariant)
             )
         }
@@ -372,7 +372,7 @@ private fun ImportGuideBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val codeBlockShape = RoundedCornerShape(12.dp)
+            val codeBlockShape = SquircleShape(12.dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -418,7 +418,7 @@ Dropped
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = SquircleShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )

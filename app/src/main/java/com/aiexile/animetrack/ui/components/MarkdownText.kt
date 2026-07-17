@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -219,7 +219,7 @@ fun MarkdownText(markdown: String) {
                 is MdBlock.CodeBlock -> {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(6.dp),
+                        shape = SquircleShape(6.dp),
                         color = colorScheme.surfaceContainer
                     ) {
                         Text(
@@ -253,7 +253,7 @@ fun MarkdownText(markdown: String) {
                 is MdBlock.Blockquote -> {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = SquircleShape(4.dp),
                         color = colorScheme.surfaceContainer
                     ) {
                         Text(
@@ -271,7 +271,7 @@ fun MarkdownText(markdown: String) {
                 is MdBlock.Image -> {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = SquircleShape(8.dp)
                     ) {
                         AsyncImage(
                             model = block.url,
@@ -279,7 +279,7 @@ fun MarkdownText(markdown: String) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 220.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(SquircleShape(8.dp)),
                             contentScale = ContentScale.FillWidth
                         )
                     }

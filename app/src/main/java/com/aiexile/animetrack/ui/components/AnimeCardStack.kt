@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -99,7 +99,7 @@ fun AnimeCardStack(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = (-6).dp, y = 6.dp),
-            shape = RoundedCornerShape(6.dp),
+            shape = SquircleShape(6.dp),
             color = MaterialTheme.colorScheme.primary
         ) {
             Text(
@@ -154,10 +154,10 @@ private fun StackCardLayer(
             }
             .shadow(
                 elevation = elevation,
-                shape = RoundedCornerShape(CardCornerRadius),
+                shape = SquircleShape(CardCornerRadius),
                 clip = false
             )
-            .clip(RoundedCornerShape(CardCornerRadius))
+            .clip(SquircleShape(CardCornerRadius))
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
     ) {
         // 封面
@@ -173,11 +173,11 @@ private fun StackCardLayer(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                        .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
                 )
             } else {
                 EmptyCoverPlaceholder(
-                    shape = RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+                    shape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
                 )
             }
         }

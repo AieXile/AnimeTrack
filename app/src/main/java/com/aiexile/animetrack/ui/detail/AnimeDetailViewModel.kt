@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
@@ -376,15 +377,29 @@ class AnimeDetailViewModel(
         }
 
         viewModelScope.launch {
-            repository.updateAnime(updatedAnime)
+            // DB 立即更新（UI 即时响应），后端同步走防抖避免逐集更新时频繁请求
+            repository.updateAnimeInternal(updatedAnime)
+        }
+        scheduleServerSync(updatedAnime)
+    }
 
-            if (anime.bangumiId != null) {
+    /** 后端同步防抖：连续逐集更新/状态切换时只保留最后一次，延迟 800ms 后统一推送进度+状态 */
+    private var syncDebounceJob: Job? = null
+
+    private fun scheduleServerSync(updatedAnime: Anime) {
+        syncDebounceJob?.cancel()
+        syncDebounceJob = viewModelScope.launch {
+            delay(800)
+            // App 自有后端同步（POST /subscriptions/add）
+            repository.syncAnimeToServer(updatedAnime)
+            // Bangumi 同步：统一推送最新进度+状态
+            if (updatedAnime.bangumiId != null) {
                 val syncManager = AppContainer.getSyncManager()
-                if (updatedAnime.status != anime.status) {
-                    syncManager.pushProgressThenStatus(anime.bangumiId, newCount, updatedAnime.status)
-                } else {
-                    syncManager.pushProgressToRemote(anime.bangumiId, newCount)
-                }
+                syncManager.pushProgressThenStatus(
+                    updatedAnime.bangumiId,
+                    updatedAnime.watchedEpisodes,
+                    updatedAnime.status
+                )
             }
         }
     }
@@ -626,29 +641,31 @@ class AnimeDetailViewModel(
     fun updateStatus(newStatus: AnimeStatus) {
         val anime = animeFlow.value ?: return
 
+        val isFinished = newStatus == AnimeStatus.COMPLETED || anime.isFinished
+        val updatedAnime = anime.copy(
+            status = newStatus,
+            isFinished = isFinished,
+            finishDate = if (newStatus == AnimeStatus.COMPLETED && anime.finishDate == null) {
+                System.currentTimeMillis()
+            } else {
+                anime.finishDate
+            },
+            watchedEpisodes = when {
+                // 手动切换为已看完时，自动将观看进度设为总集数
+                newStatus == AnimeStatus.COMPLETED
+                    && anime.totalEpisodes > 0
+                    && anime.watchedEpisodes < anime.totalEpisodes -> anime.totalEpisodes
+                // 从满进度切回非已看完时，自动退一集，避免满进度却显示正在观看
+                newStatus != AnimeStatus.COMPLETED
+                    && anime.totalEpisodes > 0
+                    && anime.watchedEpisodes >= anime.totalEpisodes -> anime.totalEpisodes - 1
+                else -> anime.watchedEpisodes
+            }
+        )
+
         viewModelScope.launch {
-            val isFinished = newStatus == AnimeStatus.COMPLETED || anime.isFinished
-            val updatedAnime = anime.copy(
-                status = newStatus,
-                isFinished = isFinished,
-                finishDate = if (newStatus == AnimeStatus.COMPLETED && anime.finishDate == null) {
-                    System.currentTimeMillis()
-                } else {
-                    anime.finishDate
-                },
-                watchedEpisodes = when {
-                    // 手动切换为已看完时，自动将观看进度设为总集数
-                    newStatus == AnimeStatus.COMPLETED
-                        && anime.totalEpisodes > 0
-                        && anime.watchedEpisodes < anime.totalEpisodes -> anime.totalEpisodes
-                    // 从满进度切回非已看完时，自动退一集，避免满进度却显示正在观看
-                    newStatus != AnimeStatus.COMPLETED
-                        && anime.totalEpisodes > 0
-                        && anime.watchedEpisodes >= anime.totalEpisodes -> anime.totalEpisodes - 1
-                    else -> anime.watchedEpisodes
-                }
-            )
-            repository.updateAnime(updatedAnime)
+            // DB 立即更新（UI 即时响应），后端同步走防抖
+            repository.updateAnimeInternal(updatedAnime)
 
             // 手动切换为已看完时显示完结撒花
             if (newStatus == AnimeStatus.COMPLETED
@@ -657,12 +674,8 @@ class AnimeDetailViewModel(
             ) {
                 _showCompletedToast.value = true
             }
-
-            if (anime.bangumiId != null) {
-                val syncManager = AppContainer.getSyncManager()
-                syncManager.pushStatusToRemote(anime.bangumiId, newStatus)
-            }
         }
+        scheduleServerSync(updatedAnime)
     }
 
     fun updateFinishDate(finishDate: Long?) {

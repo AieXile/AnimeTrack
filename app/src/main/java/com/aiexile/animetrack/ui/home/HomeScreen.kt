@@ -25,6 +25,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,7 +58,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
@@ -108,7 +109,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.listSaver
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -119,6 +119,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -175,7 +176,6 @@ fun HomeScreen(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     settingsRepository: SettingsRepository? = null,
-    fabLocation: FabLocation = FabLocation.BOTTOM_RIGHT,
     isCapsuleNav: Boolean = false,
     isCurrentPage: Boolean = true,
     onNavigateBilibiliLogin: () -> Unit = {},
@@ -184,7 +184,6 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
-    val customGreeting by (settingsRepository?.customGreeting?.collectAsState("") ?: mutableStateOf(""))
     val context = LocalContext.current
     val authManager = remember { AppContainer.getAuthManager() }
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
@@ -202,13 +201,13 @@ fun HomeScreen(
     // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
     val userAvatar = customAvatarUri ?: userAvatarUrl ?: bilibiliAvatar ?: bangumiAvatar
     val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: mutableStateOf(false))
-    val greetingTypingEffect by (settingsRepository?.greetingTypingEffect?.collectAsState(true) ?: mutableStateOf(true))
     val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: mutableStateOf(true))
-    val showSearchButton by (settingsRepository?.showSearchButton?.collectAsState(true) ?: mutableStateOf(true))
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val autoSyncState by viewModel.autoSyncState.collectAsState()
+    // customGreeting / greetingTypingEffect / showSearchButton / focusRequester
+    // 已移至 MainOverlay（SharedTransitionLayout 外层）的 HomeTopBar 中维护
 
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
@@ -218,7 +217,6 @@ fun HomeScreen(
         }
     }
     var showAccountPanel by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
@@ -236,17 +234,11 @@ fun HomeScreen(
 
     val filteredAnimeListItems by viewModel.filteredAnimeListItems.collectAsState()
     val scope = rememberCoroutineScope()
-    
+
     val gridState = viewModel.gridState
-    var showScrollToTop by remember { mutableStateOf(false) }
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.firstVisibleItemIndex }
-            .collect { index ->
-                if (index > 2 && !showScrollToTop) showScrollToTop = true
-                else if (index <= 1 && showScrollToTop) showScrollToTop = false
-            }
-    }
-    
+    // showScrollToTop 状态已移至 MainOverlay（SharedTransitionLayout 外层）维护，
+    // 因为 HomeFloatingActions 现在在 MainOverlay 中渲染。
+
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { newValue ->
@@ -293,125 +285,12 @@ fun HomeScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp)
-            ) {
-                if (uiState.isLocalSearchActive) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        BasicTextField(
-                            value = TextFieldValue(
-                                text = uiState.localSearchQuery,
-                                selection = TextRange(uiState.localSearchQuery.length)
-                            ),
-                            onValueChange = { newValue ->
-                                viewModel.updateLocalSearchQuery(newValue.text)
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            decorationBox = { innerTextField ->
-                                Box {
-                                    if (uiState.localSearchQuery.isEmpty()) {
-                                        Text(
-                                            text = stringResource(R.string.home_search_anime),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            }
-                        )
-                        if (uiState.localSearchQuery.isNotEmpty()) {
-                            IconButton(
-                                onClick = { viewModel.updateLocalSearchQuery("") },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.common_clear),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        IconButton(
-                            onClick = {
-                                viewModel.clearLocalSearch()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.home_close_search),
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                    LaunchedEffect(uiState.isLocalSearchActive, isCurrentPage) {
-                        if (uiState.isLocalSearchActive && isCurrentPage) {
-                            focusRequester.requestFocus()
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        val greetingText = viewModel.resolveGreetingText(customGreeting)
-                        TypingGreeting(
-                            greetingText = greetingText,
-                            shouldAnimate = greetingTypingEffect && viewModel.shouldAnimateGreeting(greetingText),
-                            onAnimated = { viewModel.onGreetingAnimated(it) }
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
-                            val showSearchIcon = showSearchButton && animeList.isNotEmpty() && filteredAnimeListItems.isNotEmpty()
-                            if (showSearchIcon) {
-                                IconButton(onClick = { viewModel.startLocalSearch() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = stringResource(R.string.common_search),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                            if (fabLocation == FabLocation.TOP_BAR) {
-                                IconButton(onClick = { viewModel.showBottomSheet() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = stringResource(R.string.home_add_anime),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            // TopBar 占位：实际 TopBar 在 MainOverlay（SharedTransitionLayout 外层）渲染
+            // 保留与 TopBar 一致的高度（statusBar + 48.dp）以维持内容区域 padding
+            Spacer(modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(48.dp))
         },
         bottomBar = {
             if (showBottomBar) {
@@ -422,71 +301,7 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            val fabOffsetY = if (isCapsuleNav) (-80).dp else 0.dp
-
-            if (fabLocation == FabLocation.BOTTOM_RIGHT) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier
-                        .offset(y = fabOffsetY)
-                        .padding(end = 8.dp, bottom = 8.dp)
-                ) {
-                    AnimatedVisibility(
-                        visible = showScrollToTop,
-                        enter = scaleIn(
-                            initialScale = 0.3f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            )
-                        ),
-                        exit = scaleOut(
-                            targetScale = 0.3f,
-                            animationSpec = tween(150, easing = FastOutSlowInEasing)
-                        )
-                    ) {
-                        ScrollToTopFab(onClick = { scope.launch { gridState.animateScrollToItem(0) } })
-                    }
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = { viewModel.showBottomSheet() },
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.directionalFabShadow(
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.home_add_anime),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            } else {
-                AnimatedVisibility(
-                    visible = showScrollToTop,
-                    enter = scaleIn(
-                        initialScale = 0.3f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium
-                        )
-                    ),
-                    exit = scaleOut(
-                        targetScale = 0.3f,
-                        animationSpec = tween(150, easing = FastOutSlowInEasing)
-                    )
-                ) {
-                    ScrollToTopFab(
-                        onClick = { scope.launch { gridState.animateScrollToItem(0) } },
-                        modifier = Modifier
-                            .offset(y = fabOffsetY)
-                            .padding(end = 8.dp, bottom = 8.dp)
-                    )
-                }
-            }
+            // FAB 占位：实际 FAB 在 MainOverlay（SharedTransitionLayout 外层）渲染
         },
     ) { paddingValues ->
         Column(
@@ -537,8 +352,7 @@ fun HomeScreen(
                         if (uiState.selectedAnimeId != null) {
                             viewModel.clearSelection()
                         } else {
-                            // 进入详情页前结束本地搜索栏状态
-                            viewModel.clearLocalSearch()
+                            // 保留本地搜索状态：从详情页返回后仍可继续浏览搜索结果
                             onNavigateToDetail(anime.id, anime.coverUrl)
                         }
                     },
@@ -615,8 +429,236 @@ fun HomeScreen(
     }
 }
 
+/**
+ * 主页顶部栏（独立 Composable，用于在 SharedTransitionLayout 外层渲染，
+ * 避免转场期间被共享元素 Overlay 遮盖）。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeTopBar(
+    viewModel: HomeViewModel,
+    customGreeting: String,
+    greetingTypingEffect: Boolean,
+    showSearchButton: Boolean,
+    fabLocation: FabLocation,
+    isCurrentPage: Boolean,
+    hasAnime: Boolean,
+    hasFilteredItems: Boolean,
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(uiState.isLocalSearchActive, isCurrentPage) {
+        if (uiState.isLocalSearchActive && isCurrentPage) {
+            focusRequester.requestFocus()
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        if (uiState.isLocalSearchActive) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+                BasicTextField(
+                    value = TextFieldValue(
+                        text = uiState.localSearchQuery,
+                        selection = TextRange(uiState.localSearchQuery.length)
+                    ),
+                    onValueChange = { newValue ->
+                        viewModel.updateLocalSearchQuery(newValue.text)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (uiState.localSearchQuery.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.home_search_anime),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+                if (uiState.localSearchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { viewModel.updateLocalSearchQuery("") },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.common_clear),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        viewModel.clearLocalSearch()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.home_close_search),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val greetingText = viewModel.resolveGreetingText(customGreeting)
+                TypingGreeting(
+                    greetingText = greetingText,
+                    shouldAnimate = greetingTypingEffect && viewModel.shouldAnimateGreeting(greetingText),
+                    onAnimated = { viewModel.onGreetingAnimated(it) }
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                    val showSearchIcon = showSearchButton && hasAnime && hasFilteredItems
+                    if (showSearchIcon) {
+                        IconButton(onClick = { viewModel.startLocalSearch() }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.common_search),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    if (fabLocation == FabLocation.TOP_BAR) {
+                        IconButton(onClick = onAddClick) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(R.string.home_add_anime),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 主页浮动按钮组（独立 Composable，用于在 SharedTransitionLayout 外层渲染，
+ * 避免转场期间被共享元素 Overlay 遮盖）。
+ */
+@Composable
+fun HomeFloatingActions(
+    fabLocation: FabLocation,
+    isCapsuleNav: Boolean,
+    showScrollToTop: Boolean,
+    onScrollToTop: () -> Unit,
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+
+    val fabOffsetY = if (isCapsuleNav) (-56).dp else 0.dp
+    val fabEndPadding = 24.dp
+    val fabBottomPadding = if (isCapsuleNav) 36.dp else 84.dp
+
+    if (fabLocation == FabLocation.BOTTOM_RIGHT) {
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = modifier
+                .offset(y = fabOffsetY)
+                .navigationBarsPadding()
+                .padding(end = fabEndPadding, bottom = fabBottomPadding)
+        ) {
+            AnimatedVisibility(
+                visible = showScrollToTop,
+                enter = scaleIn(
+                    initialScale = 0.3f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ),
+                exit = scaleOut(
+                    targetScale = 0.3f,
+                    animationSpec = tween(150, easing = FastOutSlowInEasing)
+                )
+            ) {
+                ScrollToTopFab(onClick = onScrollToTop)
+            }
+            androidx.compose.material3.FloatingActionButton(
+                onClick = onAddClick,
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = SquircleShape(16.dp),
+                modifier = Modifier.directionalFabShadow(
+                    shape = SquircleShape(16.dp)
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.home_add_anime),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    } else {
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = scaleIn(
+                initialScale = 0.3f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ),
+            exit = scaleOut(
+                targetScale = 0.3f,
+                animationSpec = tween(150, easing = FastOutSlowInEasing)
+            )
+        ) {
+            ScrollToTopFab(
+                onClick = onScrollToTop,
+                modifier = modifier
+                    .offset(y = fabOffsetY)
+                    .navigationBarsPadding()
+                    .padding(end = fabEndPadding, bottom = fabBottomPadding)
+            )
+        }
+    }
+}
+
 private fun Modifier.directionalFabShadow(
-    shape: RoundedCornerShape,
+    shape: Shape,
     elevation: Dp = 2.dp,
     shadowSpread: Dp = 8.dp
 ): Modifier = this
@@ -668,9 +710,9 @@ private fun ScrollToTopFab(
         onClick = onClick,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.primary,
-        shape = RoundedCornerShape(16.dp),
+        shape = SquircleShape(16.dp),
         modifier = modifier.directionalFabShadow(
-            shape = RoundedCornerShape(16.dp)
+            shape = SquircleShape(16.dp)
         )
     ) {
         Icon(
@@ -736,7 +778,7 @@ private fun AddAnimeBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = SquircleShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
             Box(
                 modifier = Modifier.padding(top = 12.dp)
@@ -744,7 +786,7 @@ private fun AddAnimeBottomSheet(
                 androidx.compose.material3.BottomSheetDefaults.DragHandle(
                     width = 32.dp,
                     height = 4.dp,
-                    shape = RoundedCornerShape(2.dp),
+                    shape = SquircleShape(2.dp),
                     color = MaterialTheme.colorScheme.outline
                 )
             }
@@ -781,7 +823,7 @@ private fun AddAnimeBottomSheet(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(28.dp),
+                shape = SquircleShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
@@ -975,7 +1017,7 @@ private fun SearchSourceDropdown(
         Box {
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(SquircleShape(12.dp))
                     .clickable { expanded = true }
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1002,7 +1044,7 @@ private fun SearchSourceDropdown(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(12.dp)
+                shape = SquircleShape(12.dp)
             ) {
                 SearchSource.entries.forEach { source ->
                     DropdownMenuItem(
@@ -1043,10 +1085,10 @@ private fun SearchResultItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(SquircleShape(14.dp))
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(14.dp)
+                shape = SquircleShape(14.dp)
             )
             .clickable { onClick() }
             .padding(12.dp),
@@ -1063,7 +1105,7 @@ private fun SearchResultItem(
                 .width(52.dp)
                 .aspectRatio(2f / 3f)
                 .graphicsLayer {
-                    shape = RoundedCornerShape(8.dp)
+                    shape = SquircleShape(8.dp)
                     clip = true
                 },
             contentScale = ContentScale.Crop
@@ -1192,7 +1234,7 @@ private fun AddAnimeFormDialog(
                 .fillMaxWidth()
                 .fillMaxHeight(0.88f)
                 .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(24.dp),
+            shape = SquircleShape(24.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLowest
         ) {
             Column(
@@ -1229,7 +1271,7 @@ private fun AddAnimeFormDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = SquircleShape(12.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.common_cancel),
@@ -1241,7 +1283,7 @@ private fun AddAnimeFormDialog(
                     Button(
                         onClick = onSave,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = SquircleShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         ),
@@ -1284,7 +1326,7 @@ private fun FormDialogHeader(
                     .width(64.dp)
                     .aspectRatio(2f / 3f)
                     .graphicsLayer {
-                        shape = RoundedCornerShape(10.dp)
+                        shape = SquircleShape(10.dp)
                         clip = true
                     },
                 contentScale = ContentScale.Crop
@@ -1351,7 +1393,7 @@ private fun FilterMenu(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(16.dp),
+            shape = SquircleShape(16.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier
                 .padding(horizontal = 4.dp)
@@ -1359,51 +1401,54 @@ private fun FilterMenu(
             AnimeFilter.entries.forEach { filter ->
                 val isSelected = filter == selectedFilter
 
-                DropdownMenuItem(
-                    text = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(CircleShape)
-                                .then(
-                                    if (isSelected) Modifier.background(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    ) else Modifier
-                                )
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.CenterStart
+                // 使用 Box + clickable（无涟漪）替代 DropdownMenuItem，
+                // 因为 DropdownMenuItem 不支持去除涟漪，而此行已有选中背景+对勾作为视觉指示
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Text(
-                                    text = filter.displayName,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    fontSize = 14.sp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            onFilterSelected(filter)
+                            expanded = false
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(CircleShape)
+                            .then(
+                                if (isSelected) Modifier.background(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                ) else Modifier
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
+                            Text(
+                                text = filter.displayName,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 14.sp,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    },
-                    onClick = {
-                        onFilterSelected(filter)
-                        expanded = false
-                    },
-                    colors = androidx.compose.material3.MenuDefaults.itemColors(
-                        textColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                )
+                    }
+                }
             }
         }
     }
@@ -1787,7 +1832,7 @@ private fun AnimeGrid(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
                                 .offset(x = 6.dp, y = 6.dp),
-                            shape = RoundedCornerShape(6.dp),
+                            shape = SquircleShape(6.dp),
                             color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(
@@ -1854,7 +1899,7 @@ private fun SyncBannerArea(
     ) {
         Surface(
             color = Color.Transparent,
-            shape = RoundedCornerShape(50)
+            shape = SquircleShape(50)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1902,9 +1947,9 @@ private fun SyncBannerArea(
     if (!isAutoSyncVisible && showTodayBanner) {
         Surface(
             color = Color.Transparent,
-            shape = RoundedCornerShape(50),
+            shape = SquircleShape(50),
             modifier = modifier
-                .clip(RoundedCornerShape(50))
+                .clip(SquircleShape(50))
                 .clickable { onBannerClick() }
         ) {
             Text(
@@ -1978,7 +2023,7 @@ private fun NewAnimeCardWrapper(
                     .matchParentSize()
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha * 0.15f),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = SquircleShape(8.dp)
                     )
             )
         }

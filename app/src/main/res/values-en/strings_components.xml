@@ -123,6 +123,10 @@
     <string name="update_dialog_sha_verifying">SHA verifying...</string>
     <string name="update_dialog_sha_verified">SHA-256 ✓ Verified</string>
     <string name="update_dialog_sha_failed">SHA-256 ✗ Verification failed</string>
+    <string name="update_dialog_sha_pending">SHA-256 Pending</string>
+    <string name="update_dialog_force_update">Force Update</string>
+    <string name="update_dialog_not_force_update">Optional</string>
+    <string name="update_dialog_download_notice">Since the update source is GitHub, some users in China may experience download failures or slow speeds.\nIf you cannot download the APK, please visit GitHub or the QQ group to manually download the latest version.</string>
     <string name="update_dialog_no_changelog">No changelog</string>
     <string name="update_dialog_skip">Skip this version</string>
     <string name="update_dialog_redownload">Redownload</string>

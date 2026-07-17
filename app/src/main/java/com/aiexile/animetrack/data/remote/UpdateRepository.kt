@@ -7,6 +7,8 @@ class UpdateRepository {
 
     companion object {
         private const val TAG = "UpdateRepository"
+        /** Release body 中的强制更新标记，匹配 [FORCE_UPDATE] 或 <!-- force-update --> */
+        private val FORCE_UPDATE_REGEX = Regex("""\s*\[FORCE_UPDATE]|\s*<!--\s*force-update\s*-->\s*""", RegexOption.IGNORE_CASE)
     }
 
     suspend fun checkForUpdate(currentVersion: String): UpdateInfo? {
@@ -19,13 +21,18 @@ class UpdateRepository {
                 val apkAsset = release.assets.find {
                     it.name.endsWith(".apk", ignoreCase = true)
                 }
+                // 从 release body 检测强制更新标记 [FORCE_UPDATE]，并从 changelog 中移除该标记
+                val rawBody = release.body
+                val isForceUpdate = FORCE_UPDATE_REGEX.containsMatchIn(rawBody)
+                val cleanedChangelog = FORCE_UPDATE_REGEX.replace(rawBody, "").trim()
                 UpdateInfo(
                     versionName = remoteVersion,
-                    changelog = release.body,
+                    changelog = cleanedChangelog,
                     downloadUrl = apkAsset?.browserDownloadUrl ?: "",
                     apkSize = apkAsset?.size ?: 0L,
                     releaseUrl = release.htmlUrl,
-                    apkDigest = apkAsset?.digest ?: ""
+                    apkDigest = apkAsset?.digest ?: "",
+                    isForceUpdate = isForceUpdate
                 )
             } else {
                 Log.d(TAG, "App is up to date")
@@ -55,5 +62,7 @@ data class UpdateInfo(
     val apkSize: Long,
     val releaseUrl: String,
     /** GitHub asset 的摘要，格式如 "sha256:xxxxxx"，为空表示无校验信息 */
-    val apkDigest: String = ""
+    val apkDigest: String = "",
+    /** 是否为强制更新（从 release body 中的 [FORCE_UPDATE] 标记解析） */
+    val isForceUpdate: Boolean = false
 )

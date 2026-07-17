@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -43,7 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -358,7 +358,7 @@ fun BilibiliLoginScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        AppSwitch(
                             checked = autoSyncEnabled,
                             onCheckedChange = { enabled ->
                                 scope.launch {
@@ -499,7 +499,7 @@ fun BilibiliLoginScreen(
                             }
                         },
                         modifier = Modifier,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = SquircleShape(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
@@ -658,7 +658,7 @@ private fun ScanLineQrBox(qrBitmap: Bitmap) {
     Box(
         modifier = Modifier
             .size(220.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(SquircleShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {

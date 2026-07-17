@@ -236,8 +236,8 @@ class SettingsRepository(private val context: Context) {
 
     val showSearchButton: Flow<Boolean> = preferenceFlow(SHOW_SEARCH_BUTTON_KEY, true)
 
-    /** 多季番剧是否堆叠显示，默认开启 */
-    val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, true)
+    /** 多季番剧是否堆叠显示，默认关闭（半成品功能） */
+    val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, false)
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
 

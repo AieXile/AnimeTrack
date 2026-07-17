@@ -53,6 +53,12 @@ interface AnimeRepository {
      */
     suspend fun updateAnimeInternal(anime: Anime): Anime?
 
+    /**
+     * 手动触发后端订阅同步（POST /subscriptions/add）。
+     * 供 ViewModel 在防抖后统一调用，避免逐集更新时频繁请求后端。
+     */
+    fun syncAnimeToServer(anime: Anime)
+
     suspend fun deleteAnime(anime: Anime)
 
     suspend fun getAnimeByTitle(title: String): Anime?
@@ -196,6 +202,10 @@ class AnimeRepositoryImpl(
         if (shouldSyncToServer(oldAnime, anime)) {
             syncSubscriptionToServer(anime, isAdd = true)
         }
+    }
+
+    override fun syncAnimeToServer(anime: Anime) {
+        syncSubscriptionToServer(anime, isAdd = true)
     }
 
     /**

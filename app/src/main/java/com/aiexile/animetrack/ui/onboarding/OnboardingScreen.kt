@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
@@ -142,14 +142,14 @@ fun OnboardingScreen(
                         val bounds = coordinates.boundsInRoot()
                         buttonCenter = Offset(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
                     },
-                    shape = RoundedCornerShape(24.dp)
+                    shape = SquircleShape(24.dp)
                 ) {
                     Text(text = stringResource(R.string.onboarding_start), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
                 }
             } else {
                 FilledTonalButton(
                     onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
-                    shape = RoundedCornerShape(24.dp)
+                    shape = SquircleShape(24.dp)
                 ) {
                     Text(text = stringResource(R.string.onboarding_next), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                 }
@@ -220,8 +220,8 @@ private fun MiniHomeScreen() {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Card(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, RoundedCornerShape(28.dp)),
-        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, SquircleShape(28.dp)),
+        shape = SquircleShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = surface)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -234,7 +234,7 @@ private fun MiniHomeScreen() {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Box(modifier = Modifier.width(110.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(onSurface.copy(alpha = 0.08f)))
+                Box(modifier = Modifier.width(110.dp).height(12.dp).clip(SquircleShape(6.dp)).background(onSurface.copy(alpha = 0.08f)))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyVerticalGrid(
@@ -251,12 +251,12 @@ private fun MiniHomeScreen() {
 
             Box(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)) {
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = SquircleShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                    modifier = Modifier.width(180.dp).height(44.dp).shadow(4.dp, RoundedCornerShape(24.dp))
+                    modifier = Modifier.width(180.dp).height(44.dp).shadow(4.dp, SquircleShape(24.dp))
                 ) {
                     Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(54.dp, 32.dp).clip(RoundedCornerShape(16.dp)).background(onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.size(54.dp, 32.dp).clip(SquircleShape(16.dp)).background(onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.Home, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                         Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
@@ -275,20 +275,20 @@ private fun MiniAnimeGridCard(index: Int) {
     val coverAlphas = listOf(0.12f, 0.18f, 0.08f, 0.15f)
 
     Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = SquircleShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
-            Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.75f).clip(RoundedCornerShape(14.dp)).background(onSurface.copy(alpha = coverAlphas[index]))) {
-                Box(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(36.dp, 14.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.4f)))
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(0.75f).clip(SquircleShape(14.dp)).background(onSurface.copy(alpha = coverAlphas[index]))) {
+                Box(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(36.dp, 14.dp).clip(SquircleShape(4.dp)).background(Color.Black.copy(alpha = 0.4f)))
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Box(modifier = Modifier.fillMaxWidth(0.85f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
+            Box(modifier = Modifier.fillMaxWidth(0.85f).height(10.dp).clip(SquircleShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
             Spacer(modifier = Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Box(modifier = Modifier.width(24.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(onSurface.copy(alpha = 0.3f)))
-                Box(modifier = Modifier.width(28.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(onSurface.copy(alpha = 0.15f)))
+                Box(modifier = Modifier.width(24.dp).height(8.dp).clip(SquircleShape(4.dp)).background(onSurface.copy(alpha = 0.3f)))
+                Box(modifier = Modifier.width(28.dp).height(8.dp).clip(SquircleShape(4.dp)).background(onSurface.copy(alpha = 0.15f)))
             }
         }
     }
@@ -311,8 +311,8 @@ private fun MiniSyncScreen() {
             Spacer(modifier = Modifier.height(24.dp))
             repeat(2) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(modifier = Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).background(onSurface.copy(alpha = 0.06f)))
-                    Box(modifier = Modifier.weight(1f).aspectRatio(0.8f).clip(RoundedCornerShape(12.dp)).background(onSurface.copy(alpha = 0.06f)))
+                    Box(modifier = Modifier.weight(1f).aspectRatio(0.8f).clip(SquircleShape(12.dp)).background(onSurface.copy(alpha = 0.06f)))
+                    Box(modifier = Modifier.weight(1f).aspectRatio(0.8f).clip(SquircleShape(12.dp)).background(onSurface.copy(alpha = 0.06f)))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -320,8 +320,8 @@ private fun MiniSyncScreen() {
 
         // 居中悬浮对话框
         Card(
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.88f).shadow(16.dp, RoundedCornerShape(24.dp)),
-            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.88f).shadow(16.dp, SquircleShape(24.dp)),
+            shape = SquircleShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -330,7 +330,7 @@ private fun MiniSyncScreen() {
                     Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.08f)))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Box(modifier = Modifier.width(70.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(onSurface.copy(alpha = 0.6f)))
+                Box(modifier = Modifier.width(70.dp).height(12.dp).clip(SquircleShape(6.dp)).background(onSurface.copy(alpha = 0.6f)))
                 Spacer(modifier = Modifier.height(20.dp))
 
                 MiniAccountRow(isConnected = true)
@@ -340,7 +340,7 @@ private fun MiniSyncScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(36.dp),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = SquircleShape(18.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     color = Color.Transparent
                 ) {}
@@ -355,16 +355,16 @@ private fun MiniAccountRow(isConnected: Boolean) {
 
     Surface(
         modifier = Modifier.fillMaxWidth().height(44.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = SquircleShape(14.dp),
         color = onSurface.copy(alpha = 0.04f)
     ) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Box(modifier = Modifier.width(45.dp).height(8.dp).clip(RoundedCornerShape(4.dp)).background(onSurface.copy(alpha = 0.5f)))
+                Box(modifier = Modifier.width(45.dp).height(8.dp).clip(SquircleShape(4.dp)).background(onSurface.copy(alpha = 0.5f)))
                 Spacer(modifier = Modifier.height(4.dp))
-                Box(modifier = Modifier.width(35.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(onSurface.copy(alpha = 0.2f)))
+                Box(modifier = Modifier.width(35.dp).height(6.dp).clip(SquircleShape(3.dp)).background(onSurface.copy(alpha = 0.2f)))
             }
             Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(if (isConnected) MaterialTheme.colorScheme.primary else onSurface.copy(alpha = 0.2f)))
             Spacer(modifier = Modifier.width(4.dp))
@@ -381,14 +381,14 @@ private fun MiniScheduleScreen() {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Card(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, RoundedCornerShape(28.dp)),
-        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, SquircleShape(28.dp)),
+        shape = SquircleShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Box(modifier = Modifier.width(80.dp).height(16.dp).clip(RoundedCornerShape(4.dp)).background(onSurface.copy(alpha = 0.8f)))
+            Box(modifier = Modifier.width(80.dp).height(16.dp).clip(SquircleShape(4.dp)).background(onSurface.copy(alpha = 0.8f)))
             Spacer(modifier = Modifier.height(6.dp))
-            Box(modifier = Modifier.width(50.dp).height(10.dp).clip(RoundedCornerShape(3.dp)).background(onSurface.copy(alpha = 0.3f)))
+            Box(modifier = Modifier.width(50.dp).height(10.dp).clip(SquircleShape(3.dp)).background(onSurface.copy(alpha = 0.3f)))
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -412,11 +412,11 @@ private fun MiniScheduleScreen() {
             // 海报排布
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
-                    modifier = Modifier.weight(1f).aspectRatio(0.72f).clip(RoundedCornerShape(14.dp))
+                    modifier = Modifier.weight(1f).aspectRatio(0.72f).clip(SquircleShape(14.dp))
                         .background(onSurface.copy(alpha = 0.12f))
                 )
                 Box(
-                    modifier = Modifier.weight(1f).aspectRatio(0.72f).clip(RoundedCornerShape(14.dp))
+                    modifier = Modifier.weight(1f).aspectRatio(0.72f).clip(SquircleShape(14.dp))
                         .background(onSurface.copy(alpha = 0.08f))
                 )
             }
@@ -432,13 +432,13 @@ private fun MiniCustomizeScreen() {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Card(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, RoundedCornerShape(28.dp)),
-        shape = RoundedCornerShape(28.dp),
+        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, SquircleShape(28.dp)),
+        shape = SquircleShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
             // 色彩调色盘预览
-            Box(modifier = Modifier.width(60.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
+            Box(modifier = Modifier.width(60.dp).height(10.dp).clip(SquircleShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
             Spacer(modifier = Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 val circleAlphas = listOf(0.9f, 0.6f, 0.4f, 0.25f, 0.12f)
@@ -459,26 +459,26 @@ private fun MiniCustomizeScreen() {
             Spacer(modifier = Modifier.height(24.dp))
 
             // 导航样式选择
-            Box(modifier = Modifier.width(50.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
+            Box(modifier = Modifier.width(50.dp).height(10.dp).clip(SquircleShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
             Spacer(modifier = Modifier.height(10.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
                     modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = SquircleShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                        Box(modifier = Modifier.padding(bottom = 6.dp).width(50.dp).height(12.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)))
+                        Box(modifier = Modifier.padding(bottom = 6.dp).width(50.dp).height(12.dp).clip(SquircleShape(6.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)))
                     }
                 }
                 Surface(
                     modifier = Modifier.weight(1f).height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = SquircleShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Box(modifier = Modifier.width(44.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(onSurface.copy(alpha = 0.1f)))
+                        Box(modifier = Modifier.width(44.dp).height(16.dp).clip(SquircleShape(8.dp)).background(onSurface.copy(alpha = 0.1f)))
                     }
                 }
             }
@@ -486,17 +486,17 @@ private fun MiniCustomizeScreen() {
             Spacer(modifier = Modifier.height(24.dp))
 
             // 问候语组件
-            Box(modifier = Modifier.width(40.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
+            Box(modifier = Modifier.width(40.dp).height(10.dp).clip(SquircleShape(5.dp)).background(onSurface.copy(alpha = 0.8f)))
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth().height(44.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = SquircleShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
             ) {
                 Row(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "👋", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.width(80.dp).height(10.dp).clip(RoundedCornerShape(5.dp)).background(onSurface.copy(alpha = 0.4f)))
+                    Box(modifier = Modifier.width(80.dp).height(10.dp).clip(SquircleShape(5.dp)).background(onSurface.copy(alpha = 0.4f)))
                 }
             }
         }

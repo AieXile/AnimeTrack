@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,7 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -136,7 +136,7 @@ fun DeveloperScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = developerMode,
                     onCheckedChange = { enabled ->
                         scope.launch {
@@ -170,7 +170,7 @@ fun DeveloperScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = shareButtonEnabled,
                     onCheckedChange = { enabled ->
                         scope.launch {
@@ -200,7 +200,7 @@ fun DeveloperScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
+                AppSwitch(
                     checked = updateNotificationVisible,
                     onCheckedChange = { enabled ->
                         scope.launch {
@@ -233,7 +233,7 @@ fun DeveloperScreen(
                         .triggerTestNotification(context)
                     Toast.makeText(context, context.getString(R.string.developer_test_notification_toast), Toast.LENGTH_SHORT).show()
                 },
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -317,7 +317,7 @@ fun DeveloperScreen(
                             Toast.makeText(context, context.getString(R.string.developer_added_debug_cards, debugCardCount), Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = SquircleShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -337,7 +337,7 @@ fun DeveloperScreen(
                             Toast.makeText(context, if (count > 0) context.getString(R.string.developer_deleted_debug_cards, count) else context.getString(R.string.developer_no_debug_cards), Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = SquircleShape(12.dp)
                 ) {
                     Text(text = stringResource(R.string.common_clear))
                 }
@@ -362,7 +362,7 @@ fun DeveloperScreen(
 
             Button(
                 onClick = { updateViewModel.simulateUpdate() },
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -391,7 +391,7 @@ fun DeveloperScreen(
 
             Button(
                 onClick = onNavigateToPlayerSettings,
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary

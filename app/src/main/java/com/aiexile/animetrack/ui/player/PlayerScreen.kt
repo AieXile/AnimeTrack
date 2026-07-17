@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
@@ -821,7 +821,7 @@ private fun SpeedDropdownMenu(
         onDismissRequest = onDismiss,
         modifier = modifier.background(
             color = Color(0xFF1A1A1A),
-            shape = RoundedCornerShape(8.dp)
+            shape = SquircleShape(8.dp)
         )
     ) {
         speeds.forEach { speed ->
@@ -887,7 +887,7 @@ private fun ErrorOverlay(
                     containerColor = Color(0xFF333333),
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = SquircleShape(8.dp)
             ) {
                 Text(stringResource(R.string.common_back))
             }
@@ -897,7 +897,7 @@ private fun ErrorOverlay(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = SquircleShape(8.dp)
             ) {
                 Text(stringResource(R.string.common_retry))
             }
@@ -943,7 +943,7 @@ private fun EmptyMediaState(
                 containerColor = Color(0xFF1A1A1A),
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = SquircleShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
@@ -963,7 +963,7 @@ private fun EmptyMediaState(
                 containerColor = Color(0xFF1A1A1A),
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = SquircleShape(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
@@ -993,7 +993,7 @@ private fun SeekPreviewOverlay(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = SquircleShape(8.dp),
             color = GestureOverlayColor,
             modifier = Modifier.padding(16.dp)
         ) {
@@ -1028,7 +1028,7 @@ private fun GestureFeedbackOverlay(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = SquircleShape(8.dp),
             color = GestureOverlayColor
         ) {
             Row(
@@ -1087,7 +1087,7 @@ private fun LongPressSpeedIndicator(
         contentAlignment = Alignment.TopCenter
     ) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = SquircleShape(8.dp),
             color = GestureOverlayColor,
             modifier = Modifier.padding(top = 80.dp)
         ) {

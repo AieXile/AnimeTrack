@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Timeline
@@ -264,10 +264,10 @@ private fun WatchingAnimeCard(
             .padding(bottom = 12.dp)
             .shadow(
                 elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
+                shape = SquircleShape(16.dp),
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = SquircleShape(16.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 0.dp
         )
@@ -325,7 +325,7 @@ private fun WatchingAnimeCard(
                 modifier = Modifier
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = SquircleShape(20.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )
@@ -425,10 +425,10 @@ private fun TimelineAnimeCard(
             .fillMaxWidth()
             .shadow(
                 elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
+                shape = SquircleShape(16.dp),
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = SquircleShape(16.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 0.dp
         )
@@ -486,7 +486,7 @@ private fun TimelineAnimeCard(
                 modifier = Modifier
                     .background(
                         color = typeColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = SquircleShape(20.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )
@@ -507,7 +507,7 @@ private fun MonthIndexer(
             .width(32.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                shape = SquircleShape(topStart = 16.dp, bottomStart = 16.dp)
             )
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -24,7 +24,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.outlined.EventBusy
@@ -359,7 +359,7 @@ private fun WeekdaySelector(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(SquircleShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
             .padding(vertical = 8.dp)
     ) {
@@ -440,8 +440,8 @@ private fun CoverCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .clip(RoundedCornerShape(12.dp))
-            .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
+            .clip(SquircleShape(12.dp))
+            .shadow(elevation = 2.dp, shape = SquircleShape(12.dp))
             .clickable { onClick() }
             .then(
                 Modifier.pointerInput(Unit) {

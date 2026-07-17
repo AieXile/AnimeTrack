@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
@@ -51,7 +51,7 @@ fun SettingsGroup(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = SquircleShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -108,7 +108,7 @@ fun ExpandableSettingsGroup(
 
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = SquircleShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLowest
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

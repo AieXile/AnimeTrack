@@ -141,6 +141,7 @@
     <string name="features_anime_display">番劇顯示</string>
     <string name="features_series_stack">多季堆疊</string>
     <string name="features_series_stack_desc">將同系列多季番劇合併為堆疊卡片，長按展開各季</string>
+    <string name="features_series_stack_badge">半成品</string>
     <string name="features_watching">觀看</string>
     <string name="features_auto_complete">自動完結</string>
     <string name="features_auto_complete_desc">觀看進度拉滿時自動標記為已看完</string>

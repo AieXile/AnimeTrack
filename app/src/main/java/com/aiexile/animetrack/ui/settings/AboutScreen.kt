@@ -39,7 +39,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -418,12 +418,12 @@ private fun SocialLinkItem(
         Surface(
             modifier = Modifier
                 .size(52.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(SquircleShape(16.dp))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick
                 ),
-            shape = RoundedCornerShape(16.dp),
+            shape = SquircleShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
@@ -476,7 +476,7 @@ private fun ChangelogDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 360.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = SquircleShape(8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
                     Column(
@@ -537,7 +537,7 @@ private fun SponsorDialog(
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(SquircleShape(16.dp))
                     .combinedClickable(
                         onClick = {},
                         onLongClick = {
@@ -562,7 +562,7 @@ private fun SponsorDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(SquircleShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(4.dp)
             ) {
@@ -580,7 +580,7 @@ private fun SponsorDialog(
                             .offset(x = lerp(0.dp, indicatorWidth, animatedFraction))
                             .width(indicatorWidth)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(SquircleShape(10.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     )
 

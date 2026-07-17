@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -213,12 +213,12 @@ private fun ThemeModePreviewCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.6f)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(SquircleShape(16.dp))
                 .border(
                     width = if (selected) 2.dp else 1.dp,
                     color = if (selected) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(16.dp)
+                    shape = SquircleShape(16.dp)
                 )
                 .clickable(onClick = onClick)
         ) {
@@ -257,7 +257,7 @@ private fun LightPreviewContent(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .width(18.dp)
                     .height(3.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
+                    .clip(SquircleShape(1.5.dp))
                     .background(LightPrimary)
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -309,7 +309,7 @@ private fun DarkPreviewContent(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .width(18.dp)
                     .height(3.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
+                    .clip(SquircleShape(1.5.dp))
                     .background(DarkPrimary)
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -349,7 +349,7 @@ private fun DarkPreviewContent(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AutoPreviewContent(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.clip(RoundedCornerShape(14.dp))) {
+    Box(modifier = modifier.clip(SquircleShape(14.dp))) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -377,7 +377,7 @@ private fun PreviewMiniCard(
 ) {
     Column(
         modifier = modifier
-            .background(bgColor, RoundedCornerShape(8.dp))
+            .background(bgColor, SquircleShape(8.dp))
             .padding(5.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
@@ -385,20 +385,20 @@ private fun PreviewMiniCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(imageColor, RoundedCornerShape(5.dp))
+                .background(imageColor, SquircleShape(5.dp))
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(3.dp)
-                .clip(RoundedCornerShape(1.5.dp))
+                .clip(SquircleShape(1.5.dp))
                 .background(lineColor)
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.6f)
                 .height(3.dp)
-                .clip(RoundedCornerShape(1.5.dp))
+                .clip(SquircleShape(1.5.dp))
                 .background(subLineColor)
         )
     }
@@ -414,7 +414,7 @@ private fun PreviewBottomNav(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(SquircleShape(8.dp))
             .background(bgColor)
             .padding(horizontal = 6.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.SpaceAround,
@@ -435,13 +435,13 @@ private fun PreviewNavItem(color: Color) {
         Box(
             modifier = Modifier
                 .size(10.dp)
-                .background(color, RoundedCornerShape(2.5.dp))
+                .background(color, SquircleShape(2.5.dp))
         )
         Box(
             modifier = Modifier
                 .width(8.dp)
                 .height(2.dp)
-                .background(color, RoundedCornerShape(1.dp))
+                .background(color, SquircleShape(1.dp))
         )
     }
 }

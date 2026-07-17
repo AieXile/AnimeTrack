@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Login
@@ -225,7 +225,7 @@ fun AccountPanelDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
+        shape = SquircleShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         title = null,
         text = {
@@ -342,7 +342,7 @@ fun AccountPanelDialog(
                 OutlinedButton(
                     onClick = { showAvatarActions = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = SquircleShape(12.dp)
                 ) {
                     Text(
                         if (customAvatarUri != null) stringResource(R.string.account_panel_change_avatar) else stringResource(R.string.account_panel_custom_avatar),
@@ -368,7 +368,7 @@ private fun AccountServiceRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(SquircleShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable { onClick() }
             .padding(horizontal = 16.dp),

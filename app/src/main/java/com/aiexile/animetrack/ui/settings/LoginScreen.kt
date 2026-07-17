@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -24,7 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -153,7 +153,7 @@ fun LoginScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
+                    AppSwitch(
                         checked = autoSyncVisible,
                         onCheckedChange = { scope.launch { settingsRepository?.setAutoSyncVisible(it) } }
                     )
@@ -180,7 +180,7 @@ fun LoginScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
+                    AppSwitch(
                         checked = hideAvatar,
                         onCheckedChange = { scope.launch { settingsRepository?.setHideBangumiAvatar(it) } }
                     )
@@ -206,10 +206,10 @@ private fun LoginServiceCard(
             .height(64.dp)
             .shadow(
                 elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
+                shape = SquircleShape(16.dp),
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             )
-            .clip(RoundedCornerShape(16.dp))
+            .clip(SquircleShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
             .clickable { onClick() }
     ) {

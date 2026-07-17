@@ -123,6 +123,10 @@
     <string name="update_dialog_sha_verifying">SHA 校验中...</string>
     <string name="update_dialog_sha_verified">SHA-256 ✓ 已验证</string>
     <string name="update_dialog_sha_failed">SHA-256 ✗ 校验失败</string>
+    <string name="update_dialog_sha_pending">SHA-256 待校验</string>
+    <string name="update_dialog_force_update">强制更新</string>
+    <string name="update_dialog_not_force_update">非强制更新</string>
+    <string name="update_dialog_download_notice">由于更新源为 GitHub，国内部分用户存在无法下载或下载慢问题。\n若无法下载安装包，请前往 GitHub 或 QQ 群手动下载新版本安装包。</string>
     <string name="update_dialog_no_changelog">暂无更新日志</string>
     <string name="update_dialog_skip">跳过该版本</string>
     <string name="update_dialog_redownload">重新下载</string>

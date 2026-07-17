@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
@@ -180,7 +180,7 @@ fun WebDAVSyncScreen(
                                     viewModel.testConnection()
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = SquircleShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -286,7 +286,7 @@ fun WebDAVSyncScreen(
                                 Button(
                                     onClick = { viewModel.backupNow() },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudUpload,
@@ -299,7 +299,7 @@ fun WebDAVSyncScreen(
                                 Button(
                                     onClick = { viewModel.restoreNow() },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
@@ -316,7 +316,7 @@ fun WebDAVSyncScreen(
                             Button(
                                 onClick = onNavigateAutoSync,
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = SquircleShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer

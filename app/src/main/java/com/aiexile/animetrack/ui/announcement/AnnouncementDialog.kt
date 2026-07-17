@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -163,7 +163,7 @@ private fun AnnouncementContent(
             Spacer(modifier = Modifier.height(12.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
+                shape = SquircleShape(8.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
                 AsyncImage(
@@ -183,7 +183,7 @@ private fun AnnouncementContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 280.dp),
-            shape = RoundedCornerShape(8.dp),
+            shape = SquircleShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest
         ) {
             Column(
@@ -251,7 +251,7 @@ private fun HistoryListContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 320.dp),
-            shape = RoundedCornerShape(8.dp),
+            shape = SquircleShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest
         ) {
             Column(

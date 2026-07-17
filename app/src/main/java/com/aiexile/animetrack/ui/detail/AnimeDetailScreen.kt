@@ -46,7 +46,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -497,7 +497,7 @@ private fun CoverSearchOverlay(
                     keyboardActions = KeyboardActions(
                         onSearch = { onSearch() }
                     ),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = SquircleShape(24.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -519,7 +519,7 @@ private fun CoverSearchOverlay(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(1.dp),
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(SquircleShape(12.dp))
                                     .clickable { sourceExpanded = true }
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
                             ) {
@@ -544,7 +544,7 @@ private fun CoverSearchOverlay(
                             DropdownMenu(
                                 expanded = sourceExpanded,
                                 onDismissRequest = { sourceExpanded = false },
-                                shape = RoundedCornerShape(12.dp)
+                                shape = SquircleShape(12.dp)
                             ) {
                                 SearchSource.entries.forEach { source ->
                                     DropdownMenuItem(
@@ -595,7 +595,7 @@ private fun CoverSearchOverlay(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .height(1.5.dp)
-                        .clip(RoundedCornerShape(1.dp)),
+                        .clip(SquircleShape(1.dp)),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = Color.Transparent
                 )
@@ -648,7 +648,7 @@ private fun CoverSearchResultItem(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = SquircleShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
         onClick = onClick
     ) {
@@ -664,7 +664,7 @@ private fun CoverSearchResultItem(
                 contentDescription = result.title,
                 modifier = Modifier
                     .size(52.dp, 70.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(SquircleShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
 
@@ -764,7 +764,7 @@ private fun AnimeDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
-            shape = RoundedCornerShape(CardCornerRadius),
+            shape = SquircleShape(CardCornerRadius),
             color = Color.Transparent
         ) {
             Row(
@@ -789,11 +789,11 @@ private fun AnimeDetailContent(
                                 Modifier
                             }
                         )
-                        .clip(RoundedCornerShape(CardCornerRadius))
+                        .clip(SquircleShape(CardCornerRadius))
                 ) {
                     val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
 
-                    val coverClipShape = RoundedCornerShape(CardCornerRadius)
+                    val coverClipShape = SquircleShape(CardCornerRadius)
                     val context = LocalContext.current
 
                     if (editState.isEditing) {
@@ -1102,7 +1102,7 @@ private fun RatingBadge(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
+        shape = SquircleShape(8.dp),
         color = LocalAnimeColors.current.finished.copy(alpha = 0.1f)
     ) {
         Row(
@@ -1133,7 +1133,7 @@ private fun DetailCard(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(CardCornerRadius),
+        shape = SquircleShape(CardCornerRadius),
         color = cardContainerColor()
     ) {
         Column(
@@ -1180,7 +1180,7 @@ private fun SummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 },
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1625,7 +1625,7 @@ private fun NotesCard(
                     .fillMaxWidth()
                     .height(100.dp),
                 placeholder = { Text(stringResource(R.string.detail_add_notes_hint)) },
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1645,7 +1645,7 @@ private fun NotesCard(
                         onNotesChange(notes)
                         onSaveNotes()
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = SquircleShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -1658,7 +1658,7 @@ private fun NotesCard(
 
                 Button(
                     onClick = onSaveNotes,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = SquircleShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -1671,7 +1671,7 @@ private fun NotesCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = SquircleShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
                 onClick = onEditNotes
             ) {
@@ -1737,13 +1737,13 @@ private fun StatusCard(
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = SquircleShape(24.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(24.dp))
+                            .clip(SquircleShape(24.dp))
                             .clickable { showDatePicker = true }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1820,7 +1820,7 @@ private fun <T> CapsuleSegmentedButton(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(100.dp),
+        shape = SquircleShape(100.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest
     ) {
         Row(
@@ -1831,7 +1831,7 @@ private fun <T> CapsuleSegmentedButton(
         ) {
             options.forEach { option ->
                 val isSelected = option == selectedOption
-                val shape = RoundedCornerShape(100.dp)
+                val shape = SquircleShape(100.dp)
 
                 Box(
                     modifier = Modifier
@@ -1867,7 +1867,7 @@ private fun StatusBadge(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
+        shape = SquircleShape(6.dp),
         color = MaterialTheme.colorScheme.primary
     ) {
         Text(
@@ -1973,14 +1973,14 @@ private fun ShareNotesDialog(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(R.string.detail_write_something_hint)) },
                     maxLines = 3,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = SquircleShape(12.dp)
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = { onConfirm(notes) },
-                shape = RoundedCornerShape(12.dp)
+                shape = SquircleShape(12.dp)
             ) {
                 Text(stringResource(R.string.common_share))
             }
@@ -2039,7 +2039,7 @@ private fun MatchDialog(
                     keyboardActions = KeyboardActions(
                         onSearch = { onSearch() }
                     ),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = SquircleShape(24.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
@@ -2141,7 +2141,7 @@ private fun MatchResultItem(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = SquircleShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
         onClick = onClick
     ) {
@@ -2157,7 +2157,7 @@ private fun MatchResultItem(
                 contentDescription = result.title,
                 modifier = Modifier
                     .size(52.dp, 70.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(SquircleShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
 

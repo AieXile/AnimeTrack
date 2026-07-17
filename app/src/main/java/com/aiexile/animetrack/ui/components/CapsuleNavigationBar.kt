@@ -3,6 +3,7 @@ package com.aiexile.animetrack.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -22,7 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -102,7 +103,7 @@ fun CapsuleNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 32.dp)
-            .padding(bottom = 32.dp)
+            .padding(bottom = 24.dp)
             .pointerInput(pagerState) {
                 if (pagerState == null) return@pointerInput
                 detectHorizontalDragGestures(
@@ -123,11 +124,11 @@ fun CapsuleNavigationBar(
                 .height(52.dp)
                 .shadow(
                     elevation = 4.dp,
-                    shape = RoundedCornerShape(100.dp)
+                    shape = SquircleShape(100.dp)
                 )
-                .clip(RoundedCornerShape(100.dp)),
+                .clip(SquircleShape(100.dp)),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(100.dp),
+            shape = SquircleShape(100.dp),
             border = androidx.compose.foundation.BorderStroke(
                 width = 0.5.dp,
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
@@ -139,13 +140,21 @@ fun CapsuleNavigationBar(
                     .onSizeChanged { rowWidthPx = it.width.toFloat() }
                     .padding(4.dp)
             ) {
-                if (itemCount > 0 && rowWidthPx > 0f) {
+                if (itemCount > 0) {
                     val paddingPx = with(density) { 4.dp.toPx() } * 2
-                    val innerWidthPx = rowWidthPx - paddingPx
-                    val itemWidthPx = innerWidthPx / itemCount
+                    val innerWidthPx = (rowWidthPx - paddingPx).coerceAtLeast(0f)
+                    val itemWidthPx = if (innerWidthPx > 0f) innerWidthPx / itemCount else 0f
                     val indicatorOffsetPx = effectiveIndex * itemWidthPx
                     val indicatorOffsetDp = with(density) { indicatorOffsetPx.toDp() }
                     val itemWidthDp = with(density) { itemWidthPx.toDp() }
+
+                    // 指示器淡入：避免 MainOverlay 重组时 rowWidthPx 从 0 变为非零，
+                    // 指示器突然出现造成闪烁
+                    val indicatorAlpha by animateFloatAsState(
+                        targetValue = if (rowWidthPx > 0f) 1f else 0f,
+                        animationSpec = tween(150),
+                        label = "indicatorAlpha"
+                    )
 
                     Box(
                         modifier = Modifier
@@ -153,6 +162,7 @@ fun CapsuleNavigationBar(
                             .graphicsLayer {
                                 scaleX = indicatorScale
                                 scaleY = indicatorScale
+                                alpha = indicatorAlpha
                             }
                             .width(itemWidthDp)
                             .fillMaxHeight()

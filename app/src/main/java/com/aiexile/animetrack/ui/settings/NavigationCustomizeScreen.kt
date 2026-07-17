@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,7 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -65,7 +65,7 @@ fun NavigationCustomizeScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    val showFavorites by settingsRepository.showFavorites.collectAsState(true)
+    val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
@@ -205,12 +205,12 @@ private fun NavigationStyleCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(SquircleShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(
                 width = borderWeight,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = SquircleShape(12.dp)
             )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -242,12 +242,12 @@ private fun NavigationStyleCard(
                         modifier = Modifier
                             .width(100.dp)
                             .height(28.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(SquircleShape(4.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .border(
                                 width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = SquircleShape(4.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -272,12 +272,12 @@ private fun NavigationStyleCard(
                         modifier = Modifier
                             .width(100.dp)
                             .height(28.dp)
-                            .clip(RoundedCornerShape(100.dp))
+                            .clip(SquircleShape(100.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                             .border(
                                 width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(100.dp)
+                                shape = SquircleShape(100.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -330,12 +330,12 @@ private fun FabLocationCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(SquircleShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(
                 width = borderWeight,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = SquircleShape(12.dp)
             )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -362,12 +362,12 @@ private fun FabLocationCard(
                 modifier = Modifier
                     .width(100.dp)
                     .height(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(SquircleShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .border(
                         width = 0.5.dp,
                         color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = SquircleShape(8.dp)
                     )
             ) {
                 if (location == FabLocation.BOTTOM_RIGHT) {
@@ -376,7 +376,7 @@ private fun FabLocationCard(
                             .align(Alignment.BottomEnd)
                             .padding(end = 8.dp, bottom = 12.dp)
                             .size(16.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(SquircleShape(4.dp))
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
@@ -455,7 +455,7 @@ private fun SwitchItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(
+        AppSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
@@ -504,7 +504,7 @@ private fun CustomGreetingField(
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = SquircleShape(12.dp),
             isError = isOverLimit
         )
         if (isOverLimit) {

@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -20,7 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -52,7 +52,7 @@ fun FeaturesScreen(
     val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
     val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
-    val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(true)
+    val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
 
     Scaffold(
         topBar = {
@@ -123,7 +123,8 @@ fun FeaturesScreen(
                             title = stringResource(R.string.features_series_stack),
                             description = stringResource(R.string.features_series_stack_desc),
                             checked = seriesStackEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
+                            badge = stringResource(R.string.features_series_stack_badge)
                         )
                     }
                 }
@@ -185,7 +186,7 @@ private fun SwitchItem(
                         modifier = Modifier
                             .background(
                                 color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(4.dp)
+                                shape = SquircleShape(4.dp)
                             )
                             .padding(horizontal = 6.dp, vertical = 1.dp)
                     )
@@ -198,7 +199,7 @@ private fun SwitchItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(
+        AppSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange
         )

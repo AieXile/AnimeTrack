@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -58,6 +58,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,7 +96,15 @@ fun AnimeCard(
     modifier: Modifier = Modifier
 ) {
     val hapticFeedback = LocalHapticFeedback.current
-    
+
+    // 按下缩放动效：按下时缩小，松手弹回（与看板界面 CoverCard 一致）
+    var isPressed by remember { mutableStateOf(false) }
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "pressScale"
+    )
+
     val highlightTriggerCount = remember { mutableStateOf(0) }
     LaunchedEffect(isHighlighted) {
         if (isHighlighted) {
@@ -151,26 +162,36 @@ fun AnimeCard(
     // 启用共享元素过渡时，外层 Box 不应用 selectScale/highlightScale 缩放，
     // 避免与 sharedElement 动画的缩放叠加导致点击导航时闪烁。
     // 高亮/选择的视觉反馈通过 Card 内部 elevation 和 overlay 体现。
+    // pressScale（按下缩放）始终应用，不受 sharedElement 限制。
     val enableScaleFeedback = sharedTransitionScope == null || animatedVisibilityScope == null
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (enableScaleFeedback) {
-                    Modifier.graphicsLayer {
-                        scaleX = selectScale.value * highlightScale.value
-                        scaleY = selectScale.value * highlightScale.value
+            .graphicsLayer {
+                val scale = pressScale *
+                    (if (enableScaleFeedback) selectScale.value * highlightScale.value else 1f)
+                scaleX = scale
+                scaleY = scale
+            }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitFirstDown(requireUnconsumed = false)
+                        isPressed = true
+                        try {
+                            waitForUpOrCancellation()
+                        } finally {
+                            isPressed = false
+                        }
                     }
-                } else {
-                    Modifier
                 }
-            )
+            }
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(CardCornerRadius))
+                .clip(SquircleShape(CardCornerRadius))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -180,7 +201,7 @@ fun AnimeCard(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ),
-            shape = RoundedCornerShape(CardCornerRadius),
+            shape = SquircleShape(CardCornerRadius),
             elevation = CardDefaults.cardElevation(
                 defaultElevation = elevation,
                 pressedElevation = elevation,
@@ -249,7 +270,7 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(CardCornerRadius))
+                    .clip(SquircleShape(CardCornerRadius))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -283,7 +304,7 @@ fun AnimeCard(
                         DropdownMenu(
                             expanded = showStatusMenu,
                             onDismissRequest = { showStatusMenu = false },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = SquircleShape(16.dp),
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
@@ -364,7 +385,7 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(CardCornerRadius))
+                    .clip(SquircleShape(CardCornerRadius))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
             )
         }
@@ -395,12 +416,12 @@ private fun AnimeCoverWithStatus(
                         rememberSharedContentState(key = "cover_${animeId}"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
-                    .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                    .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
             }
         } else {
             Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
         }
         
         if (coverUrl != null) {
@@ -419,7 +440,7 @@ private fun AnimeCoverWithStatus(
             )
         } else {
             EmptyCoverPlaceholder(
-                shape = RoundedCornerShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+                shape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
             )
         }
         
@@ -439,7 +460,7 @@ private fun StatusBadge(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
+        shape = SquircleShape(6.dp),
         color = MaterialTheme.colorScheme.primary
     ) {
         Text(

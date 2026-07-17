@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -80,6 +80,7 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
                 downloadComplete = uiState.downloadComplete,
                 shaVerifyState = uiState.shaVerifyState,
                 isSimulated = uiState.isSimulated,
+                isForceUpdate = info.isForceUpdate,
                 onUpdate = { if (uiState.isSimulated) viewModel.startSimulatedDownload() else viewModel.startDownload(context) },
                 onInstall = { viewModel.installApk(context) },
                 onRedownload = { if (!uiState.isSimulated) viewModel.redownload(context) },
@@ -100,6 +101,7 @@ private fun UpdateAvailableDialog(
     downloadComplete: Boolean,
     shaVerifyState: ShaVerifyState,
     isSimulated: Boolean,
+    isForceUpdate: Boolean,
     onUpdate: () -> Unit,
     onInstall: () -> Unit,
     onRedownload: () -> Unit,
@@ -109,6 +111,10 @@ private fun UpdateAvailableDialog(
     val shaVerifyingText = stringResource(R.string.update_dialog_sha_verifying)
     val shaVerifiedText = stringResource(R.string.update_dialog_sha_verified)
     val shaFailedText = stringResource(R.string.update_dialog_sha_failed)
+    val shaPendingText = stringResource(R.string.update_dialog_sha_pending)
+    val forceUpdateText = stringResource(R.string.update_dialog_force_update)
+    val notForceUpdateText = stringResource(R.string.update_dialog_not_force_update)
+    val downloadNoticeText = stringResource(R.string.update_dialog_download_notice)
 
     AlertDialog(
         onDismissRequest = if (isDownloading) ({}) else onDismiss,
@@ -143,8 +149,8 @@ private fun UpdateAvailableDialog(
                     )
                 }
 
-                // SHA 校验状态（非模拟更新时显示）
-                if (!isSimulated && shaVerifyState != ShaVerifyState.NONE) {
+                // SHA 校验状态（非模拟更新时持续显示）
+                if (!isSimulated) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
@@ -153,7 +159,7 @@ private fun UpdateAvailableDialog(
                             ShaVerifyState.VERIFYING -> shaVerifyingText to MaterialTheme.colorScheme.onSurfaceVariant
                             ShaVerifyState.VERIFIED -> shaVerifiedText to MaterialTheme.colorScheme.primary
                             ShaVerifyState.FAILED -> shaFailedText to MaterialTheme.colorScheme.error
-                            ShaVerifyState.NONE -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+                            ShaVerifyState.NONE -> shaPendingText to MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         Text(
                             text = shaText,
@@ -163,12 +169,36 @@ private fun UpdateAvailableDialog(
                     }
                 }
 
+                // 是否为强制更新标识
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isForceUpdate) forceUpdateText else notForceUpdateText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isForceUpdate) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // GitHub 下载慢说明（小浅字）
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = downloadNoticeText,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+
+                // 更新日志（最下方）
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 280.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = SquircleShape(8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
                     Column(

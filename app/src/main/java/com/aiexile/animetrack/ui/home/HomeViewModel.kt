@@ -516,6 +516,14 @@ class HomeViewModel(
     fun onScrollCompleted() {
         _uiState.update { it.copy(shouldScrollToTop = false) }
     }
+
+    /**
+     * 触发列表滚动到顶部（由外层 MainOverlay 的"回到顶部" FAB 调用）。
+     * HomeScreen 内部的 LaunchedEffect 会监听 [HomeUiState.shouldScrollToTop] 执行实际滚动。
+     */
+    fun scrollToTop() {
+        _uiState.update { it.copy(shouldScrollToTop = true) }
+    }
     
     fun onHighlightCompleted() {
         _uiState.update { it.copy(newlyAddedAnimeId = null) }
