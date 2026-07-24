@@ -147,6 +147,13 @@
     <string name="features_auto_complete_desc">Auto-mark as completed when progress is full</string>
     <string name="features_completed_celebration">Completion Celebration</string>
     <string name="features_completed_celebration_desc">Show celebration when marked as completed</string>
+    <string name="features_rating">Rating</string>
+    <string name="features_rating_standard">Rating Standard</string>
+    <string name="features_rating_standard_source">Use Source Rating</string>
+    <string name="features_rating_standard_source_desc">Use the rating provided by the search source (Bangumi/TMDB) when adding anime</string>
+    <string name="features_rating_standard_manual">Manual Rating</string>
+    <string name="features_rating_standard_manual_desc">Don\'t read source rating when adding anime, manually select 1-5 stars (0.5 step)</string>
+    <string name="features_rating_standard_notice">Only affects newly added anime, existing anime are not affected</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">Update Notifications</string>

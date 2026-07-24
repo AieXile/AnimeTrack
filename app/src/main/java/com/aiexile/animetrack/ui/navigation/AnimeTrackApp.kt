@@ -86,6 +86,7 @@ import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
@@ -716,6 +717,7 @@ private fun MainOverlay(
     var showScrollToTop by remember { mutableStateOf(false) }
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex }
+            .debounce(50)
             .collect { index ->
                 if (index > 2 && !showScrollToTop) showScrollToTop = true
                 else if (index <= 1 && showScrollToTop) showScrollToTop = false

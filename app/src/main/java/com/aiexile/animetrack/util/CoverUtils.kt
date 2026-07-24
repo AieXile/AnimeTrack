@@ -1,5 +1,8 @@
 package com.aiexile.animetrack.util
 
+import android.content.Context
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.aiexile.animetrack.model.AnimeStatus
 import java.io.File
 import java.net.ConnectException
@@ -37,6 +40,33 @@ fun resolveCoverModel(coverUrl: String?): Any? {
 fun coverMemoryCacheKey(coverUrl: String?): String? {
     if (coverUrl == null) return null
     return "cover_$coverUrl"
+}
+
+/**
+ * 构建列表/详情页封面加载用的 [ImageRequest]，统一处理本地文件与网络图片的缓存策略。
+ *
+ * 缓存策略：
+ * - 本地 File（由 [com.aiexile.animetrack.data.network.CoverDownloader] 持久化到
+ *   `filesDir/anime_covers/`）：禁用 Coil diskCache，避免与 CoverDownloader 自管理目录
+ *   形成双份存储；仅用内存缓存加速列表滑动。
+ * - 网络 URL：走 Coil diskCache（`cacheDir/image_cache/`）。
+ *
+ * 调用方迁移：AnimeCard / AnimeCardStack / ScheduleScreen / AnimeDetailScreen 等
+ * 可逐步替换内联的 ImageRequest.Builder 链为此函数（由各对应任务执行，本函数不强制调用方变更）。
+ */
+fun coverImageRequestForList(context: Context, coverUrl: String?): ImageRequest {
+    val model = resolveCoverModel(coverUrl)
+    val isLocalFile = model is File
+    return ImageRequest.Builder(context)
+        .data(model)
+        .memoryCacheKey(coverMemoryCacheKey(coverUrl))
+        .placeholderMemoryCacheKey(coverMemoryCacheKey(coverUrl))
+        .apply {
+            if (isLocalFile) {
+                diskCachePolicy(CachePolicy.DISABLED)
+            }
+        }
+        .build()
 }
 
 /**

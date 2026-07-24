@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,9 +34,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
-import com.aiexile.animetrack.util.resolveCoverModel
+import com.aiexile.animetrack.util.coverImageRequestForList
 
 private val CardCornerRadius = 16.dp
 private val CoverAspectRatio = 2f / 3f
@@ -167,8 +169,13 @@ private fun StackCardLayer(
                 .aspectRatio(CoverAspectRatio)
         ) {
             if (anime.coverUrl != null) {
+                val coverUrl = anime.coverUrl
+                val context = LocalContext.current
+                val coverRequest = remember(coverUrl) {
+                    coverImageRequestForList(context, coverUrl)
+                }
                 AsyncImage(
-                    model = resolveCoverModel(anime.coverUrl),
+                    model = coverRequest,
                     contentDescription = anime.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

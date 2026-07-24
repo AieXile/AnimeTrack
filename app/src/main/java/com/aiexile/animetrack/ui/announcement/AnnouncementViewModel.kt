@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.Announcement
 import com.aiexile.animetrack.data.network.RetrofitClient
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class AnnouncementUiState(
     val announcements: List<Announcement> = emptyList(),
@@ -90,12 +92,18 @@ class AnnouncementViewModel(
         _uiState.update { it.copy(showHistoryList = false) }
     }
 
-    /** 关闭弹窗并标记当前公告为已读 */
+    /**
+     * 关闭弹窗并标记所有当前公告为已读。
+     * 使用 NonCancellable 确保写入完成，防止用户快速关闭 App 导致写入丢失，
+     * 避免下次冷启动因未读公告再次弹出弹窗。
+     */
     fun dismiss() {
-        val current = _uiState.value.currentAnnouncement
+        val allIds = _uiState.value.announcements.map { it.id }
         viewModelScope.launch {
-            if (current != null) {
-                settingsRepository.markAnnouncementAsRead(current.id)
+            withContext(NonCancellable) {
+                if (allIds.isNotEmpty()) {
+                    settingsRepository.markAllAnnouncementsAsRead(allIds)
+                }
             }
             _uiState.update { it.copy(showDialog = false) }
         }

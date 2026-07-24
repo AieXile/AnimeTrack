@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.player
+﻿package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,10 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -70,7 +70,7 @@ fun WebDAVBrowseScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -202,7 +202,7 @@ private fun FileItemRow(
         when {
             item.name == ".." -> {
                 Icon(
-                    imageVector = Icons.Default.ArrowUpward,
+                    imageVector = Icons.Rounded.ArrowUpward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -218,7 +218,7 @@ private fun FileItemRow(
 
             item.isDirectory -> {
                 Icon(
-                    imageVector = Icons.Default.Folder,
+                    imageVector = Icons.Rounded.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -237,7 +237,7 @@ private fun FileItemRow(
 
             else -> {
                 Icon(
-                    imageVector = Icons.Default.Movie,
+                    imageVector = Icons.Rounded.Movie,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)

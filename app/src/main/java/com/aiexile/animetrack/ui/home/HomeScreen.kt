@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.home
+﻿package com.aiexile.animetrack.ui.home
 
 import android.graphics.Bitmap
 import android.widget.Toast
@@ -64,17 +64,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.LiveTv
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -102,11 +102,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.ui.Alignment
@@ -164,6 +164,7 @@ import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -238,6 +239,15 @@ fun HomeScreen(
     val gridState = viewModel.gridState
     // showScrollToTop 状态已移至 MainOverlay（SharedTransitionLayout 外层）维护，
     // 因为 HomeFloatingActions 现在在 MainOverlay 中渲染。
+
+    // Task 5.2: 首屏渲染完成后标记 firstFrameRendered。
+    // 监听 gridState 首次出现可见项（即首帧布局完成），调用 ViewModel 标记方法。
+    // 注意：markFirstFrameRendered() 在 HomeViewModel 中实现，由 Task 5 完成。
+    LaunchedEffect(Unit) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.isNotEmpty() }
+            .first { it }
+        viewModel.markFirstFrameRendered()
+    }
 
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
@@ -472,7 +482,7 @@ fun HomeTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    imageVector = Icons.Rounded.Search,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
@@ -511,7 +521,7 @@ fun HomeTopBar(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Rounded.Close,
                             contentDescription = stringResource(R.string.common_clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
@@ -524,7 +534,7 @@ fun HomeTopBar(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(R.string.home_close_search),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -549,7 +559,7 @@ fun HomeTopBar(
                     if (showSearchIcon) {
                         IconButton(onClick = { viewModel.startLocalSearch() }) {
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Rounded.Search,
                                 contentDescription = stringResource(R.string.common_search),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
@@ -559,7 +569,7 @@ fun HomeTopBar(
                     if (fabLocation == FabLocation.TOP_BAR) {
                         IconButton(onClick = onAddClick) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Rounded.Add,
                                 contentDescription = stringResource(R.string.home_add_anime),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(26.dp)
@@ -625,7 +635,7 @@ fun HomeFloatingActions(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = Icons.Rounded.Add,
                     contentDescription = stringResource(R.string.home_add_anime),
                     modifier = Modifier.size(24.dp)
                 )
@@ -716,7 +726,7 @@ private fun ScrollToTopFab(
         )
     ) {
         Icon(
-            imageVector = Icons.Filled.VerticalAlignTop,
+            imageVector = Icons.Rounded.VerticalAlignTop,
             contentDescription = stringResource(R.string.home_scroll_to_top),
             modifier = Modifier.size(24.dp)
         )
@@ -833,7 +843,7 @@ private fun AddAnimeBottomSheet(
                 ),
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Search,
+                        imageVector = Icons.Rounded.Search,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -995,7 +1005,7 @@ private fun SearchSourceDropdown(
     ) {
         if (hasQuery) {
             Icon(
-                imageVector = Icons.Default.Search,
+                imageVector = Icons.Rounded.Search,
                 contentDescription = stringResource(R.string.common_search),
                 modifier = Modifier
                     .size(24.dp)
@@ -1004,7 +1014,7 @@ private fun SearchSourceDropdown(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(R.string.common_clear),
                 modifier = Modifier
                     .size(24.dp)
@@ -1034,7 +1044,7 @@ private fun SearchSourceDropdown(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Icon(
-                    imageVector = Icons.Filled.ArrowDropDown,
+                    imageVector = Icons.Rounded.ArrowDropDown,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -1137,7 +1147,7 @@ private fun SearchResultItem(
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Star,
+                            imageVector = Icons.Rounded.Star,
                             contentDescription = null,
                             tint = LocalAnimeColors.current.starFilled,
                             modifier = Modifier.size(12.dp)
@@ -1383,7 +1393,7 @@ private fun FilterMenu(
     Box(modifier = modifier) {
         IconButton(onClick = { expanded = true }) {
             Icon(
-                imageVector = Icons.Default.FilterList,
+                imageVector = Icons.Rounded.FilterList,
                 contentDescription = stringResource(R.string.home_filter),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp)
@@ -1433,7 +1443,7 @@ private fun FilterMenu(
                         ) {
                             if (isSelected) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Icons.Rounded.Check,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
@@ -1545,7 +1555,9 @@ private fun AnimeGrid(
     ) { mutableStateOf(emptySet()) }
 
     // 堆叠卡在窗口中的位置（key=series.stableKey），作为展开卡片的平移起点
-    val seriesPositionMap = remember { mutableStateMapOf<String, Offset>() }
+    // 使用普通 HashMap 而非 mutableStateMapOf：写入不触发重组（避免滚动时持续写入引发重组），
+    // 读取处用 remember 缓存，保证 ExpandedSeriesCard 拿到 Series 渲染时最后一次布局位置。
+    val seriesPositionMap = remember { HashMap<String, Offset>() }
 
     // 已播放展开动画的系列 key 集合：避免 LazyGrid 回收 item 后滚回时重播动画，
     // 以及进入详情页再返回时重播动画。
@@ -1758,7 +1770,12 @@ private fun AnimeGrid(
 
                     // 记录展开卡片目标位置（首次定位后）
                     var targetPosition by remember { mutableStateOf(Offset.Zero) }
-                    val seriesPosition = seriesPositionMap[item.seriesStableKey] ?: Offset.Zero
+                    // 读取堆叠卡位置作为平移起点：用 remember 缓存，避免每次重组查 HashMap。
+                    // seriesPositionMap 已改为普通 HashMap（写入不触发重组），值在 Series 渲染期间
+                    // 由 onGloballyPositioned 持续更新，展开后 Series 被移出 displayList 即冻结。
+                    val seriesPosition = remember(item.seriesStableKey) {
+                        seriesPositionMap[item.seriesStableKey] ?: Offset.Zero
+                    }
                     // 初始偏移：从堆叠位置出发到目标位置的位移（展开卡片需平移的距离）
                     val initialOffsetX = seriesPosition.x - targetPosition.x
                     val initialOffsetY = seriesPosition.y - targetPosition.y
@@ -2063,7 +2080,7 @@ private fun UserAvatarButton(
             )
         } else {
             Icon(
-                imageVector = Icons.Default.Person,
+                imageVector = Icons.Rounded.Person,
                 contentDescription = stringResource(R.string.home_login),
                 modifier = Modifier.size(18.dp),
                 tint = if (isLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer

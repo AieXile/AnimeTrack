@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.sync
 
 import android.util.Log
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.network.CollectionStatusBody
@@ -70,13 +71,13 @@ class BangumiSyncManager(
             subjectId = bangumiId,
             body = body
         )
-        Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
     }
 
     suspend fun syncRemoteToLocal() = withContext(Dispatchers.IO) {
         val isLoggedIn = authManager.isLoggedIn.first()
         if (!isLoggedIn) {
-            Log.d(TAG, "Not logged in, skip sync")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Not logged in, skip sync")
             return@withContext
         }
 
@@ -90,6 +91,10 @@ class BangumiSyncManager(
                 .filter { it.bangumiId != null }
                 .associateBy { it.bangumiId!! }
 
+            // 批量收集待插入/待更新项，避免逐条触发 insertAnime 副作用
+            val toInsert = mutableListOf<Anime>()
+            val toUpdate = mutableListOf<Anime>()
+
             while (hasMore) {
                 val response = RetrofitClient.bangumiApi.getUserCollections(
                     type = 3,
@@ -98,23 +103,55 @@ class BangumiSyncManager(
                 )
 
                 for (item in response.data) {
-                    mergeCollectionItem(item, localMap[item.subjectId])
+                    val (insertAnime, updateAnime) = buildMergeAction(item, localMap[item.subjectId])
+                    if (insertAnime != null) toInsert.add(insertAnime)
+                    if (updateAnime != null) toUpdate.add(updateAnime)
                 }
 
                 hasMore = response.offset + response.data.size < response.total
                 offset += limit
             }
 
-            Log.d(TAG, "syncRemoteToLocal completed")
+            // 批量插入新增番剧（单事务 + 单次去抖 reassign + 逐条 syncSubscriptionToServer）
+            if (toInsert.isNotEmpty()) {
+                val ids = repository.batchInsertAnimes(toInsert)
+                for ((anime, id) in toInsert.zip(ids)) {
+                    if (id > 0) {
+                        repository.downloadCoverAsync(
+                            animeId = id.toInt(),
+                            coverUrl = anime.coverUrl,
+                            bangumiId = anime.bangumiId,
+                            tmdbId = anime.tmdbId
+                        )
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Inserted new anime from remote: ${anime.title} ep=${anime.watchedEpisodes}")
+                    }
+                }
+                if (BuildConfig.DEBUG) Log.d(TAG, "Batch inserted ${toInsert.size} new animes from remote")
+            }
+
+            // 逐条更新已有番剧（每条 updateAnime 内部会触发去抖 reassign + 条件性 sync）
+            for (anime in toUpdate) {
+                repository.updateAnime(anime)
+                if (BuildConfig.DEBUG) Log.d(TAG, "Merged anime: ${anime.title} -> watched=${anime.watchedEpisodes}")
+            }
+            if (toUpdate.isNotEmpty()) {
+                if (BuildConfig.DEBUG) Log.d(TAG, "Merged ${toUpdate.size} existing animes from remote")
+            }
+
+            if (BuildConfig.DEBUG) Log.d(TAG, "syncRemoteToLocal completed")
         } catch (e: Exception) {
             Log.e(TAG, "syncRemoteToLocal failed", e)
         }
     }
 
-    private suspend fun mergeCollectionItem(
+    /**
+     * 根据远程收藏条目与本地番剧构建合并动作（不写库）。
+     * @return (insertAnime, updateAnime) 二元组，二者至多一个非空；均为 null 表示无需操作
+     */
+    private fun buildMergeAction(
         item: com.aiexile.animetrack.data.network.BangumiCollectionItem,
         localAnime: Anime?
-    ) {
+    ): Pair<Anime?, Anime?> {
         val bangumiId = item.subjectId
         val remoteEps = item.epStatus
         val subject = item.subject
@@ -135,30 +172,22 @@ class BangumiSyncManager(
                 airWeekday = subject?.airWeekday,
                 isFinished = computeIsFinished(subject?.date, subject?.resolvedEps ?: 0, status)
             )
-            val id = repository.insertAnime(newAnime)
-            repository.downloadCoverAsync(
-                animeId = id.toInt(),
-                coverUrl = newAnime.coverUrl,
-                bangumiId = newAnime.bangumiId,
-                tmdbId = newAnime.tmdbId
-            )
-            Log.d(TAG, "Inserted new anime from remote: ${newAnime.title} ep=$remoteEps")
-        } else {
-            val mergedWatched = maxOf(localAnime.watchedEpisodes, remoteEps)
-            val remoteStatus = bangumiTypeToAnimeStatus(item.type)
-
-            val needsUpdate = localAnime.watchedEpisodes != mergedWatched ||
-                    localAnime.status != remoteStatus
-
-            if (needsUpdate) {
-                val updatedAnime = localAnime.copy(
-                    watchedEpisodes = mergedWatched,
-                    status = remoteStatus
-                )
-                repository.updateAnime(updatedAnime)
-                Log.d(TAG, "Merged anime: ${localAnime.title} local=${localAnime.watchedEpisodes} remote=$remoteEps -> $mergedWatched")
-            }
+            return Pair(newAnime, null)
         }
+
+        val mergedWatched = maxOf(localAnime.watchedEpisodes, remoteEps)
+        val remoteStatus = bangumiTypeToAnimeStatus(item.type)
+        val needsUpdate = localAnime.watchedEpisodes != mergedWatched ||
+                localAnime.status != remoteStatus
+
+        if (needsUpdate) {
+            val updatedAnime = localAnime.copy(
+                watchedEpisodes = mergedWatched,
+                status = remoteStatus
+            )
+            return Pair(null, updatedAnime)
+        }
+        return Pair(null, null)
     }
 
     suspend fun pushProgressToRemote(bangumiId: Int, newEpisode: Int) {
@@ -168,7 +197,7 @@ class BangumiSyncManager(
                     subjectId = bangumiId,
                     body = EpisodeProgressBody(epStatus = newEpisode)
                 )
-                Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
             } catch (e: Exception) {
                 Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
             }
@@ -192,7 +221,7 @@ class BangumiSyncManager(
                     subjectId = bangumiId,
                     body = EpisodeProgressBody(epStatus = newEpisode)
                 )
-                Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$newEpisode")
             } catch (e: Exception) {
                 Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
                 return@withAuthAndLock

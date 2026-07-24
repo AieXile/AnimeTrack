@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,17 +18,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Navigation
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.CloudQueue
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -188,7 +188,7 @@ fun SettingsScreen(
                     SettingCard(
                         title = stringResource(R.string.settings_login),
                         subtitle = if (statusParts.isEmpty()) loginSubtitle else statusParts.joinToString(" · "),
-                        icon = Icons.AutoMirrored.Filled.Login,
+                        icon = Icons.AutoMirrored.Rounded.Login,
                         onClick = onNavigateLogin
                     )
                 }
@@ -205,7 +205,7 @@ fun SettingsScreen(
                     SettingCard(
                         title = stringResource(R.string.settings_appearance),
                         subtitle = currentPreset?.let { themeSubtitleFormat.format(it.displayName, modeLabel) } ?: defaultAppearanceSubtitle,
-                        icon = Icons.Default.Palette,
+                        icon = Icons.Rounded.Palette,
                         onClick = onNavigateAppearance
                     )
                 }
@@ -213,21 +213,21 @@ fun SettingsScreen(
                     SettingCard(
                         title = stringResource(R.string.settings_font),
                         subtitle = stringResource(R.string.settings_font_subtitle),
-                        icon = Icons.Default.TextFields,
+                        icon = Icons.Rounded.TextFields,
                         onClick = onNavigateFontSettings
                     )
                 }
                 item {
                     SettingCard(
                         title = stringResource(R.string.settings_customize_nav),
-                        icon = Icons.Default.Navigation,
+                        icon = Icons.Rounded.Navigation,
                         onClick = onNavigateCustomize
                     )
                 }
                 item {
                     SettingCard(
                         title = stringResource(R.string.settings_features),
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Rounded.Tune,
                         onClick = onNavigateFeatures
                     )
                 }
@@ -235,7 +235,7 @@ fun SettingsScreen(
                     SettingCard(
                         title = stringResource(R.string.settings_proxy),
                         subtitle = stringResource(R.string.settings_proxy_subtitle),
-                        icon = Icons.Default.CloudQueue,
+                        icon = Icons.Rounded.CloudQueue,
                         onClick = onNavigateBangumiProxy
                     )
                 }
@@ -243,7 +243,7 @@ fun SettingsScreen(
                     SettingCard(
                         title = stringResource(R.string.settings_data_manage),
                         subtitle = stringResource(R.string.settings_data_manage_subtitle),
-                        icon = Icons.Default.Storage,
+                        icon = Icons.Rounded.Storage,
                         onClick = onNavigateDataManage
                     )
                 }
@@ -258,7 +258,7 @@ fun SettingsScreen(
                             } else {
                                 stringResource(R.string.settings_update_notification_disabled)
                             },
-                            icon = Icons.Default.Notifications,
+                            icon = Icons.Rounded.Notifications,
                             onClick = onNavigateUpdateNotification
                         )
                     }
@@ -274,7 +274,7 @@ fun SettingsScreen(
                     SettingCard(
                         title = "TMDB API Key",
                         subtitle = maskedKey ?: stringResource(R.string.common_not_set),
-                        icon = Icons.Default.Key,
+                        icon = Icons.Rounded.Key,
                         onClick = {
                             tmdbApiKeyInput = tmdbApiKey ?: ""
                             showTmdbApiKeyDialog = true
@@ -284,7 +284,7 @@ fun SettingsScreen(
                 item {
                     SettingCard(
                         title = stringResource(R.string.settings_about),
-                        icon = Icons.Default.Info,
+                        icon = Icons.Rounded.Info,
                         onClick = onNavigateAbout
                     )
                 }
@@ -353,7 +353,7 @@ private fun SettingCard(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

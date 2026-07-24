@@ -36,6 +36,12 @@ enum class AppLanguage(val displayName: String, val code: String) {
     TRADITIONAL_CHINESE("繁體中文", "zh-TW")
 }
 
+/** 评分标准：使用源评分或手动打分 */
+enum class RatingStandard {
+    SOURCE,
+    MANUAL
+}
+
 class SettingsRepository(private val context: Context) {
 
     companion object {
@@ -55,6 +61,7 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
+        private val RATING_STANDARD_KEY = stringPreferencesKey("rating_standard")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
         private val WEBDAV_URL_KEY = stringPreferencesKey("webdav_url")
         private val WEBDAV_USERNAME_KEY = stringPreferencesKey("webdav_username")
@@ -151,6 +158,10 @@ class SettingsRepository(private val context: Context) {
     var userAuthBaseUrl: String = DEFAULT_USER_AUTH_BASE_URL
         private set
 
+    // 语言设置运行时缓存：attachBaseContext 同步读取，避免 runBlocking 阻塞主线程
+    @Volatile
+    private var appLanguageCache: String? = null
+
     init {
         GlobalScope.launch(Dispatchers.IO) {
             val key = context.dataStore.data.first()[TMDB_API_KEY_KEY]
@@ -163,6 +174,7 @@ class SettingsRepository(private val context: Context) {
             httpProxyHost = prefs[HTTP_PROXY_HOST_KEY] ?: DEFAULT_HTTP_PROXY_HOST
             httpProxyPort = prefs[HTTP_PROXY_PORT_KEY] ?: DEFAULT_HTTP_PROXY_PORT
             userAuthBaseUrl = prefs[USER_AUTH_BASE_URL_KEY] ?: DEFAULT_USER_AUTH_BASE_URL
+            appLanguageCache = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
         }
     }
 
@@ -240,6 +252,12 @@ class SettingsRepository(private val context: Context) {
     val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, false)
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
+
+    /** 评分标准：使用源评分或手动打分，默认使用源评分 */
+    val ratingStandard: Flow<RatingStandard> = preferenceFlow(RATING_STANDARD_KEY, RatingStandard.SOURCE.name)
+        .map { runCatching { RatingStandard.valueOf(it) }.getOrDefault(RatingStandard.SOURCE) }
+
+    suspend fun setRatingStandard(standard: RatingStandard) = setPreference(RATING_STANDARD_KEY, standard.name)
 
     suspend fun setShowSearchButton(show: Boolean) = setPreference(SHOW_SEARCH_BUTTON_KEY, show)
 
@@ -432,15 +450,17 @@ class SettingsRepository(private val context: Context) {
 
     val appLanguageFlow: Flow<String> = preferenceFlow(APP_LANGUAGE_KEY, AppLanguage.SIMPLIFIED_CHINESE.name)
 
-    suspend fun setAppLanguage(language: AppLanguage) = setPreference(APP_LANGUAGE_KEY, language.name)
+    suspend fun setAppLanguage(language: AppLanguage) {
+        setPreference(APP_LANGUAGE_KEY, language.name)
+        appLanguageCache = language.name
+    }
 
     /**
      * 同步读取语言设置，仅用于 attachBaseContext（无法使用 suspend）。
+     * 返回运行时缓存值；若缓存尚未填充（冷启动早期 DataStore 未读完），fallback 到默认语言，不再 runBlocking 阻塞主线程。
      */
     fun getAppLanguageBlocking(): String {
-        return kotlinx.coroutines.runBlocking {
-            appLanguageFlow.first()
-        }
+        return appLanguageCache ?: AppLanguage.SIMPLIFIED_CHINESE.name
     }
 
     // ========== 活跃上报 ==========
@@ -462,6 +482,22 @@ class SettingsRepository(private val context: Context) {
         val ids = if (current.isBlank()) emptyList() else current.split(",").mapNotNull { it.toIntOrNull() }
         if (id !in ids) {
             setPreference(READ_ANNOUNCEMENT_IDS_KEY, (ids + id).joinToString(","))
+        }
+    }
+
+    /**
+     * 批量标记公告为已读（原子操作，避免 read-then-write 并发丢失）。
+     * 用于关闭公告弹窗时一次性标记所有当前公告为已读，
+     * 防止下次冷启动因其他未读公告再次弹出。
+     */
+    suspend fun markAllAnnouncementsAsRead(ids: Collection<Int>) {
+        if (ids.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[READ_ANNOUNCEMENT_IDS_KEY] ?: ""
+            val existing: Set<Int> = if (current.isBlank()) emptySet()
+                else current.split(",").mapNotNull { it.toIntOrNull() }.toSet()
+            val merged = (existing + ids).joinToString(",")
+            prefs[READ_ANNOUNCEMENT_IDS_KEY] = merged
         }
     }
 

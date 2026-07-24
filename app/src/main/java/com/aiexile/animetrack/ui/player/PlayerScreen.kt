@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.player
+﻿package com.aiexile.animetrack.ui.player
 
 import android.app.Activity
 import android.content.Context
@@ -34,7 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.BrightnessLow
 import androidx.compose.material.icons.rounded.Cloud
@@ -558,7 +558,7 @@ private fun TopControlBar(
             IconButton(onClick = onSkipForward) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Default.Replay,
+                        imageVector = Icons.Rounded.Replay,
                         contentDescription = stringResource(R.string.player_skip_forward),
                         tint = Color.White,
                         modifier = Modifier

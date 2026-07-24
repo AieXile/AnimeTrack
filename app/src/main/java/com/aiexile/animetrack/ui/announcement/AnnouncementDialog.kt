@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.announcement
+﻿package com.aiexile.animetrack.ui.announcement
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -19,8 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -110,7 +110,7 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                 if (uiState.announcements.size > 1 && !uiState.showHistoryList) {
                     TextButton(onClick = { viewModel.showHistoryList() }) {
                         Icon(
-                            imageVector = Icons.Filled.History,
+                            imageVector = Icons.Rounded.History,
                             contentDescription = null,
                             modifier = Modifier.padding(end = 4.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -233,7 +233,7 @@ private fun HistoryListContent(
             )
             TextButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = null,
                     modifier = Modifier.padding(end = 4.dp),
                     tint = MaterialTheme.colorScheme.primary

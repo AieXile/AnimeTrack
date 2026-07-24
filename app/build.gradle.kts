@@ -26,8 +26,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "v0.4.5-beta"
+        versionCode = 25
+        versionName = "v0.4.6-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -67,12 +67,11 @@ android {
 
     buildTypes {
         getByName("release") {
+            // 完全关闭 R8：代码不混淆、不优化、不移除
+            // 注意：isShrinkResources 必须配合 isMinifyEnabled=true 使用（AGP 硬性约束），
+            //       故资源瘦身一并关闭。如未来需要资源瘦身，需重新启用 minify 并配置 -dontobfuscate。
             isMinifyEnabled = false
             isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
             if (isSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
@@ -112,6 +111,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.compose.ratingbar)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation("androidx.compose.animation:animation")
@@ -127,7 +127,15 @@ dependencies {
     
     implementation(libs.datastore.preferences)
     implementation(libs.material)
-    implementation(libs.sardine)
+    implementation(libs.sardine) {
+        // Sardine 传递依赖 xpp3 / kxml2，其内部打包的 org.xmlpull.v1.XmlPullParser
+        // 与 Android 平台库 android.content.res.XmlResourceParser（实现该接口）冲突，
+        // 导致 R8 报 "Library class implements program class" 错误。
+        // Android SDK 已自带 org.xmlpull.v1 实现，故排除这两个传递依赖。
+        exclude(group = "xpp3", module = "xpp3")
+        exclude(group = "net.sf.kxml", module = "kxml2")
+        exclude(group = "xmlpull", module = "xmlpull")
+    }
     implementation(libs.splashscreen)
     implementation(libs.zxing.core)
     implementation(libs.work.runtime.ktx)

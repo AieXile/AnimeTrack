@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -199,7 +199,7 @@ fun DataManageScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -235,14 +235,14 @@ fun DataManageScreen(
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_import_markdown),
                                 subtitle = stringResource(R.string.data_manage_import_markdown_subtitle),
-                                icon = Icons.Default.FileOpen,
+                                icon = Icons.Rounded.FileOpen,
                                 onClick = { showImportGuide = true }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_export_data),
                                 subtitle = stringResource(R.string.data_manage_export_data_subtitle),
-                                icon = Icons.Default.FileDownload,
+                                icon = Icons.Rounded.FileDownload,
                                 onClick = { viewModel.prepareExport() }
                             )
                         }
@@ -254,7 +254,7 @@ fun DataManageScreen(
                         SettingActionItem(
                             title = stringResource(R.string.data_manage_webdav_sync),
                             subtitle = stringResource(R.string.data_manage_webdav_sync_subtitle),
-                            icon = Icons.Default.CloudUpload,
+                            icon = Icons.Rounded.CloudUpload,
                             onClick = onNavigateWebDAV
                         )
                     }

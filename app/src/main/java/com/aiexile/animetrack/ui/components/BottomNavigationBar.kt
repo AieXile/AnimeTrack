@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.components
+﻿package com.aiexile.animetrack.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -14,11 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CollectionsBookmark
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.rounded.CollectionsBookmark
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.outlined.CollectionsBookmark
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Schedule
@@ -57,35 +57,35 @@ sealed class BottomNavItem(
     object Home : BottomNavItem(
         route = "home",
         titleRes = R.string.nav_home,
-        selectedIcon = Icons.Filled.Home,
+        selectedIcon = Icons.Rounded.Home,
         unselectedIcon = Icons.Outlined.Home
     )
 
     object Favorites : BottomNavItem(
         route = "favorites",
         titleRes = R.string.bottom_nav_favorites,
-        selectedIcon = Icons.Filled.CollectionsBookmark,
+        selectedIcon = Icons.Rounded.CollectionsBookmark,
         unselectedIcon = Icons.Outlined.CollectionsBookmark
     )
 
     object Timeline : BottomNavItem(
         route = "timeline",
         titleRes = R.string.nav_timeline,
-        selectedIcon = Icons.Filled.Timeline,
+        selectedIcon = Icons.Rounded.Timeline,
         unselectedIcon = Icons.Outlined.Timeline
     )
 
     object Schedule : BottomNavItem(
         route = "schedule",
         titleRes = R.string.bottom_nav_schedule,
-        selectedIcon = Icons.Filled.Schedule,
+        selectedIcon = Icons.Rounded.Schedule,
         unselectedIcon = Icons.Outlined.Schedule
     )
 
     object Settings : BottomNavItem(
         route = "settings",
         titleRes = R.string.nav_settings,
-        selectedIcon = Icons.Filled.Settings,
+        selectedIcon = Icons.Rounded.Settings,
         unselectedIcon = Icons.Outlined.Settings
     )
 }

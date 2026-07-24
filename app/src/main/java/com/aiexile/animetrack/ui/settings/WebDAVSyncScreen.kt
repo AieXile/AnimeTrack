@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -109,7 +109,7 @@ fun WebDAVSyncScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -289,7 +289,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.CloudUpload,
+                                        imageVector = Icons.Rounded.CloudUpload,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -302,7 +302,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.CloudDownload,
+                                        imageVector = Icons.Rounded.CloudDownload,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -323,7 +323,7 @@ fun WebDAVSyncScreen(
                                 )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CloudUpload,
+                                    imageVector = Icons.Rounded.CloudUpload,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )

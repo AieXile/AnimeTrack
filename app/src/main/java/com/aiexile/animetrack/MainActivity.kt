@@ -22,11 +22,15 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+
+    // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
+    private val customFontFamily = MutableStateFlow<FontFamily?>(null)
 
     override fun attachBaseContext(newBase: android.content.Context) {
         // 在 Activity 创建前应用语言设置
@@ -92,37 +96,42 @@ class MainActivity : ComponentActivity() {
             fadeOut.start()
         }
 
-        AppContainer.initialize(applicationContext)
+        // attachBaseContext 已调用 AppContainer.initialize，此处不再重复调用
         enableEdgeToEdge()
         // App 启动时检查并上报极光推送 registrationId
         GlobalScope.launch(Dispatchers.IO) {
             PushRegistrationHelper.reportRegistrationIdIfNeeded(applicationContext)
         }
+        // 字体异步加载：先用默认 FontFamily 渲染 UI，后台加载自定义字体完成后通过 StateFlow 触发更新。
+        // 保留原 CUSTOM 分支路径判断逻辑（非空 + File.exists），仅将 Typeface.createFromFile 移至 IO 线程。
+        val settingsRepository = AppContainer.getSettingsRepository()
+        GlobalScope.launch(Dispatchers.IO) {
+            settingsRepository.customFontPathFlow.collect { path ->
+                val loaded = if (!path.isNullOrBlank() && File(path).exists()) {
+                    FontFamily(android.graphics.Typeface.createFromFile(path))
+                } else {
+                    null
+                }
+                customFontFamily.value = loaded
+            }
+        }
         com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager.getInstance().onAppOpen()
         setContent {
-            val settingsRepository = AppContainer.getSettingsRepository()
             val themeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
             val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
             val systemDarkTheme = isSystemInDarkTheme()
 
             val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
-            val customFontPath by settingsRepository.customFontPathFlow.collectAsState(initial = "")
+            val customFontLoaded by customFontFamily.collectAsState()
 
-            val currentFontFamily = remember(fontFamily, customFontPath) {
+            val currentFontFamily = remember(fontFamily, customFontLoaded) {
                 when (fontFamily) {
                     "MISANS" -> FontFamily(
                         Font(R.font.misans_regular),
                         Font(R.font.misans_bold),
                         Font(R.font.misans_medium)
                     )
-                    "CUSTOM" -> {
-                        val path = customFontPath.takeIf { it.isNotBlank() }
-                        if (path != null && File(path).exists()) {
-                            FontFamily(android.graphics.Typeface.createFromFile(path))
-                        } else {
-                            FontFamily.Default
-                        }
-                    }
+                    "CUSTOM" -> customFontLoaded ?: FontFamily.Default
                     else -> FontFamily.Default
                 }
             }

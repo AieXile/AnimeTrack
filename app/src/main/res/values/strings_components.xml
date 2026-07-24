@@ -136,4 +136,6 @@
     <string name="update_dialog_up_to_date">已是最新版本</string>
     <string name="update_dialog_up_to_date_message">当前已是最新版本，无需更新。</string>
     <string name="update_dialog_failed">更新失败</string>
+    <string name="update_dialog_install_failed_permission">安装失败，请手动开启安装权限</string>
+    <string name="update_dialog_retry_install">重试安装</string>
 </resources>

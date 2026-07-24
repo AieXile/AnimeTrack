@@ -13,6 +13,7 @@ import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
+import kotlinx.coroutines.flow.MutableStateFlow
 
 object AppContainer {
     
@@ -31,6 +32,14 @@ object AppContainer {
     // 当前会话开始时间（由 MainActivity.onStart 设置）
     @Volatile
     var sessionStartTime: Long = 0L
+
+    // 首屏渲染完成标志：由 HomeViewModel.markFirstFrameRendered() 触发，
+    // 由 WebDAVAutoSyncManager 等后台任务监听，延迟到首帧后再执行，避免与启动链路争抢资源。
+    val firstFrameRendered: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    fun markFirstFrameRendered() {
+        firstFrameRendered.value = true
+    }
 
     fun initialize(context: Context) {
         this.context = context.applicationContext

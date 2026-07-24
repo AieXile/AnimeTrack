@@ -136,4 +136,6 @@
     <string name="update_dialog_up_to_date">Up to Date</string>
     <string name="update_dialog_up_to_date_message">Already the latest version, no update needed.</string>
     <string name="update_dialog_failed">Update Failed</string>
+    <string name="update_dialog_install_failed_permission">Installation failed, please manually enable install permission</string>
+    <string name="update_dialog_retry_install">Retry Install</string>
 </resources>

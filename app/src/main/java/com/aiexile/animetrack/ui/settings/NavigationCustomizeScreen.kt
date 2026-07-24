@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -20,8 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,7 +84,7 @@ fun NavigationCustomizeScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -381,7 +381,7 @@ private fun FabLocationCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
+                            imageVector = Icons.Rounded.Add,
                             contentDescription = null,
                             modifier = Modifier.size(11.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
@@ -403,7 +403,7 @@ private fun FabLocationCard(
                             .background(MaterialTheme.colorScheme.surfaceContainer)
                     )
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Icons.Rounded.Add,
                         contentDescription = null,
                         modifier = Modifier
                             .align(Alignment.TopEnd)

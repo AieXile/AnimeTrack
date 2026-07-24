@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,10 +17,10 @@ import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -101,7 +101,7 @@ fun DeveloperScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -268,7 +268,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount > 1) debugCardCount-- }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Remove,
+                        imageVector = Icons.Rounded.Remove,
                         contentDescription = stringResource(R.string.developer_decrease),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -284,7 +284,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount < 50) debugCardCount++ }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        imageVector = Icons.Rounded.Add,
                         contentDescription = stringResource(R.string.developer_increase),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -398,7 +398,7 @@ fun DeveloperScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = Icons.Rounded.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data
 
 import android.util.Log
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.network.EmptyRequestBody
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
@@ -34,8 +35,10 @@ object ActivityReportHelper {
             try {
                 val response = RetrofitClient.userAuthApi.reportActivity(EmptyRequestBody())
                 if (response.success) {
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG, "Activity reported for $today")
+                    }
                     settingsRepository.setLastActivityDate(today)
-                    Log.d(TAG, "Activity reported for $today")
                 } else {
                     Log.w(TAG, "Activity report returned success=false")
                 }

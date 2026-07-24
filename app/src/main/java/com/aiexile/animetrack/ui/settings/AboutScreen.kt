@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -42,11 +42,11 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -147,7 +147,7 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -372,28 +372,28 @@ private fun SocialLinksRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Code, contentDescription = "GitHub", modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.Rounded.Code, contentDescription = "GitHub", modifier = Modifier.size(24.dp)) },
             label = "GitHub",
             onClick = onGithubClick,
             onLongClick = onGithubLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Forum, contentDescription = stringResource(R.string.about_qq_group), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.Rounded.Forum, contentDescription = stringResource(R.string.about_qq_group), modifier = Modifier.size(24.dp)) },
             label = stringResource(R.string.about_qq_group),
             onClick = onQqClick,
             onLongClick = onQqLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Send, contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.Rounded.Send, contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
             label = "Telegram",
             onClick = onTgClick,
             onLongClick = onTgLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Default.Favorite, contentDescription = stringResource(R.string.about_sponsor_label), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.Rounded.Favorite, contentDescription = stringResource(R.string.about_sponsor_label), modifier = Modifier.size(24.dp)) },
             label = stringResource(R.string.about_sponsor_label),
             onClick = onSponsorClick,
             onLongClick = onSponsorClick,

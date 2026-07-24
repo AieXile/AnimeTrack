@@ -1,7 +1,7 @@
 <h2 align="center">AnimeTrack</h2>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.4.5--beta-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-v0.4.6--beta-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/platform-Android-green?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square" alt="License">
 </p>

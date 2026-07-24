@@ -147,6 +147,13 @@
     <string name="features_auto_complete_desc">觀看進度拉滿時自動標記為已看完</string>
     <string name="features_completed_celebration">完結撒花提示</string>
     <string name="features_completed_celebration_desc">標記為已看完時顯示完結撒花提示</string>
+    <string name="features_rating">評分</string>
+    <string name="features_rating_standard">評分標準</string>
+    <string name="features_rating_standard_source">使用源評分</string>
+    <string name="features_rating_standard_source_desc">新增番劇時使用搜尋源（Bangumi/TMDB）提供的評分</string>
+    <string name="features_rating_standard_manual">手動打分</string>
+    <string name="features_rating_standard_manual_desc">新增番劇時不讀取源評分，由你手動選擇 1-5 星（0.5 步進）</string>
+    <string name="features_rating_standard_notice">僅對新新增的番劇生效，已新增的番劇不受影響</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">更新通知</string>

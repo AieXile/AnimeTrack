@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.timeline
+﻿package com.aiexile.animetrack.ui.timeline
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -25,7 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -59,6 +60,7 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -82,15 +84,22 @@ fun TimelineScreen(
     val hasWatchingSection = watchingAnimeList.isNotEmpty()
     val hasTimelineData = timelineData.isNotEmpty()
     
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        val actualIndex = if (hasWatchingSection) {
-            listState.firstVisibleItemIndex - 1
-        } else {
-            listState.firstVisibleItemIndex
-        }
-        if (actualIndex >= 0 && actualIndex < timelineData.size) {
-            selectedIndex = actualIndex
-        }
+    LaunchedEffect(Unit) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .debounce(50)
+            .collect { firstVisibleIndex ->
+                // 直接读取 watchingAnimeList.isNotEmpty() 而非局部变量 hasWatchingSection，
+                // 因为 LaunchedEffect(Unit) 仅在首次组合时启动一次,捕获的 Boolean 局部变量会是陈旧值；
+                // 而 watchingAnimeList 是 collectAsState 的 State 代理,每次访问读取最新值。
+                val actualIndex = if (watchingAnimeList.isNotEmpty()) {
+                    firstVisibleIndex - 1
+                } else {
+                    firstVisibleIndex
+                }
+                if (actualIndex >= 0 && actualIndex < timelineData.size) {
+                    selectedIndex = actualIndex
+                }
+            }
     }
     
     Scaffold(
@@ -243,6 +252,11 @@ private fun WatchingSection(
             modifier = Modifier.padding(vertical = 16.dp)
         )
         
+        // 已知性能问题: forEach 在 LazyColumn 的 item{} 内渲染多个子项,未利用懒加载特性。
+        // 未拆分为 LazyColumn.items() 的原因: 拆分会将 title/cards/spacer 分离为独立 LazyColumn item,
+        // 破坏 selectedIndex 计算逻辑(该逻辑依赖 watching section 占据恰好 1 个 item 槽位,
+        // 见 LaunchedEffect 中 firstVisibleItemIndex - 1 的映射),导致 MonthIndexer 高亮错位。
+        // 保持 forEach 以维持视觉与交互行为完全不变。
         animeList.forEach { anime ->
             WatchingAnimeCard(
                 anime = anime
@@ -347,6 +361,11 @@ private fun TimelineMonthSection(
             modifier = Modifier.padding(vertical = 16.dp)
         )
         
+        // 已知性能问题: forEach 在 LazyColumn 的 items{} 内渲染多个子项,未利用懒加载特性。
+        // 未拆分为 LazyColumn.items() 的原因: 拆分会将 title/entries/spacer 分离为独立 LazyColumn item,
+        // 破坏 selectedIndex 计算逻辑(该逻辑依赖每个月份占据恰好 1 个 item 槽位,
+        // 见 LaunchedEffect 中 actualIndex < timelineData.size 的边界判断),
+        // 导致 MonthIndexer 高亮错位。保持 forEach 以维持视觉与交互行为完全不变。
         monthData.entries.forEach { entry ->
             TimelineEntryItem(
                 entry = entry
@@ -514,8 +533,11 @@ private fun MonthIndexer(
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
         months.forEachIndexed { index, month ->
+            // isSelected 为简单直接 Boolean 比较(index == currentIndex),
+            // 且 animateFloatAsState 本身仅在 targetValue 真正变化时触发新动画,
+            // 无需 derivedStateOf 包裹(index/currentIndex 均非 Snapshot State,派生无收益)。
             val isSelected = index == currentIndex
-            
+
             val alpha by animateFloatAsState(
                 targetValue = if (isSelected) 1f else 0.5f,
                 animationSpec = tween(durationMillis = 150),

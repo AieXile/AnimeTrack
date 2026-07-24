@@ -55,7 +55,9 @@ data class UpdateUiState(
     val pendingInstallAfterPermission: Boolean = false,
     val apkAlreadyDownloaded: Boolean = false,
     val isSimulated: Boolean = false,
-    val shaVerifyState: ShaVerifyState = ShaVerifyState.NONE
+    val shaVerifyState: ShaVerifyState = ShaVerifyState.NONE,
+    /** 安装阶段错误（如未开启安装权限）。不切换到 ErrorDialog，留在 UpdateAvailableDialog 中提示并允许重试。 */
+    val installError: String? = null
 )
 
 class UpdateViewModel(
@@ -167,7 +169,8 @@ class UpdateViewModel(
             pendingInstallAfterPermission = false,
             apkAlreadyDownloaded = false,
             isSimulated = false,
-            shaVerifyState = ShaVerifyState.NONE
+            shaVerifyState = ShaVerifyState.NONE,
+            installError = null
         )
     }
 
@@ -425,7 +428,7 @@ class UpdateViewModel(
                     downloadComplete = false,
                     downloadProgress = 0,
                     apkAlreadyDownloaded = false,
-                    error = "安装包校验失败，请重新下载"
+                    installError = "安装包校验失败，请重新下载"
                 )
             }
         }
@@ -470,11 +473,11 @@ class UpdateViewModel(
         val digest = info?.apkDigest?.takeIf { it.isNotBlank() }
         if (digest != null && _uiState.value.shaVerifyState != ShaVerifyState.VERIFIED) {
             val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
-                _uiState.value = _uiState.value.copy(error = "未找到安装包文件")
+                _uiState.value = _uiState.value.copy(installError = "未找到安装包文件")
                 return
             }
             if (!apkFile.exists()) {
-                _uiState.value = _uiState.value.copy(error = "安装包文件不存在")
+                _uiState.value = _uiState.value.copy(installError = "安装包文件不存在")
                 cachedApkFile = null
                 return
             }
@@ -484,12 +487,12 @@ class UpdateViewModel(
 
         try {
             val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
-                _uiState.value = _uiState.value.copy(error = "未找到安装包文件")
+                _uiState.value = _uiState.value.copy(installError = "未找到安装包文件")
                 return
             }
 
             if (!apkFile.exists()) {
-                _uiState.value = _uiState.value.copy(error = "安装包文件不存在")
+                _uiState.value = _uiState.value.copy(installError = "安装包文件不存在")
                 cachedApkFile = null
                 return
             }
@@ -502,7 +505,10 @@ class UpdateViewModel(
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.packageManager.canRequestPackageInstalls()) {
-                    _uiState.value = _uiState.value.copy(pendingInstallAfterPermission = true)
+                    _uiState.value = _uiState.value.copy(
+                        pendingInstallAfterPermission = true,
+                        installError = null
+                    )
                     val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${context.packageName}")
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -512,7 +518,10 @@ class UpdateViewModel(
                 }
             }
 
-            _uiState.value = _uiState.value.copy(pendingInstallAfterPermission = false)
+            _uiState.value = _uiState.value.copy(
+                pendingInstallAfterPermission = false,
+                installError = null
+            )
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
@@ -522,7 +531,7 @@ class UpdateViewModel(
             context.startActivity(installIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Install APK failed", e)
-            _uiState.value = _uiState.value.copy(error = "安装失败: ${e.message}")
+            _uiState.value = _uiState.value.copy(installError = "安装失败: ${e.message}")
         }
     }
 
@@ -532,10 +541,24 @@ class UpdateViewModel(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (context.packageManager.canRequestPackageInstalls()) {
-                _uiState.value = _uiState.value.copy(pendingInstallAfterPermission = false)
+                _uiState.value = _uiState.value.copy(
+                    pendingInstallAfterPermission = false,
+                    installError = null
+                )
                 installApk(context)
+            } else {
+                // 用户从设置页返回但未开启安装权限，留在 UpdateAvailableDialog 中提示并允许重试
+                _uiState.value = _uiState.value.copy(
+                    pendingInstallAfterPermission = false,
+                    installError = "安装失败，请手动开启安装权限"
+                )
             }
         }
+    }
+
+    /** 清除安装错误提示 */
+    fun clearInstallError() {
+        _uiState.value = _uiState.value.copy(installError = null)
     }
 
     fun tryRecoverDownload(context: Context) {

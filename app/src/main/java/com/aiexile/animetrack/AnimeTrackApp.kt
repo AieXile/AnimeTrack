@@ -4,9 +4,17 @@ import android.app.Application
 import cn.jpush.android.api.JPushInterface
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 
 class AnimeTrackApp : Application(), ImageLoaderFactory {
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val bilibiliRefererInterceptor = Interceptor { chain ->
         val request = chain.request()
@@ -39,7 +47,9 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
-        JPushInterface.init(this)
+        appScope.launch {
+            JPushInterface.init(this@AnimeTrackApp)
+        }
     }
 
     override fun newImageLoader(): ImageLoader {
@@ -50,7 +60,18 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
                     .addInterceptor(wsrvNlFallbackInterceptor)
                     .build()
             }
-            .crossfade(true)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(100L * 1024 * 1024)
+                    .build()
+            }
+            .crossfade(false)
             .build()
     }
 }

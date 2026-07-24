@@ -1,9 +1,12 @@
-package com.aiexile.animetrack.ui.schedule
+﻿package com.aiexile.animetrack.ui.schedule
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +29,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,10 +56,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,12 +65,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.settings.SettingsGroup
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.resolveCoverModel
+import com.aiexile.animetrack.util.coverMemoryCacheKey
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
@@ -156,7 +159,7 @@ fun ScheduleScreen(
                     if (showCalendarButton) {
                         IconButton(onClick = { showScheduleSheet = true }) {
                             Icon(
-                                imageVector = Icons.Default.CalendarMonth,
+                                imageVector = Icons.Rounded.CalendarMonth,
                                 contentDescription = stringResource(R.string.schedule_preview),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -426,7 +429,16 @@ private fun CoverCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     var isPressed by remember { mutableStateOf(false) }
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> isPressed = true
+                is PressInteraction.Release, is PressInteraction.Cancel -> isPressed = false
+            }
+        }
+    }
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.95f else 1f,
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
@@ -442,26 +454,23 @@ private fun CoverCard(
             }
             .clip(SquircleShape(12.dp))
             .shadow(elevation = 2.dp, shape = SquircleShape(12.dp))
-            .clickable { onClick() }
-            .then(
-                Modifier.pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            awaitFirstDown(requireUnconsumed = false)
-                            isPressed = true
-                            try {
-                                waitForUpOrCancellation()
-                            } finally {
-                                isPressed = false
-                            }
-                        }
-                    }
-                }
-            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current
+            ) { onClick() }
     ) {
         if (anime.coverUrl != null) {
+            val coverUrl = anime.coverUrl
+            val context = LocalContext.current
+            val coverRequest = remember(coverUrl) {
+                ImageRequest.Builder(context)
+                    .data(resolveCoverModel(coverUrl))
+                    .memoryCacheKey(coverMemoryCacheKey(coverUrl))
+                    .placeholderMemoryCacheKey(coverMemoryCacheKey(coverUrl))
+                    .build()
+            }
             AsyncImage(
-                model = resolveCoverModel(anime.coverUrl),
+                model = coverRequest,
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

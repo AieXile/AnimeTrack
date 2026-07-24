@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.components
+﻿package com.aiexile.animetrack.ui.components
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -28,11 +28,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -294,7 +294,7 @@ fun AnimeCard(
                                 .clip(CircleShape)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Edit,
+                                imageVector = Icons.Rounded.Edit,
                                 contentDescription = stringResource(R.string.anime_card_change_status),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
@@ -330,7 +330,7 @@ fun AnimeCard(
                                             ) {
                                                 if (isSelected) {
                                                     Icon(
-                                                        imageVector = Icons.Filled.Check,
+                                                        imageVector = Icons.Rounded.Check,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(16.dp)
@@ -371,7 +371,7 @@ fun AnimeCard(
                             .clip(CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Delete,
+                            imageVector = Icons.Rounded.Delete,
                             contentDescription = stringResource(R.string.common_delete),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)

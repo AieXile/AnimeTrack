@@ -77,10 +77,10 @@ object RetrofitClient {
 
     private val debugInterceptor = Interceptor { chain ->
         val request = chain.request()
-        Log.d("RetrofitClient", "→ ${request.method} ${request.url}")
+        if (BuildConfig.DEBUG) Log.d("RetrofitClient", "→ ${request.method} ${request.url}")
         val response = chain.proceed(request)
         val body = response.peekBody(1024 * 4)
-        Log.d("RetrofitClient", "← ${response.code} ${request.url} body=${body.string().take(500)}")
+        if (BuildConfig.DEBUG) Log.d("RetrofitClient", "← ${response.code} ${request.url} body=${body.string().take(500)}")
         response
     }
 
@@ -197,14 +197,14 @@ object RetrofitClient {
                 "[read req body failed: ${e.message}]"
             }
         }
-        Log.d("UserAuthHttp", "→ ${request.method} ${request.url}\n  req_body=$reqBodyStr")
+        if (BuildConfig.DEBUG) Log.d("UserAuthHttp", "→ ${request.method} ${request.url}\n  req_body=$reqBodyStr")
         val response = chain.proceed(request)
         val respBodyStr = try {
             response.peekBody(1024 * 16).string()
         } catch (e: Exception) {
             "[read resp body failed: ${e.message}]"
         }
-        Log.d("UserAuthHttp", "← ${response.code} ${request.url}\n  resp_body=$respBodyStr")
+        if (BuildConfig.DEBUG) Log.d("UserAuthHttp", "← ${response.code} ${request.url}\n  resp_body=$respBodyStr")
         response
     }
 

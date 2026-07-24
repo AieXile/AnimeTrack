@@ -5,7 +5,9 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.TmdbTvDetail
 import com.aiexile.animetrack.data.remote.UpdateRepository
@@ -205,24 +207,42 @@ class HomeViewModel(
     }
     
     init {
+        // 批次 A（立即）：UI 数据优先加载
         viewModelScope.launch {
-            // 仅需在首次拿到数据后关闭 loading，无需常驻收集
-            val animes = animeList.first()
-            Log.d(TAG, "Initial data loaded, anime count: ${animes.size}")
+            animeList.first()
             _uiState.update { it.copy(isLoading = false) }
         }
-        // App 启动时重新识别 seriesKey 并持久化（仅一次）
+
+        // 批次 B（延迟 500ms）：短任务
         viewModelScope.launch {
+            delay(500)
             repository.reassignSeriesKeys()
+            checkAiringAnimeUpdates()
         }
-        updateViewModel.checkForUpdate()
-        announcementViewModel.fetchAnnouncements()
-        checkAiringAnimeUpdates()
         viewModelScope.launch {
-            val syncManager = AppContainer.getSyncManager()
-            syncManager.syncRemoteToLocal()
+            delay(500)
+            updateViewModel.checkForUpdate()
+            announcementViewModel.fetchAnnouncements()
         }
-        triggerAutoSync()
+
+        // 批次 C（延迟至 firstFrameRendered）：长任务
+        viewModelScope.launch {
+            AppContainer.firstFrameRendered.first { it }
+            AppContainer.getSyncManager().syncRemoteToLocal()
+        }
+        viewModelScope.launch {
+            AppContainer.firstFrameRendered.first { it }
+            delay(500) // 与 syncRemoteToLocal 错峰
+            triggerAutoSync()
+        }
+    }
+
+    /**
+     * 由 HomeScreen 在首帧渲染完成后调用（监听 gridState 首个可见项），
+     * 标记 [AppContainer.firstFrameRendered] 以触发批次 C 的长任务。
+     */
+    fun markFirstFrameRendered() {
+        AppContainer.markFirstFrameRendered()
     }
 
     fun triggerAutoSync() {
@@ -281,7 +301,7 @@ class HomeViewModel(
     }
     
     fun showBottomSheet() {
-        Log.d(TAG, "Showing bottom sheet")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Showing bottom sheet")
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = true,
@@ -298,7 +318,7 @@ class HomeViewModel(
     }
     
     fun hideBottomSheet() {
-        Log.d(TAG, "Hiding bottom sheet")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Hiding bottom sheet")
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = false,
@@ -338,7 +358,7 @@ class HomeViewModel(
                 )
             }
             repository.updateAnime(updatedAnime)
-            Log.d(TAG, "Updated anime status: ${anime.title} -> $newStatus")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Updated anime status: ${anime.title} -> $newStatus")
 
             if (anime.bangumiId != null) {
                 val syncManager = AppContainer.getSyncManager()
@@ -390,7 +410,7 @@ class HomeViewModel(
     fun deleteAnime(anime: Anime) {
         viewModelScope.launch {
             repository.deleteAnime(anime)
-            Log.d(TAG, "Deleted anime: ${anime.title}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Deleted anime: ${anime.title}")
             clearSelection()
         }
     }
@@ -412,15 +432,22 @@ class HomeViewModel(
             else -> null
         }
     }
-    
+
+    /** 将浮点数四舍五入到最近的 0.5 步进值 */
+    private fun roundToHalf(value: Float): Float {
+        val steps = (value * 2f).let { kotlin.math.round(it) }
+        val clamped = steps.coerceIn(0f, 10f) // 0-5 星，步进 0.5
+        return clamped / 2f
+    }
+
     fun saveAnime() {
         val formState = _uiState.value.formState
         
-        Log.d(TAG, "saveAnime called with title: ${formState.title}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "saveAnime called with title: ${formState.title}")
         
         val error = validateForm(formState)
         if (error != null) {
-            Log.d(TAG, "Validation failed: $error")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Validation failed: $error")
             _uiState.update { it.copy(formError = error) }
             return
         }
@@ -429,7 +456,7 @@ class HomeViewModel(
             if (formState.bangumiId != null) {
                 val existing = repository.getAnimeByBangumiId(formState.bangumiId)
                 if (existing != null) {
-                    Log.d(TAG, "Duplicate bangumiId: ${formState.bangumiId}")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Duplicate bangumiId: ${formState.bangumiId}")
                     _uiState.update { it.copy(showDuplicateToast = true) }
                     return@launch
                 }
@@ -438,7 +465,7 @@ class HomeViewModel(
             if (formState.tmdbId != null) {
                 val existing = repository.getAnimeByTmdbId(formState.tmdbId)
                 if (existing != null) {
-                    Log.d(TAG, "Duplicate tmdbId: ${formState.tmdbId}")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Duplicate tmdbId: ${formState.tmdbId}")
                     _uiState.update { it.copy(showDuplicateToast = true) }
                     return@launch
                 }
@@ -463,11 +490,11 @@ class HomeViewModel(
                 isFinished = computeIsFinished(formState.airDate, formState.totalEpisodes, formState.status)
             )
             
-            Log.d(TAG, "Inserting anime: $anime")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Inserting anime: $anime")
             
             try {
                 val id = repository.insertAnime(anime)
-                Log.d(TAG, "Anime inserted successfully with id: $id")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Anime inserted successfully with id: $id")
                 
                 _uiState.update { 
                     it.copy(
@@ -501,7 +528,7 @@ class HomeViewModel(
                                 isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status)
                             )
                             repository.updateAnimeInternal(updated)
-                            Log.d(TAG, "Backfilled detail for animeId=$id")
+                            if (BuildConfig.DEBUG) Log.d(TAG, "Backfilled detail for animeId=$id")
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to backfill detail for animeId=$id", e)
                         }
@@ -530,7 +557,7 @@ class HomeViewModel(
     }
     
     fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter, searchQuery: String = "", pinnedIds: Set<Long> = emptySet()): List<Anime> {
-        Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery")
+        if (BuildConfig.DEBUG) Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery")
         
         val filtered = when (filter) {
             AnimeFilter.ALL -> animeList
@@ -605,7 +632,7 @@ class HomeViewModel(
 
             try {
                 val results = searchUseCase.search(query, source)
-                Log.d(TAG, "Search results: ${results.size} items (source=$source)")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Search results: ${results.size} items (source=$source)")
                 _uiState.update {
                     it.copy(
                         searchResults = results,
@@ -628,6 +655,8 @@ class HomeViewModel(
     fun selectSearchResult(result: SearchResult) {
         val totalEpisodes = result.episodeCount ?: 12
         val summary = result.summary?.cleanSummary()
+        // 源评分（10 分制）按 /2 转为 5 分制，并四舍五入到 0.5
+        val sourceRating = result.rating?.let { roundToHalf(it / 2f) }
 
         _uiState.update {
             it.copy(
@@ -635,7 +664,7 @@ class HomeViewModel(
                     title = result.title,
                     totalEpisodes = totalEpisodes,
                     coverUrl = result.coverUrl,
-                    rating = result.rating,
+                    rating = sourceRating,
                     summary = summary,
                     bangumiId = if (result.source == SearchSource.BANGUMI) result.sourceId else null,
                     tmdbId = if (result.source == SearchSource.TMDB) result.sourceId else null
@@ -645,6 +674,12 @@ class HomeViewModel(
         }
 
         viewModelScope.launch {
+            // 评分标准为 MANUAL 时，清空源评分，由用户在表单中手动选择
+            if (settingsRepository.ratingStandard.first() == RatingStandard.MANUAL) {
+                _uiState.update {
+                    it.copy(formState = it.formState.copy(rating = null))
+                }
+            }
             try {
                 when (result.source) {
                     SearchSource.BANGUMI -> {

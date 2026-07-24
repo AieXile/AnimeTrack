@@ -1,10 +1,11 @@
-package com.aiexile.animetrack.ui.components
+﻿package com.aiexile.animetrack.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,12 +20,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -39,8 +38,6 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -71,6 +68,10 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatDate
+import com.gowtham.ratingbar.RatingBar
+import com.gowtham.ratingbar.RatingBarConfig
+import com.gowtham.ratingbar.RatingBarStyle
+import com.gowtham.ratingbar.StepSize
 
 data class AddAnimeFormState(
     val title: String = "",
@@ -244,7 +245,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Remove,
+                    imageVector = Icons.Rounded.Remove,
                     contentDescription = stringResource(R.string.add_anime_decrease),
                     modifier = Modifier.size(20.dp)
                 )
@@ -315,7 +316,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = Icons.Rounded.Add,
                     contentDescription = stringResource(R.string.add_anime_increase),
                     modifier = Modifier.size(20.dp)
                 )
@@ -462,7 +463,7 @@ private fun StatusDropdown(
                                     )
                                     if (isSelected) {
                                         Icon(
-                                            imageVector = Icons.Filled.Check,
+                                            imageVector = Icons.Rounded.Check,
                                             contentDescription = null,
                                             tint = itemColor,
                                             modifier = Modifier.size(16.dp)
@@ -492,6 +493,9 @@ private fun RatingSelector(
     onRatingChange: (Float?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // rating 为 null 视为 0；用户拖动后即使为 0 也写入数据库
+    val ratingValue = rating ?: 0f
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -503,49 +507,49 @@ private fun RatingSelector(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             Text(
-                text = if (rating != null) stringResource(R.string.add_anime_rating_value, rating) else stringResource(R.string.add_anime_no_rating),
+                text = if (rating != null && rating > 0f) stringResource(R.string.add_anime_rating_value, rating)
+                else stringResource(R.string.add_anime_no_rating),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (rating != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (rating != null && rating > 0f) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                repeat(5) { index ->
-                    val starValue = index + 1
-                    val isSelected = rating != null && rating >= starValue
-                    
-                    IconButton(
-                        onClick = {
-                            val newRating = if (rating == starValue.toFloat()) null else starValue.toFloat()
-                            onRatingChange(newRating)
-                        },
-                        modifier = Modifier.padding(0.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isSelected) Icons.Filled.Star else Icons.Outlined.Star,
-                            contentDescription = stringResource(R.string.add_anime_star, starValue),
-                            tint = if (isSelected) LocalAnimeColors.current.starFilled else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(28.dp).height(28.dp)
-                        )
-                    }
+            RatingBar(
+                value = ratingValue,
+                modifier = Modifier,
+                config = RatingBarConfig()
+                    .numStars(5)
+                    .size(28.dp)
+                    .padding(4.dp)
+                    .style(RatingBarStyle.HighLighted)
+                    .stepSize(StepSize.HALF)
+                    .hideInactiveStars(false)
+                    .isIndicator(false)
+                    .activeColor(MaterialTheme.colorScheme.primary)
+                    .inactiveColor(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)),
+                onValueChange = { newValue ->
+                    onRatingChange(newValue)
+                },
+                onRatingChanged = { newValue ->
+                    if (newValue <= 0f) onRatingChange(null)
                 }
-            }
-            
-            if (rating != null) {
+            )
+
+            if (rating != null && rating > 0f) {
                 TextButton(
-                    onClick = { onRatingChange(null) }
+                    onClick = { onRatingChange(null) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.common_clear),
@@ -689,7 +693,7 @@ private fun DatePickerField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Filled.CalendarMonth,
+                    imageVector = Icons.Rounded.CalendarMonth,
                     contentDescription = null,
                     tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )

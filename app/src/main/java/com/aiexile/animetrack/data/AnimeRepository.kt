@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.data
 
 import android.util.Log
+import androidx.room.withTransaction
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.network.BangumiSearchFilter
 import com.aiexile.animetrack.data.network.BangumiSearchRequest
 import com.aiexile.animetrack.data.network.BangumiSubject
@@ -23,6 +25,7 @@ import com.aiexile.animetrack.util.formatDate
 import com.aiexile.animetrack.util.parseDateToTimestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -66,6 +69,17 @@ interface AnimeRepository {
     suspend fun getAnimeByBangumiId(bangumiId: Int): Anime?
 
     suspend fun insertAnimes(animes: List<Anime>)
+
+    /**
+     * 批量插入番剧（单事务），并保留与单条 insertAnime 等价的副作用：
+     * - remoteCoverUrl 计算
+     * - WebDAV 通知
+     * - usageStats 自增
+     * - 单次去抖 reassignSeriesKeys
+     * - 逐条 syncSubscriptionToServer
+     * @return 与入参顺序对应的插入结果 ID 列表（OnConflict IGNORE 时为 -1）
+     */
+    suspend fun batchInsertAnimes(animes: List<Anime>): List<Long>
 
     suspend fun getAnimesWithoutCover(): List<Anime>
 
@@ -133,6 +147,8 @@ class AnimeRepositoryImpl(
     companion object {
         private const val TAG = "AnimeTrack"
         private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        // 下载封面并发上限。启动期可考虑后续优化为动态调整（如启动期 2、空闲期 3），
+        // 但 Semaphore 无法动态调整且重建会丢失排队任务，当前保持固定 3。
         private val downloadSemaphore = Semaphore(3)
         /** 订阅同步互斥锁：防止批量同步重入 */
         private val subscriptionSyncMutex = Mutex()
@@ -142,10 +158,15 @@ class AnimeRepositoryImpl(
         private const val UPLOAD_THROTTLE_MS = 200L
         /** 防抖延迟，批量操作完成后等待此时间再执行同步 */
         private const val SYNC_DEBOUNCE_MS = 3000L
+        /** reassignSeriesKeys 防抖延迟，批量增删时只执行最后一次 */
+        private const val REASSIGN_DEBOUNCE_MS = 1000L
+        /** reassignSeriesKeys 防抖 Job（在 appScope 上调度，cancel/replace 安全） */
+        @Volatile
+        private var reassignSeriesKeysJob: Job? = null
     }
 
     override fun getAllAnimes(): Flow<List<Anime>> {
-        Log.d(TAG, "getAllAnimes: Getting all animes from DAO")
+        if (BuildConfig.DEBUG) Log.d(TAG, "getAllAnimes: Getting all animes from DAO")
         return animeDao.getAllAnimes()
     }
 
@@ -162,7 +183,7 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun insertAnime(anime: Anime): Long {
-        Log.d(TAG, "insertAnime: Inserting anime - $anime")
+        if (BuildConfig.DEBUG) Log.d(TAG, "insertAnime: Inserting anime - $anime")
         // 如果 coverUrl 是远程 URL，保存其可公开访问版本到 remoteCoverUrl
         // coverUrl 后续会被本地化（下载到本地路径），remoteCoverUrl 保留用于同步到后端
         val animeToInsert = anime.remoteCoverUrl?.let { anime } ?: run {
@@ -170,11 +191,11 @@ class AnimeRepositoryImpl(
             anime.copy(remoteCoverUrl = remoteUrl)
         }
         val id = animeDao.insertAnime(animeToInsert)
-        Log.d(TAG, "insertAnime: Inserted with id=$id")
+        if (BuildConfig.DEBUG) Log.d(TAG, "insertAnime: Inserted with id=$id")
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
         if (id > 0) {
             com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementAddedAnime()
-            reassignSeriesKeys()
+            triggerReassignSeriesKeysDebounced()
             // 同步订阅到后端
             syncSubscriptionToServer(animeToInsert, isAdd = true)
         }
@@ -191,7 +212,7 @@ class AnimeRepositoryImpl(
         }
         // 标题可能变化，重新识别 seriesKey
         if (oldAnime?.title != anime.title) {
-            reassignSeriesKeys()
+            triggerReassignSeriesKeysDebounced()
         }
         return oldAnime
     }
@@ -227,7 +248,7 @@ class AnimeRepositoryImpl(
         syncSubscriptionToServer(anime, isAdd = false)
         animeDao.deleteAnime(anime)
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
-        reassignSeriesKeys()
+        triggerReassignSeriesKeysDebounced()
     }
 
     override suspend fun getAnimeByTitle(title: String): Anime? {
@@ -240,6 +261,38 @@ class AnimeRepositoryImpl(
 
     override suspend fun insertAnimes(animes: List<Anime>) {
         animeDao.insertAnimes(animes)
+    }
+
+    override suspend fun batchInsertAnimes(animes: List<Anime>): List<Long> {
+        if (animes.isEmpty()) return emptyList()
+        // 与单条 insertAnime 一致：保存可公开访问的远程封面 URL
+        val animesToInsert = animes.map { anime ->
+            anime.remoteCoverUrl?.let { anime } ?: run {
+                val remoteUrl = computeRemoteCoverUrl(anime.coverUrl) ?: return@run anime
+                anime.copy(remoteCoverUrl = remoteUrl)
+            }
+        }
+        // 单事务批量插入，避免 N 次独立事务的开销
+        val database = AnimeDatabase.getDatabase(context)
+        val ids = database.withTransaction {
+            animesToInsert.map { animeDao.insertAnime(it) }
+        }
+        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
+        // 仅对成功插入的项触发副作用（与单条 insertAnime 的 id > 0 判断一致）
+        val successAnimes = mutableListOf<Anime>()
+        for ((anime, id) in animesToInsert.zip(ids)) {
+            if (id > 0) {
+                com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementAddedAnime()
+                successAnimes.add(anime)
+            }
+        }
+        if (successAnimes.isNotEmpty()) {
+            // 单次去抖触发 reassignSeriesKeys，不在事务内调用
+            triggerReassignSeriesKeysDebounced()
+            // 同步订阅到后端（批量，与单条 insertAnime 行为一致）
+            successAnimes.forEach { anime -> syncSubscriptionToServer(anime, isAdd = true) }
+        }
+        return ids
     }
 
     override suspend fun getAnimesWithoutCover(): List<Anime> {
@@ -340,6 +393,23 @@ class AnimeRepositoryImpl(
         animeDao.clearNewUpdate(id)
     }
 
+    /**
+     * 防抖触发 reassignSeriesKeys：[REASSIGN_DEBOUNCE_MS] 内多次调用只执行最后一次。
+     * 适用于 insertAnime/updateAnime/deleteAnime 等可能连续触发的场景，
+     * 避免 SeriesMatcher 全表扫描重复执行。
+     *
+     * 注意：cancel + 重新赋值在协程模型下是安全的（Job.cancel 是非阻塞的）。
+     * 即便存在轻微竞态（两次并发调用各自 launch），reassignSeriesKeys 本身是幂等的，
+     * 最坏情况只是多执行一次，不会产生数据不一致。
+     */
+    fun triggerReassignSeriesKeysDebounced() {
+        reassignSeriesKeysJob?.cancel()
+        reassignSeriesKeysJob = appScope.launch {
+            delay(REASSIGN_DEBOUNCE_MS)
+            reassignSeriesKeys()
+        }
+    }
+
     override suspend fun reassignSeriesKeys() {
         val allAnimes = animeDao.getAllAnimesList()
         if (allAnimes.isEmpty()) return
@@ -349,7 +419,7 @@ class AnimeRepositoryImpl(
         // 仅持久化 seriesKey 变化的项
         val changed = updated.filter { it.seriesKey != oldById[it.id]?.seriesKey }
         changed.forEach { animeDao.updateAnime(it) }
-        Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}")
+        if (BuildConfig.DEBUG) Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}")
     }
 
     override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?) {
@@ -392,7 +462,7 @@ class AnimeRepositoryImpl(
 
                     if (localPath != coverUrl) {
                         animeDao.updateCoverUrl(animeId, localPath)
-                        Log.d(TAG, "Cover localized async: animeId=$animeId")
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Cover localized async: animeId=$animeId")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
@@ -411,7 +481,7 @@ class AnimeRepositoryImpl(
 
             if (animesWithoutCover.isEmpty()) return@launch
 
-            Log.d(TAG, "Background cover sync: ${animesWithoutCover.size} animes to process")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Background cover sync: ${animesWithoutCover.size} animes to process")
 
             var count = 0
             for (anime in animesWithoutCover) {
@@ -480,7 +550,7 @@ class AnimeRepositoryImpl(
                             tmdbId = updatedAnime.tmdbId
                         )
                         count++
-                        Log.d(TAG, "Background sync: synced ${anime.title}")
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Background sync: synced ${anime.title}")
                     }
 
                     delay(800)
@@ -495,7 +565,7 @@ class AnimeRepositoryImpl(
                 triggerSyncSubscriptionsFromServerDebounced()
             }
 
-            Log.d(TAG, "Background cover sync complete: $count/${animesWithoutCover.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Background cover sync complete: $count/${animesWithoutCover.size}")
         }
     }
 
@@ -534,7 +604,7 @@ class AnimeRepositoryImpl(
                         )
                     )
                     if (response.success) {
-                        Log.d(TAG, "Subscription added to server: ${anime.title}")
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Subscription added to server: ${anime.title}")
                     } else {
                         Log.w(TAG, "Subscription add failed: ${anime.title}, message=${response.message}")
                     }
@@ -542,7 +612,7 @@ class AnimeRepositoryImpl(
                     RetrofitClient.userAuthApi.removeSubscription(
                         RemoveSubscribeRequest(animeId = animeId)
                     )
-                    Log.d(TAG, "Subscription removed from server: ${anime.title}")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Subscription removed from server: ${anime.title}")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Sync subscription failed (non-fatal): ${anime.title}", e)
@@ -617,14 +687,14 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun syncSubscriptionsFromServer() {
-        Log.d(TAG, "syncSubscriptionsFromServer: start")
+        if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: start")
         val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
         val loggedIn = userAuthManager.isLoggedIn.first()
         if (!loggedIn) {
             Log.w(TAG, "syncSubscriptionsFromServer: skipped, user not logged in")
             return
         }
-        Log.d(TAG, "syncSubscriptionsFromServer: user logged in, proceeding")
+        if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: user logged in, proceeding")
 
         try {
             // ===== 第一步：先拉取后端订阅列表，用于上传前的差异比对 =====
@@ -635,7 +705,7 @@ class AnimeRepositoryImpl(
 
             // ===== 第二步：仅上传「远程缺失」或「字段不一致」的本地番剧（客户端 Diff） =====
             val localAnimes = animeDao.getAllAnimesList()
-            Log.d(TAG, "syncSubscriptionsFromServer: local animes count=${localAnimes.size}, remote count=${remoteMap.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: local animes count=${localAnimes.size}, remote count=${remoteMap.size}")
             var uploadedCount = 0
             var skippedCount = 0
             for (anime in localAnimes) {
@@ -660,11 +730,11 @@ class AnimeRepositoryImpl(
                 // 限流：每条上传后间隔，避免短时间内大量请求导致后端拒绝
                 delay(UPLOAD_THROTTLE_MS)
             }
-            Log.d(TAG, "syncSubscriptionsFromServer: uploaded=$uploadedCount, skipped(in-sync)=$skippedCount, total=${localAnimes.size}")
+            if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: uploaded=$uploadedCount, skipped(in-sync)=$skippedCount, total=${localAnimes.size}")
 
             // ===== 第三步：将后端订阅列表合并到本地（复用第一步已拉取的数据） =====
             if (!response.success || remoteList == null) {
-                Log.d(TAG, "Sync done: uploaded=$uploadedCount, remote list unavailable")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Sync done: uploaded=$uploadedCount, remote list unavailable")
                 return
             }
 
@@ -699,7 +769,7 @@ class AnimeRepositoryImpl(
                     mergedCount++
                 }
             }
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "Sync subscriptions: uploaded=$uploadedCount, " +
                     "remote merged(skipped)=$mergedCount, inserted=$insertedCount, " +
@@ -728,7 +798,7 @@ class AnimeRepositoryImpl(
             }
             // 用 Mutex 防止与正在进行的同步重入
             if (!subscriptionSyncMutex.tryLock()) {
-                Log.d(TAG, "triggerSyncSubscriptionsFromServerDebounced: sync already in progress, skipped")
+                if (BuildConfig.DEBUG) Log.d(TAG, "triggerSyncSubscriptionsFromServerDebounced: sync already in progress, skipped")
                 return@launch
             }
             try {
@@ -743,7 +813,7 @@ class AnimeRepositoryImpl(
         appScope.launch {
             // 用 Mutex 防止与正在进行的全量同步重入
             if (!subscriptionSyncMutex.tryLock()) {
-                Log.d(TAG, "triggerPullSubscriptionsFromServer: sync already in progress, skipped")
+                if (BuildConfig.DEBUG) Log.d(TAG, "triggerPullSubscriptionsFromServer: sync already in progress, skipped")
                 return@launch
             }
             try {
@@ -761,18 +831,18 @@ class AnimeRepositoryImpl(
      * - 未登录静默跳过
      */
     private suspend fun pullSubscriptionsFromServer() {
-        Log.d(TAG, "pullSubscriptionsFromServer: start")
+        if (BuildConfig.DEBUG) Log.d(TAG, "pullSubscriptionsFromServer: start")
         val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
         val loggedIn = userAuthManager.isLoggedIn.first()
         if (!loggedIn) {
-            Log.d(TAG, "pullSubscriptionsFromServer: skipped, user not logged in")
+            if (BuildConfig.DEBUG) Log.d(TAG, "pullSubscriptionsFromServer: skipped, user not logged in")
             return
         }
 
         try {
             val response = RetrofitClient.userAuthApi.getSubscriptions()
             if (!response.success || response.subscriptions == null) {
-                Log.d(TAG, "pullSubscriptionsFromServer: remote list unavailable")
+                if (BuildConfig.DEBUG) Log.d(TAG, "pullSubscriptionsFromServer: remote list unavailable")
                 return
             }
 
@@ -807,7 +877,7 @@ class AnimeRepositoryImpl(
                     mergedCount++
                 }
             }
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "pullSubscriptionsFromServer: merged(skipped)=$mergedCount, " +
                     "inserted=$insertedCount, remote total=${response.subscriptions.size}"

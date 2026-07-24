@@ -2,6 +2,7 @@ package com.aiexile.animetrack.data.network
 
 import android.content.Context
 import android.util.Log
+import com.aiexile.animetrack.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -12,6 +13,8 @@ import java.util.concurrent.TimeUnit
 object CoverDownloader {
 
     private const val TAG = "CoverDownloader"
+    // 持久化封面目录：位于 filesDir，卸载后随应用数据一起清除，但与 cacheDir 隔离，
+    // 不会被系统在低存储时清理，也不会与 Coil diskCache（cacheDir/image_cache）混淆。
     private const val COVERS_DIR = "anime_covers"
 
     private val client: OkHttpClient by lazy {
@@ -23,12 +26,25 @@ object CoverDownloader {
             .build()
     }
 
+    /**
+     * 返回 bangumiId 对应的持久化封面 File（位于 `filesDir/anime_covers/{bangumiId}.jpg`）。
+     *
+     * 该目录由 CoverDownloader 自管理，文件持久化保存。调用方加载此 File 时，
+     * 应禁用 Coil diskCache（推荐通过 [com.aiexile.animetrack.util.coverImageRequestForList]
+     * 构建 ImageRequest），避免在 `cacheDir/image_cache/` 中形成双份存储。
+     */
     fun getCoverFile(context: Context, bangumiId: Int): File {
         val dir = File(context.filesDir, COVERS_DIR)
         if (!dir.exists()) dir.mkdirs()
         return File(dir, "${bangumiId}.jpg")
     }
 
+    /**
+     * 返回按 prefix+id 命名的持久化封面 File（位于 `filesDir/anime_covers/{prefix}_{id}.jpg`）。
+     *
+     * 同 [getCoverFile]：调用方加载此 File 时应禁用 Coil diskCache，
+     * 推荐通过 [com.aiexile.animetrack.util.coverImageRequestForList] 构建 ImageRequest。
+     */
     fun getCoverFileById(context: Context, id: Int, prefix: String = "bgm"): File {
         val dir = File(context.filesDir, COVERS_DIR)
         if (!dir.exists()) dir.mkdirs()
@@ -81,7 +97,7 @@ object CoverDownloader {
                 downloadTo(coverUrl, destFile)
             }
             if (destFile.exists() && destFile.length() > 0) {
-                Log.d(TAG, "Cover downloaded: $tag")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Cover downloaded: $tag")
                 destFile.absolutePath
             } else {
                 Log.w(TAG, "Cover download produced empty file: $tag")

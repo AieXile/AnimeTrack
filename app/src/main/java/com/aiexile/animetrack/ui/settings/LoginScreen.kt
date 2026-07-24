@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,7 +88,7 @@ fun LoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -110,7 +110,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
-                    icon = Icons.Default.Person,
+                    icon = Icons.Rounded.Person,
                     onClick = onNavigateUserLogin
                 )
             }
@@ -118,7 +118,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bilibili_subtitle),
-                    icon = Icons.Default.Person,
+                    icon = Icons.Rounded.Person,
                     avatarUrl = if (bilibiliLoggedIn) bilibiliAvatar else null,
                     onClick = onNavigateBilibiliLogin
                 )
@@ -127,7 +127,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
-                    icon = Icons.Default.Person,
+                    icon = Icons.Rounded.Person,
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
                     onClick = onNavigateBangumiLogin
                 )
@@ -265,7 +265,7 @@ private fun LoginServiceCard(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

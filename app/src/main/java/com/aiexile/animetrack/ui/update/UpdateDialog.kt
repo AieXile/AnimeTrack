@@ -3,7 +3,9 @@ package com.aiexile.animetrack.ui.update
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,7 +68,10 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
                 message = uiState.error ?: unknownError,
                 onDismiss = {
                     viewModel.clearError()
-                    viewModel.dismissUpdate()
+                    // 强制更新时不允许彻底关闭弹窗，仅清除错误以便用户重试
+                    if (info.isForceUpdate != true) {
+                        viewModel.dismissUpdate()
+                    }
                 }
             )
         }
@@ -81,8 +86,13 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
                 shaVerifyState = uiState.shaVerifyState,
                 isSimulated = uiState.isSimulated,
                 isForceUpdate = info.isForceUpdate,
+                installError = uiState.installError,
                 onUpdate = { if (uiState.isSimulated) viewModel.startSimulatedDownload() else viewModel.startDownload(context) },
                 onInstall = { viewModel.installApk(context) },
+                onRetryInstall = {
+                    viewModel.clearInstallError()
+                    viewModel.installApk(context)
+                },
                 onRedownload = { if (!uiState.isSimulated) viewModel.redownload(context) },
                 onDismiss = { viewModel.dismissUpdate() },
                 onSkip = { if (uiState.isSimulated) viewModel.dismissUpdate() else viewModel.skipVersion() }
@@ -102,8 +112,10 @@ private fun UpdateAvailableDialog(
     shaVerifyState: ShaVerifyState,
     isSimulated: Boolean,
     isForceUpdate: Boolean,
+    installError: String?,
     onUpdate: () -> Unit,
     onInstall: () -> Unit,
+    onRetryInstall: () -> Unit,
     onRedownload: () -> Unit,
     onDismiss: () -> Unit,
     onSkip: () -> Unit
@@ -117,7 +129,8 @@ private fun UpdateAvailableDialog(
     val downloadNoticeText = stringResource(R.string.update_dialog_download_notice)
 
     AlertDialog(
-        onDismissRequest = if (isDownloading) ({}) else onDismiss,
+        // 强制更新或下载进行中时禁止关闭（点击外部 / 返回键）
+        onDismissRequest = if (isForceUpdate || isDownloading) ({}) else onDismiss,
         title = null,
         text = {
             Column {
@@ -224,24 +237,72 @@ private fun UpdateAvailableDialog(
                         }
                     }
                 }
+
+                // 安装失败提示（如未开启安装权限），留在弹窗内允许重试
+                if (!installError.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = SquircleShape(8.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = installError,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(
+                                onClick = onRetryInstall,
+                                contentPadding = PaddingValues(
+                                    horizontal = 8.dp,
+                                    vertical = 0.dp
+                                )
+                            ) {
+                                Text(stringResource(R.string.update_dialog_retry_install))
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Row {
                 if (!isDownloading && !downloadComplete) {
-                    TextButton(onClick = onSkip) {
-                        Text(stringResource(R.string.update_dialog_skip))
+                    // 强制更新时屏蔽"跳过该版本"与"取消"
+                    if (!isForceUpdate) {
+                        TextButton(onClick = onSkip) {
+                            Text(stringResource(R.string.update_dialog_skip))
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
                     }
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.common_cancel))
+                    Button(onClick = onUpdate) {
+                        Text(stringResource(R.string.update_dialog_update_now))
                     }
-                }
-                if (downloadComplete) {
-                    TextButton(onClick = onRedownload) {
-                        Text(stringResource(R.string.update_dialog_redownload))
-                    }
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.update_dialog_later))
+                } else if (downloadComplete) {
+                    // 强制更新时屏蔽"稍后"
+                    if (!isForceUpdate) {
+                        TextButton(onClick = onRedownload) {
+                            Text(stringResource(R.string.update_dialog_redownload))
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.update_dialog_later))
+                        }
+                    } else {
+                        TextButton(onClick = onRedownload) {
+                            Text(stringResource(R.string.update_dialog_redownload))
+                        }
                     }
                     // 校验失败时禁用安装按钮
                     Button(
@@ -251,12 +312,9 @@ private fun UpdateAvailableDialog(
                         Text(stringResource(R.string.update_dialog_install))
                     }
                 } else if (isDownloading) {
-                    TextButton(onClick = onDismiss, enabled = false) {
+                    // 强制更新时下载中也不允许关闭，仅显示进度
+                    TextButton(onClick = {}, enabled = false) {
                         Text("$downloadProgress%")
-                    }
-                } else {
-                    Button(onClick = onUpdate) {
-                        Text(stringResource(R.string.update_dialog_update_now))
                     }
                 }
             }

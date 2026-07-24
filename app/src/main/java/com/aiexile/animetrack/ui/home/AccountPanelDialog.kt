@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.home
+﻿package com.aiexile.animetrack.ui.home
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -264,7 +264,7 @@ fun AccountPanelDialog(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.Person,
+                            imageVector = Icons.Rounded.Person,
                             contentDescription = stringResource(R.string.account_panel_default_avatar),
                             modifier = Modifier.size(32.dp),
                             tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
@@ -288,7 +288,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: connectedText) else stringResource(R.string.account_panel_login_to_sync),
-                    icon = Icons.Default.AccountCircle,
+                    icon = Icons.Rounded.AccountCircle,
                     isConnected = userLoggedIn,
                     onClick = {
                         if (userLoggedIn) {
@@ -306,7 +306,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bilibili),
-                    icon = Icons.AutoMirrored.Filled.Login,
+                    icon = Icons.AutoMirrored.Rounded.Login,
                     isConnected = bilibiliLoggedIn,
                     onClick = {
                         if (bilibiliLoggedIn) {
@@ -324,7 +324,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bangumi),
-                    icon = Icons.Default.Person,
+                    icon = Icons.Rounded.Person,
                     isConnected = bangumiLoggedIn,
                     onClick = {
                         if (bangumiLoggedIn) {
@@ -419,7 +419,7 @@ private fun AccountServiceRow(
             Spacer(modifier = Modifier.width(8.dp))
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(20.dp)

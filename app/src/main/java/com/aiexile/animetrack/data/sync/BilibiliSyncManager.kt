@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.sync
 
 import android.util.Log
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
@@ -101,7 +102,7 @@ class BilibiliSyncManager(
                 pn++
             }
 
-            Log.d(TAG, "fetchFollowList completed: ${allItems.size} items")
+            if (BuildConfig.DEBUG) Log.d(TAG, "fetchFollowList completed: ${allItems.size} items")
             Result.success(allItems)
         } catch (e: Exception) {
             Log.e(TAG, "fetchFollowList failed", e)
@@ -118,13 +119,44 @@ class BilibiliSyncManager(
         try {
             // 一次性加载本地番剧并按标题索引，避免每条追番数据都查一次数据库
             val localMap = repository.getAllAnimes().first().associateBy { it.title }
-            var syncedCount = 0
+
+            // 批量收集待插入/待更新项，避免逐条触发 insertAnime 副作用
+            val toInsert = mutableListOf<Anime>()
+            val toUpdate = mutableListOf<Anime>()
             for (item in items) {
-                mergeFollowItem(item, localMap[item.title])
-                syncedCount++
+                val (insertAnime, updateAnime) = buildMergeAction(item, localMap[item.title])
+                if (insertAnime != null) toInsert.add(insertAnime)
+                if (updateAnime != null) toUpdate.add(updateAnime)
             }
 
-            Log.d(TAG, "syncSelectedItems completed: $syncedCount items")
+            // 批量插入新增番剧（单事务 + 单次去抖 reassign + 逐条 syncSubscriptionToServer）
+            if (toInsert.isNotEmpty()) {
+                val ids = repository.batchInsertAnimes(toInsert)
+                for ((anime, id) in toInsert.zip(ids)) {
+                    if (id > 0 && !anime.coverUrl.isNullOrBlank()) {
+                        repository.downloadCoverAsync(
+                            animeId = id.toInt(),
+                            coverUrl = anime.coverUrl,
+                            bangumiId = null,
+                            tmdbId = null
+                        )
+                    }
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Inserted from Bilibili: ${anime.title} ep=${anime.watchedEpisodes} total=${anime.totalEpisodes}")
+                }
+                if (BuildConfig.DEBUG) Log.d(TAG, "Batch inserted ${toInsert.size} new animes from Bilibili")
+            }
+
+            // 逐条更新已有番剧（每条 updateAnime 内部会触发去抖 reassign + 条件性 sync）
+            for (anime in toUpdate) {
+                repository.updateAnime(anime)
+                if (BuildConfig.DEBUG) Log.d(TAG, "Merged from Bilibili: ${anime.title} -> watched=${anime.watchedEpisodes}")
+            }
+            if (toUpdate.isNotEmpty()) {
+                if (BuildConfig.DEBUG) Log.d(TAG, "Merged ${toUpdate.size} existing animes from Bilibili")
+            }
+
+            val syncedCount = items.size
+            if (BuildConfig.DEBUG) Log.d(TAG, "syncSelectedItems completed: $syncedCount items")
             bilibiliAuthManager.saveLastSyncTime(System.currentTimeMillis())
             // 批量同步完成后，防抖触发后端订阅同步
             repository.triggerSyncSubscriptionsFromServerDebounced()
@@ -168,13 +200,13 @@ class BilibiliSyncManager(
             }
 
             if (filteredItems.isEmpty()) {
-                Log.d(TAG, "fetchAndSyncFiltered: no matching items")
+                if (BuildConfig.DEBUG) Log.d(TAG, "fetchAndSyncFiltered: no matching items")
                 return@withContext Result.success(0)
             }
 
             val syncResult = syncSelectedItems(filteredItems)
             if (syncResult.isSuccess) {
-                Log.d(TAG, "fetchAndSyncFiltered: synced ${syncResult.getOrNull()} items (filtered from ${allItems.size})")
+                if (BuildConfig.DEBUG) Log.d(TAG, "fetchAndSyncFiltered: synced ${syncResult.getOrNull()} items (filtered from ${allItems.size})")
             }
             syncResult
         } catch (e: Exception) {
@@ -183,7 +215,11 @@ class BilibiliSyncManager(
         }
     }
 
-    private suspend fun mergeFollowItem(item: BilibiliFollowItem, localAnime: Anime?) {
+    /**
+     * 根据远程追番条目与本地番剧构建合并动作（不写库）。
+     * @return (insertAnime, updateAnime) 二元组，二者至多一个非空；均为 null 表示无需操作
+     */
+    private fun buildMergeAction(item: BilibiliFollowItem, localAnime: Anime?): Pair<Anime?, Anime?> {
         val title = item.title
         val (watchedEps, progressRemarks) = parseProgressToWatchedEpisodes(item.progress)
         var status = bilibiliFollowStatusToAnimeStatus(item.followStatus)
@@ -223,43 +259,34 @@ class BilibiliSyncManager(
                 isFinished = isFinished || computeIsFinished(null, totalEps, status),
                 syncRemarks = progressRemarks
             )
-            val id = repository.insertAnime(newAnime)
-            if (coverUrl != null) {
-                repository.downloadCoverAsync(
-                    animeId = id.toInt(),
-                    coverUrl = coverUrl,
-                    bangumiId = null,
-                    tmdbId = null
-                )
-            }
-            Log.d(TAG, "Inserted from Bilibili: $title ep=$watchedEps total=$totalEps")
-        } else {
-            val mergedWatched = maxOf(localAnime.watchedEpisodes, watchedEps)
-            val needsUpdate = localAnime.watchedEpisodes != mergedWatched
-                    || localAnime.status != status
-                    || (localAnime.totalEpisodes != totalEps && localAnime.totalEpisodes == 12 && totalEps != 12)
-                    || (localAnime.isFinished != isFinished && !localAnime.isFinished)
-                    || (localAnime.airDate == null && airDate != null)
-                    || (localAnime.airWeekday == null && airWeekday != null)
-                    || (localAnime.summary.isNullOrBlank() && !summary.isNullOrBlank())
-                    || (localAnime.rating == null && rating != null)
-
-            if (needsUpdate) {
-                val updatedAnime = localAnime.copy(
-                    watchedEpisodes = mergedWatched,
-                    status = status,
-                    isFinished = isFinished || localAnime.isFinished,
-                    totalEpisodes = if (localAnime.totalEpisodes == 12 && totalEps != 12) totalEps else localAnime.totalEpisodes,
-                    airDate = localAnime.airDate ?: airDate,
-                    airWeekday = localAnime.airWeekday ?: airWeekday,
-                    summary = if (localAnime.summary.isNullOrBlank()) summary else localAnime.summary,
-                    rating = localAnime.rating ?: rating,
-                    syncRemarks = progressRemarks ?: localAnime.syncRemarks
-                )
-                repository.updateAnime(updatedAnime)
-                Log.d(TAG, "Merged from Bilibili: $title local=${localAnime.watchedEpisodes} remote=$watchedEps -> $mergedWatched")
-            }
+            return Pair(newAnime, null)
         }
+
+        val mergedWatched = maxOf(localAnime.watchedEpisodes, watchedEps)
+        val needsUpdate = localAnime.watchedEpisodes != mergedWatched
+                || localAnime.status != status
+                || (localAnime.totalEpisodes != totalEps && localAnime.totalEpisodes == 12 && totalEps != 12)
+                || (localAnime.isFinished != isFinished && !localAnime.isFinished)
+                || (localAnime.airDate == null && airDate != null)
+                || (localAnime.airWeekday == null && airWeekday != null)
+                || (localAnime.summary.isNullOrBlank() && !summary.isNullOrBlank())
+                || (localAnime.rating == null && rating != null)
+
+        if (needsUpdate) {
+            val updatedAnime = localAnime.copy(
+                watchedEpisodes = mergedWatched,
+                status = status,
+                isFinished = isFinished || localAnime.isFinished,
+                totalEpisodes = if (localAnime.totalEpisodes == 12 && totalEps != 12) totalEps else localAnime.totalEpisodes,
+                airDate = localAnime.airDate ?: airDate,
+                airWeekday = localAnime.airWeekday ?: airWeekday,
+                summary = if (localAnime.summary.isNullOrBlank()) summary else localAnime.summary,
+                rating = localAnime.rating ?: rating,
+                syncRemarks = progressRemarks ?: localAnime.syncRemarks
+            )
+            return Pair(null, updatedAnime)
+        }
+        return Pair(null, null)
     }
 
     private fun parseRenewalTimeToWeekday(renewalTime: String): Int? {

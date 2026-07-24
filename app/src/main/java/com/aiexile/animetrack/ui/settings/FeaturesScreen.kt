@@ -1,7 +1,9 @@
-package com.aiexile.animetrack.ui.settings
+﻿package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,13 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
@@ -26,6 +32,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -53,6 +61,7 @@ fun FeaturesScreen(
     val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
+    val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
 
     Scaffold(
         topBar = {
@@ -67,7 +76,7 @@ fun FeaturesScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -149,6 +158,37 @@ fun FeaturesScreen(
                 }
             }
 
+            item {
+                SettingsGroup(title = stringResource(R.string.features_rating)) {
+                    Column {
+                        RadioButtonItem(
+                            title = stringResource(R.string.features_rating_standard_source),
+                            description = stringResource(R.string.features_rating_standard_source_desc),
+                            selected = ratingStandard == RatingStandard.SOURCE,
+                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.SOURCE) } }
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                        RadioButtonItem(
+                            title = stringResource(R.string.features_rating_standard_manual),
+                            description = stringResource(R.string.features_rating_standard_manual_desc),
+                            selected = ratingStandard == RatingStandard.MANUAL,
+                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.MANUAL) } }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.features_rating_standard_notice),
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
@@ -203,5 +243,52 @@ private fun SwitchItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@Composable
+private fun RadioButtonItem(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            interactionSource = interactionSource,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = MaterialTheme.colorScheme.primary,
+                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
