@@ -26,7 +26,7 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 25
+        versionCode = 26
         versionName = "v0.4.6-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
