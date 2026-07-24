@@ -46,11 +46,15 @@ jobs:
       - name: Generate Custom Changelog
         id: changelog
         run: |
-          # 提取最近的 commit 标题，每行一个
-          # 如果你想获取从上一个 tag 到现在的，可以用 git log $(git describe --tags --abbrev=0 --always)^..HEAD
-          # 这里简单处理获取最近 10 条
+          # 优先读取 update/更新日志_<tag>.md 作为 Release body
+          # 若文件不存在（例如直接在 main 分支 dispatch），回退到最近 10 条 commit 标题
+          CHANGELOG_FILE="update/更新日志_${{ github.ref_name }}.md"
           echo "log_body<<EOF" >> $GITHUB_OUTPUT
-          git log --pretty=format:"- %s" -n 10 >> $GITHUB_OUTPUT
+          if [ -f "$CHANGELOG_FILE" ]; then
+            cat "$CHANGELOG_FILE" >> $GITHUB_OUTPUT
+          else
+            git log --pretty=format:"- %s" -n 10 >> $GITHUB_OUTPUT
+          fi
           echo "" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
@@ -59,12 +63,11 @@ jobs:
         with:
           name: AnimeTrack ${{ github.ref_name }}
           body: |
-            ## 📝 更新日志
             ${{ steps.changelog.outputs.log_body }}
-            
+
             ---
             *由 GitHub Actions 自动构建*
           files: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
-          generate_release_notes: false 
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
