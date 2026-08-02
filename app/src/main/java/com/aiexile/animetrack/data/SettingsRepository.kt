@@ -117,6 +117,8 @@ class SettingsRepository(private val context: Context) {
         private val FONT_FAMILY_KEY = stringPreferencesKey("font_family")
         private val CUSTOM_FONT_PATH_KEY = stringPreferencesKey("custom_font_path")
         private val APP_LANGUAGE_KEY = stringPreferencesKey("app_language")
+        // SharedPreferences 同步镜像 key（供 attachBaseContext 冷启动时同步读取）
+        private const val APP_LANGUAGE_PREF = "app_language"
         private val LAST_ACTIVITY_DATE_KEY = stringPreferencesKey("last_activity_date")
         private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
     }
@@ -158,9 +160,9 @@ class SettingsRepository(private val context: Context) {
     var userAuthBaseUrl: String = DEFAULT_USER_AUTH_BASE_URL
         private set
 
-    // 语言设置运行时缓存：attachBaseContext 同步读取，避免 runBlocking 阻塞主线程
-    @Volatile
-    private var appLanguageCache: String? = null
+    // 语言设置：使用 SharedPreferences 做同步镜像，供 attachBaseContext 冷启动时立即读取
+    // （DataStore 首次读取是异步的，冷启动早期 appLanguageCache 尚未填充，会导致语言设置丢失）
+    private val localePrefs = context.getSharedPreferences("locale_prefs", Context.MODE_PRIVATE)
 
     init {
         GlobalScope.launch(Dispatchers.IO) {
@@ -174,7 +176,9 @@ class SettingsRepository(private val context: Context) {
             httpProxyHost = prefs[HTTP_PROXY_HOST_KEY] ?: DEFAULT_HTTP_PROXY_HOST
             httpProxyPort = prefs[HTTP_PROXY_PORT_KEY] ?: DEFAULT_HTTP_PROXY_PORT
             userAuthBaseUrl = prefs[USER_AUTH_BASE_URL_KEY] ?: DEFAULT_USER_AUTH_BASE_URL
-            appLanguageCache = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
+            // 将 DataStore 中的语言设置同步回 SharedPreferences 镜像，保证两者一致
+            val lang = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
+            localePrefs.edit().putString(APP_LANGUAGE_PREF, lang).apply()
         }
     }
 
@@ -452,15 +456,17 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAppLanguage(language: AppLanguage) {
         setPreference(APP_LANGUAGE_KEY, language.name)
-        appLanguageCache = language.name
+        // 同步写入 SharedPreferences 镜像，保证下次冷启动 attachBaseContext 能立即读到
+        localePrefs.edit().putString(APP_LANGUAGE_PREF, language.name).apply()
     }
 
     /**
      * 同步读取语言设置，仅用于 attachBaseContext（无法使用 suspend）。
-     * 返回运行时缓存值；若缓存尚未填充（冷启动早期 DataStore 未读完），fallback 到默认语言，不再 runBlocking 阻塞主线程。
+     * 从 SharedPreferences 镜像同步读取，即使冷启动早期 DataStore 尚未读完也能返回正确值。
      */
     fun getAppLanguageBlocking(): String {
-        return appLanguageCache ?: AppLanguage.SIMPLIFIED_CHINESE.name
+        return localePrefs.getString(APP_LANGUAGE_PREF, AppLanguage.SIMPLIFIED_CHINESE.name)
+            ?: AppLanguage.SIMPLIFIED_CHINESE.name
     }
 
     // ========== 活跃上报 ==========

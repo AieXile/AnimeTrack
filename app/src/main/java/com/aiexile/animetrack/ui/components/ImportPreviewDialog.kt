@@ -30,6 +30,7 @@ fun ImportPreviewDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.import_preview_title),

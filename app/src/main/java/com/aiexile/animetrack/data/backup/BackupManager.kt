@@ -119,7 +119,7 @@ object BackupManager {
     private fun restoreJson(file: File): List<Anime> {
         val json = file.readText(Charsets.UTF_8)
         val gson = GsonBuilder().create()
-        return gson.fromJson(json, Array<Anime>::class.java).toList()
+        return (gson.fromJson(json, Array<Anime>::class.java) ?: emptyArray()).toList()
     }
 
     private fun restoreZip(context: Context, file: File): List<Anime> {
@@ -229,7 +229,8 @@ object BackupManager {
             airWeekday = getIntNullable("airWeekday"),
             isFinished = getInt("isFinished") != 0,
             currentEpisodes = getInt("currentEpisodes"),
-            hasNewUpdate = getInt("hasNewUpdate") != 0
+            hasNewUpdate = getInt("hasNewUpdate") != 0,
+            airEndDate = getString("airEndDate")
         )
     }
 

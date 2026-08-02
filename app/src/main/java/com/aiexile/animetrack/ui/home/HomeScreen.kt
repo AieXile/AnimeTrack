@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.home
+package com.aiexile.animetrack.ui.home
 
 import android.graphics.Bitmap
 import android.widget.Toast
@@ -167,6 +167,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+// 季数角标形状顶层化复用：位于滞动热路径（ExpandedSeriesCard 每卡渲染），
+// 提升为顶层 val 使 SquircleShape 内置 size 级缓存生效。
+private val SeasonBadgeShape = SquircleShape(6.dp)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
@@ -181,6 +185,7 @@ fun HomeScreen(
     isCurrentPage: Boolean = true,
     onNavigateBilibiliLogin: () -> Unit = {},
     onNavigateBangumiLogin: () -> Unit = {},
+    onNavigateBangumiAccount: () -> Unit = {},
     onNavigateUserLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -265,7 +270,6 @@ fun HomeScreen(
     
     LaunchedEffect(uiState.shouldScrollToTop) {
         if (uiState.shouldScrollToTop) {
-            delay(100)
             gridState.animateScrollToItem(index = 0)
             viewModel.onScrollCompleted()
         }
@@ -433,6 +437,10 @@ fun HomeScreen(
                 onNavigateBangumiLogin = {
                     showAccountPanel = false
                     onNavigateBangumiLogin()
+                },
+                onNavigateBangumiAccount = {
+                    showAccountPanel = false
+                    onNavigateBangumiAccount()
                 }
             )
         }
@@ -618,10 +626,11 @@ fun HomeFloatingActions(
                         stiffness = Spring.StiffnessMedium
                     )
                 ),
-                exit = scaleOut(
-                    targetScale = 0.3f,
-                    animationSpec = tween(150, easing = FastOutSlowInEasing)
-                )
+                exit = fadeOut(tween(100, easing = FastOutSlowInEasing)) +
+                    scaleOut(
+                        targetScale = 0.8f,
+                        animationSpec = tween(100, easing = FastOutSlowInEasing)
+                    )
             ) {
                 ScrollToTopFab(onClick = onScrollToTop)
             }
@@ -651,10 +660,11 @@ fun HomeFloatingActions(
                     stiffness = Spring.StiffnessMedium
                 )
             ),
-            exit = scaleOut(
-                targetScale = 0.3f,
-                animationSpec = tween(150, easing = FastOutSlowInEasing)
-            )
+            exit = fadeOut(tween(100, easing = FastOutSlowInEasing)) +
+                scaleOut(
+                    targetScale = 0.8f,
+                    animationSpec = tween(100, easing = FastOutSlowInEasing)
+                )
         ) {
             ScrollToTopFab(
                 onClick = onScrollToTop,
@@ -1849,7 +1859,7 @@ private fun AnimeGrid(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
                                 .offset(x = 6.dp, y = 6.dp),
-                            shape = SquircleShape(6.dp),
+                            shape = SeasonBadgeShape,
                             color = MaterialTheme.colorScheme.primary
                         ) {
                             Text(

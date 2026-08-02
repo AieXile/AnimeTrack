@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.timeline
+package com.aiexile.animetrack.ui.timeline
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -27,8 +27,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.outlined.Timeline
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -47,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -272,77 +269,58 @@ private fun WatchingAnimeCard(
     anime: Anime,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    // 番剧信息（标题/进度/星星）整体用紧凑背景小胶囊包裹，状态用纯文字，避免臃肿。
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = SquircleShape(16.dp),
-                spotColor = MaterialTheme.colorScheme.outlineVariant
-            ),
-        shape = SquircleShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+            .padding(bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = anime.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                .weight(1f)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = SquircleShape(12.dp)
                 )
-                
-                if (anime.status != AnimeStatus.COMPLETED) {
-                    Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        if (anime.rating != null) {
-                            Text(
-                                text = "★ ${anime.rating}",
-                                fontSize = 13.sp,
-                                color = LocalAnimeColors.current.starFilled
-                            )
-                        }
-                    }
-                } else if (anime.rating != null) {
-                    Text(
-                        text = "★ ${anime.rating}",
-                        fontSize = 13.sp,
-                        color = LocalAnimeColors.current.starFilled,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                }
-            }
-            
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
             Text(
-                text = stringResource(R.string.timeline_watching_status),
-                fontSize = 12.sp,
+                text = anime.title,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        shape = SquircleShape(20.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            if (anime.status != AnimeStatus.COMPLETED) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (anime.rating != null) {
+                        Text(
+                            text = "★ ${anime.rating}",
+                            fontSize = 12.sp,
+                            color = LocalAnimeColors.current.starFilled
+                        )
+                    }
+                }
+            } else if (anime.rating != null) {
+                Text(
+                    text = "★ ${anime.rating}",
+                    fontSize = 12.sp,
+                    color = LocalAnimeColors.current.starFilled,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
     }
 }
@@ -390,39 +368,20 @@ private fun TimelineEntryItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, bottom = 16.dp)
+            .padding(start = 16.dp, bottom = 16.dp)
     ) {
-        Box(
-            modifier = Modifier.width(60.dp)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // 日期作为本组标题放在最上方，下方紧跟本日所有番剧小胶囊。
+            // 不再左右分列，也不再使用竖线。
             Text(
                 text = entry.dateLabel,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.TopCenter)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-        
-        Box(
-            modifier = Modifier
-                .width(24.dp)
-                .fillMaxHeight()
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(2.dp)
-                    .fillMaxHeight()
-                    .align(Alignment.TopCenter)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
-            )
-        }
-        
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+
             entry.animeList.forEach { anime ->
                 TimelineAnimeCard(
                     anime = anime,
@@ -439,77 +398,60 @@ private fun TimelineAnimeCard(
     typeColor: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    // 番剧名 + 进度 + 星星与右侧观看状态徽章共用同一个卡片背景，徽章嵌入卡片右端垂直居中。
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 2.dp,
-                shape = SquircleShape(16.dp),
-                spotColor = MaterialTheme.colorScheme.outlineVariant
-            ),
-        shape = SquircleShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+            .background(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = SquircleShape(12.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = anime.title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    text = anime.title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
-                if (anime.status != AnimeStatus.COMPLETED) {
-                    Row(
-                        modifier = Modifier.padding(top = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.timeline_progress_format, anime.watchedEpisodes, anime.totalEpisodes),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        if (anime.rating != null) {
-                            Text(
-                                text = "★ ${anime.rating}",
-                                fontSize = 13.sp,
-                                color = LocalAnimeColors.current.starFilled
-                            )
-                        }
-                    }
-                } else if (anime.rating != null) {
+
+                if (anime.rating != null) {
                     Text(
                         text = "★ ${anime.rating}",
-                        fontSize = 13.sp,
-                        color = LocalAnimeColors.current.starFilled,
-                        modifier = Modifier.padding(top = 6.dp)
+                        fontSize = 12.sp,
+                        color = LocalAnimeColors.current.starFilled
                     )
                 }
             }
-            
-            Text(
-                text = anime.status.displayName,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = typeColor,
-                modifier = Modifier
-                    .background(
-                        color = typeColor.copy(alpha = 0.1f),
-                        shape = SquircleShape(20.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
         }
+
+        Text(
+            text = anime.status.displayName,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = typeColor,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .background(
+                    color = typeColor.copy(alpha = 0.12f),
+                    shape = SquircleShape(10.dp)
+                )
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        )
     }
 }
 

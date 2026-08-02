@@ -68,6 +68,7 @@ import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
 import com.aiexile.animetrack.ui.settings.BangumiLoginScreen
+import com.aiexile.animetrack.ui.settings.BangumiAccountScreen
 import com.aiexile.animetrack.ui.settings.BangumiProxyScreen
 import com.aiexile.animetrack.ui.settings.BilibiliLoginScreen
 import com.aiexile.animetrack.ui.settings.DataManageScreen
@@ -362,6 +363,7 @@ fun AnimeTrackApp(
                         onBack = { navController.popBackStack() },
                         onNavigateBilibiliLogin = { navController.navigate(Routes.BILIBILI_LOGIN) },
                         onNavigateBangumiLogin = { navController.navigate(Routes.BANGUMI_LOGIN) },
+                        onNavigateBangumiAccount = { navController.navigate(Routes.BANGUMI_ACCOUNT) },
                         onNavigateUserLogin = { navController.navigate(Routes.USER_LOGIN) },
                         settingsRepository = settingsRepository
                     )
@@ -377,6 +379,18 @@ fun AnimeTrackApp(
                 // Bangumi 登录
                 composable(Routes.BANGUMI_LOGIN) {
                     BangumiLoginScreen(
+                        onBack = { navController.popBackStack() },
+                        onLoginSuccess = {
+                            navController.navigate(Routes.BANGUMI_ACCOUNT) {
+                                popUpTo(Routes.BANGUMI_LOGIN) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                // Bangumi 账号管理
+                composable(Routes.BANGUMI_ACCOUNT) {
+                    BangumiAccountScreen(
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -641,6 +655,7 @@ private fun MainPagerContent(
             isCurrentPage = pagerState.currentPage == page,
             onNavigateBilibiliLogin = { onNavigateToScreen(Routes.BILIBILI_LOGIN) },
             onNavigateBangumiLogin = { onNavigateToScreen(Routes.BANGUMI_LOGIN) },
+            onNavigateBangumiAccount = { onNavigateToScreen(Routes.BANGUMI_ACCOUNT) },
             onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) }
         )
         "favorites" -> PlaceholderScreen(title = stringResource(R.string.nav_app_favorites), showBottomBar = false)
@@ -770,7 +785,11 @@ private fun MainOverlay(
                 fabLocation = fabLocation,
                 isCapsuleNav = isCapsuleNav,
                 showScrollToTop = showScrollToTop,
-                onScrollToTop = { homeViewModel.scrollToTop() },
+                onScrollToTop = {
+                    // 点击后立即隐藏按钮，不等滚动完成
+                    showScrollToTop = false
+                    homeViewModel.scrollToTop()
+                },
                 onAddClick = onAddAnimeClick,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )

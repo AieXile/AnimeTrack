@@ -231,8 +231,12 @@ class AnimeRepositoryImpl(
 
     /**
      * 判断本次更新是否需要同步到后端。
-     * 仅关注用户可见/后端关心的字段：状态、观看进度、评分、备注、标题。
+     * 仅关注用户可见/后端关心的字段：状态、观看进度、评分、备注、标题、完结状态。
      * oldAnime 为 null（新数据或查不到）时保守返回 true。
+     *
+     * isFinished 纳入比对的原因：后端用 isAiring(0/1) 表示连载状态，
+     * 当本地因拉取到 Bangumi infobox「播放结束」而把 isFinished 翻为 true 时，
+     * 需要触发 syncSubscriptionToServer 把 isAiring 更新为 0。
      */
     private fun shouldSyncToServer(oldAnime: Anime?, newAnime: Anime): Boolean {
         if (oldAnime == null) return true
@@ -241,6 +245,7 @@ class AnimeRepositoryImpl(
             || oldAnime.rating != newAnime.rating
             || oldAnime.notes != newAnime.notes
             || oldAnime.title != newAnime.title
+            || oldAnime.isFinished != newAnime.isFinished
     }
 
     override suspend fun deleteAnime(anime: Anime) {

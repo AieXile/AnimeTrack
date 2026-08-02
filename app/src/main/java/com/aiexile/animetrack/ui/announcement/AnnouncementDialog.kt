@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.announcement
+package com.aiexile.animetrack.ui.announcement
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -84,6 +84,7 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
 
     AlertDialog(
         onDismissRequest = { viewModel.dismiss() },
+        shape = SquircleShape(24.dp),
         title = null,
         text = {
             if (uiState.showHistoryList) {

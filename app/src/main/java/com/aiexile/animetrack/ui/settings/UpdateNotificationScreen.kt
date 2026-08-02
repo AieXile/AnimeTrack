@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -132,6 +133,7 @@ fun UpdateNotificationScreen(
         )
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
+            shape = SquircleShape(24.dp),
             title = {
                 Text(
                     text = stringResource(R.string.update_notif_select_time),

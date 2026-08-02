@@ -205,8 +205,9 @@ fun FontSettingsScreen(
                                     if (currentLanguage == language) return@FontOptionRow
                                     scope.launch {
                                         settingsRepository.setAppLanguage(language)
+                                        // 写入完成后重建 Activity，立即应用新语言
+                                        (context as? android.app.Activity)?.recreate()
                                     }
-                                    Toast.makeText(context, context.getString(R.string.font_restart_to_apply), Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }

@@ -42,6 +42,11 @@ import com.aiexile.animetrack.util.coverImageRequestForList
 private val CardCornerRadius = 16.dp
 private val CoverAspectRatio = 2f / 3f
 
+// SquircleShape 实例顶层化复用（同 AnimeCard），使内置 size 级 Outline 缓存生效。
+private val CardShape = SquircleShape(CardCornerRadius)
+private val CoverTopShape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+private val BadgeShape = SquircleShape(6.dp)
+
 /**
  * 多季番剧堆叠卡片（仅收起态）。
  *
@@ -101,7 +106,7 @@ fun AnimeCardStack(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = (-6).dp, y = 6.dp),
-            shape = SquircleShape(6.dp),
+            shape = BadgeShape,
             color = MaterialTheme.colorScheme.primary
         ) {
             Text(
@@ -156,10 +161,10 @@ private fun StackCardLayer(
             }
             .shadow(
                 elevation = elevation,
-                shape = SquircleShape(CardCornerRadius),
+                shape = CardShape,
                 clip = false
             )
-            .clip(SquircleShape(CardCornerRadius))
+            .clip(CardShape)
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
     ) {
         // 封面
@@ -180,11 +185,11 @@ private fun StackCardLayer(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                        .clip(CoverTopShape)
                 )
             } else {
                 EmptyCoverPlaceholder(
-                    shape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+                    shape = CoverTopShape
                 )
             }
         }

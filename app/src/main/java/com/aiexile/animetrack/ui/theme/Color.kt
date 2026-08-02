@@ -26,6 +26,12 @@ data class AnimeColors(
     val droppedContainer: Color,
     val watching: Color,
     val watchingContainer: Color,
+    val chipSelected: Color,
+    val chipSelectedContainer: Color,
+    val chipSelectedContent: Color,
+    val chipUnselected: Color,
+    val chipUnselectedContainer: Color,
+    val chipUnselectedContent: Color,
 )
 
 val LocalAnimeColors = staticCompositionLocalOf {
@@ -37,5 +43,11 @@ val LocalAnimeColors = staticCompositionLocalOf {
         droppedContainer = Color.Unspecified,
         watching = Color.Unspecified,
         watchingContainer = Color.Unspecified,
+        chipSelected = Color.Unspecified,
+        chipSelectedContainer = Color.Unspecified,
+        chipSelectedContent = Color.Unspecified,
+        chipUnselected = Color.Unspecified,
+        chipUnselectedContainer = Color.Unspecified,
+        chipUnselectedContent = Color.Unspecified,
     )
 }

@@ -13,12 +13,19 @@
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="https" android:host="qun.qq.com" />
+
+            <data
+                android:host="qun.qq.com"
+                android:scheme="https" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="https" android:host="t.me" />
+
+            <data
+                android:host="t.me"
+                android:scheme="https" />
         </intent>
+
         <package android:name="tv.danmaku.bili" />
     </queries>
 
@@ -34,6 +41,10 @@
         android:theme="@style/Theme.AnimeTrack"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -41,9 +52,11 @@
             android:theme="@style/Theme.AnimeTrack.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -52,9 +65,7 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
-        </provider>
-
-        <!-- JPush SDK Service -->
+        </provider> <!-- JPush SDK Service -->
         <service
             android:name=".push.PushService"
             android:enabled="true"
@@ -63,20 +74,17 @@
             <intent-filter>
                 <action android:name="cn.jiguang.user.service.action" />
             </intent-filter>
-        </service>
-
-        <!-- JPush SDK Receiver -->
+        </service> <!-- JPush SDK Receiver -->
         <receiver
             android:name=".push.PushReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="cn.jpush.android.intent.RECEIVER_MESSAGE" />
+
                 <category android:name="${applicationId}" />
             </intent-filter>
-        </receiver>
-
-        <!-- OPPO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+        </receiver> <!-- OPPO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
         <meta-data
             android:name="OPPO_APPKEY"
             android:value="@string/oppo_appkey"
@@ -88,9 +96,7 @@
         <meta-data
             android:name="OPPO_APPSECRET"
             android:value="@string/oppo_appsecret"
-            tools:node="replace" />
-
-        <!-- VIVO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+            tools:node="replace" /> <!-- VIVO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
         <meta-data
             android:name="com.vivo.push.api_key"
             android:value="@string/vivo_appkey"
@@ -98,9 +104,7 @@
         <meta-data
             android:name="com.vivo.push.app_id"
             android:value="@string/vivo_appid"
-            tools:node="replace" />
-
-        <!-- 魅族厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+            tools:node="replace" /> <!-- 魅族厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
         <meta-data
             android:name="MEIZU_APPKEY"
             android:value="@string/meizu_appkey"

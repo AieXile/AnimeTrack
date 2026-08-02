@@ -135,6 +135,7 @@ class AuthManager(private val context: Context) {
 
     suspend fun logout() {
         val customPath = context.authDataStore.data.first()[CUSTOM_AVATAR_URI_KEY]
+        cachedAccessToken = null
         context.authDataStore.edit { preferences ->
             preferences.remove(ACCESS_TOKEN_KEY)
             preferences.remove(REFRESH_TOKEN_KEY)

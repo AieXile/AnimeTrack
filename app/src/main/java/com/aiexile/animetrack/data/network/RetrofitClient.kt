@@ -332,7 +332,11 @@ object RetrofitClient {
             .addInterceptor(userAuthHeaderInterceptor)
             .addInterceptor(UserAuthInterceptor())
             .addInterceptor(userAuthUrlRewriteInterceptor)
-            .addInterceptor(userAuthDebugInterceptor)
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    addInterceptor(userAuthDebugInterceptor)
+                }
+            }
             .build()
     }
 

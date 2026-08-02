@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 15,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -242,6 +242,37 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 15→16 迁移：新增 airEndDate 列（番剧完结日期，可空）。
+         *
+         * 字段对应 Bangumi infobox「播放结束」字段，仅番剧完结后才会被填充，
+         * 用于精确判定 isFinished 状态（替代旧「开播日期+总集数+1周」估算算法）。
+         *
+         * 因字段可空，使用 ALTER TABLE ADD COLUMN 不带 NOT NULL / DEFAULT，
+         * 与实体定义 `String? = null` 一致，避免 Room schema 校验失败。
+         */
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN airEndDate TEXT")
+            }
+        }
+
+        /**
+         * 16→17 迁移：新增 airingStatusOverride 列（用户手动覆盖的连载状态，可空）。
+         *
+         * 字段语义：null=按 computeIsFinished 自动判定；true=强制连载中；false=强制已完结。
+         * 用于详情页编辑界面允许用户手动修正系统自动判定的完结状态，避免 refreshFinishStatus
+         * 等自动重算点覆盖用户修改。
+         *
+         * 因字段可空，使用 ALTER TABLE ADD COLUMN 不带 NOT NULL / DEFAULT，
+         * 与实体定义 `Boolean? = null` 一致，避免 Room schema 校验失败。
+         */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN airingStatusOverride INTEGER")
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -254,9 +285,10 @@ abstract class AnimeDatabase : RoomDatabase() {
                         MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                         MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                         MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
-                        MIGRATION_13_14, MIGRATION_14_15
+                        MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+                        MIGRATION_16_17
                     )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 instance

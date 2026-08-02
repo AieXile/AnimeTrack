@@ -263,10 +263,12 @@ class BilibiliSyncManager(
         }
 
         val mergedWatched = maxOf(localAnime.watchedEpisodes, watchedEps)
+        // 用户手动覆盖了连载状态时，isFinished 不参与合并判定与写入，避免覆盖用户修改
+        val overrideActive = localAnime.airingStatusOverride != null
         val needsUpdate = localAnime.watchedEpisodes != mergedWatched
                 || localAnime.status != status
                 || (localAnime.totalEpisodes != totalEps && localAnime.totalEpisodes == 12 && totalEps != 12)
-                || (localAnime.isFinished != isFinished && !localAnime.isFinished)
+                || (!overrideActive && localAnime.isFinished != isFinished && !localAnime.isFinished)
                 || (localAnime.airDate == null && airDate != null)
                 || (localAnime.airWeekday == null && airWeekday != null)
                 || (localAnime.summary.isNullOrBlank() && !summary.isNullOrBlank())
@@ -276,7 +278,8 @@ class BilibiliSyncManager(
             val updatedAnime = localAnime.copy(
                 watchedEpisodes = mergedWatched,
                 status = status,
-                isFinished = isFinished || localAnime.isFinished,
+                // override 激活时保留本地 isFinished，否则按原逻辑合并（只能 false→true）
+                isFinished = if (overrideActive) localAnime.isFinished else (isFinished || localAnime.isFinished),
                 totalEpisodes = if (localAnime.totalEpisodes == 12 && totalEps != 12) totalEps else localAnime.totalEpisodes,
                 airDate = localAnime.airDate ?: airDate,
                 airWeekday = localAnime.airWeekday ?: airWeekday,

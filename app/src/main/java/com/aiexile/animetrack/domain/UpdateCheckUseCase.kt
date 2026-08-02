@@ -57,6 +57,9 @@ class UpdateCheckUseCase(
                                 else -> anime.totalEpisodes
                             }
 
+                            // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                            val parsedAirEndDate = detail.parseEndDate()
+
                             when {
                                 remoteEps > anime.currentEpisodes -> {
                                     Log.d(TAG, "New episode found: ${anime.title} local=${anime.currentEpisodes} remote=$remoteEps")
@@ -64,7 +67,8 @@ class UpdateCheckUseCase(
                                         updatedAnime = anime.copy(
                                             currentEpisodes = remoteEps,
                                             hasNewUpdate = true,
-                                            isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
+                                            airEndDate = parsedAirEndDate ?: anime.airEndDate,
+                                            isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status, parsedAirEndDate, anime.airingStatusOverride)
                                         ),
                                         result = UpdateResult(anime.title, remoteEps)
                                     )
@@ -74,7 +78,18 @@ class UpdateCheckUseCase(
                                         updatedAnime = anime.copy(
                                             totalEpisodes = resolvedTotal,
                                             hasNewUpdate = false,
-                                            isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status)
+                                            airEndDate = parsedAirEndDate ?: anime.airEndDate,
+                                            isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status, parsedAirEndDate, anime.airingStatusOverride)
+                                        ),
+                                        result = null
+                                    )
+                                }
+                                // 仅 airEndDate 更新（如番剧刚完结但集数未变）也写入 DB
+                                parsedAirEndDate != null && parsedAirEndDate != anime.airEndDate -> {
+                                    CheckOutcome(
+                                        updatedAnime = anime.copy(
+                                            airEndDate = parsedAirEndDate,
+                                            isFinished = computeIsFinished(anime.airDate, resolvedTotal, anime.status, parsedAirEndDate, anime.airingStatusOverride)
                                         ),
                                         result = null
                                     )

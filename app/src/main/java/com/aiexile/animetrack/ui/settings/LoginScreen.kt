@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +59,7 @@ fun LoginScreen(
     onBack: () -> Unit,
     onNavigateBilibiliLogin: () -> Unit,
     onNavigateBangumiLogin: () -> Unit,
+    onNavigateBangumiAccount: () -> Unit = {},
     onNavigateUserLogin: () -> Unit = {},
     settingsRepository: SettingsRepository? = null
 ) {
@@ -106,11 +107,15 @@ fun LoginScreen(
                 val userAuthManager = remember { AppContainer.getUserAuthManager() }
                 val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
                 val userUsername by userAuthManager.username.collectAsState(initial = null)
+                val userAvatar by userAuthManager.avatar.collectAsState(initial = null)
+                // 服务器头像存储的是相对路径，需拼接为完整 URL
+                val userAvatarUrl = userAvatar?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 
                 LoginServiceCard(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
                     icon = Icons.Rounded.Person,
+                    avatarUrl = if (userLoggedIn) userAvatarUrl else null,
                     onClick = onNavigateUserLogin
                 )
             }
@@ -129,7 +134,7 @@ fun LoginScreen(
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
                     icon = Icons.Rounded.Person,
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
-                    onClick = onNavigateBangumiLogin
+                    onClick = if (bangumiLoggedIn) onNavigateBangumiAccount else onNavigateBangumiLogin
                 )
             }
             item {

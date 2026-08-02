@@ -91,12 +91,15 @@ class ScheduleViewModel(
                         val detail = RetrofitClient.bangumiApi.getSubjectDetail(anime.bangumiId!!)
                         val updatedAirDate = anime.airDate ?: detail.date
                         val updatedAirWeekday = detail.airWeekday ?: anime.airWeekday
+                        // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                        val parsedAirEndDate = detail.parseEndDate()
                         val updatedAnime = anime.copy(
                             airWeekday = updatedAirWeekday,
                             airDate = updatedAirDate,
                             summary = detail.summary?.cleanSummary()
                                 ?: anime.summary,
-                            isFinished = computeIsFinished(updatedAirDate, anime.totalEpisodes, anime.status)
+                            airEndDate = parsedAirEndDate ?: anime.airEndDate,
+                            isFinished = computeIsFinished(updatedAirDate, anime.totalEpisodes, anime.status, parsedAirEndDate, anime.airingStatusOverride)
                         )
                         repository.updateAnimeInternal(updatedAnime)
                         Log.d(TAG, "Backfill: updated ${anime.title} airWeekday=${updatedAnime.airWeekday}")

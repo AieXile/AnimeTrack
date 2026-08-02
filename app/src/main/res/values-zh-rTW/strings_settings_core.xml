@@ -22,8 +22,10 @@
     <string name="settings_title">設定</string>
     <string name="settings_login">登入</string>
     <string name="settings_login_subtitle">同步你的追番資料</string>
-    <string name="settings_bilibili_connected">Bilibili 已連接</string>
-    <string name="settings_bangumi_connected">Bangumi 已連接</string>
+    <string name="settings_connected_suffix">已連接</string>
+    <string name="settings_bilibili_connected">Bilibili</string>
+    <string name="settings_bangumi_connected">Bangumi</string>
+    <string name="settings_animetrack_connected">AnimeTrack</string>
     <string name="settings_appearance">外觀與主題</string>
     <string name="settings_theme_light">淺色</string>
     <string name="settings_theme_dark">深色</string>

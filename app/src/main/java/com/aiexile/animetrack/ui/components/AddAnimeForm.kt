@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.components
+package com.aiexile.animetrack.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,6 +68,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatDate
+import com.aiexile.animetrack.util.isUnaired
 import com.gowtham.ratingbar.RatingBar
 import com.gowtham.ratingbar.RatingBarConfig
 import com.gowtham.ratingbar.RatingBarStyle
@@ -88,7 +89,9 @@ data class AddAnimeFormState(
     val tmdbId: Int? = null,
     val airDate: String? = null,
     val airWeekday: Int? = null,
-    val currentEpisodes: Int = 0
+    val currentEpisodes: Int = 0,
+    /** 番剧完结日期（来自 Bangumi infobox「播放结束」字段）。null 表示未拉取过或番剧尚未完结。 */
+    val airEndDate: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,9 +189,16 @@ fun AddAnimeForm(
             onStartDateChange = { onFormStateChange(formState.copy(startDate = it)) },
             onFinishDateChange = { onFormStateChange(formState.copy(finishDate = it)) }
         )
-        
+
         Spacer(modifier = Modifier.height(20.dp))
-        
+
+        AirDateSection(
+            airDate = formState.airDate,
+            onAirDateChange = { onFormStateChange(formState.copy(airDate = it)) }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         RatingSelector(
             rating = formState.rating,
             onRatingChange = { onFormStateChange(formState.copy(rating = it)) }
@@ -659,6 +669,36 @@ private fun DateSelectors(
             LaunchedEffect(datePickerState.selectedDateMillis) {
                 onFinishDateChange(datePickerState.selectedDateMillis)
             }
+        }
+    }
+}
+
+@Composable
+private fun AirDateSection(
+    airDate: String?,
+    onAirDateChange: (String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val unaired = isUnaired(airDate)
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.detail_edit_air_date),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        AirDateEditor(
+            airDate = airDate,
+            onAirDateChange = onAirDateChange,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (unaired) {
+            Text(
+                text = stringResource(R.string.add_anime_unaired_status_hint),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
     }
 }

@@ -34,9 +34,10 @@ import kotlin.math.min
  * 注意：真正需要正圆的场景（头像、圆点指示器）应继续使用 `CircleShape`，
  * 因为 squircle 在 50% 半径时仍带轻微弧度，不是几何正圆。
  *
- * 性能说明：[createOutline] 每次绘制都会构造 [Path]；与 [RoundedCornerShape] 一样
- * 依赖 Compose 上层（如 `Modifier.clip`）的缓存。若在长列表中频繁使用同一形状，
- * 建议将 [SquircleShape] 实例提升为顶层 `val` 复用，避免重复构造。
+ * 性能说明：[createOutline] 内置 size 级缓存（相同 size + layoutDirection 直接复用上次
+ * 构造的 [Outline]，避免重复构造 RoundedPolygon/Path）。为使缓存生效，长列表中应将
+ * [SquircleShape] 实例提升为顶层 `val` 复用（同一实例才共享缓存字段），
+ * 避免在 Composable 函数体内反复 new 实例。
  *
  * @param topStart 左上角圆角大小
  * @param topEnd 右上角圆角大小
@@ -78,7 +79,36 @@ class SquircleShape(
         bottomStart = CornerSize(bottomStart),
     )
 
+    // size 级缓存：列表中卡片尺寸固定，同一实例反复以相同 size 调用 createOutline，
+    // 命中缓存可跳过 RoundedPolygon + Path 构造。缓存 key 含 size 与 layoutDirection。
+    private var cachedWidth: Float = Float.NaN
+    private var cachedHeight: Float = Float.NaN
+    private var cachedLayoutDirection: LayoutDirection? = null
+    private var cachedOutline: Outline? = null
+
     override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val w = size.width
+        val h = size.height
+
+        cachedOutline?.let { cached ->
+            if (w == cachedWidth && h == cachedHeight && layoutDirection == cachedLayoutDirection) {
+                return cached
+            }
+        }
+
+        val outline = buildOutline(size, layoutDirection, density)
+        cachedWidth = w
+        cachedHeight = h
+        cachedLayoutDirection = layoutDirection
+        cachedOutline = outline
+        return outline
+    }
+
+    private fun buildOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density,

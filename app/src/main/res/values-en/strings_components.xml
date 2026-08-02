@@ -19,6 +19,7 @@
     <string name="add_anime_select_date">Select date</string>
     <string name="add_anime_notes">Notes</string>
     <string name="add_anime_notes_placeholder">Add notes...</string>
+    <string name="add_anime_unaired_status_hint">This anime has not aired yet. Plan to watch is suggested.</string>
 
     <!-- AnimeCard -->
     <string name="anime_card_change_status">Change status</string>

@@ -131,6 +131,7 @@ private fun UpdateAvailableDialog(
     AlertDialog(
         // 强制更新或下载进行中时禁止关闭（点击外部 / 返回键）
         onDismissRequest = if (isForceUpdate || isDownloading) ({}) else onDismiss,
+        shape = SquircleShape(24.dp),
         title = null,
         text = {
             Column {
@@ -328,6 +329,7 @@ private fun UpToDateDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.update_dialog_up_to_date),
@@ -352,6 +354,7 @@ private fun ErrorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.update_dialog_failed),

@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.home
+package com.aiexile.animetrack.ui.home
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -62,7 +62,8 @@ fun AccountPanelDialog(
     onDismiss: () -> Unit,
     onNavigateUserLogin: () -> Unit,
     onNavigateBilibiliLogin: () -> Unit,
-    onNavigateBangumiLogin: () -> Unit
+    onNavigateBangumiLogin: () -> Unit,
+    onNavigateBangumiAccount: () -> Unit
 ) {
     val authManager = remember { AppContainer.getAuthManager() }
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
@@ -113,6 +114,7 @@ fun AccountPanelDialog(
     if (showUserActions) {
         AlertDialog(
             onDismissRequest = { showUserActions = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_anime_track_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, userUsername ?: unknownUserText)) },
             confirmButton = {
@@ -141,6 +143,7 @@ fun AccountPanelDialog(
     if (showBilibiliActions) {
         AlertDialog(
             onDismissRequest = { showBilibiliActions = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_bilibili_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, bilibiliNickname ?: unknownUserText)) },
             confirmButton = {
@@ -148,7 +151,7 @@ fun AccountPanelDialog(
                     showBilibiliActions = false
                     onDismiss()
                     onNavigateBilibiliLogin()
-                }) { Text(stringResource(R.string.account_panel_sync)) }
+                }) { Text(stringResource(R.string.account_panel_account_management)) }
             },
             dismissButton = {
                 Row {
@@ -158,7 +161,7 @@ fun AccountPanelDialog(
                         showBilibiliActions = false
                         scope.launch { bilibiliAuthManager.logout() }
                     }) {
-                        Text(stringResource(R.string.account_panel_unbind), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -169,15 +172,15 @@ fun AccountPanelDialog(
     if (showBangumiActions) {
         AlertDialog(
             onDismissRequest = { showBangumiActions = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_bangumi_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, bangumiNickname ?: unknownUserText)) },
             confirmButton = {
                 TextButton(onClick = {
                     showBangumiActions = false
-                    scope.launch { authManager.logout() }
                     onDismiss()
-                    onNavigateBangumiLogin()
-                }) { Text(stringResource(R.string.account_panel_relogin)) }
+                    onNavigateBangumiAccount()
+                }) { Text(stringResource(R.string.account_panel_account_management)) }
             },
             dismissButton = {
                 Row {
@@ -187,7 +190,7 @@ fun AccountPanelDialog(
                         showBangumiActions = false
                         scope.launch { authManager.logout() }
                     }) {
-                        Text(stringResource(R.string.account_panel_logout_account), color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -198,6 +201,7 @@ fun AccountPanelDialog(
     if (showAvatarActions) {
         AlertDialog(
             onDismissRequest = { showAvatarActions = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_change_avatar)) },
             text = {
                 Column {

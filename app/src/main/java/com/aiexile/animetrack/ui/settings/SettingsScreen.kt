@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,6 +96,7 @@ fun SettingsScreen(
     if (showTmdbApiKeyDialog) {
         AlertDialog(
             onDismissRequest = { showTmdbApiKeyDialog = false },
+            shape = SquircleShape(24.dp),
             title = { Text("TMDB API Key") },
             text = {
                 OutlinedTextField(
@@ -175,19 +176,30 @@ fun SettingsScreen(
                 item {
                     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
                     val authManager = remember { AppContainer.getAuthManager() }
+                    val userAuthManager = remember { AppContainer.getUserAuthManager() }
                     val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
                     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
+                    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
 
                     val statusParts = mutableListOf<String>()
+                    val animetrackConnectedText = stringResource(R.string.settings_animetrack_connected)
                     val bilibiliConnectedText = stringResource(R.string.settings_bilibili_connected)
                     val bangumiConnectedText = stringResource(R.string.settings_bangumi_connected)
+                    val connectedSuffix = stringResource(R.string.settings_connected_suffix)
                     val loginSubtitle = stringResource(R.string.settings_login_subtitle)
+                    if (animetrackConnectedText.isNotEmpty() && userLoggedIn) statusParts.add(animetrackConnectedText)
                     if (bilibiliLoggedIn) statusParts.add(bilibiliConnectedText)
                     if (bangumiLoggedIn) statusParts.add(bangumiConnectedText)
 
+                    val subtitle = if (statusParts.isEmpty()) {
+                        loginSubtitle
+                    } else {
+                        "${statusParts.joinToString(" · ")} $connectedSuffix"
+                    }
+
                     SettingCard(
                         title = stringResource(R.string.settings_login),
-                        subtitle = if (statusParts.isEmpty()) loginSubtitle else statusParts.joinToString(" · "),
+                        subtitle = subtitle,
                         icon = Icons.AutoMirrored.Rounded.Login,
                         onClick = onNavigateLogin
                     )

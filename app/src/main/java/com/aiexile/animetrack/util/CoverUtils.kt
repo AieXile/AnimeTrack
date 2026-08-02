@@ -70,26 +70,48 @@ fun coverImageRequestForList(context: Context, coverUrl: String?): ImageRequest 
 }
 
 /**
- * 根据开播日期和总集数判断番剧是否已完结。
+ * 根据开播日期、完结日期和总集数判断番剧是否已完结。
  *
- * 判定逻辑：
- * - 状态为 COMPLETED → 已完结
- * - 缺少开播日期或总集数 → 未完结
- * - 当前日期距开播日期超过 (总集数+1) 周 → 已完结
+ * 判定逻辑（优先级从高到低）：
+ * 0. 用户手动覆盖（airingStatusOverride != null）→ 直接返回该值的反义
+ *    （override=true 表示强制连载中 → isFinished=false；override=false 表示强制已完结 → isFinished=true）
+ * 1. 状态为 COMPLETED → 已完结
+ * 2. 有 airEndDate（来自 Bangumi infobox「播放结束」）且今天 ≥ airEndDate → 已完结
+ * 3. 缺少开播日期或总集数 → 未完结
+ * 4. 当前日期距开播日期超过 (总集数+1) 周 → 已完结（兜底估算）
+ *
+ * airEndDate 是 Bangumi 在番剧完结后才填充的字段，是可靠信号；
+ * 当 airEndDate 为 null（未拉取过详情 / 番剧尚未完结）时，回退到原估算算法。
+ *
+ * @param airingStatusOverride 用户手动覆盖的连载状态，null 表示自动判定。
+ *        用于详情页编辑界面允许用户修正系统自动判定的完结状态，
+ *        避免 refreshFinishStatus 等自动重算点覆盖用户修改。
  */
 fun computeIsFinished(
     airDate: String?,
     totalEpisodes: Int,
-    localStatus: AnimeStatus
+    localStatus: AnimeStatus,
+    airEndDate: String? = null,
+    airingStatusOverride: Boolean? = null
 ): Boolean {
+    // 用户手动覆盖优先级最高，跳过所有自动判定
+    if (airingStatusOverride != null) return !airingStatusOverride
+
     if (localStatus == AnimeStatus.COMPLETED) return true
+
+    // 优先用 Bangumi 的「播放结束」精确判定
+    if (!airEndDate.isNullOrBlank()) {
+        val endDate = parseAirDateToLocalDate(airEndDate)
+        if (endDate != null && !LocalDate.now().isBefore(endDate)) {
+            return true
+        }
+    }
 
     if (airDate == null || totalEpisodes <= 0) return false
 
     return try {
-        // 兼容 UTC ISO 8601 格式（如 2020-01-10T16:00:00.000Z），统一转为 yyyy-MM-dd
-        val normalizedDate = formatAirDate(airDate) ?: airDate
-        val startDate = LocalDate.parse(normalizedDate, DateTimeFormatter.ISO_LOCAL_DATE)
+        // 兼容 UTC ISO 8601、yyyy-MM-dd、yyyy-MM（年月按 1 号）
+        val startDate = parseAirDateToLocalDate(airDate) ?: return false
         val today = LocalDate.now()
         val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
         diffWeeks > (totalEpisodes + 1)

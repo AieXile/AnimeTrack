@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -156,6 +157,7 @@ fun BangumiProxyScreen(
     if (showBangumiHostDialog) {
         AlertDialog(
             onDismissRequest = { showBangumiHostDialog = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.bangumi_proxy_dialog_title)) },
             text = {
                 OutlinedTextField(
@@ -187,6 +189,7 @@ fun BangumiProxyScreen(
     if (showHttpProxyDialog) {
         AlertDialog(
             onDismissRequest = { showHttpProxyDialog = false },
+            shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.bangumi_proxy_http_group)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

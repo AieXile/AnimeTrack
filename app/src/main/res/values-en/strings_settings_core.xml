@@ -22,8 +22,10 @@
     <string name="settings_title">Settings</string>
     <string name="settings_login">Login</string>
     <string name="settings_login_subtitle">Sync your anime tracking data</string>
-    <string name="settings_bilibili_connected">Bilibili Connected</string>
-    <string name="settings_bangumi_connected">Bangumi Connected</string>
+    <string name="settings_connected_suffix">Connected</string>
+    <string name="settings_bilibili_connected">Bilibili</string>
+    <string name="settings_bangumi_connected">Bangumi</string>
+    <string name="settings_animetrack_connected">AnimeTrack</string>
     <string name="settings_appearance">Appearance &amp; Theme</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>

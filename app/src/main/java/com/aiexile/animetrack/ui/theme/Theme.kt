@@ -47,11 +47,17 @@ fun AnimeTrackTheme(
         AnimeColors(
             starFilled = Color(0xFFF9A825),
             finished = colorScheme.tertiary,
-            finishedContainer = colorScheme.tertiary.copy(alpha = 0.1f),
+            finishedContainer = colorScheme.tertiaryContainer,
             dropped = colorScheme.error,
-            droppedContainer = colorScheme.error.copy(alpha = 0.1f),
+            droppedContainer = colorScheme.errorContainer,
             watching = colorScheme.primary,
-            watchingContainer = colorScheme.primary.copy(alpha = 0.1f),
+            watchingContainer = colorScheme.primaryContainer,
+            chipSelected = colorScheme.primary,
+            chipSelectedContainer = colorScheme.primary,
+            chipSelectedContent = colorScheme.onPrimary,
+            chipUnselected = colorScheme.onSurfaceVariant,
+            chipUnselectedContainer = colorScheme.surfaceVariant,
+            chipUnselectedContent = colorScheme.onSurfaceVariant,
         )
     }
 

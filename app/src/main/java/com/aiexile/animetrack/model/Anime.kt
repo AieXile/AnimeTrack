@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.model
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -22,6 +23,7 @@ enum class AnimeStatus(val displayName: String) {
         Index(value = ["seriesKey"])
     ]
 )
+@Immutable
 data class Anime(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -35,6 +37,8 @@ data class Anime(
     val finishDate: Long? = null,
     val coverUrl: String? = null,
     val airDate: String? = null,
+    /** 番剧完结日期（yyyy-MM-dd）。来自 Bangumi infobox「播放结束」字段，仅番剧完结后才会被填充。null 表示未拉取过或番剧尚未完结。 */
+    val airEndDate: String? = null,
     val summary: String? = null,
     val bangumiId: Int? = null,
     val airWeekday: Int? = null,
@@ -48,7 +52,13 @@ data class Anime(
     /** 远程封面 URL（wsrv.nl 代理或原始 URL），用于同步到后端。coverUrl 被本地化后仍保留此值。 */
     val remoteCoverUrl: String? = null,
     /** 是否已从 API 获取过简介。true 表示已尝试获取（无论 summary 是否为空），null/false 表示尚未获取。 */
-    val summaryFetched: Boolean? = null
+    val summaryFetched: Boolean? = null,
+    /**
+     * 用户手动覆盖的连载状态。null 表示按 [computeIsFinished] 自动判定；
+     * true 表示强制视为「连载中」（isFinished=false），false 表示强制视为「已完结」（isFinished=true）。
+     * 用于详情页编辑界面允许用户手动修正系统自动判定的完结状态。
+     */
+    val airingStatusOverride: Boolean? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

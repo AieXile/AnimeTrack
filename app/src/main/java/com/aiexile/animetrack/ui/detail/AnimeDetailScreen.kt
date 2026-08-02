@@ -1,5 +1,6 @@
-﻿package com.aiexile.animetrack.ui.detail
+package com.aiexile.animetrack.ui.detail
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -13,7 +14,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -119,6 +119,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -151,10 +152,12 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
+import com.aiexile.animetrack.ui.components.AirDateEditor
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.coverMemoryCacheKey
-import com.aiexile.animetrack.util.formatAirDate
+import com.aiexile.animetrack.util.formatAirDateDisplay
+import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -206,6 +209,13 @@ fun AnimeDetailScreen(
         if (uiState.showCompletedToast) {
             Toast.makeText(context, context.getString(R.string.detail_completed_celebration), Toast.LENGTH_SHORT).show()
             viewModel.dismissCompletedToast()
+        }
+    }
+
+    LaunchedEffect(uiState.showDuplicateToast) {
+        if (uiState.showDuplicateToast) {
+            Toast.makeText(context, context.getString(R.string.home_anime_already_exists), Toast.LENGTH_SHORT).show()
+            viewModel.dismissDuplicateToast()
         }
     }
 
@@ -359,9 +369,11 @@ fun AnimeDetailScreen(
                             onEditTitleStart = { viewModel.setEditingTitle(true) },
                             onEditTitleDone = { viewModel.setEditingTitle(false) },
                             onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
+                            onEditAirDateChange = { viewModel.updateEditAirDate(it) },
                             onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
                             onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
                             onEditSummaryChange = { viewModel.updateEditSummary(it) },
+                            onEditAiringStatusOverrideChange = { viewModel.updateEditAiringStatusOverride(it) },
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -388,6 +400,7 @@ fun AnimeDetailScreen(
         if (showDiscardDialog) {
             AlertDialog(
                 onDismissRequest = { showDiscardDialog = false },
+                shape = SquircleShape(24.dp),
                 title = { Text(stringResource(R.string.detail_discard_changes)) },
                 text = { Text(stringResource(R.string.detail_discard_changes_message)) },
                 confirmButton = {
@@ -405,6 +418,7 @@ fun AnimeDetailScreen(
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
+                shape = SquircleShape(24.dp),
                 title = { Text(stringResource(R.string.detail_delete_anime)) },
                 text = { Text(stringResource(R.string.detail_delete_confirm_format, uiState.anime?.title ?: "")) },
                 confirmButton = {
@@ -746,9 +760,11 @@ private fun AnimeDetailContent(
     onEditTitleStart: () -> Unit = {},
     onEditTitleDone: () -> Unit = {},
     onEditAirWeekdayChange: (Int?) -> Unit = {},
+    onEditAirDateChange: (String?) -> Unit = {},
     onUpdateEditTotalEpisodes: (Int) -> Unit = {},
     onAdjustEditTotalEpisodes: (Int) -> Unit = {},
     onEditSummaryChange: (String) -> Unit = {},
+    onEditAiringStatusOverrideChange: (Boolean?) -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -981,9 +997,20 @@ private fun AnimeDetailContent(
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        if (!anime.airDate.isNullOrBlank()) {
+                        if (editState.isEditing) {
+                            AirDateEditor(
+                                airDate = editState.airDate,
+                                onAirDateChange = onEditAirDateChange
+                            )
+                        } else {
+                            val airDateDisplay = formatAirDateDisplay(anime.airDate)
+                            val airDateText = if (airDateDisplay != null) {
+                                stringResource(R.string.detail_air_date_format, airDateDisplay)
+                            } else {
+                                stringResource(R.string.detail_air_date_undetermined)
+                            }
                             Text(
-                                text = stringResource(R.string.detail_air_date_format, formatAirDate(anime.airDate) ?: ""),
+                                text = airDateText,
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1009,20 +1036,32 @@ private fun AnimeDetailContent(
                             )
                         }
 
-                        if (editState.isEditing && !anime.isFinished && anime.status != AnimeStatus.COMPLETED) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.detail_every_week),
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                WeekdayChips(
-                                    selected = editState.airWeekday,
-                                    onSelect = onEditAirWeekdayChange
-                                )
+                        // 编辑模式下使用 override 计算有效完结状态，确保选择「连载中」后立即显示每周更新
+                        val effectiveIsFinished = when (editState.airingStatusOverride) {
+                            true -> false
+                            false -> true
+                            null -> anime.isFinished
+                        }
+                        if (editState.isEditing) {
+                            AiringStatusSelector(
+                                override = editState.airingStatusOverride,
+                                onOverrideChange = onEditAiringStatusOverrideChange
+                            )
+                            if (!effectiveIsFinished && anime.status != AnimeStatus.COMPLETED) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.detail_every_week),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    WeekdayChips(
+                                        selected = editState.airWeekday,
+                                        onSelect = onEditAirWeekdayChange
+                                    )
+                                }
                             }
                         } else if (!airStatusText.isNullOrBlank()) {
                             Text(
@@ -1038,14 +1077,20 @@ private fun AnimeDetailContent(
                         }
                     }
 
+                    // Row 节点保持稳定，避免编辑模式切换时整体子树移除/添加
+                    // 触发 SharedTransition 动画窗口内的 LayoutNode.onChildRemoved NPE。
+                    // 编辑模式下仅清空 Row 内部内容，Row 本身始终存在。
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        StatusBadge(status = anime.status)
+                        if (!editState.isEditing) {
+                            val unaired = isUnaired(anime.airDate)
+                            StatusBadge(status = anime.status, unaired = unaired)
 
-                        if (anime.rating != null && titleLineCount >= 2) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            RatingBadge(rating = anime.rating)
+                            if (anime.rating != null && titleLineCount >= 2) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                RatingBadge(rating = anime.rating)
+                            }
                         }
                     }
                 }
@@ -1084,14 +1129,18 @@ private fun AnimeDetailContent(
             onEditNotes = onEditNotes
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // 未放送时隐藏「状态」组件；到达放送日期后自动显示
+        val currentAirDate = if (editState.isEditing) editState.airDate else anime.airDate
+        if (!isUnaired(currentAirDate)) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        StatusCard(
-            currentStatus = anime.status,
-            finishDate = anime.finishDate,
-            onStatusChange = onStatusChange,
-            onFinishDateChange = onFinishDateChange
-        )
+            StatusCard(
+                currentStatus = anime.status,
+                finishDate = anime.finishDate,
+                onStatusChange = onStatusChange,
+                onFinishDateChange = onFinishDateChange
+            )
+        }
     }
 }
 
@@ -1863,17 +1912,25 @@ private fun <T> CapsuleSegmentedButton(
 @Composable
 private fun StatusBadge(
     status: AnimeStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    unaired: Boolean = false
 ) {
+    val containerColor = MaterialTheme.colorScheme.primary
+    val contentColor = MaterialTheme.colorScheme.onPrimary
+    val text = if (unaired) {
+        stringResource(R.string.status_unaired)
+    } else {
+        status.displayName
+    }
     Surface(
         modifier = modifier,
         shape = SquircleShape(6.dp),
-        color = MaterialTheme.colorScheme.primary
+        color = containerColor
     ) {
         Text(
-            text = status.displayName,
+            text = text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = contentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1885,6 +1942,7 @@ private fun WeekdayChips(
     selected: Int?,
     onSelect: (Int?) -> Unit
 ) {
+    val animeColors = LocalAnimeColors.current
     val weekdays = listOf(
         1 to stringResource(R.string.detail_weekday_short_1),
         2 to stringResource(R.string.detail_weekday_short_2),
@@ -1903,26 +1961,19 @@ private fun WeekdayChips(
         weekdays.forEach { (day, label) ->
             val isSelected = selected == day
             Surface(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .clickable { onSelect(day) },
+                onClick = { onSelect(day) },
+                modifier = Modifier.size(28.dp),
                 shape = CircleShape,
-                color = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = if (isSelected) null
-                    else BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant
-                    )
+                color = if (isSelected) animeColors.chipSelectedContainer
+                    else animeColors.chipUnselectedContainer,
+                contentColor = if (isSelected) animeColors.chipSelectedContent
+                    else animeColors.chipUnselectedContent
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         text = label,
                         fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 }
             }
@@ -1930,16 +1981,137 @@ private fun WeekdayChips(
     }
 }
 
-private fun Int.toWeekdayName(): String {
-    return when (this) {
-        1 -> "一"
-        2 -> "二"
-        3 -> "三"
-        4 -> "四"
-        5 -> "五"
-        6 -> "六"
-        7 -> "日"
-        else -> ""
+/**
+ * 连载状态选择器（编辑模式）：紧凑行式按钮，点击弹出 Dialog 选择三选一。
+ *
+ * - null（自动）：按 computeIsFinished 自动判定
+ * - true（连载中）：强制 isFinished=false
+ * - false（已完结）：强制 isFinished=true
+ *
+ * 改为按钮 + Dialog 形式避免三个按钮挤压；chip 配色使用 [LocalAnimeColors]
+ * 的 chipSelected/chipUnselected 系列，与 AirDateModeChip 风格一致，
+ * 在浅色/深色/黑白主题下均有清晰对比。
+ */
+@Composable
+private fun AiringStatusSelector(
+    override: Boolean?,
+    onOverrideChange: (Boolean?) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    val currentLabel = when (override) {
+        null -> stringResource(R.string.detail_airing_status_auto)
+        true -> stringResource(R.string.detail_airing_status_airing)
+        false -> stringResource(R.string.detail_airing_status_finished)
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(SquircleShape(8.dp))
+            .clickable { showDialog = true }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.detail_airing_status),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        AiringStatusChip(
+            text = currentLabel,
+            selected = true,
+            onClick = { showDialog = true }
+        )
+    }
+
+    if (showDialog) {
+        AiringStatusPickerDialog(
+            currentOverride = override,
+            onSelect = onOverrideChange,
+            onDismiss = { showDialog = false }
+        )
+    }
+}
+
+/**
+ * 连载状态单选 Dialog：三个 chip 横向排列，点选即应用并保持打开，
+ * 底部「关闭」按钮关闭 Dialog。配色与 AirDateModeChip 一致。
+ */
+@Composable
+private fun AiringStatusPickerDialog(
+    currentOverride: Boolean?,
+    onSelect: (Boolean?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        null to stringResource(R.string.detail_airing_status_auto),
+        true to stringResource(R.string.detail_airing_status_airing),
+        false to stringResource(R.string.detail_airing_status_finished)
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.width(360.dp),
+            shape = SquircleShape(24.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.detail_airing_status),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { (value, label) ->
+                        AiringStatusChip(
+                            text = label,
+                            selected = currentOverride == value,
+                            onClick = { onSelect(value) }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.common_close))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 连载状态 chip：选中用 chipSelectedContainer，未选中用 chipUnselectedContainer。
+ * 与 [AirDateModeChip] 配色风格一致，无 border，靠 container color 区分选中态。
+ */
+@Composable
+private fun AiringStatusChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val animeColors = LocalAnimeColors.current
+    Surface(
+        onClick = onClick,
+        shape = SquircleShape(8.dp),
+        color = if (selected) animeColors.chipSelectedContainer
+            else animeColors.chipUnselectedContainer,
+        contentColor = if (selected) animeColors.chipSelectedContent
+            else animeColors.chipUnselectedContent
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }
 
@@ -1953,6 +2125,7 @@ private fun ShareNotesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.detail_share_anime),
@@ -2014,6 +2187,7 @@ private fun MatchDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.detail_match_source_format, sourceName),
@@ -2254,7 +2428,7 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
 
         withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_cover_saved_to_gallery), Toast.LENGTH_SHORT).show() }
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("AnimeDetailScreen", "saveCoverToGallery failed", e)
         withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_save_failed_with_reason_format, e.message ?: ""), Toast.LENGTH_SHORT).show() }
     }
 }

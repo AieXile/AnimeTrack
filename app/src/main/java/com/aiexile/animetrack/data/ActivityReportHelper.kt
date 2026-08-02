@@ -8,14 +8,14 @@ import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object ActivityReportHelper {
 
     private const val TAG = "ActivityReport"
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
 
     /**
      * 用户当日第一次启动时上报活跃。
@@ -27,7 +27,7 @@ object ActivityReportHelper {
         if (!isLoggedIn) return
 
         val settingsRepository = AppContainer.getSettingsRepository()
-        val today = dateFormat.format(Date())
+        val today = LocalDate.now().format(dateFormatter)
         val lastReported = settingsRepository.getLastActivityDate()
         if (lastReported == today) return
 

@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.components
+package com.aiexile.animetrack.ui.components
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -74,11 +74,19 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.coverMemoryCacheKey
+import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
 import androidx.compose.foundation.layout.offset
 
 private val CardCornerRadius = 16.dp
 private val CoverAspectRatio = 2f / 3f
+
+// SquircleShape 实例顶层化复用：避免在 Composable 函数体内反复 new，
+// 使 SquircleShape 内置的 size 级 Outline 缓存能跨重组/跨 item 命中。
+private val CardShape = SquircleShape(CardCornerRadius)
+private val CoverTopShape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+private val DropdownShape = SquircleShape(16.dp)
+private val BadgeShape = SquircleShape(6.dp)
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -191,7 +199,7 @@ fun AnimeCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(SquircleShape(CardCornerRadius))
+                .clip(CardShape)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
@@ -201,7 +209,7 @@ fun AnimeCard(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ),
-            shape = SquircleShape(CardCornerRadius),
+            shape = CardShape,
             elevation = CardDefaults.cardElevation(
                 defaultElevation = elevation,
                 pressedElevation = elevation,
@@ -220,6 +228,7 @@ fun AnimeCard(
                     coverUrl = anime.coverUrl,
                     title = anime.title,
                     animeId = anime.id,
+                    airDate = anime.airDate,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
@@ -270,7 +279,7 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(SquircleShape(CardCornerRadius))
+                    .clip(CardShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -304,7 +313,7 @@ fun AnimeCard(
                         DropdownMenu(
                             expanded = showStatusMenu,
                             onDismissRequest = { showStatusMenu = false },
-                            shape = SquircleShape(16.dp),
+                            shape = DropdownShape,
                             containerColor = MaterialTheme.colorScheme.surfaceContainer,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
@@ -385,7 +394,7 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(SquircleShape(CardCornerRadius))
+                    .clip(CardShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
             )
         }
@@ -399,6 +408,7 @@ private fun AnimeCoverWithStatus(
     coverUrl: String?,
     title: String,
     animeId: Int,
+    airDate: String? = null,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -416,12 +426,12 @@ private fun AnimeCoverWithStatus(
                         rememberSharedContentState(key = "cover_${animeId}"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
-                    .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                    .clip(CoverTopShape)
             }
         } else {
             Modifier
                 .fillMaxSize()
-                .clip(SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius))
+                .clip(CoverTopShape)
         }
         
         if (coverUrl != null) {
@@ -440,12 +450,13 @@ private fun AnimeCoverWithStatus(
             )
         } else {
             EmptyCoverPlaceholder(
-                shape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
+                shape = CoverTopShape
             )
         }
         
         StatusBadge(
             status = status,
+            unaired = isUnaired(airDate),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(6.dp)
@@ -456,17 +467,25 @@ private fun AnimeCoverWithStatus(
 @Composable
 private fun StatusBadge(
     status: AnimeStatus,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    unaired: Boolean = false
 ) {
+    val containerColor = MaterialTheme.colorScheme.primary
+    val contentColor = MaterialTheme.colorScheme.onPrimary
+    val text = if (unaired) {
+        stringResource(R.string.status_unaired)
+    } else {
+        status.displayName
+    }
     Surface(
         modifier = modifier,
-        shape = SquircleShape(6.dp),
-        color = MaterialTheme.colorScheme.primary
+        shape = BadgeShape,
+        color = containerColor
     ) {
         Text(
-            text = status.displayName,
+            text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            color = MaterialTheme.colorScheme.onPrimary,
+            color = contentColor,
             fontSize = 9.sp,
             fontWeight = FontWeight.Medium
         )

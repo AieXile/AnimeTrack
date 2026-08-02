@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
 import android.webkit.CookieManager
@@ -57,7 +57,6 @@ fun BangumiLoginScreen(
             webView?.destroy()
             webView = null
             onLoginSuccess()
-            onBack()
         }
     }
 

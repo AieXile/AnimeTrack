@@ -71,6 +71,21 @@
     <string name="bangumi_login_loading">Logging in...</string>
     <string name="bangumi_login_failed">Login failed</string>
 
+    <!-- BangumiAccountScreen -->
+    <string name="bangumi_account_title">Bangumi Account</string>
+    <string name="bangumi_account_avatar">Avatar</string>
+    <string name="bangumi_account_logged_in">Logged in</string>
+    <string name="bangumi_account_not_logged_in">Not logged in</string>
+    <string name="bangumi_account_pull">Pull from remote</string>
+    <string name="bangumi_account_push">Push to remote</string>
+    <string name="bangumi_account_pulling">Pulling...</string>
+    <string name="bangumi_account_pushing">Pushing...</string>
+    <string name="bangumi_account_pull_complete">Pull complete</string>
+    <string name="bangumi_account_push_complete">Push complete, %1$d anime</string>
+    <string name="bangumi_account_sync_failed">Sync failed: %1$s</string>
+    <string name="bangumi_account_logout">Log out</string>
+    <string name="bangumi_account_auto_sync_hint">Auto-syncs on app open and progress updates, manual full sync usually unnecessary</string>
+
     <!-- BilibiliLoginScreen -->
     <string name="bilibili_login_title">Bilibili Login</string>
     <string name="bilibili_login_avatar">Avatar</string>

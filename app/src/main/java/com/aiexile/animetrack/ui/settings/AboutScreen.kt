@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -459,6 +459,7 @@ private fun ChangelogDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = versionName,

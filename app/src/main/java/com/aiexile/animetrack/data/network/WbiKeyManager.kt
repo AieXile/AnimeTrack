@@ -75,6 +75,10 @@ object WbiKeyManager {
                     val imgKey = wbiImg.imgUrl.substringAfterLast("/").substringBefore(".")
                     val subKey = wbiImg.subUrl.substringAfterLast("/").substringBefore(".")
 
+                    if (imgKey.isBlank() || subKey.isBlank()) {
+                        return@withContext Result.failure(Exception("WBI keys are empty (imgUrl=${wbiImg.imgUrl}, subUrl=${wbiImg.subUrl})"))
+                    }
+
                     cachedKeys = Pair(imgKey, subKey)
                     cacheTimestamp = System.currentTimeMillis()
 

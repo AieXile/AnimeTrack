@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.player
+package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -337,6 +337,7 @@ private fun SpeedSelectionDialog(
 ) {
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = title,

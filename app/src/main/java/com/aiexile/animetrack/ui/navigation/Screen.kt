@@ -20,6 +20,7 @@ object Routes {
     const val LOGIN = "login"
     const val BILIBILI_LOGIN = "bilibiliLogin"
     const val BANGUMI_LOGIN = "bangumiLogin"
+    const val BANGUMI_ACCOUNT = "bangumiAccount"
     const val DEVELOPER = "developer"
     const val UPDATE_NOTIFICATION = "updateNotification"
     const val PLAYER = "player/{animeId}"
@@ -64,7 +65,7 @@ object Routes {
     val settingsSubRoutes = setOf(
         ABOUT, NAVIGATION_CUSTOMIZE, APPEARANCE, FEATURES,
         DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
-        LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN,
+        LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION,
         PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, BANGUMI_PROXY,
         USER_LOGIN, USER_REGISTER, FONT_SETTINGS
@@ -76,6 +77,8 @@ object Routes {
         WEBDAV_SYNC to WEBDAV_AUTO_SYNC,
         LOGIN to BILIBILI_LOGIN,
         LOGIN to BANGUMI_LOGIN,
+        LOGIN to BANGUMI_ACCOUNT,
+        BANGUMI_LOGIN to BANGUMI_ACCOUNT,
         LOGIN to USER_LOGIN,
         USER_LOGIN to USER_REGISTER,
         ABOUT to DEVELOPER,

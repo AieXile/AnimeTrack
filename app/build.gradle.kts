@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.baselineprofile)
 }
 
 val ksPath: String? = System.getenv("KEYSTORE_PATH") 
@@ -26,8 +27,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 26
-        versionName = "v0.4.6-beta"
+        versionCode = 27
+        versionName = "v0.4.7-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -66,6 +67,15 @@ android {
     }
 
     buildTypes {
+        // benchmark 构建类型：继承 release 配置，供 macrobenchmark / baseline profile 录制使用。
+        // 可调试、不混淆，与正式包隔离，不影响正式 release 产物。
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            proguardFiles("benchmark-rules.pro")
+        }
         getByName("release") {
             // 完全关闭 R8：代码不混淆、不优化、不移除
             // 注意：isShrinkResources 必须配合 isMinifyEnabled=true 使用（AGP 硬性约束），
@@ -117,6 +127,8 @@ dependencies {
     implementation("androidx.compose.animation:animation")
     implementation(libs.coil.compose)
     implementation(libs.graphics.shapes)
+    // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
+    implementation(libs.androidx.profileinstaller)
     
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
@@ -156,4 +168,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    // baselineProfile 依赖：让 :baselineprofile 模块产出的 profile 被本模块消费。
+    baselineProfile(project(":baselineprofile"))
 }

@@ -93,6 +93,7 @@ class HomeViewModel(
     
     companion object {
         private const val TAG = "AnimeTrack"
+        private val greetingPrefixes = listOf("Hi", "Hey", "Hello")
     }
     
     val gridState = LazyGridState()
@@ -102,7 +103,7 @@ class HomeViewModel(
 
     private var greetingHasAnimated = false
     private var lastAnimatedGreeting = ""
-    private val randomGreetingPrefix = listOf("Hi", "Hey", "Hello").random()
+    private val randomGreetingPrefix = greetingPrefixes.random()
 
     fun resolveGreetingText(customGreeting: String): String {
         return if (customGreeting.isNotEmpty()) customGreeting else randomGreetingPrefix
@@ -487,7 +488,8 @@ class HomeViewModel(
                 airDate = formState.airDate,
                 airWeekday = formState.airWeekday,
                 currentEpisodes = formState.currentEpisodes,
-                isFinished = computeIsFinished(formState.airDate, formState.totalEpisodes, formState.status)
+                airEndDate = formState.airEndDate,
+                isFinished = computeIsFinished(formState.airDate, formState.totalEpisodes, formState.status, formState.airEndDate)
             )
             
             if (BuildConfig.DEBUG) Log.d(TAG, "Inserting anime: $anime")
@@ -514,18 +516,27 @@ class HomeViewModel(
                     tmdbId = anime.tmdbId
                 )
 
-                if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null)) {
+                if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null || anime.airEndDate == null)) {
                     viewModelScope.launch(Dispatchers.IO) {
                         try {
                             val detail = repository.fetchBangumiDetail(anime.bangumiId) ?: return@launch
                             val dbAnime = repository.getAnimeById(id.toInt()) ?: return@launch
                             val updatedAirDate = dbAnime.airDate ?: detail.date
                             val updatedAirWeekday = dbAnime.airWeekday ?: detail.airWeekday
+                            // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                            val parsedAirEndDate = detail.parseEndDate()
+                            // 仅在有新字段可补齐时才写库，避免无意义写入
+                            val hasNewField = updatedAirWeekday != dbAnime.airWeekday
+                                || updatedAirDate != dbAnime.airDate
+                                || (dbAnime.summary == null && detail.summary != null)
+                                || (parsedAirEndDate != null && parsedAirEndDate != dbAnime.airEndDate)
+                            if (!hasNewField) return@launch
                             val updated = dbAnime.copy(
                                 airWeekday = updatedAirWeekday,
                                 airDate = updatedAirDate,
                                 summary = dbAnime.summary ?: detail.summary?.cleanSummary(),
-                                isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status)
+                                airEndDate = parsedAirEndDate ?: dbAnime.airEndDate,
+                                isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status, parsedAirEndDate ?: dbAnime.airEndDate, dbAnime.airingStatusOverride)
                             )
                             repository.updateAnimeInternal(updated)
                             if (BuildConfig.DEBUG) Log.d(TAG, "Backfilled detail for animeId=$id")
@@ -696,6 +707,9 @@ class HomeViewModel(
                             else -> 0
                         }
 
+                        // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                        val parsedAirEndDate = detail.parseEndDate()
+
                         _uiState.update { state ->
                             val updatedAirDate = detail.date ?: state.formState.airDate
                             val isNotYetAired = isAirDateInFuture(updatedAirDate)
@@ -707,6 +721,7 @@ class HomeViewModel(
                                     airWeekday = detail.airWeekday ?: state.formState.airWeekday,
                                     summary = detail.summary?.cleanSummary()
                                         ?: state.formState.summary,
+                                    airEndDate = parsedAirEndDate ?: state.formState.airEndDate,
                                     status = if (isNotYetAired) AnimeStatus.PLANNED else state.formState.status
                                 )
                             )

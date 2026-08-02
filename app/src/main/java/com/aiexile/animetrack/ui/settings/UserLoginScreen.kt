@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,6 +60,7 @@ import com.aiexile.animetrack.data.network.UserAuthLoginRequest
 import com.aiexile.animetrack.data.network.UserAuthLogoutRequest
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
+import com.aiexile.animetrack.ui.components.SquircleShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -480,6 +481,7 @@ fun UserLoginScreen(
             onDismissRequest = {
                 if (!isChangingPassword) showChangePasswordDialog = false
             },
+            shape = SquircleShape(24.dp),
             title = {
                 Text(
                     text = stringResource(R.string.user_login_change_password),

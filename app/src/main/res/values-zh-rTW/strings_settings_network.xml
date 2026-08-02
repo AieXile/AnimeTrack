@@ -71,6 +71,21 @@
     <string name="bangumi_login_loading">正在登入...</string>
     <string name="bangumi_login_failed">登入失敗</string>
 
+    <!-- BangumiAccountScreen -->
+    <string name="bangumi_account_title">Bangumi 帳號</string>
+    <string name="bangumi_account_avatar">頭像</string>
+    <string name="bangumi_account_logged_in">已登入</string>
+    <string name="bangumi_account_not_logged_in">未登入</string>
+    <string name="bangumi_account_pull">全量拉取</string>
+    <string name="bangumi_account_push">全量推送</string>
+    <string name="bangumi_account_pulling">正在拉取...</string>
+    <string name="bangumi_account_pushing">正在推送...</string>
+    <string name="bangumi_account_pull_complete">拉取完成</string>
+    <string name="bangumi_account_push_complete">推送完成，共 %1$d 部</string>
+    <string name="bangumi_account_sync_failed">同步失敗: %1$s</string>
+    <string name="bangumi_account_logout">登出</string>
+    <string name="bangumi_account_auto_sync_hint">開啟應用與更新進度時會自動同步，通常無需手動全量操作</string>
+
     <!-- BilibiliLoginScreen -->
     <string name="bilibili_login_title">Bilibili 登入</string>
     <string name="bilibili_login_avatar">頭像</string>

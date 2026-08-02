@@ -68,10 +68,11 @@ object WebDAVClient {
             val sardine = createSardine(username, password)
             val remotePath = buildRemotePath(url, strategy)
             val inputStream = sardine.get(remotePath)
-            FileOutputStream(destFile).use { fos ->
-                inputStream.copyTo(fos)
+            inputStream.use { input ->
+                FileOutputStream(destFile).use { fos ->
+                    input.copyTo(fos)
+                }
             }
-            inputStream.close()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

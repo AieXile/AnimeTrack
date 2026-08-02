@@ -69,6 +69,7 @@ fun UsageStatsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(
                 text = stringResource(R.string.usage_stats_title),

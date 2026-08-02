@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.network
 
 import com.google.gson.annotations.SerializedName
+import kotlin.jvm.Transient
 import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
@@ -72,25 +73,36 @@ data class BangumiSubject(
             else -> null
         }
     
+    @Transient
+    @Volatile
+    private var episodeCountTextCache: String? = null
+
     val episodeCountText: String
         get() {
-            val epCount = episodeCount
-            val airDate = date
-            if (!airDate.isNullOrBlank()) {
-                val isFuture = try {
-                    java.time.LocalDate.parse(airDate)
-                        .isAfter(java.time.LocalDate.now())
-                } catch (_: Exception) { false }
-                if (isFuture) {
-                    return airDate.replace("-", "/") + " 放送"
-                }
-            }
-            return when {
-                epCount != null && epCount > 0 -> "全${epCount}话"
-                airDate != null -> "连载中"
-                else -> "未定"
+            episodeCountTextCache?.let { return it }
+            val text = computeEpisodeCountText()
+            episodeCountTextCache = text
+            return text
+        }
+
+    private fun computeEpisodeCountText(): String {
+        val epCount = episodeCount
+        val airDate = date
+        if (!airDate.isNullOrBlank()) {
+            val isFuture = try {
+                java.time.LocalDate.parse(airDate)
+                    .isAfter(java.time.LocalDate.now())
+            } catch (_: Exception) { false }
+            if (isFuture) {
+                return airDate.replace("-", "/") + " 放送"
             }
         }
+        return when {
+            epCount != null && epCount > 0 -> "全${epCount}话"
+            airDate != null -> "连载中"
+            else -> "未定"
+        }
+    }
 }
 
 data class BangumiInfoboxItem(
@@ -129,6 +141,33 @@ data class BangumiSubjectDetail(
             else -> null
         } ?: return null
         return weekdayTextToInt(text)
+    }
+
+    /**
+     * 从 infobox 提取「播放结束」日期，并归一化为 yyyy-MM-dd。
+     *
+     * 仅番剧完结后 Bangumi 才会填充此字段；连载中番剧返回 null。
+     * 解析失败也返回 null（保守视为未完结，由 computeIsFinished 回退到日期估算）。
+     */
+    fun parseEndDate(): String? {
+        val item = infobox?.find { it.key == "播放结束" } ?: return null
+        val value = item.value ?: return null
+        val text = when (value) {
+            is String -> value
+            is Map<*, *> -> value["v"] as? String
+            else -> null
+        } ?: return null
+        return normalizeCnDate(text)
+    }
+
+    /**
+     * 将 Bangumi infobox 中的中文日期（如 "2026年6月24日"）归一化为 yyyy-MM-dd。
+     * 解析失败返回 null。
+     */
+    private fun normalizeCnDate(text: String): String? {
+        val match = Regex("""(\d{4})年(\d{1,2})月(\d{1,2})日""").find(text.trim()) ?: return null
+        val (year, month, day) = match.destructured
+        return "%04d-%02d-%02d".format(year.toInt(), month.toInt(), day.toInt())
     }
 
     companion object {
@@ -266,7 +305,7 @@ interface BangumiApiService {
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
     @GET("users/-/collections")
     suspend fun getUserCollections(
-        @Query("type") type: Int = 3,
+        @Query("subject_type") subjectType: Int = 2,
         @Query("limit") limit: Int = 100,
         @Query("offset") offset: Int = 0
     ): BangumiCollectionResponse

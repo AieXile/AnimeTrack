@@ -133,26 +133,28 @@ object CoverDownloader {
             response = client.newCall(fallbackRequest).execute()
         }
 
-        if (!response.isSuccessful) {
-            throw Exception("HTTP ${response.code}")
-        }
+        response.use {
+            if (!it.isSuccessful) {
+                throw Exception("HTTP ${it.code}")
+            }
 
-        val body = response.body ?: throw Exception("Empty response body")
+            val body = it.body ?: throw Exception("Empty response body")
 
-        val tempFile = File(destFile.parent, "${destFile.name}.tmp")
-        try {
-            tempFile.outputStream().use { output ->
-                body.byteStream().use { input ->
-                    input.copyTo(output)
+            val tempFile = File(destFile.parent, "${destFile.name}.tmp")
+            try {
+                tempFile.outputStream().use { output ->
+                    body.byteStream().use { input ->
+                        input.copyTo(output)
+                    }
                 }
+                if (destFile.exists()) destFile.delete()
+                if (!tempFile.renameTo(destFile)) {
+                    tempFile.copyTo(destFile)
+                    tempFile.delete()
+                }
+            } finally {
+                if (tempFile.exists()) tempFile.delete()
             }
-            if (destFile.exists()) destFile.delete()
-            if (!tempFile.renameTo(destFile)) {
-                tempFile.copyTo(destFile)
-                tempFile.delete()
-            }
-        } finally {
-            if (tempFile.exists()) tempFile.delete()
         }
     }
 }

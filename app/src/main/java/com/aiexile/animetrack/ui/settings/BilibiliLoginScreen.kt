@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.graphics.Bitmap
 import android.content.Intent
@@ -563,6 +563,7 @@ private fun SyncSelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = SquircleShape(24.dp),
         title = {
             Text(stringResource(R.string.bilibili_login_dialog_title))
         },

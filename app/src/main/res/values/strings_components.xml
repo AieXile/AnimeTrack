@@ -19,6 +19,7 @@
     <string name="add_anime_select_date">选择日期</string>
     <string name="add_anime_notes">备注</string>
     <string name="add_anime_notes_placeholder">添加备注...</string>
+    <string name="add_anime_unaired_status_hint">该番剧尚未放送，建议设为计划观看</string>
 
     <!-- AnimeCard -->
     <string name="anime_card_change_status">修改状态</string>

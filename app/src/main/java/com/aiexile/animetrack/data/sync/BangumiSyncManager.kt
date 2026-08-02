@@ -11,6 +11,7 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.util.computeIsFinished
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,6 +23,7 @@ class BangumiSyncManager(
 ) {
     companion object {
         private const val TAG = "BangumiSync"
+        private const val PUSH_THROTTLE_MS = 200L
 
         fun animeStatusToBangumiType(status: AnimeStatus): Int = when (status) {
             AnimeStatus.WATCHING -> 3
@@ -97,7 +99,7 @@ class BangumiSyncManager(
 
             while (hasMore) {
                 val response = RetrofitClient.bangumiApi.getUserCollections(
-                    type = 3,
+                    subjectType = 2,
                     limit = limit,
                     offset = offset
                 )
@@ -141,6 +143,122 @@ class BangumiSyncManager(
             if (BuildConfig.DEBUG) Log.d(TAG, "syncRemoteToLocal completed")
         } catch (e: Exception) {
             Log.e(TAG, "syncRemoteToLocal failed", e)
+        }
+    }
+
+    /**
+     * 全量推送：将本地所有已绑定 bangumiId 的番剧同步到 Bangumi 收藏（本地为准）。
+     *
+     * 流程：先一次性拉取远程动画收藏建立索引，再逐条比对本地：
+     * - 远程缺失 → POST 建收藏（必要时附带进度）
+     * - 远程落后 → PATCH 推进度
+     * - 远程状态与本地不符 → POST 推状态
+     *
+     * 每次请求间隔 [PUSH_THROTTLE_MS] 以避免触发 Bangumi 限流。
+     * @return Result.success(推送条数) 或 Result.failure
+     */
+    suspend fun syncLocalToRemote(): Result<Int> = withContext(Dispatchers.IO) {
+        val isLoggedIn = authManager.isLoggedIn.first()
+        if (!isLoggedIn) {
+            return@withContext Result.failure(IllegalStateException("Not logged in"))
+        }
+
+        pushMutex.withLock {
+            try {
+                val remoteMap = fetchRemoteCollectionMap()
+                val localAnimes = repository.getAllAnimes().first()
+                    .filter { it.bangumiId != null }
+
+                var pushed = 0
+                for (anime in localAnimes) {
+                    val bangumiId = anime.bangumiId!!
+                    val remote = remoteMap[bangumiId]
+                    val desiredType = animeStatusToBangumiType(anime.status)
+
+                    var didPush = false
+                    if (remote == null) {
+                        // 远程无收藏 → 建收藏（POST 为 upsert）
+                        pushCollectionStatus(bangumiId, anime.status, null)
+                        didPush = true
+                        if (anime.watchedEpisodes > 0) {
+                            delay(PUSH_THROTTLE_MS)
+                            pushEpisodeProgress(bangumiId, anime.watchedEpisodes)
+                        }
+                    } else {
+                        if (remote.epStatus < anime.watchedEpisodes) {
+                            delay(PUSH_THROTTLE_MS)
+                            pushEpisodeProgress(bangumiId, anime.watchedEpisodes)
+                            didPush = true
+                        }
+                        if (remote.type != desiredType) {
+                            delay(PUSH_THROTTLE_MS)
+                            pushCollectionStatus(bangumiId, anime.status, remote)
+                            didPush = true
+                        }
+                    }
+                    if (didPush) pushed++
+                    delay(PUSH_THROTTLE_MS)
+                }
+
+                if (BuildConfig.DEBUG) Log.d(TAG, "syncLocalToRemote completed: pushed=$pushed")
+                Result.success(pushed)
+            } catch (e: Exception) {
+                Log.e(TAG, "syncLocalToRemote failed", e)
+                Result.failure(e)
+            }
+        }
+    }
+
+    /** 一次性拉取远程所有动画收藏并建立 subjectId → item 索引 */
+    private suspend fun fetchRemoteCollectionMap(): Map<Int, com.aiexile.animetrack.data.network.BangumiCollectionItem> {
+        val map = mutableMapOf<Int, com.aiexile.animetrack.data.network.BangumiCollectionItem>()
+        var offset = 0
+        val limit = 100
+        var hasMore = true
+        while (hasMore) {
+            val response = RetrofitClient.bangumiApi.getUserCollections(
+                subjectType = 2,
+                limit = limit,
+                offset = offset
+            )
+            for (item in response.data) {
+                map[item.subjectId] = item
+            }
+            hasMore = response.offset + response.data.size < response.total
+            offset += limit
+        }
+        return map
+    }
+
+    /** 直接 POST 收藏状态（避免每条都 GET 现有状态，全量推送时复用 remoteMap） */
+    private suspend fun pushCollectionStatus(
+        bangumiId: Int,
+        status: AnimeStatus,
+        existing: com.aiexile.animetrack.data.network.BangumiCollectionItem?
+    ) {
+        val type = animeStatusToBangumiType(status)
+        val body = CollectionStatusBody(
+            type = type,
+            rate = existing?.rate ?: 0,
+            comment = existing?.comment ?: "",
+            isPrivate = existing?.let { it.type == 0 } ?: false
+        )
+        RetrofitClient.bangumiApi.updateCollectionStatus(
+            subjectId = bangumiId,
+            body = body
+        )
+        if (BuildConfig.DEBUG) Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
+    }
+
+    private suspend fun pushEpisodeProgress(bangumiId: Int, episode: Int) {
+        try {
+            RetrofitClient.bangumiApi.updateEpisodeProgress(
+                subjectId = bangumiId,
+                body = EpisodeProgressBody(epStatus = episode)
+            )
+            if (BuildConfig.DEBUG) Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$episode")
+        } catch (e: Exception) {
+            Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
         }
     }
 

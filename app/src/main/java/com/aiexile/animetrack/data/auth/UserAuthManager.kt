@@ -109,6 +109,8 @@ class UserAuthManager(private val context: Context) {
     }
 
     suspend fun logout() {
+        cachedAccessToken = null
+        cachedRefreshToken = null
         context.userAuthDataStore.edit { preferences ->
             preferences.remove(ACCESS_TOKEN_KEY)
             preferences.remove(REFRESH_TOKEN_KEY)

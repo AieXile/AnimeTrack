@@ -29,3 +29,4 @@ dependencyResolutionManagement {
 rootProject.name = "AnimeTrack"
 include(":app")
 include(":jiguang")
+include(":baselineprofile")

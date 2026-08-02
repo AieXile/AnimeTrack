@@ -17,6 +17,7 @@ import com.aiexile.animetrack.util.ShareCardRenderer
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
 import com.aiexile.animetrack.util.formatAirDate
+import com.aiexile.animetrack.util.parseAirDateToLocalDate
 import com.aiexile.animetrack.util.resolveSearchError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,7 +53,12 @@ data class EditState(
     val tmdbId: Int? = null,
     val summary: String? = null,
     val isEditingTitle: Boolean = false,
-    val localCoverUri: String? = null
+    val localCoverUri: String? = null,
+    /**
+     * 用户手动覆盖的连载状态。null 表示自动判定；true 强制连载中；false 强制已完结。
+     * 进入编辑模式时初始化为当前番剧的 airingStatusOverride。
+     */
+    val airingStatusOverride: Boolean? = null
 )
 
 sealed class MatchSearchState {
@@ -72,6 +78,7 @@ data class AnimeDetailUiState(
     val coverSearch: CoverSearchState = CoverSearchState(),
     val airStatusText: String? = null,
     val showCompletedToast: Boolean = false,
+    val showDuplicateToast: Boolean = false,
     val editState: EditState = EditState()
 )
 
@@ -104,6 +111,8 @@ class AnimeDetailViewModel(
 
     private val _showCompletedToast = MutableStateFlow(false)
 
+    private val _showDuplicateToast = MutableStateFlow(false)
+
     private val _editState = MutableStateFlow(EditState())
 
     private val _matchSearchState = MutableStateFlow<MatchSearchState>(MatchSearchState.Idle)
@@ -131,6 +140,7 @@ class AnimeDetailViewModel(
         val isEditingNotes: Boolean = false,
         val coverSearch: CoverSearchState = CoverSearchState(),
         val showCompletedToast: Boolean = false,
+        val showDuplicateToast: Boolean = false,
         val editState: EditState = EditState()
     )
 
@@ -140,14 +150,16 @@ class AnimeDetailViewModel(
         },
         combine(_coverSearch, _showCompletedToast, _editState) { search, toast, edit ->
             Triple(search, toast, edit)
-        }
-    ) { (fetching, notes, editing), (search, toast, edit) ->
+        },
+        _showDuplicateToast
+    ) { (fetching, notes, editing), (search, toast, edit), duplicate ->
         UiExtras(
             isFetchingDetail = fetching,
             notesText = notes ?: "",
             isEditingNotes = editing,
             coverSearch = search,
             showCompletedToast = toast,
+            showDuplicateToast = duplicate,
             editState = edit
         )
     }.stateIn(
@@ -160,7 +172,8 @@ class AnimeDetailViewModel(
         animeFlow,
         uiExtras
     ) { anime, extras ->
-        val resolvedNotes = if (_notesText.value != null) _notesText.value!! else anime?.notes ?: ""
+        val notesValue = _notesText.value
+        val resolvedNotes = if (notesValue != null) notesValue else anime?.notes ?: ""
         AnimeDetailUiState(
             anime = anime,
             isLoading = anime == null && !extras.isFetchingDetail,
@@ -171,6 +184,7 @@ class AnimeDetailViewModel(
             coverSearch = extras.coverSearch,
             airStatusText = anime?.let { computeAirStatus(it) },
             showCompletedToast = extras.showCompletedToast,
+            showDuplicateToast = extras.showDuplicateToast,
             editState = extras.editState
         )
     }.stateIn(
@@ -201,9 +215,11 @@ class AnimeDetailViewModel(
                 if (anime != null && !hasFetchedDetail) {
                     if (anime.bangumiId != null) {
                         // 仅在尚未获取过简介时才触发获取，避免无网时反复加载
+                        // airEndDate == null 也触发：升级用户首次进入详情页时需拉取 infobox「播放结束」
                         val needsDetail = anime.summaryFetched != true
                             || anime.airDate == null
                             || anime.airWeekday == null
+                            || anime.airEndDate == null
                         if (needsDetail) {
                             hasFetchedDetail = true
                             fetchDetailFromApi(anime)
@@ -249,10 +265,15 @@ class AnimeDetailViewModel(
                     else -> anime.watchedEpisodes
                 }
 
+                // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                val parsedAirEndDate = detail.parseEndDate()
+
                 val isFinished = computeIsFinished(
                     airDate = detail.date,
                     totalEpisodes = finalTotalEpisodes,
-                    localStatus = anime.status
+                    localStatus = anime.status,
+                    airEndDate = parsedAirEndDate,
+                    airingStatusOverride = anime.airingStatusOverride
                 )
 
                 val updatedAnime = anime.copy(
@@ -264,11 +285,15 @@ class AnimeDetailViewModel(
                     currentEpisodes = finalCurrentEpisodes,
                     watchedEpisodes = newWatchedEpisodes,
                     isFinished = isFinished,
+                    airEndDate = parsedAirEndDate ?: anime.airEndDate,
                     // 标记已获取过简介，避免无网时反复触发加载
                     summaryFetched = true
                 )
 
-                repository.updateAnimeInternal(updatedAnime)
+                // 用 updateAnime 而非 updateAnimeInternal：
+                // airEndDate 拉到后 isFinished 可能从 false 翻为 true，需同步到后端 isAiring
+                // shouldSyncToServer 会比对 isFinished，仅在变化时触发 syncSubscriptionToServer
+                repository.updateAnime(updatedAnime)
 
                 Log.d(TAG, "Detail fetched and updated: summary=${detail.summary?.take(50)}...")
             } catch (e: Exception) {
@@ -283,33 +308,55 @@ class AnimeDetailViewModel(
         val isFinished = computeIsFinished(
             airDate = anime.airDate,
             totalEpisodes = anime.totalEpisodes,
-            localStatus = anime.status
+            localStatus = anime.status,
+            airEndDate = anime.airEndDate,
+            airingStatusOverride = anime.airingStatusOverride
         )
         if (isFinished != anime.isFinished) {
             viewModelScope.launch {
-                repository.updateAnimeInternal(anime.copy(isFinished = isFinished))
+                // 用 updateAnime 而非 updateAnimeInternal：isFinished 变化需同步到后端 isAiring
+                repository.updateAnime(anime.copy(isFinished = isFinished))
             }
         }
     }
 
     private fun computeAirStatus(anime: Anime): String? {
         val rawAirDate = anime.airDate ?: return null
-        // 统一格式化为 yyyy-MM-dd，兼容 UTC ISO 8601 格式
-        val airDate = formatAirDate(rawAirDate) ?: rawAirDate
+        // 兼容 yyyy-MM-dd、ISO 8601、yyyy-MM（年月按 1 号）
+        val startDate = parseAirDateToLocalDate(rawAirDate) ?: return null
         val totalEpisodes = anime.totalEpisodes
         val currentEpisodes = anime.currentEpisodes
+        val today = LocalDate.now()
 
         return try {
-            val startDate = LocalDate.parse(airDate, DateTimeFormatter.ISO_LOCAL_DATE)
-            val today = LocalDate.now()
-
             if (today.isBefore(startDate)) {
-                "${airDate} 开播"
-            } else if (anime.isFinished || anime.status == AnimeStatus.COMPLETED) {
+                // 未放送：放送日期行已展示，此处不再重复
+                null
+            } else if (anime.airingStatusOverride == true) {
+                // 强制连载中：优先级最高，跳过所有「已完结」判定（包括 status=COMPLETED）
+                // 因为 status=COMPLETED 表示「用户已看完」，不代表「番剧已完结」
+                if (totalEpisodes > 0) {
+                    val weekdayName = anime.airWeekday?.toWeekdayName()
+                    if (weekdayName != null) "每周${weekdayName}更新" else "更新中"
+                } else {
+                    if (currentEpisodes > 0) "连载中 (更新至 ${currentEpisodes} 集)" else "连载中"
+                }
+            } else if (anime.airingStatusOverride == false
+                || anime.isFinished
+                || anime.status == AnimeStatus.COMPLETED
+            ) {
                 "已完结"
             } else {
-                val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
-                if (totalEpisodes > 0 && diffWeeks > (totalEpisodes + 1)) {
+                // override=null：走原有自动判定
+                // 优先用 Bangumi「播放结束」字段精确判定
+                val airEndDate = anime.airEndDate?.let { parseAirDateToLocalDate(it) }
+                val autoFinished = if (airEndDate != null && !today.isBefore(airEndDate)) {
+                    true
+                } else {
+                    val diffWeeks = ChronoUnit.WEEKS.between(startDate, today)
+                    totalEpisodes > 0 && diffWeeks > (totalEpisodes + 1)
+                }
+                if (autoFinished) {
                     "已完结"
                 } else if (totalEpisodes > 0) {
                     val weekdayName = anime.airWeekday?.toWeekdayName()
@@ -357,11 +404,14 @@ class AnimeDetailViewModel(
             updatedAnime = updatedAnime.copy(status = AnimeStatus.WATCHING)
         }
 
+        // 用户手动覆盖连载状态时，isFinished 由 override 决定，自动完结逻辑不得覆盖
+        val override = anime.airingStatusOverride
+
         if (autoComplete) {
             if (newCount == anime.totalEpisodes && anime.totalEpisodes > 0 && anime.status != AnimeStatus.COMPLETED) {
                 updatedAnime = updatedAnime.copy(
                     status = AnimeStatus.COMPLETED,
-                    isFinished = true,
+                    isFinished = override?.let { !it } ?: true,
                     finishDate = System.currentTimeMillis()
                 )
                 if (completedToastEnabled.value) {
@@ -370,7 +420,7 @@ class AnimeDetailViewModel(
             } else if (newCount < anime.totalEpisodes && anime.status == AnimeStatus.COMPLETED) {
                 updatedAnime = updatedAnime.copy(
                     status = AnimeStatus.WATCHING,
-                    isFinished = false,
+                    isFinished = override?.let { !it } ?: false,
                     finishDate = null
                 )
             }
@@ -406,6 +456,32 @@ class AnimeDetailViewModel(
 
     fun dismissCompletedToast() {
         _showCompletedToast.value = false
+    }
+
+    fun dismissDuplicateToast() {
+        _showDuplicateToast.value = false
+    }
+
+    /**
+     * 检查给定的 bangumiId / tmdbId 是否已被【其他】番剧占用。
+     * 用于编辑/封面搜索/匹配场景写入前的去重，避免触发 UNIQUE 约束导致闪退。
+     * @param selfId 当前番剧自身 id，查到的占用者若是自身则视为合法。
+     * @return true 表示被其他番剧占用（应中止写入并提示用户）
+     */
+    private suspend fun isDuplicateExternalId(
+        bangumiId: Int?,
+        tmdbId: Int?,
+        selfId: Int
+    ): Boolean {
+        bangumiId?.let {
+            val existing = repository.getAnimeByBangumiId(it)
+            if (existing != null && existing.id != selfId) return true
+        }
+        tmdbId?.let {
+            val existing = repository.getAnimeByTmdbId(it)
+            if (existing != null && existing.id != selfId) return true
+        }
+        return false
     }
 
     fun incrementEpisode() {
@@ -453,7 +529,8 @@ class AnimeDetailViewModel(
             airDate = anime.airDate,
             airWeekday = anime.airWeekday,
             bangumiId = anime.bangumiId,
-            summary = anime.summary
+            summary = anime.summary,
+            airingStatusOverride = anime.airingStatusOverride
         )
     }
 
@@ -498,12 +575,24 @@ class AnimeDetailViewModel(
     fun selectMatchResult(result: SearchResult) {
         val anime = animeFlow.value ?: return
         viewModelScope.launch {
-            val updatedAnime = when (result.source) {
-                SearchSource.BANGUMI -> anime.copy(bangumiId = result.sourceId)
-                SearchSource.TMDB -> anime.copy(tmdbId = result.sourceId)
-                SearchSource.ALL -> anime // ALL 不会出现在匹配结果中
+            val (newBangumiId, newTmdbId) = when (result.source) {
+                SearchSource.BANGUMI -> result.sourceId to anime.tmdbId
+                SearchSource.TMDB -> anime.bangumiId to result.sourceId
+                SearchSource.ALL -> return@launch // ALL 不会出现在匹配结果中
             }
-            repository.updateAnime(updatedAnime)
+            // id 去重：目标 id 可能已被其他番剧占用
+            if (isDuplicateExternalId(newBangumiId, newTmdbId, anime.id)) {
+                _showDuplicateToast.value = true
+                return@launch
+            }
+            val updatedAnime = anime.copy(bangumiId = newBangumiId, tmdbId = newTmdbId)
+            try {
+                repository.updateAnime(updatedAnime)
+            } catch (e: Exception) {
+                Log.e(TAG, "updateAnime failed in selectMatchResult", e)
+                _showDuplicateToast.value = true
+                return@launch
+            }
             _showMatchDialog.value = false
             _matchSearchState.value = MatchSearchState.Idle
         }
@@ -521,6 +610,7 @@ class AnimeDetailViewModel(
             || edit.airWeekday != anime.airWeekday
             || edit.bangumiId != anime.bangumiId
             || edit.summary != anime.summary
+            || edit.airingStatusOverride != anime.airingStatusOverride
     }
 
     fun updateEditTitle(title: String) {
@@ -531,8 +621,20 @@ class AnimeDetailViewModel(
         _editState.value = _editState.value.copy(airWeekday = weekday)
     }
 
+    fun updateEditAirDate(airDate: String?) {
+        _editState.value = _editState.value.copy(airDate = airDate)
+    }
+
     fun updateEditSummary(summary: String) {
         _editState.value = _editState.value.copy(summary = summary)
+    }
+
+    /**
+     * 更新编辑态的连载状态覆盖。
+     * @param override null=自动判定, true=强制连载中, false=强制已完结
+     */
+    fun updateEditAiringStatusOverride(override: Boolean?) {
+        _editState.value = _editState.value.copy(airingStatusOverride = override)
     }
 
     fun updateEditTotalEpisodes(total: Int) {
@@ -607,6 +709,13 @@ class AnimeDetailViewModel(
         if (!edit.isEditing) return
 
         viewModelScope.launch {
+            // id 去重：编辑时可能把 bangumiId/tmdbId 改成已被其他番剧占用的值，
+            // 直接 @Update 会触发 UNIQUE 约束异常导致闪退。
+            if (isDuplicateExternalId(edit.bangumiId, anime.tmdbId, anime.id)) {
+                _showDuplicateToast.value = true
+                return@launch
+            }
+
             val newCoverUrl = edit.localCoverUri ?: edit.coverUrl
             if (edit.localCoverUri != null && anime.coverUrl != edit.localCoverUri) {
                 deleteOldCoverFile(anime.coverUrl)
@@ -616,6 +725,14 @@ class AnimeDetailViewModel(
             } else {
                 anime.watchedEpisodes
             }
+            // 联动重算 isFinished：override 变化或 airDate/totalEpisodes 变化都可能影响完结状态
+            val newIsFinished = computeIsFinished(
+                airDate = edit.airDate,
+                totalEpisodes = edit.totalEpisodes,
+                localStatus = anime.status,
+                airEndDate = anime.airEndDate,
+                airingStatusOverride = edit.airingStatusOverride
+            )
             val updatedAnime = anime.copy(
                 title = edit.title,
                 coverUrl = newCoverUrl,
@@ -624,9 +741,16 @@ class AnimeDetailViewModel(
                 airDate = edit.airDate,
                 airWeekday = edit.airWeekday,
                 bangumiId = edit.bangumiId,
-                summary = edit.summary ?: anime.summary
+                summary = edit.summary ?: anime.summary,
+                isFinished = newIsFinished,
+                airingStatusOverride = edit.airingStatusOverride
             )
-            repository.updateAnime(updatedAnime)
+            try {
+                repository.updateAnime(updatedAnime)
+            } catch (e: Exception) {
+                Log.e(TAG, "updateAnime failed in saveEditChanges", e)
+                _showDuplicateToast.value = true
+            }
             _editState.value = EditState()
         }
     }
@@ -641,7 +765,13 @@ class AnimeDetailViewModel(
     fun updateStatus(newStatus: AnimeStatus) {
         val anime = animeFlow.value ?: return
 
-        val isFinished = newStatus == AnimeStatus.COMPLETED || anime.isFinished
+        // 用户手动覆盖连载状态时，isFinished 由 override 决定，不受观看状态切换影响
+        val override = anime.airingStatusOverride
+        val isFinished = if (override != null) {
+            !override
+        } else {
+            newStatus == AnimeStatus.COMPLETED || anime.isFinished
+        }
         val updatedAnime = anime.copy(
             status = newStatus,
             isFinished = isFinished,
@@ -797,6 +927,14 @@ class AnimeDetailViewModel(
         } else {
             val anime = animeFlow.value ?: return
             viewModelScope.launch {
+                // id 去重：封面搜索可能把当前番剧绑定到已被其他番剧占用的 id
+                val dupBangumiId = if (result.source == SearchSource.BANGUMI) result.sourceId else null
+                val dupTmdbId = if (result.source == SearchSource.TMDB) result.sourceId else null
+                if (isDuplicateExternalId(dupBangumiId, dupTmdbId, anime.id)) {
+                    _showDuplicateToast.value = true
+                    _coverSearch.value = CoverSearchState()
+                    return@launch
+                }
                 when (result.source) {
                     SearchSource.BANGUMI -> {
                         val detail = tryFetchDetail(result.sourceId)
@@ -819,10 +957,15 @@ class AnimeDetailViewModel(
                             anime.watchedEpisodes
                         }
 
+                        // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                        val parsedAirEndDate = detail?.parseEndDate()
+
                         val isFinished = computeIsFinished(
                             airDate = airDate,
                             totalEpisodes = finalTotalEpisodes,
-                            localStatus = anime.status
+                            localStatus = anime.status,
+                            airEndDate = parsedAirEndDate,
+                            airingStatusOverride = anime.airingStatusOverride
                         )
 
                         val updatedAnime = anime.copy(
@@ -833,9 +976,16 @@ class AnimeDetailViewModel(
                             totalEpisodes = finalTotalEpisodes,
                             watchedEpisodes = clampedWatched,
                             isFinished = isFinished,
+                            airEndDate = parsedAirEndDate ?: anime.airEndDate,
                             bangumiId = result.sourceId
                         )
-                        repository.updateAnime(updatedAnime)
+                        try {
+                            repository.updateAnime(updatedAnime)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "updateAnime failed in selectCoverResult (Bangumi)", e)
+                            _showDuplicateToast.value = true
+                            return@launch
+                        }
                         repository.downloadCoverAsync(
                             animeId = updatedAnime.id,
                             coverUrl = updatedAnime.coverUrl,
@@ -858,7 +1008,8 @@ class AnimeDetailViewModel(
                         val isFinished = computeIsFinished(
                             airDate = airDate,
                             totalEpisodes = finalTotalEpisodes,
-                            localStatus = anime.status
+                            localStatus = anime.status,
+                            airingStatusOverride = anime.airingStatusOverride
                         )
 
                         val updatedAnime = anime.copy(
@@ -870,7 +1021,13 @@ class AnimeDetailViewModel(
                             isFinished = isFinished,
                             tmdbId = result.sourceId
                         )
-                        repository.updateAnime(updatedAnime)
+                        try {
+                            repository.updateAnime(updatedAnime)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "updateAnime failed in selectCoverResult (TMDB)", e)
+                            _showDuplicateToast.value = true
+                            return@launch
+                        }
                         repository.downloadCoverAsync(
                             animeId = updatedAnime.id,
                             coverUrl = updatedAnime.coverUrl,
@@ -887,10 +1044,6 @@ class AnimeDetailViewModel(
 
     private suspend fun tryFetchDetail(bangumiId: Int): com.aiexile.animetrack.data.network.BangumiSubjectDetail? {
         return repository.fetchBangumiDetail(bangumiId)
-    }
-
-    private suspend fun tryFetchSummary(bangumiId: Int): String? {
-        return repository.fetchBangumiDetail(bangumiId)?.summary?.cleanSummary()
     }
 
     fun shareAnime(context: android.content.Context, shareNotes: String) {
