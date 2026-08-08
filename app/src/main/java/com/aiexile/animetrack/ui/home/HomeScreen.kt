@@ -1553,7 +1553,10 @@ private fun AnimeGrid(
     
     val availableWidth = screenWidthDp - horizontalPadding
     val calculatedColumns = ((availableWidth + spacing) / (cardMinWidth + spacing)).toInt()
-    val columns = minOf(calculatedColumns.coerceAtLeast(3), 4)
+    // 平板适配：按屏幕方向限制列数上限（竖屏最多 4 列，横屏最多 6 列）
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val maxColumns = if (isLandscape) 6 else 4
+    val columns = calculatedColumns.coerceIn(3, maxColumns)
 
     // 已展开系列 key 集合：支持多系列同时独立展开。
     // 使用 stateSaver + listSaver 让 Set 可在配置变更/进程恢复后保留。
@@ -2050,7 +2053,7 @@ private fun NewAnimeCardWrapper(
                     .matchParentSize()
                     .background(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = highlightAlpha * 0.15f),
-                        shape = SquircleShape(8.dp)
+                        shape = SquircleShape(16.dp)
                     )
             )
         }

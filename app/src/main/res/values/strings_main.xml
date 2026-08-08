@@ -153,4 +153,11 @@
     <string name="announcement_back">返回</string>
     <string name="announcement_current">当前</string>
     <string name="announcement_no_content">暂无内容</string>
+
+    <!-- 公告投票 -->
+    <string name="announcement_vote_title">投票</string>
+    <string name="announcement_vote_loading">加载投票中…</string>
+    <string name="announcement_vote_total_format">共 %1$d 票</string>
+    <string name="announcement_vote_count_format">%1$d 票</string>
+    <string name="announcement_vote_required">请先完成投票</string>
 </resources>

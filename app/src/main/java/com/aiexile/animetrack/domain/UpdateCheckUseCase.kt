@@ -106,8 +106,9 @@ class UpdateCheckUseCase(
 
             val outcomes = deferredOutcomes.awaitAll().filterNotNull()
 
-            // 第二阶段：统一写入本地数据库（纯 DAO，不触发逐条网络同步）
-            outcomes.forEach { repository.updateAnimeInternal(it.updatedAnime) }
+            // 第二阶段：单事务批量写入本地数据库（纯 DAO，不触发逐条网络同步，
+            // 避免 N 次独立事务引发 N 次 Room 失效与列表重算）
+            repository.batchUpdateAnimesInternal(outcomes.map { it.updatedAnime })
 
             val results = outcomes.mapNotNull { it.result }
             if (results.isNotEmpty()) {

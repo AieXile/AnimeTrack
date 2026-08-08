@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -151,14 +152,16 @@ class HomeViewModel(
         )
 
     /**
-     * 派生的首页列表：仅在数据或筛选参数变化时重新排序/分组，
-     * 配合 distinctUntilChanged 避免 Compose 每帧重复计算。
+     * 派生的首页列表：仅在数据或筛选参数变化时重新排序/分组。
+     * 排序 + SeriesMatcher 正则分组是 CPU 密集计算，通过 flowOn(Default) 移出主线程，
+     * 避免启动期 DB 写入触发的多次重算阻塞滑动帧；结果仍经 distinctUntilChanged 去重。
      */
     val filteredAnimeListItems: StateFlow<List<AnimeListItem>> =
         combine(animeList, listParams) { animes, params ->
             val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds)
             SeriesMatcher.groupAnimeList(filtered)
-        }.distinctUntilChanged()
+        }.flowOn(Dispatchers.Default)
+            .distinctUntilChanged()
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -761,7 +764,8 @@ class HomeViewModel(
             val settingsRepository = AppContainer.getSettingsRepository()
             val updateRepository = UpdateRepository()
             val updateViewModel = UpdateViewModel(updateRepository, settingsRepository)
-            val announcementViewModel = AnnouncementViewModel(settingsRepository)
+            val userAuthManager = AppContainer.getUserAuthManager()
+            val announcementViewModel = AnnouncementViewModel(settingsRepository, userAuthManager)
             val searchUseCase = SearchUseCase(repository)
             val updateCheckUseCase = UpdateCheckUseCase(repository)
             return HomeViewModel(repository, settingsRepository, updateViewModel, announcementViewModel, searchUseCase, updateCheckUseCase) as T

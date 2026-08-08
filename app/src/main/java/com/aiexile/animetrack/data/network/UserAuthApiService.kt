@@ -9,6 +9,7 @@ import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 
 data class UserAuthRegisterRequest(
     val username: String,
@@ -239,6 +240,17 @@ interface UserAuthApiService {
 
     @GET("announcements")
     suspend fun getAnnouncements(): AnnouncementsResponse
+
+    /** 获取公告详情（含投票选项与当前用户已选状态，需登录） */
+    @GET("announcements/{id}")
+    suspend fun getAnnouncementDetail(@Path("id") id: Int): AnnouncementDetailResponse
+
+    /** 提交投票（需登录，同一用户重复提交会覆盖原选择） */
+    @POST("announcements/{id}/respond")
+    suspend fun submitVote(
+        @Path("id") id: Int,
+        @Body body: VoteRequest
+    ): VoteResponse
 }
 
 // ========== 订阅字段转换辅助函数 ==========
@@ -284,4 +296,44 @@ data class Announcement(
 data class AnnouncementsResponse(
     val success: Boolean,
     val announcements: List<Announcement> = emptyList()
+)
+
+// ========== 公告投票 ==========
+
+/** 公告投票选项 */
+data class AnnouncementOption(
+    val id: Int,
+    val text: String,
+    val count: Int = 0,
+    @SerializedName("sort_order")
+    val sortOrder: Int = 0
+)
+
+/** 公告详情（在列表公告基础上增加投票选项与当前用户已选状态） */
+data class AnnouncementDetail(
+    val id: Int,
+    val title: String,
+    val content: String?,
+    @SerializedName("image_url")
+    val imageUrl: String?,
+    @SerializedName("created_at")
+    val createdAt: String?,
+    val options: List<AnnouncementOption> = emptyList(),
+    /** 当前用户已选的选项 ID，未投票为 null */
+    val selectedOptionId: Int? = null
+)
+
+data class AnnouncementDetailResponse(
+    val success: Boolean,
+    val announcement: AnnouncementDetail? = null
+)
+
+/** 提交投票请求体 */
+data class VoteRequest(
+    val optionId: Int
+)
+
+data class VoteResponse(
+    val success: Boolean,
+    val message: String? = null
 )

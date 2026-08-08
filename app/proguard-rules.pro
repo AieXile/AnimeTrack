@@ -273,6 +273,11 @@
 -keep class com.aiexile.animetrack.data.network.PushSettingsResponse { *; }
 -keep class com.aiexile.animetrack.data.network.AnnouncementsResponse { *; }
 -keep class com.aiexile.animetrack.data.network.Announcement { *; }
+-keep class com.aiexile.animetrack.data.network.AnnouncementDetail { *; }
+-keep class com.aiexile.animetrack.data.network.AnnouncementOption { *; }
+-keep class com.aiexile.animetrack.data.network.AnnouncementDetailResponse { *; }
+-keep class com.aiexile.animetrack.data.network.VoteRequest { *; }
+-keep class com.aiexile.animetrack.data.network.VoteResponse { *; }
 -keep class com.aiexile.animetrack.data.network.ActivityReportResponse { *; }
 # GitHub Release
 -keep class com.aiexile.animetrack.data.remote.GitHubRelease { *; }

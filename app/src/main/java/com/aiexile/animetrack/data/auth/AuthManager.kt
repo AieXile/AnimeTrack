@@ -30,6 +30,7 @@ class AuthManager(private val context: Context) {
         private val USER_AVATAR_KEY = stringPreferencesKey("user_avatar")
         private val USER_NICKNAME_KEY = stringPreferencesKey("user_nickname")
         private val USER_BANGUMI_ID_KEY = intPreferencesKey("user_bangumi_id")
+        private val USER_USERNAME_KEY = stringPreferencesKey("user_username")
         private val CUSTOM_AVATAR_URI_KEY = stringPreferencesKey("custom_avatar_uri")
 
         const val CLIENT_ID = "bgm61706a0cc8ae6c766"
@@ -63,17 +64,16 @@ class AuthManager(private val context: Context) {
         .map { preferences -> preferences[ACCESS_TOKEN_KEY] }
 
     val userAvatar: Flow<String?> = context.authDataStore.data
-        .map { preferences ->
-            val custom = preferences[CUSTOM_AVATAR_URI_KEY]
-            if (custom != null && File(custom).exists()) custom
-            else preferences[USER_AVATAR_KEY]
-        }
+        .map { preferences -> preferences[USER_AVATAR_KEY] }
 
     val userNickname: Flow<String?> = context.authDataStore.data
         .map { preferences -> preferences[USER_NICKNAME_KEY] }
 
     val userBangumiId: Flow<Int?> = context.authDataStore.data
         .map { preferences -> preferences[USER_BANGUMI_ID_KEY] }
+
+    val userUsername: Flow<String?> = context.authDataStore.data
+        .map { preferences -> preferences[USER_USERNAME_KEY] }
 
     val customAvatarUri: Flow<String?> = context.authDataStore.data
         .map { preferences -> preferences[CUSTOM_AVATAR_URI_KEY] }
@@ -86,11 +86,12 @@ class AuthManager(private val context: Context) {
         }
     }
 
-    suspend fun saveUserProfile(avatar: String?, nickname: String?, bangumiId: Int?) {
+    suspend fun saveUserProfile(avatar: String?, nickname: String?, bangumiId: Int?, username: String? = null) {
         context.authDataStore.edit { preferences ->
             if (avatar != null) preferences[USER_AVATAR_KEY] = avatar
             if (nickname != null) preferences[USER_NICKNAME_KEY] = nickname
             if (bangumiId != null) preferences[USER_BANGUMI_ID_KEY] = bangumiId
+            if (username != null) preferences[USER_USERNAME_KEY] = username
         }
     }
 
@@ -143,6 +144,7 @@ class AuthManager(private val context: Context) {
             preferences.remove(USER_AVATAR_KEY)
             preferences.remove(USER_NICKNAME_KEY)
             preferences.remove(USER_BANGUMI_ID_KEY)
+            preferences.remove(USER_USERNAME_KEY)
             preferences.remove(CUSTOM_AVATAR_URI_KEY)
         }
         if (customPath != null) {

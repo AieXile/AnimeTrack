@@ -43,8 +43,9 @@ object SeriesMatcher {
         Regex("""\s+Final\s+Season(?:\s*\(.*\))?$"""),
     )
 
-    // baseTitle 缓存：避免对同一标题重复执行正则匹配
-    private val baseTitleCache = mutableMapOf<String, String>()
+    // baseTitle 缓存：避免对同一标题重复执行正则匹配。
+    // 使用 ConcurrentHashMap：列表派生计算现运行在 Default 线程池，可能跨线程访问。
+    private val baseTitleCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     fun extractBaseTitle(title: String): String {
         baseTitleCache[title]?.let { return it }

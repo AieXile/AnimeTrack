@@ -71,7 +71,8 @@ class BangumiAccountViewModel(
                 authManager.saveUserProfile(
                     avatar = profile.avatar?.bestUrl,
                     nickname = profile.nickname,
-                    bangumiId = profile.id
+                    bangumiId = profile.id,
+                    username = profile.username
                 )
             } catch (_: Exception) {
                 // 静默失败，保持持久化数据

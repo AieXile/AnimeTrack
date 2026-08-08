@@ -1,11 +1,14 @@
 package com.aiexile.animetrack.ui.announcement
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,24 +18,33 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.network.AnnouncementDetail
+import com.aiexile.animetrack.data.network.AnnouncementOption
 import com.aiexile.animetrack.ui.components.MarkdownText
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -97,7 +111,9 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                 val announcement = uiState.currentAnnouncement ?: return@AlertDialog
                 AnnouncementContent(
                     announcement = announcement,
-                    uiState = uiState
+                    uiState = uiState,
+                    onVote = { viewModel.submitVote(it) },
+                    onClearVoteError = { viewModel.clearVoteError() }
                 )
             }
         },
@@ -124,9 +140,22 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                 } else {
                     Spacer(modifier = Modifier)
                 }
-                // 我知道了
-                TextButton(onClick = { viewModel.dismiss() }) {
-                    Text(stringResource(R.string.announcement_close))
+                // 右侧：未投票的投票公告时显示提示，否则显示"我知道了"
+                val detail = uiState.currentDetail
+                val shouldHideClose = !uiState.showHistoryList &&
+                    detail != null &&
+                    detail.options.isNotEmpty() &&
+                    detail.selectedOptionId == null
+                if (shouldHideClose) {
+                    Text(
+                        text = stringResource(R.string.announcement_vote_required),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    TextButton(onClick = { viewModel.dismiss() }) {
+                        Text(stringResource(R.string.announcement_close))
+                    }
                 }
             }
         }
@@ -137,7 +166,9 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
 @Composable
 private fun AnnouncementContent(
     announcement: com.aiexile.animetrack.data.network.Announcement,
-    uiState: AnnouncementUiState
+    uiState: AnnouncementUiState,
+    onVote: (Int) -> Unit,
+    onClearVoteError: () -> Unit
 ) {
     Column {
         // 标题
@@ -212,6 +243,250 @@ private fun AnnouncementContent(
                 }
             }
         }
+
+        // 投票区（需登录，未登录或无选项时不显示）
+        VoteSection(
+            detail = uiState.currentDetail,
+            isDetailLoading = uiState.isDetailLoading,
+            isVoting = uiState.isVoting,
+            voteError = uiState.voteError,
+            onVote = onVote,
+            onClearVoteError = onClearVoteError
+        )
+    }
+}
+
+/**
+ * 投票区组件。
+ * - 未投票：选项为可点击行（RadioButton 指示器，无 ripple）。
+ * - 已投票：显示各选项得票数 + 占比 + 进度条，已选项高亮。
+ * - 投票状态由后端 selectedOptionId 驱动，而非本地 remember 锁定。
+ */
+@Composable
+private fun VoteSection(
+    detail: AnnouncementDetail?,
+    isDetailLoading: Boolean,
+    isVoting: Boolean,
+    voteError: String?,
+    onVote: (Int) -> Unit,
+    onClearVoteError: () -> Unit
+) {
+    // 详情加载中
+    if (isDetailLoading) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.announcement_vote_loading),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    val safeDetail = detail ?: return
+    val options = safeDetail.options.sortedBy { it.sortOrder }
+    if (options.isEmpty()) return
+
+    val selectedOptionId = safeDetail.selectedOptionId
+    val hasVoted = selectedOptionId != null
+    val totalVotes = options.sumOf { it.count }
+
+    Spacer(modifier = Modifier.height(12.dp))
+    // 投票区标题（投票中显示加载指示）
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(R.string.announcement_vote_title),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (isVoting && !hasVoted) {
+            Spacer(modifier = Modifier.width(8.dp))
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = SquircleShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
+    ) {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            options.forEachIndexed { index, option ->
+                if (index > 0) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                }
+                if (hasVoted) {
+                    VotedOptionRow(
+                        option = option,
+                        isSelected = option.id == selectedOptionId,
+                        totalVotes = totalVotes
+                    )
+                } else {
+                    UnvotedOptionRow(
+                        option = option,
+                        isVoting = isVoting,
+                        onVote = onVote
+                    )
+                }
+            }
+        }
+    }
+
+    // 总票数
+    if (hasVoted) {
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.announcement_vote_total_format, totalVotes),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    // 投票错误提示（点击关闭）
+    voteError?.let { error ->
+        Spacer(modifier = Modifier.height(6.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = SquircleShape(8.dp),
+            color = MaterialTheme.colorScheme.errorContainer,
+            onClick = onClearVoteError
+        ) {
+            Text(
+                text = error,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+/** 未投票选项行：RadioButton 指示器，无 ripple（遵循项目偏好） */
+@Composable
+private fun UnvotedOptionRow(
+    option: AnnouncementOption,
+    isVoting: Boolean,
+    onVote: (Int) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = !isVoting,
+                onClick = { onVote(option.id) }
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = option.text,
+            modifier = Modifier.weight(1f),
+            fontSize = 14.sp,
+            color = if (isVoting) MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurface
+        )
+        RadioButton(
+            selected = false,
+            onClick = null,
+            enabled = !isVoting,
+            interactionSource = interactionSource,
+            colors = RadioButtonDefaults.colors(
+                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+    }
+}
+
+/** 已投票选项行：进度条 + 票数 + 占比，已选项高亮 */
+@Composable
+private fun VotedOptionRow(
+    option: AnnouncementOption,
+    isSelected: Boolean,
+    totalVotes: Int
+) {
+    val ratio = if (totalVotes > 0) option.count.toFloat() / totalVotes else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = ratio,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "voteProgress"
+    )
+    val percent = (ratio * 100).toInt()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = option.text,
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurface
+            )
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .padding(end = 0.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            Text(
+                text = "$percent%",
+                fontSize = 12.sp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.announcement_vote_count_format, option.count),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(SquircleShape(2.dp)),
+            color = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.secondary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     }
 }
 

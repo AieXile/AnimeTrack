@@ -53,7 +53,8 @@ class LoginViewModel(
                     authManager.saveUserProfile(
                         avatar = profile.avatar?.bestUrl,
                         nickname = profile.nickname,
-                        bangumiId = profile.id
+                        bangumiId = profile.id,
+                        username = profile.username
                     )
                     Log.d(TAG, "Profile fetched: nickname=${profile.nickname}")
                 } catch (e: Exception) {

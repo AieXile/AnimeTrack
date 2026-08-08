@@ -146,12 +146,10 @@ class BilibiliSyncManager(
                 if (BuildConfig.DEBUG) Log.d(TAG, "Batch inserted ${toInsert.size} new animes from Bilibili")
             }
 
-            // 逐条更新已有番剧（每条 updateAnime 内部会触发去抖 reassign + 条件性 sync）
-            for (anime in toUpdate) {
-                repository.updateAnime(anime)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Merged from Bilibili: ${anime.title} -> watched=${anime.watchedEpisodes}")
-            }
+            // 批量更新已有番剧（单事务写库，副作用与逐条 updateAnime 一致：
+            // 去抖 reassign + 条件性服务器同步，WebDAV 通知合并为一次）
             if (toUpdate.isNotEmpty()) {
+                repository.batchUpdateAnimes(toUpdate)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Merged ${toUpdate.size} existing animes from Bilibili")
             }
 

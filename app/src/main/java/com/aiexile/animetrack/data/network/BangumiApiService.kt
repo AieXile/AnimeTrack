@@ -265,15 +265,30 @@ data class BangumiCollectionResponse(
 
 data class CollectionStatusBody(
     val type: Int,
-    val rate: Int = 0,
-    val comment: String = "",
+    val rate: Int? = null,
+    val comment: String? = null,
     @SerializedName("private")
-    val isPrivate: Boolean = false
+    val isPrivate: Boolean? = null
 )
 
-data class EpisodeProgressBody(
-    @SerializedName("ep_status")
-    val epStatus: Int
+data class BangumiEpisode(
+    val id: Int,
+    val type: Int,
+    val sort: Double,
+    val ep: Double?
+)
+
+data class BangumiEpisodeResponse(
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+    val data: List<BangumiEpisode>
+)
+
+data class EpisodeCollectionBody(
+    @SerializedName("episode_id")
+    val episodeId: List<Int>,
+    val type: Int
 )
 
 interface BangumiApiService {
@@ -303,18 +318,13 @@ interface BangumiApiService {
     suspend fun getMyProfile(): BangumiUserProfile
 
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
-    @GET("users/-/collections")
+    @GET("users/{username}/collections")
     suspend fun getUserCollections(
+        @Path("username") username: String,
         @Query("subject_type") subjectType: Int = 2,
         @Query("limit") limit: Int = 100,
         @Query("offset") offset: Int = 0
     ): BangumiCollectionResponse
-
-    @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
-    @GET("users/-/collections/{subject_id}")
-    suspend fun getCollectionStatus(
-        @Path("subject_id") subjectId: Int
-    ): BangumiCollectionItem
 
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
     @POST("users/-/collections/{subject_id}")
@@ -324,9 +334,18 @@ interface BangumiApiService {
     )
 
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
-    @PATCH("users/-/collections/{subject_id}")
-    suspend fun updateEpisodeProgress(
+    @GET("episodes")
+    suspend fun getEpisodes(
+        @Query("subject_id") subjectId: Int,
+        @Query("type") type: Int = 0,
+        @Query("limit") limit: Int = 200,
+        @Query("offset") offset: Int = 0
+    ): BangumiEpisodeResponse
+
+    @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
+    @PATCH("users/-/collections/{subject_id}/episodes")
+    suspend fun markEpisodesWatched(
         @Path("subject_id") subjectId: Int,
-        @Body body: EpisodeProgressBody
+        @Body body: EpisodeCollectionBody
     )
 }

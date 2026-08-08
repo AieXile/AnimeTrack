@@ -153,4 +153,11 @@
     <string name="announcement_back">Back</string>
     <string name="announcement_current">Current</string>
     <string name="announcement_no_content">No content</string>
+
+    <!-- Announcement Vote -->
+    <string name="announcement_vote_title">Vote</string>
+    <string name="announcement_vote_loading">Loading poll…</string>
+    <string name="announcement_vote_total_format">%1$d votes total</string>
+    <string name="announcement_vote_count_format">%1$d votes</string>
+    <string name="announcement_vote_required">Please vote first</string>
 </resources>

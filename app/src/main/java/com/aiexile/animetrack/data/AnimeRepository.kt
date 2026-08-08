@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 interface AnimeRepository {
 
@@ -55,6 +58,20 @@ interface AnimeRepository {
      * @return 更新前的旧数据（不存在则为 null），便于调用方按需比对。
      */
     suspend fun updateAnimeInternal(anime: Anime): Anime?
+
+    /**
+     * 批量更新番剧（单事务写库）：与逐条调用 [updateAnime] 的最终状态与副作用一致
+     * （WebDAV 通知合并为一次、完结统计逐条比对、去抖 reassign、逐条条件性后端同步），
+     * 但只触发一次 Room 失效，避免启动期批量同步时 N 次事务引发 N 次列表重算。
+     */
+    suspend fun batchUpdateAnimes(animes: List<Anime>)
+
+    /**
+     * 批量纯本地更新（单事务写库）：与逐条调用 [updateAnimeInternal] 一致
+     * （仅 WebDAV 通知 + 完结统计 + 标题变化 reassign，不触发后端同步）。
+     * @return 与入参顺序对应的旧数据列表（不存在则为 null）
+     */
+    suspend fun batchUpdateAnimesInternal(animes: List<Anime>): List<Anime?>
 
     /**
      * 手动触发后端订阅同步（POST /subscriptions/add）。
@@ -144,6 +161,10 @@ class AnimeRepositoryImpl(
     private val context: android.content.Context
 ) : AnimeRepository {
 
+    /** 封面本地化写库合批队列：key=animeId，value=最新 coverUrl（flush 前合并同 id 的更新） */
+    private val pendingCoverUrlUpdates = ConcurrentHashMap<Int, String>()
+    private val coverBatcherStarted = AtomicBoolean(false)
+
     companion object {
         private const val TAG = "AnimeTrack"
         private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -160,6 +181,8 @@ class AnimeRepositoryImpl(
         private const val SYNC_DEBOUNCE_MS = 3000L
         /** reassignSeriesKeys 防抖延迟，批量增删时只执行最后一次 */
         private const val REASSIGN_DEBOUNCE_MS = 1000L
+        /** 封面本地化写库合批 flush 延迟：短时间内的多次封面更新合并为一次事务写库 */
+        private const val COVER_BATCH_FLUSH_MS = 300L
         /** reassignSeriesKeys 防抖 Job（在 appScope 上调度，cancel/replace 安全） */
         @Volatile
         private var reassignSeriesKeysJob: Job? = null
@@ -198,23 +221,74 @@ class AnimeRepositoryImpl(
             triggerReassignSeriesKeysDebounced()
             // 同步订阅到后端
             syncSubscriptionToServer(animeToInsert, isAdd = true)
+            // 异步推送到 Bangumi（fire-and-forget，不阻塞新增流程）
+            // batchInsertAnimes 不推 Bangumi，避免从 Bangumi 拉取后又推回造成循环
+            val bangumiId = animeToInsert.bangumiId
+            if (bangumiId != null) {
+                val watchedEps = animeToInsert.watchedEpisodes
+                val status = animeToInsert.status
+                appScope.launch {
+                    val syncManager = com.aiexile.animetrack.di.AppContainer.getSyncManager()
+                    if (watchedEps > 0) {
+                        syncManager.pushProgressThenStatus(bangumiId, watchedEps, status)
+                    } else {
+                        syncManager.pushStatusToRemote(bangumiId, status)
+                    }
+                }
+            }
         }
         return id
     }
 
     override suspend fun updateAnimeInternal(anime: Anime): Anime? {
-        val oldAnime = animeDao.getAnimeById(anime.id)
-        animeDao.updateAnime(anime)
-        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
-        // 检测状态变为已看完时记录完结统计
-        if (oldAnime != null && oldAnime.status != AnimeStatus.COMPLETED && anime.status == AnimeStatus.COMPLETED) {
-            com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementCompletedAnime()
+        // 与批量路径共用单事务实现，副作用一致
+        return batchUpdateAnimesInternal(listOf(anime)).firstOrNull()
+    }
+
+    override suspend fun batchUpdateAnimesInternal(animes: List<Anime>): List<Anime?> {
+        if (animes.isEmpty()) return emptyList()
+        val database = AnimeDatabase.getDatabase(context)
+        // 单事务内读取旧值并写入：N 次写库只触发一次 Room 失效（一次列表重算）
+        val oldAnimes = database.withTransaction {
+            animes.map { anime ->
+                val old = animeDao.getAnimeById(anime.id)
+                animeDao.updateAnime(anime)
+                old
+            }
         }
-        // 标题可能变化，重新识别 seriesKey
-        if (oldAnime?.title != anime.title) {
+        // 副作用在事务外执行（与 batchInsertAnimes 一致）
+        var completedCount = 0
+        var titleChanged = false
+        for ((old, anime) in oldAnimes.zip(animes)) {
+            // 检测状态变为已看完时记录完结统计
+            if (old != null && old.status != AnimeStatus.COMPLETED && anime.status == AnimeStatus.COMPLETED) {
+                completedCount++
+            }
+            // 标题可能变化，重新识别 seriesKey
+            if (old != null && old.title != anime.title) {
+                titleChanged = true
+            }
+        }
+        if (completedCount > 0) {
+            val usageStats = com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository()
+            repeat(completedCount) { usageStats.incrementCompletedAnime() }
+        }
+        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
+        if (titleChanged) {
             triggerReassignSeriesKeysDebounced()
         }
-        return oldAnime
+        return oldAnimes
+    }
+
+    override suspend fun batchUpdateAnimes(animes: List<Anime>) {
+        if (animes.isEmpty()) return
+        val oldAnimes = batchUpdateAnimesInternal(animes)
+        // 仅当用户可见字段变化时才同步到后端（与 updateAnime 逐条行为一致）
+        for ((old, anime) in oldAnimes.zip(animes)) {
+            if (shouldSyncToServer(old, anime)) {
+                syncSubscriptionToServer(anime, isAdd = true)
+            }
+        }
     }
 
     override suspend fun updateAnime(anime: Anime) {
@@ -418,12 +492,15 @@ class AnimeRepositoryImpl(
     override suspend fun reassignSeriesKeys() {
         val allAnimes = animeDao.getAllAnimesList()
         if (allAnimes.isEmpty()) return
-        val updated = SeriesMatcher.assignSeriesKeys(allAnimes)
+        // 正则匹配计算挪到 Default，避免启动期在主线程全表扫描
+        val updated = withContext(Dispatchers.Default) { SeriesMatcher.assignSeriesKeys(allAnimes) }
         // 建立 id → 原对象索引，避免在 filter lambda 内做 O(n²) 线性查找
         val oldById = allAnimes.associateBy { it.id }
-        // 仅持久化 seriesKey 变化的项
+        // 仅持久化 seriesKey 变化的项，且合并为单事务写库（一次 Room 失效）
         val changed = updated.filter { it.seriesKey != oldById[it.id]?.seriesKey }
-        changed.forEach { animeDao.updateAnime(it) }
+        if (changed.isEmpty()) return
+        val database = AnimeDatabase.getDatabase(context)
+        database.withTransaction { changed.forEach { animeDao.updateAnime(it) } }
         if (BuildConfig.DEBUG) Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}")
     }
 
@@ -466,11 +543,42 @@ class AnimeRepositoryImpl(
                     }
 
                     if (localPath != coverUrl) {
-                        animeDao.updateCoverUrl(animeId, localPath)
+                        // 合批写库：等待 flush worker 统一写入，避免逐张封面触发列表重算
+                        pendingCoverUrlUpdates[animeId] = localPath
+                        ensureCoverBatcherStarted()
                         if (BuildConfig.DEBUG) Log.d(TAG, "Cover localized async: animeId=$animeId")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * 启动封面本地化写库合批 worker：将 [COVER_BATCH_FLUSH_MS] 窗口内完成的多次
+     * updateCoverUrl 合并为单事务写库，避免每次封面下载完成都触发一次 Room 失效
+     * 与主线程列表重算（启动期多张封面并发下载时尤其明显）。
+     */
+    private fun ensureCoverBatcherStarted() {
+        if (!coverBatcherStarted.compareAndSet(false, true)) return
+        appScope.launch {
+            while (true) {
+                if (pendingCoverUrlUpdates.isEmpty()) {
+                    delay(COVER_BATCH_FLUSH_MS)
+                    continue
+                }
+                val batch = pendingCoverUrlUpdates.toMap()
+                // 按「key+值」精确移除：toMap 与移除之间新入队的更新（同 key 更新值）
+                // 不会被误清，留待下一轮 flush
+                batch.forEach { (id, url) -> pendingCoverUrlUpdates.remove(id, url) }
+                try {
+                    val database = AnimeDatabase.getDatabase(context)
+                    database.withTransaction {
+                        batch.forEach { (id, url) -> animeDao.updateCoverUrl(id, url) }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Cover batch update failed", e)
                 }
             }
         }
@@ -744,7 +852,7 @@ class AnimeRepositoryImpl(
             }
 
             var mergedCount = 0
-            var insertedCount = 0
+            val pendingInsert = mutableListOf<Anime>()
             for (remote in remoteList) {
                 val bangumiId = remote.animeId.toIntOrNull() ?: continue
                 val existing = animeDao.getAnimeByBangumiId(bangumiId)
@@ -767,17 +875,20 @@ class AnimeRepositoryImpl(
                         isFinished = !remote.isAiring, // isAiring: true=连载中, false=已完结
                         currentEpisodes = remote.currentEpisodes ?: 0
                     )
-                    animeDao.insertAnime(metaAnime)
-                    insertedCount++
+                    pendingInsert.add(metaAnime)
                 } else {
                     // 本地已有 → 跳过，保留本地完整数据
                     mergedCount++
                 }
             }
+            // 批量插入（单事务）：避免逐条插入触发 N 次 Room 失效与列表重算
+            if (pendingInsert.isNotEmpty()) {
+                animeDao.insertAnimes(pendingInsert)
+            }
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "Sync subscriptions: uploaded=$uploadedCount, " +
-                    "remote merged(skipped)=$mergedCount, inserted=$insertedCount, " +
+                    "merged(skipped)=$mergedCount, inserted=${pendingInsert.size}, " +
                     "remote total=${remoteList.size}"
             )
         } catch (e: Exception) {
@@ -852,7 +963,7 @@ class AnimeRepositoryImpl(
             }
 
             var mergedCount = 0
-            var insertedCount = 0
+            val pendingInsert = mutableListOf<Anime>()
             for (remote in response.subscriptions) {
                 val bangumiId = remote.animeId.toIntOrNull() ?: continue
                 val existing = animeDao.getAnimeByBangumiId(bangumiId)
@@ -875,17 +986,20 @@ class AnimeRepositoryImpl(
                         isFinished = !remote.isAiring,
                         currentEpisodes = remote.currentEpisodes ?: 0
                     )
-                    animeDao.insertAnime(metaAnime)
-                    insertedCount++
+                    pendingInsert.add(metaAnime)
                 } else {
                     // 本地已有 → 跳过，保留本地完整数据
                     mergedCount++
                 }
             }
+            // 批量插入（单事务）：避免逐条插入触发 N 次 Room 失效与列表重算
+            if (pendingInsert.isNotEmpty()) {
+                animeDao.insertAnimes(pendingInsert)
+            }
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "pullSubscriptionsFromServer: merged(skipped)=$mergedCount, " +
-                    "inserted=$insertedCount, remote total=${response.subscriptions.size}"
+                    "inserted=${pendingInsert.size}, remote total=${response.subscriptions.size}"
             )
         } catch (e: Exception) {
             Log.w(TAG, "pullSubscriptionsFromServer failed (non-fatal)", e)
