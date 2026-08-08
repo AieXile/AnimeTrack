@@ -28,7 +28,12 @@ data class AnnouncementUiState(
     val currentDetail: AnnouncementDetail? = null,
     val isDetailLoading: Boolean = false,
     val isVoting: Boolean = false,
-    val voteError: String? = null
+    val voteError: String? = null,
+    /**
+     * 存在未读公告但被更新弹窗阻塞，等待更新弹窗关闭后由 HomeViewModel 释放显示。
+     * 仅在自动拉取（[fetchAnnouncements] 默认）场景下使用，实现"更新日志优先、公告随后"的串行显示。
+     */
+    val pendingShow: Boolean = false
 ) {
     val currentAnnouncement: Announcement?
         get() = announcements.getOrNull(currentIndex)
@@ -50,9 +55,14 @@ class AnnouncementViewModel(
     val uiState: StateFlow<AnnouncementUiState> = _uiState.asStateFlow()
 
     /**
-     * 拉取公告列表，若有未读公告则自动弹出弹窗。
+     * 拉取公告列表，若有未读公告则标记为待显示。
+     *
+     * @param immediate 是否立即显示弹窗。
+     * - false（默认，自动拉取场景）：不直接显示，仅设置 [AnnouncementUiState.pendingShow]，
+     *   由 HomeViewModel 协调在更新弹窗关闭后再显示，实现"更新日志优先、公告随后"的串行显示。
+     * - true（手动打开场景）：拉取完成后直接显示弹窗，不等待。
      */
-    fun fetchAnnouncements() {
+    fun fetchAnnouncements(immediate: Boolean = false) {
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
@@ -65,13 +75,15 @@ class AnnouncementViewModel(
                 val sorted = response.announcements.sortedByDescending { it.createdAt ?: it.id.toString() }
                 val readIds = settingsRepository.getReadAnnouncementIds()
                 val unread = sorted.filter { it.id !in readIds }
+                val hasUnread = unread.isNotEmpty()
 
                 _uiState.update {
                     it.copy(
                         announcements = sorted,
                         currentIndex = 0,
                         isLoading = false,
-                        showDialog = unread.isNotEmpty(),
+                        showDialog = immediate && hasUnread,
+                        pendingShow = !immediate && hasUnread,
                         error = null,
                         currentDetail = null,
                         voteError = null
@@ -83,6 +95,16 @@ class AnnouncementViewModel(
                 Log.e(TAG, "Fetch announcements failed: ${e.message}")
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
+        }
+    }
+
+    /**
+     * 释放被更新弹窗阻塞的待显示公告。
+     * 由 HomeViewModel 在更新弹窗关闭后调用，实现"更新日志优先、公告随后"的串行显示。
+     */
+    fun releasePendingShow() {
+        if (_uiState.value.pendingShow) {
+            _uiState.update { it.copy(showDialog = true, pendingShow = false) }
         }
     }
 
@@ -129,12 +151,12 @@ class AnnouncementViewModel(
         }
     }
 
-    /** 手动打开公告弹窗（查看过往公告） */
+    /** 手动打开公告弹窗（查看过往公告），立即显示不等待更新弹窗 */
     fun open() {
         if (_uiState.value.announcements.isEmpty()) {
-            fetchAnnouncements()
+            fetchAnnouncements(immediate = true)
         } else {
-            _uiState.update { it.copy(showDialog = true, currentIndex = 0) }
+            _uiState.update { it.copy(showDialog = true, currentIndex = 0, pendingShow = false) }
             if (_uiState.value.currentDetail == null) {
                 loadCurrentDetail()
             }

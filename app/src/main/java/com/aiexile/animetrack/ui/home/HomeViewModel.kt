@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -227,6 +228,23 @@ class HomeViewModel(
             delay(500)
             updateViewModel.checkForUpdate()
             announcementViewModel.fetchAnnouncements()
+        }
+
+        // 协调公告与更新弹窗的显示顺序：更新日志优先，公告在更新弹窗关闭后显示。
+        // 更新检查进行中或更新弹窗可见时阻塞公告；二者均不满足时才释放 pending 公告。
+        viewModelScope.launch {
+            combine(
+                updateViewModel.uiState,
+                announcementViewModel.uiState
+            ) { updateState, announceState ->
+                val updateBlocking = updateState.updateInfo != null || updateState.isChecking
+                !updateBlocking && announceState.pendingShow
+            }
+                .distinctUntilChanged()
+                .filter { it }
+                .collect {
+                    announcementViewModel.releasePendingShow()
+                }
         }
 
         // 批次 C（延迟至 firstFrameRendered）：长任务
