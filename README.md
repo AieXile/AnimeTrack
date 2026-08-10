@@ -19,7 +19,11 @@
   </p>
 </p>
 
-[English](README.en.md) | [日本語](README.ja.md) | [中文](README.md)
+<p align="center">
+  <a href="README.en.md">English</a> | 
+  <a href="README.ja.md">日本語</a> | 
+  <a href="README.md">中文</a>
+</p>
 
 AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓追番工具，提供从搜索、标记、播放到回顾的完整流程。
 
