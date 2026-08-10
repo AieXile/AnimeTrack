@@ -6,6 +6,11 @@
   <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
 </p>
 
+<p align="center">
+  [<img src="https://img.shields.io/badge/QQ群-加入-blue?style=flat-square&logo=tencentqq&logoColor=white" alt="QQ Group">](https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info)
+  [<img src="https://img.shields.io/badge/Telegram-加入-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram Group">](https://t.me/AnimeTrackovo)
+</p>
+
 **AnimeTrack** 是一款遵循 Material Design 3 规范的安卓追番记录工具。它围绕"看过什么"以及"何时观看"这两个核心需求，提供了一套从搜索、追番、观看到回顾的完整闭环。
 
 你可以通过 Bangumi、TMDB 搜索并添加动画，标记为 **想看**、**在看** 或 **已看**，应用会自动记下每次完成观看的时间。所有已看完的记录汇聚在时间线中，让你能回顾自己的补番轨迹；看板界面则会根据已添加的连载作品，展示当日更新的动画列表。内置播放器支持从 WebDAV 直接播放，多端同步让数据不再局限于本地。
