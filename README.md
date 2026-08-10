@@ -1,29 +1,62 @@
-<h2 align="center">AnimeTrack</h2>
-
 <p align="center">
-  <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="GitHub Stars">
-  <br>
-  <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
-  <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
-  <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
-  <br>
-  <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-加入-blue?style=flat&logo=tencentqq&logoColor=white" alt="QQ Group"></a>
-  <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-加入-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram Group"></a>
+  <img src="https://github.com/AieXile/AnimeTrack/blob/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp?raw=true" alt="AnimeTrack Logo" width="120" style="border-radius: 20px;"><br>
+  <h1 align="center">AnimeTrack</h1>
+  <p align="center">
+    <i>遵循 Material Design 3 的安卓追番记录工具 —— 看过的，都记得。</i>
+  </p>
+  <p align="center">
+    <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="Stars">
+    <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
+    <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
+    <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
+  </p>
+  <p align="center">
+    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-加入-blue?style=flat&logo=tencentqq&logoColor=white" alt="QQ Group"></a>
+    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-加入-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram Group"></a>
+  </p>
 </p>
 
-**AnimeTrack** 是一款遵循 Material Design 3 规范的安卓追番记录工具。它围绕"看过什么"以及"何时观看"这两个核心需求，提供了一套从搜索、追番、观看到回顾的完整闭环。
+AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓追番工具，提供从搜索、标记、播放到回顾的完整流程。
 
-你可以通过 Bangumi、TMDB 搜索并添加动画，标记为 **想看**、**在看** 或 **已看**，应用会自动记下每次完成观看的时间。所有已看完的记录汇聚在时间线中，让你能回顾自己的补番轨迹；看板界面则会根据已添加的连载作品，展示当日更新的动画列表。内置播放器支持从 WebDAV 直接播放，多端同步让数据不再局限于本地。
+- **多源搜索与标记** – 通过 Bangumi 或 TMDB 搜索动画，快速标记为“想看”“在看”或“已看”，自动记录完成时间。
+- ~~**内置播放与进度联动** – 集成 ExoPlayer，支持从 WebDAV 播放本地资源，看完自动更新集数，无需手动操作。~~
+- **时间线与看板** – 所有已看完的记录汇聚成时间线，方便回顾补番轨迹；连载作品在看板中按星期分组，今日更新一目了然。
+- **多端数据同步** – 支持自有账号、Bangumi、Bilibili 和 WebDAV 四种同步方式，云端备份、换机迁移、跨设备无缝衔接，数据永远随身。
+
+---
+
+<h2 align="center">亮点一览</h2>
+
+<table align="center" width="100%">
+  <tr>
+    <td><b>双源搜索</b> – Bangumi + TMDB 自动匹配</td>
+    <td><b>追番看板</b> – 今日更新一目了然</td>
+  </tr>
+  <tr>
+    <td><b>多端同步</b> – 自有账号 / Bangumi / B站 / WebDAV</td>
+    <td><b>时间线报表</b> – 追溯你的补番足迹</td>
+  </tr>
+  <tr>
+    <td><b>Material You</b> – 动态取色 + 多主题预设</td>
+    <td><b>Markdown 导入导出</b> – 数据自由迁移</td>
+  </tr>
+</table>
 
 ---
 
 <h2 align="center">主要功能</h2>
 
+<details>
+<summary><b>点击展开完整功能列表</b></summary>
+
 ### 追番与播放
 - **多数据源搜索** – 支持 Bangumi、TMDB 双数据源搜索匹配，自动拉取封面、集数、开播日期等基本信息。当某部作品缺失数据源时，可在详情页点击匹配按钮手动搜索补全，支持按 Bangumi 或 TMDB 分别匹配。
 - **多状态管理** – 将动画归类为「想看」「在看」「已看」三种状态，满足完整的追踪流程。在看作品可记录当前观看集数，看完时自动写入完成时间。
 - **多季合集** – 自动识别同系列多季作品（支持「第X季/期/章」、罗马数字、Final Season、最终季等多种命名规则），按系列分组并以卡片堆叠形式展示。左右滑动可在季与季之间切换，无需在列表中翻找。
-- **内置播放器** – 集成 ExoPlayer 播放器，支持从 WebDAV 远程目录直接播放本地番剧资源，观看进度与本地记录联动，看完自动更新集数。
+- ~~**内置播放器** – 集成 ExoPlayer 播放器，支持从 WebDAV 远程目录直接播放本地番剧资源，观看进度与本地记录联动，看完自动更新集数。~~
 - **时间线回顾** – 按时间顺序查看自己什么时候看完了哪部动画，方便回顾补番历程，支持按月份浏览历史记录。
 - **追番看板** – 已添加的连载作品会展示每周几更新，并在看板中按星期分组列出今日更新的动画列表，一键跳转到对应作品详情。
 - ~~**更新推送提醒** – 通过 WorkManager 与极光推送，在番剧更新当日按时提醒。（暂时不开放）~~
@@ -46,6 +79,8 @@
 - **封面编辑** – 详情页编辑模式支持搜索在线封面、从相册上传自定义封面、保存当前封面到本地相册，三件套满足个性化需求。
 - **数据统计** – 记录应用使用时长、添加与完结的番剧数量，可按日 / 月 / 年查看统计，量化你的追番足迹。
 - **版本更新检查** – 通过 GitHub Releases 自动检查新版本，对比版本号提示更新，支持查看更新日志。
+
+</details>
 
 ---
 
@@ -117,6 +152,13 @@
 前往 [Releases 页面](https://github.com/AieXile/AnimeTrack/releases) 下载最新 APK 文件，直接安装即可。
 
 > 注意：当前为 beta 版本，功能仍在完善中，使用过程中如遇问题欢迎提交 Issue。
+
+---
+
+<h2 align="center">参与贡献</h2>
+
+欢迎通过 [Issue](https://github.com/AieXile/AnimeTrack/issues) 报告问题或提出建议，也欢迎 Fork 项目并提交 PR。  
+如果你喜欢这个项目，请给我们一个 Star 支持一下！
 
 ---
 
