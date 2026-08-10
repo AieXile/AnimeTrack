@@ -4,11 +4,13 @@
   <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
   <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
-</p>
-
-<p align="center">
-  [<img src="https://img.shields.io/badge/QQ群-加入-blue?style=flat-square&logo=tencentqq&logoColor=white" alt="QQ Group">](https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info)
-  [<img src="https://img.shields.io/badge/Telegram-加入-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram Group">](https://t.me/AnimeTrackovo)
+  <br>
+  <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info">
+    <img src="https://img.shields.io/badge/QQ群-加入聊天-blue?style=flat&logo=tencentqq&logoColor=white" alt="QQ Group">
+  </a>
+  <a href="https://t.me/AnimeTrackovo">
+    <img src="https://img.shields.io/badge/Telegram-加入群组-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram Group">
+  </a>
 </p>
 
 **AnimeTrack** 是一款遵循 Material Design 3 规范的安卓追番记录工具。它围绕"看过什么"以及"何时观看"这两个核心需求，提供了一套从搜索、追番、观看到回顾的完整闭环。
