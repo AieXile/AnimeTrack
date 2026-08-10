@@ -86,44 +86,44 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 
 <h2 align="center">应用截图</h2>
 
-<h3>主要界面</h3>
+<h3 align="center">主要界面</h3>
 <table width="100%">
   <tr>
-    <td width="50%">
+    <td width="50%" style="text-align: center;">
       <img src="assets/Screenshot1.png" alt="主界面" style="width: 100%; border-radius: 12px;">
       <br><b>主界面</b>
     </td>
-    <td width="50%">
+    <td width="50%" style="text-align: center;">
       <img src="assets/Screenshot2.png" alt="时间线" style="width: 100%; border-radius: 12px;">
       <br><b>时间线</b>
     </td>
   </tr>
   <tr>
-    <td width="50%">
+    <td width="50%" style="text-align: center;">
       <img src="assets/Screenshot3.png" alt="看板" style="width: 100%; border-radius: 12px;">
       <br><b>追番看板</b>
     </td>
-    <td width="50%">
+    <td width="50%" style="text-align: center;">
       <img src="assets/Screenshot4.png" alt="设置" style="width: 100%; border-radius: 12px;">
       <br><b>设置</b>
     </td>
   </tr>
 </table>
 
-<h3>更多细节</h3>
+<h3 align="center">更多细节</h3>
 <table width="100%">
   <tr>
-    <td width="33%">
+    <td width="33%" style="text-align: center;">
       <img src="assets/Screenshot5.png" alt="定制导航栏" style="width: 100%; border-radius: 8px;">
       <br><b>定制导航栏</b>
     </td>
-    <td width="33%">
+    <td width="33%" style="text-align: center;">
       <img src="assets/Screenshot6.png" alt="功能界面" style="width: 100%; border-radius: 8px;">
       <br><b>功能界面</b>
     </td>
-    <td width="33%">
+    <td width="33%" style="text-align: center;">
       <img src="assets/Screenshot7.png" alt="导入MD文件" style="width: 100%; border-radius: 8px;">
-      <br><b>MD 文件导入</b>
+      <br><b>MD导入</b>
     </td>
   </tr>
 </table>
@@ -132,12 +132,9 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 
 <h2 align="center">未来规划</h2>
 
-**已完成**
 - [x] **Bangumi 账号同步** – 登录后直接同步云端记录，避免丢失，并支持双向更新。
 - [x] **观看记录导出为 MD** – 将本地记录按时间线导出为可读的 Markdown 文件，方便备份或分享。
 - [x] **时间线报表** – 基于观看历史自动生成周报、月报或年报，以简单图表呈现追番趋势。
-
-**进行中 / 计划中**
 - [ ] **网页与 App 多端同步** – 提供 Web 端访问能力，实现网页与 App 数据实时同步，跨设备无缝衔接。
 - [ ] **本地播放与自动记录** – 强化本地播放器，观看进度自动记录到时间线，无需手动标记。
 
