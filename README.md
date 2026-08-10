@@ -1,9 +1,9 @@
 <h2 align="center">AnimeTrack</h2>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat-square&logo=github&label=Version&color=blue" alt="Version">
-  <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat-square&logo=android&logoColor=white" alt="Platform">
-  <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
+  <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
+  <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
 </p>
 
 **AnimeTrack** 是一款遵循 Material Design 3 规范的安卓追番记录工具。它围绕"看过什么"以及"何时观看"这两个核心需求，提供了一套从搜索、追番、观看到回顾的完整闭环。
