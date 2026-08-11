@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
@@ -53,6 +54,8 @@ import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.ui.announcement.AnnouncementDialog
+import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
@@ -84,8 +87,21 @@ fun DeveloperScreen(
     )
     val uiState by updateViewModel.uiState.collectAsState()
 
+    val announcementViewModel: AnnouncementViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                val settingsRepo = AppContainer.getSettingsRepository()
+                val userAuthManager = AppContainer.getUserAuthManager()
+                return AnnouncementViewModel(settingsRepo, userAuthManager) as T
+            }
+        }
+    )
+
     var debugCardCount by remember { mutableIntStateOf(5) }
 
+    // 更新弹窗后组合，层级高于公告弹窗（与 HomeScreen 保持一致）
+    AnnouncementDialog(viewModel = announcementViewModel)
     UpdateDialog(viewModel = updateViewModel)
 
     Scaffold(
@@ -404,6 +420,40 @@ fun DeveloperScreen(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(text = stringResource(R.string.developer_player_settings))
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Text(
+                text = stringResource(R.string.developer_announcement),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.developer_announcement_desc),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Button(
+                onClick = { announcementViewModel.open() },
+                shape = SquircleShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Campaign,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.developer_open_announcement))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

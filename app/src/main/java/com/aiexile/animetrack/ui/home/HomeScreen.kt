@@ -293,8 +293,10 @@ fun HomeScreen(
         }
     }
     
-    UpdateDialog(viewModel = viewModel.updateViewModel)
+    // 更新弹窗后组合，层级高于公告弹窗：更新检查期间公告可能先弹出，
+    // 若检查出新版，更新弹窗叠在其上方，确保公告不遮挡更新弹窗。
     com.aiexile.animetrack.ui.announcement.AnnouncementDialog(viewModel = viewModel.announcementViewModel)
+    UpdateDialog(viewModel = viewModel.updateViewModel)
     
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -1584,10 +1586,11 @@ private fun AnimeGrid(
 
     // 基于 expandedSeriesKeys 构建实际渲染列表：展开时将 Series 拆分为多个 ExpandedSeriesCard，
     // 每季占据一个独立网格格子，后续卡片自动顺延（真正网格回流）。
-    // seriesStackEnabled=false 时，所有 Series 强制拆分为 Single（不堆叠）。
+    // seriesStackEnabled=false 时，所有 Series 强制拆分为 Single，按主排序顺序排列（不按季数）。
+    // seriesStackEnabled=true 时，Series 组内按季数升序排列（1,2,3...），哪怕第一季已看完也排在前面。
     val displayList = remember(state.animeListItems, expandedSeriesKeys, state.seriesStackEnabled) {
         if (!state.seriesStackEnabled) {
-            // 堆叠开关关闭：所有 Series 拆分为 Single
+            // 堆叠开关关闭：所有 Series 拆分为 Single，保持主排序顺序
             buildList {
                 for (item in state.animeListItems) {
                     if (item is AnimeListItem.Series) {
@@ -1597,25 +1600,39 @@ private fun AnimeGrid(
                     }
                 }
             }
-        } else if (expandedSeriesKeys.isEmpty()) {
-            state.animeListItems
         } else {
-            buildList {
-                for (item in state.animeListItems) {
-                    if (item is AnimeListItem.Series && item.stableKey in expandedSeriesKeys) {
-                        item.animeList.forEachIndexed { index, anime ->
-                            add(
-                                AnimeListItem.ExpandedSeriesCard(
-                                    anime = anime,
-                                    baseTitle = item.baseTitle,
-                                    seasonIndex = index + 1,
-                                    totalSeasons = item.animeList.size,
-                                    seriesStableKey = item.stableKey
+            // 堆叠开关开启：组内按季数升序排序
+            val seasonSortedItems = state.animeListItems.map { item ->
+                if (item is AnimeListItem.Series) {
+                    item.copy(animeList = item.animeList.sortedWith(
+                        compareBy<Anime> { SeriesMatcher.extractSeasonNumber(it.title) }
+                            .thenBy { it.airDate ?: "" }
+                            .thenBy { it.id }
+                    ))
+                } else {
+                    item
+                }
+            }
+            if (expandedSeriesKeys.isEmpty()) {
+                seasonSortedItems
+            } else {
+                buildList {
+                    for (item in seasonSortedItems) {
+                        if (item is AnimeListItem.Series && item.stableKey in expandedSeriesKeys) {
+                            item.animeList.forEachIndexed { index, anime ->
+                                add(
+                                    AnimeListItem.ExpandedSeriesCard(
+                                        anime = anime,
+                                        baseTitle = item.baseTitle,
+                                        seasonIndex = index + 1,
+                                        totalSeasons = item.animeList.size,
+                                        seriesStableKey = item.stableKey
+                                    )
                                 )
-                            )
+                            }
+                        } else {
+                            add(item)
                         }
-                    } else {
-                        add(item)
                     }
                 }
             }

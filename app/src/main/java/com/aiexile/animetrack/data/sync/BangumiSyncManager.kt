@@ -331,6 +331,8 @@ class BangumiSyncManager(
         val bangumiId = item.subjectId
         val remoteEps = item.epStatus
         val subject = item.subject
+        // Bangumi 用户评分（0-10 整数，0 表示未打分），转为本地 5 分制
+        val remoteRating = bangumiRateToRating(item.rate)
 
         if (localAnime == null) {
             val status = bangumiTypeToAnimeStatus(item.type)
@@ -339,7 +341,7 @@ class BangumiSyncManager(
                 totalEpisodes = subject?.resolvedEps ?: 0,
                 watchedEpisodes = remoteEps,
                 status = status,
-                rating = subject?.rating?.score?.toFloat(),
+                rating = remoteRating,
                 notes = "",
                 coverUrl = subject?.coverUrl,
                 airDate = subject?.date,
@@ -353,17 +355,36 @@ class BangumiSyncManager(
 
         val mergedWatched = maxOf(localAnime.watchedEpisodes, remoteEps)
         val remoteStatus = bangumiTypeToAnimeStatus(item.type)
+        // 本地评分优先，本地为空时回退远程用户评分
+        val mergedRating = localAnime.rating ?: remoteRating
         val needsUpdate = localAnime.watchedEpisodes != mergedWatched ||
-                localAnime.status != remoteStatus
+                localAnime.status != remoteStatus ||
+                (localAnime.rating == null && remoteRating != null)
 
         if (needsUpdate) {
             val updatedAnime = localAnime.copy(
                 watchedEpisodes = mergedWatched,
-                status = remoteStatus
+                status = remoteStatus,
+                rating = mergedRating
             )
             return Pair(null, updatedAnime)
         }
         return Pair(null, null)
+    }
+
+    /**
+     * 将 Bangumi 用户评分（0-10 整数，0 表示未打分）转为本地 5 分制 Float。
+     * 未打分返回 null；有分值时除以 2 并四舍五入到 0.5 步进。
+     */
+    private fun bangumiRateToRating(rate: Int): Float? {
+        if (rate <= 0) return null
+        return roundToHalf(rate / 2f)
+    }
+
+    /** 将浮点数四舍五入到最近的 0.5 步进值，并限制在 0-5 范围内 */
+    private fun roundToHalf(value: Float): Float {
+        val steps = kotlin.math.round(value * 2f)
+        return steps.coerceIn(0f, 10f) / 2f
     }
 
     suspend fun pushProgressToRemote(bangumiId: Int, newEpisode: Int) {

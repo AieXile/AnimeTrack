@@ -397,7 +397,10 @@ class AnimeDetailViewModel(
     private fun applyWatchedEpisodesUpdate(anime: Anime, newCount: Int) {
         val autoComplete = autoCompleteEnabled.value
 
-        var updatedAnime = anime.copy(watchedEpisodes = newCount)
+        var updatedAnime = anime.copy(
+            watchedEpisodes = newCount,
+            lastProgressAt = System.currentTimeMillis()
+        )
 
         // 计划观看 → 正在观看
         if (anime.status == AnimeStatus.PLANNED && newCount > 0) {

@@ -491,22 +491,6 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    /**
-     * 批量标记公告为已读（原子操作，避免 read-then-write 并发丢失）。
-     * 用于关闭公告弹窗时一次性标记所有当前公告为已读，
-     * 防止下次冷启动因其他未读公告再次弹出。
-     */
-    suspend fun markAllAnnouncementsAsRead(ids: Collection<Int>) {
-        if (ids.isEmpty()) return
-        context.dataStore.edit { prefs ->
-            val current = prefs[READ_ANNOUNCEMENT_IDS_KEY] ?: ""
-            val existing: Set<Int> = if (current.isBlank()) emptySet()
-                else current.split(",").mapNotNull { it.toIntOrNull() }.toSet()
-            val merged = (existing + ids).joinToString(",")
-            prefs[READ_ANNOUNCEMENT_IDS_KEY] = merged
-        }
-    }
-
     suspend fun getReadAnnouncementIds(): Set<Int> {
         val current = readAnnouncementIdsFlow.first()
         return if (current.isBlank()) emptySet()

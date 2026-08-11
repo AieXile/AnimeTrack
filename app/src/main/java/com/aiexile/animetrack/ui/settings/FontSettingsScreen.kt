@@ -1,5 +1,6 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -70,7 +71,7 @@ fun FontSettingsScreen(
         runCatching { AppLanguage.valueOf(appLanguage) }.getOrDefault(AppLanguage.SIMPLIFIED_CHINESE)
     }
 
-    // 自定义字体导入：选择 ttf 文件
+    // 自定义字体导入：选择 ttf 文件，保留原文件名便于分辨
     val fontPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -79,7 +80,20 @@ fun FontSettingsScreen(
             val success = withContext(Dispatchers.IO) {
                 runCatching<String?> {
                     val fontsDir = File(context.filesDir, "fonts").apply { if (!exists()) mkdirs() }
-                    val destFile = File(fontsDir, "custom_font.ttf")
+                    // 从 URI 查询原始文件名（DISPLAY_NAME），失败时回退到 custom_font.ttf
+                    val displayName = runCatching {
+                        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+                        }
+                    }.getOrNull()
+                    val fileName = displayName?.takeIf { it.isNotBlank() } ?: "custom_font.ttf"
+                    val destFile = File(fontsDir, fileName)
+                    // 导入前清理 fonts 目录下其他 .ttf 文件（仅保留当前一个）
+                    fontsDir.listFiles { f -> f.isFile && f.name.endsWith(".ttf", ignoreCase = true) }
+                        ?.forEach { f ->
+                            if (f.absolutePath != destFile.absolutePath) f.delete()
+                        }
                     val input = context.contentResolver.openInputStream(uri)
                         ?: return@runCatching null
                     input.use { stream ->
@@ -136,13 +150,17 @@ fun FontSettingsScreen(
                         val systemFontDesc = stringResource(R.string.font_system_default_desc)
                         val misansFontDesc = stringResource(R.string.font_misans_desc)
                         val customFontNotImportedDesc = stringResource(R.string.font_not_imported)
+                        // 自定义字体行描述显示文件名（如 LXG WenKai.ttf），便于分辨
+                        val customFontDisplayName = remember(customFontPath) {
+                            customFontPath.takeIf { it.isNotBlank() }?.let { File(it).name }
+                        }
                         FontFamilyType.entries.forEach { type ->
                             FontOptionRow(
                                 title = type.displayName,
                                 description = when (type) {
                                     FontFamilyType.SYSTEM -> systemFontDesc
                                     FontFamilyType.MISANS -> misansFontDesc
-                                    FontFamilyType.CUSTOM -> customFontPath.ifBlank { customFontNotImportedDesc }
+                                    FontFamilyType.CUSTOM -> customFontDisplayName ?: customFontNotImportedDesc
                                 },
                                 selected = currentFontType == type,
                                 onClick = {

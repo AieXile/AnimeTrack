@@ -33,7 +33,9 @@ data class AnnouncementUiState(
      * 存在未读公告但被更新弹窗阻塞，等待更新弹窗关闭后由 HomeViewModel 释放显示。
      * 仅在自动拉取（[fetchAnnouncements] 默认）场景下使用，实现"更新日志优先、公告随后"的串行显示。
      */
-    val pendingShow: Boolean = false
+    val pendingShow: Boolean = false,
+    /** 本地已读公告 ID 集合，用于历史列表区分已读/未读样式 */
+    val readAnnouncementIds: Set<Int> = emptySet()
 ) {
     val currentAnnouncement: Announcement?
         get() = announcements.getOrNull(currentIndex)
@@ -76,14 +78,17 @@ class AnnouncementViewModel(
                 val readIds = settingsRepository.getReadAnnouncementIds()
                 val unread = sorted.filter { it.id !in readIds }
                 val hasUnread = unread.isNotEmpty()
+                // 优先定位到最新一条未读公告；若全部已读则指向最新一条
+                val firstUnreadIndex = sorted.indexOfFirst { it.id !in readIds }.let { if (it < 0) 0 else it }
 
                 _uiState.update {
                     it.copy(
                         announcements = sorted,
-                        currentIndex = 0,
+                        currentIndex = firstUnreadIndex,
                         isLoading = false,
                         showDialog = immediate && hasUnread,
                         pendingShow = !immediate && hasUnread,
+                        readAnnouncementIds = readIds,
                         error = null,
                         currentDetail = null,
                         voteError = null
@@ -135,19 +140,25 @@ class AnnouncementViewModel(
     }
 
     /**
-     * 关闭弹窗并标记所有当前公告为已读。
-     * 使用 NonCancellable 确保写入完成，防止用户快速关闭 App 导致写入丢失，
-     * 避免下次冷启动因未读公告再次弹出弹窗。
+     * 关闭弹窗，仅标记当前查看的这条公告为已读。
+     * 使用 NonCancellable 确保写入完成，防止用户快速关闭 App 导致写入丢失。
+     * 不再一次性标记全部公告已读，未读的旧公告会在下次启动时按"最新未读优先"逐条提示。
      */
     fun dismiss() {
-        val allIds = _uiState.value.announcements.map { it.id }
+        val currentId = _uiState.value.currentAnnouncement?.id
         viewModelScope.launch {
-            withContext(NonCancellable) {
-                if (allIds.isNotEmpty()) {
-                    settingsRepository.markAllAnnouncementsAsRead(allIds)
+            if (currentId != null) {
+                withContext(NonCancellable) {
+                    settingsRepository.markAnnouncementAsRead(currentId)
                 }
             }
-            _uiState.update { it.copy(showDialog = false) }
+            _uiState.update {
+                it.copy(
+                    showDialog = false,
+                    readAnnouncementIds = if (currentId != null)
+                        it.readAnnouncementIds + currentId else it.readAnnouncementIds
+                )
+            }
         }
     }
 
@@ -156,8 +167,21 @@ class AnnouncementViewModel(
         if (_uiState.value.announcements.isEmpty()) {
             fetchAnnouncements(immediate = true)
         } else {
-            _uiState.update { it.copy(showDialog = true, currentIndex = 0, pendingShow = false) }
-            if (_uiState.value.currentDetail == null) {
+            viewModelScope.launch {
+                // 重新读取已读集合，优先定位到最新一条未读公告
+                val readIds = settingsRepository.getReadAnnouncementIds()
+                val list = _uiState.value.announcements
+                val firstUnreadIndex = list.indexOfFirst { it.id !in readIds }.let { if (it < 0) 0 else it }
+                _uiState.update {
+                    it.copy(
+                        showDialog = true,
+                        currentIndex = firstUnreadIndex,
+                        readAnnouncementIds = readIds,
+                        pendingShow = false,
+                        currentDetail = null,
+                        voteError = null
+                    )
+                }
                 loadCurrentDetail()
             }
         }

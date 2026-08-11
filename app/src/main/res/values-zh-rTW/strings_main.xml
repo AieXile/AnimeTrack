@@ -153,6 +153,7 @@
     <string name="announcement_back">返回</string>
     <string name="announcement_current">當前</string>
     <string name="announcement_no_content">暫無內容</string>
+    <string name="announcement_read_format">%1$s · 已讀</string>
 
     <!-- 公告投票 -->
     <string name="announcement_vote_title">投票</string>

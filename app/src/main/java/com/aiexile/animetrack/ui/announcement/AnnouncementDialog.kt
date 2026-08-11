@@ -10,7 +10,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -141,11 +140,13 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                     Spacer(modifier = Modifier)
                 }
                 // 右侧：未投票的投票公告时显示提示，否则显示"我知道了"
+                // detail 加载期间也隐藏按钮，避免切换公告时 detail 暂为 null 导致按钮闪现、
+                // 绕过投票约束（任何含投票且未投的公告，无论从当前还是历史进入都必须先投票）。
                 val detail = uiState.currentDetail
-                val shouldHideClose = !uiState.showHistoryList &&
-                    detail != null &&
-                    detail.options.isNotEmpty() &&
-                    detail.selectedOptionId == null
+                val shouldHideClose = !uiState.showHistoryList && (
+                    uiState.isDetailLoading ||
+                        (detail != null && detail.options.isNotEmpty() && detail.selectedOptionId == null)
+                    )
                 if (shouldHideClose) {
                     Text(
                         text = stringResource(R.string.announcement_vote_required),
@@ -485,7 +486,8 @@ private fun VotedOptionRow(
                 .clip(SquircleShape(2.dp)),
             color = if (isSelected) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.secondary,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerLow
+            trackColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            drawStopIndicator = {}
         )
     }
 }
@@ -542,25 +544,29 @@ private fun HistoryListContent(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                     }
+                    // 已读/未读仅以字重区分：未读加粗，已读常规（颜色均用 onSurface）
+                    val isRead = ann.id in uiState.readAnnouncementIds
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(index) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = ann.title,
                                 fontSize = 14.sp,
-                                fontWeight = if (index == uiState.currentIndex)
-                                    FontWeight.SemiBold else FontWeight.Normal,
+                                fontWeight = if (isRead) FontWeight.Normal
+                                else FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             formatAnnouncementTime(ann.createdAt)?.let { time ->
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = time,
+                                    text = if (isRead)
+                                        stringResource(R.string.announcement_read_format, time)
+                                    else time,
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

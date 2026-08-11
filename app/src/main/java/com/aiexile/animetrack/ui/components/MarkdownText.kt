@@ -1,11 +1,15 @@
 package com.aiexile.animetrack.ui.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,12 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -177,9 +184,13 @@ fun AnnotatedString.Builder.appendInlineMarkdown(text: String, colorScheme: andr
                 }
             }
             match.groupValues[5].isNotEmpty() -> {
-                withStyle(SpanStyle(
-                    color = colorScheme.primary,
-                    textDecoration = TextDecoration.Underline
+                val url = match.groupValues[6]
+                withLink(LinkAnnotation.Url(
+                    url,
+                    TextLinkStyles(style = SpanStyle(
+                        color = colorScheme.primary,
+                        textDecoration = TextDecoration.Underline
+                    ))
                 )) {
                     append(match.groupValues[5])
                 }
@@ -251,16 +262,22 @@ fun MarkdownText(markdown: String) {
                     )
                 }
                 is MdBlock.Blockquote -> {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = SquircleShape(4.dp),
-                        color = colorScheme.surfaceContainer
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
                     ) {
+                        Surface(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .fillMaxHeight(),
+                            color = colorScheme.primary
+                        ) {}
                         Text(
                             text = buildAnnotatedString {
                                 appendInlineMarkdown(block.text, colorScheme)
                             },
-                            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+                            modifier = Modifier.padding(start = 10.dp),
                             fontSize = 13.sp,
                             lineHeight = 20.sp,
                             color = colorScheme.onSurfaceVariant

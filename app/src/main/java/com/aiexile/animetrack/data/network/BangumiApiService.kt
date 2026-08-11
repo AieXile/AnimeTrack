@@ -313,6 +313,22 @@ interface BangumiApiService {
         @Field("redirect_uri") redirectUri: String
     ): BangumiTokenResponse
 
+    /**
+     * 使用 refresh_token 刷新 access_token。
+     * Bangumi OAuth 端点与授权码换 token 相同：POST /oauth/access_token，
+     * 仅 grant_type 与参数不同。刷新成功会返回新的 access_token 与（可能更新的）refresh_token。
+     */
+    @FormUrlEncoded
+    @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
+    @POST("oauth/access_token")
+    suspend fun refreshAccessToken(
+        @Field("grant_type") grantType: String = "refresh_token",
+        @Field("client_id") clientId: String,
+        @Field("client_secret") clientSecret: String,
+        @Field("refresh_token") refreshToken: String,
+        @Field("redirect_uri") redirectUri: String
+    ): BangumiTokenResponse
+
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
     @GET("me")
     suspend fun getMyProfile(): BangumiUserProfile

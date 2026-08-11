@@ -267,13 +267,14 @@ fun AnimeDetailScreen(
                             }
                         } else if (uiState.anime != null) {
                             val anime = uiState.anime!!
-                            IconButton(onClick = { onNavigateToPlayer(animeId) }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(R.string.detail_play),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                            // 播放按钮暂时隐藏，以后复用
+                            // IconButton(onClick = { onNavigateToPlayer(animeId) }) {
+                            //     Icon(
+                            //         imageVector = Icons.Rounded.PlayArrow,
+                            //         contentDescription = stringResource(R.string.detail_play),
+                            //         tint = MaterialTheme.colorScheme.primary
+                            //     )
+                            // }
                             val missingBangumi = anime.bangumiId == null
                             val missingTmdb = anime.tmdbId == null
                             if (missingBangumi || missingTmdb) {

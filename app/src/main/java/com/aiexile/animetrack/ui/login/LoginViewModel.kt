@@ -45,7 +45,8 @@ class LoginViewModel(
 
                 authManager.saveTokens(
                     access = response.access_token,
-                    refresh = response.refresh_token ?: ""
+                    refresh = response.refresh_token ?: "",
+                    expiresIn = response.expires_in
                 )
 
                 try {

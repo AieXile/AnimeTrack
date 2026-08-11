@@ -153,6 +153,7 @@
     <string name="announcement_back">Back</string>
     <string name="announcement_current">Current</string>
     <string name="announcement_no_content">No content</string>
+    <string name="announcement_read_format">%1$s · Read</string>
 
     <!-- Announcement Vote -->
     <string name="announcement_vote_title">Vote</string>

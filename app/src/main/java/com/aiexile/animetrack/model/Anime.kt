@@ -58,7 +58,9 @@ data class Anime(
      * true 表示强制视为「连载中」（isFinished=false），false 表示强制视为「已完结」（isFinished=true）。
      * 用于详情页编辑界面允许用户手动修正系统自动判定的完结状态。
      */
-    val airingStatusOverride: Boolean? = null
+    val airingStatusOverride: Boolean? = null,
+    /** 最近一次更新观看进度的时间戳。用于主界面排序（最近更新进度的排前面）。null 表示从未更新过。 */
+    val lastProgressAt: Long? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

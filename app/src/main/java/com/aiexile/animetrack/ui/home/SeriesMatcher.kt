@@ -155,16 +155,13 @@ object SeriesMatcher {
         val groupedIds = mutableSetOf<Int>()
 
         // 处理 seriesKey 分组（已持久化识别的系列）
+        // 组内不排序，保留进入时的主排序顺序（WATCHING 在前 + lastProgressAt 降序）；
+        // 季数排序推迟到 displayList，仅在多季堆叠开启时应用
         for ((key, animes) in seriesKeyMap) {
             if (animes.size >= 2) {
-                val sortedAnimes = animes.sortedWith(
-                    compareBy<Anime> { extractSeasonNumber(it.title) }
-                        .thenBy { it.airDate ?: "" }
-                        .thenBy { it.id }
-                )
-                result.add(AnimeListItem.Series(key, sortedAnimes))
-                sortedAnimes.forEach { groupedIds.add(it.id) }
-                Log.d(TAG, "grouped(seriesKey) '$key': ${sortedAnimes.size} items, order=${sortedAnimes.map { extractSeasonNumber(it.title) to it.title }}")
+                result.add(AnimeListItem.Series(key, animes))
+                animes.forEach { groupedIds.add(it.id) }
+                Log.d(TAG, "grouped(seriesKey) '$key': ${animes.size} items")
             }
         }
 
@@ -173,14 +170,9 @@ object SeriesMatcher {
             if (animes.size >= 2) {
                 val hasSeasonSuffix = animes.any { extractBaseTitle(it.title) != it.title.trim() }
                 if (hasSeasonSuffix) {
-                    val sortedAnimes = animes.sortedWith(
-                        compareBy<Anime> { extractSeasonNumber(it.title) }
-                            .thenBy { it.airDate ?: "" }
-                            .thenBy { it.id }
-                    )
-                    result.add(AnimeListItem.Series(baseTitle, sortedAnimes))
-                    sortedAnimes.forEach { groupedIds.add(it.id) }
-                    Log.d(TAG, "grouped(baseTitle) '$baseTitle': ${sortedAnimes.size} items, order=${sortedAnimes.map { extractSeasonNumber(it.title) to it.title }}")
+                    result.add(AnimeListItem.Series(baseTitle, animes))
+                    animes.forEach { groupedIds.add(it.id) }
+                    Log.d(TAG, "grouped(baseTitle) '$baseTitle': ${animes.size} items")
                 }
             }
         }

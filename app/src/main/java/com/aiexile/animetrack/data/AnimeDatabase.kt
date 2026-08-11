@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -273,6 +273,19 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 17→18 迁移：新增 lastProgressAt 列（最近更新观看进度的时间戳，可空）。
+         *
+         * 用于主界面排序：最近更新进度的番剧排前面。
+         * 因字段可空，使用 ALTER TABLE ADD COLUMN 不带 NOT NULL / DEFAULT，
+         * 与实体定义 `Long? = null` 一致，避免 Room schema 校验失败。
+         */
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN lastProgressAt INTEGER")
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -286,7 +299,7 @@ abstract class AnimeDatabase : RoomDatabase() {
                         MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                         MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
-                        MIGRATION_16_17
+                        MIGRATION_16_17, MIGRATION_17_18
                     )
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()

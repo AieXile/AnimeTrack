@@ -106,6 +106,9 @@
     <string name="developer_video_player">Video Player</string>
     <string name="developer_video_player_desc">Player settings and testing</string>
     <string name="developer_player_settings">Player Settings</string>
+    <string name="developer_announcement">Announcement</string>
+    <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
+    <string name="developer_open_announcement">Open Announcement</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
     <string name="developer_test_notification_toast">Test notification will be sent in 3 seconds</string>
     <string name="developer_added_debug_cards">Added %1$d debug cards</string>

@@ -152,15 +152,31 @@ class HomeViewModel(
             initialValue = ListParams(AnimeFilter.ALL, "", emptySet())
         )
 
+    // 系列堆叠开关：hoist 到 ViewModel，避免 Composable 重建时 collectAsState 初始值闪烁
+    // 导致 displayList item 数量变化（true=堆叠少项 / false=拆分多项），从而引发滚动位置漂移
+    val seriesStackEnabled: StateFlow<Boolean> = settingsRepository.seriesStackEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
     /**
      * 派生的首页列表：仅在数据或筛选参数变化时重新排序/分组。
      * 排序 + SeriesMatcher 正则分组是 CPU 密集计算，通过 flowOn(Default) 移出主线程，
      * 避免启动期 DB 写入触发的多次重算阻塞滑动帧；结果仍经 distinctUntilChanged 去重。
+     *
+     * 堆叠开启：调用 SeriesMatcher.groupAnimeList 分组为 Series；
+     * 堆叠关闭：不分组，直接返回扁平 Single 列表，完全按主排序排列。
      */
     val filteredAnimeListItems: StateFlow<List<AnimeListItem>> =
-        combine(animeList, listParams) { animes, params ->
+        combine(animeList, listParams, seriesStackEnabled) { animes, params, stackEnabled ->
             val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds)
-            SeriesMatcher.groupAnimeList(filtered)
+            if (stackEnabled) {
+                SeriesMatcher.groupAnimeList(filtered)
+            } else {
+                filtered.map { AnimeListItem.Single(it) }
+            }
         }.flowOn(Dispatchers.Default)
             .distinctUntilChanged()
             .stateIn(
@@ -172,15 +188,6 @@ class HomeViewModel(
     private val _bannerDismissed = MutableStateFlow(false)
     val bannerDismissed: StateFlow<Boolean> = _bannerDismissed.asStateFlow()
 
-    // 系列堆叠开关：hoist 到 ViewModel，避免 Composable 重建时 collectAsState 初始值闪烁
-    // 导致 displayList item 数量变化（true=堆叠少项 / false=拆分多项），从而引发滚动位置漂移
-    val seriesStackEnabled: StateFlow<Boolean> = settingsRepository.seriesStackEnabled
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = true
-        )
-
     private val _autoSyncState = MutableStateFlow<AutoSyncState>(AutoSyncState.Idle)
     val autoSyncState: StateFlow<AutoSyncState> = _autoSyncState.asStateFlow()
 
@@ -189,7 +196,11 @@ class HomeViewModel(
     fun highlightTodayUpdates() {
         val todayWeekday = getCurrentWeekday()
         val todayAnimeIds = animeList.value
-            .filter { it.airWeekday == todayWeekday && !it.isFinished }
+            .filter {
+                it.airWeekday == todayWeekday
+                    && !it.isFinished
+                    && (it.status == AnimeStatus.WATCHING || it.status == AnimeStatus.PLANNED)
+            }
             .map { it.id.toLong() }
             .toSet()
         if (todayAnimeIds.isEmpty()) return
@@ -230,14 +241,15 @@ class HomeViewModel(
             announcementViewModel.fetchAnnouncements()
         }
 
-        // 协调公告与更新弹窗的显示顺序：更新日志优先，公告在更新弹窗关闭后显示。
-        // 更新检查进行中或更新弹窗可见时阻塞公告；二者均不满足时才释放 pending 公告。
+        // 协调公告与更新弹窗的显示顺序：仅当更新弹窗实际显示时阻塞公告，弹窗关闭后释放。
+        // 更新检查进行中不阻塞（检查只是网络请求、可能很慢，公告无需干等）；
+        // 若检查后确有新版，更新弹窗会叠在公告上方（HomeScreen 中 UpdateDialog 后组合、层级更高）。
         viewModelScope.launch {
             combine(
                 updateViewModel.uiState,
                 announcementViewModel.uiState
             ) { updateState, announceState ->
-                val updateBlocking = updateState.updateInfo != null || updateState.isChecking
+                val updateBlocking = updateState.updateInfo != null
                 !updateBlocking && announceState.pendingShow
             }
                 .distinctUntilChanged()
@@ -371,12 +383,14 @@ class HomeViewModel(
                     status = newStatus,
                     isFinished = true,
                     watchedEpisodes = newWatchedEpisodes,
-                    finishDate = if (anime.finishDate == null) System.currentTimeMillis() else anime.finishDate
+                    finishDate = if (anime.finishDate == null) System.currentTimeMillis() else anime.finishDate,
+                    lastProgressAt = System.currentTimeMillis()
                 )
             } else {
                 anime.copy(
                     status = newStatus,
-                    isFinished = false
+                    isFinished = false,
+                    lastProgressAt = System.currentTimeMillis()
                 )
             }
             repository.updateAnime(updatedAnime)
@@ -602,21 +616,17 @@ class HomeViewModel(
         
         val sorted = when (filter) {
             AnimeFilter.ALL -> {
+                // WATCHING 在前，COMPLETED 在后；同组内按最近更新进度时间降序（null 回退到 startDate）
                 filtered.sortedWith(
                     compareBy<Anime> { it.status != AnimeStatus.WATCHING }
-                        .thenByDescending { anime ->
-                            when (anime.status) {
-                                AnimeStatus.COMPLETED -> anime.finishDate ?: Long.MIN_VALUE
-                                else -> anime.startDate ?: Long.MIN_VALUE
-                            }
-                        }
+                        .thenByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
                 )
             }
             AnimeFilter.COMPLETED -> {
                 filtered.sortedByDescending { it.finishDate ?: Long.MIN_VALUE }
             }
             else -> {
-                filtered.sortedByDescending { it.startDate ?: Long.MIN_VALUE }
+                filtered.sortedByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
             }
         }
 
