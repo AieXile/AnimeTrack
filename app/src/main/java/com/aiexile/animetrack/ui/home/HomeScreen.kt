@@ -163,6 +163,9 @@ import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.update.UpdateDialog
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -206,8 +209,8 @@ fun HomeScreen(
     val isLoggedIn = userLoggedIn || bangumiLoggedIn || bilibiliLoggedIn
     // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
     val userAvatar = customAvatarUri ?: userAvatarUrl ?: bilibiliAvatar ?: bangumiAvatar
-    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: mutableStateOf(false))
-    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: mutableStateOf(true))
+    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
+    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: remember { mutableStateOf(true) })
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
@@ -603,8 +606,24 @@ fun HomeFloatingActions(
     showScrollToTop: Boolean,
     onScrollToTop: () -> Unit,
     onAddClick: () -> Unit,
+    hazeState: HazeState,
+    advancedBlurEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+
+    val colorScheme = MaterialTheme.colorScheme
+    val fabContainerColor = if (advancedBlurEnabled) Color.Transparent else colorScheme.surfaceContainer
+    val fabBlur = fabBlurModifier(hazeState, advancedBlurEnabled)
+    val fabElevation = if (advancedBlurEnabled) {
+        androidx.compose.material3.FloatingActionButtonDefaults.elevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp
+        )
+    } else {
+        androidx.compose.material3.FloatingActionButtonDefaults.elevation()
+    }
 
     val fabOffsetY = if (isCapsuleNav) (-56).dp else 0.dp
     val fabEndPadding = 24.dp
@@ -634,16 +653,17 @@ fun HomeFloatingActions(
                         animationSpec = tween(100, easing = FastOutSlowInEasing)
                     )
             ) {
-                ScrollToTopFab(onClick = onScrollToTop)
+                ScrollToTopFab(onClick = onScrollToTop, containerColor = fabContainerColor, blurModifier = fabBlur, elevation = fabElevation)
             }
             androidx.compose.material3.FloatingActionButton(
                 onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = fabContainerColor,
+                contentColor = colorScheme.primary,
                 shape = SquircleShape(16.dp),
-                modifier = Modifier.directionalFabShadow(
-                    shape = SquircleShape(16.dp)
-                )
+                elevation = fabElevation,
+                modifier = Modifier
+                    .directionalFabShadow(shape = SquircleShape(16.dp))
+                    .then(fabBlur)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
@@ -666,15 +686,13 @@ fun HomeFloatingActions(
                 scaleOut(
                     targetScale = 0.8f,
                     animationSpec = tween(100, easing = FastOutSlowInEasing)
-                )
+                ),
+            modifier = modifier
+                .offset(y = fabOffsetY)
+                .navigationBarsPadding()
+                .padding(end = fabEndPadding, bottom = fabBottomPadding)
         ) {
-            ScrollToTopFab(
-                onClick = onScrollToTop,
-                modifier = modifier
-                    .offset(y = fabOffsetY)
-                    .navigationBarsPadding()
-                    .padding(end = fabEndPadding, bottom = fabBottomPadding)
-            )
+            ScrollToTopFab(onClick = onScrollToTop, containerColor = fabContainerColor, blurModifier = fabBlur, elevation = fabElevation)
         }
     }
 }
@@ -724,18 +742,38 @@ private fun Modifier.directionalFabShadow(
     }
 
 @Composable
+private fun fabBlurModifier(
+    hazeState: HazeState,
+    enabled: Boolean
+): Modifier {
+    if (!enabled) return Modifier
+    val colorScheme = MaterialTheme.colorScheme
+    return Modifier
+        .clip(SquircleShape(16.dp))
+        .hazeEffect(state = hazeState) {
+            blurRadius = 24.dp
+            backgroundColor = colorScheme.surfaceContainer
+            tints = listOf(HazeTint(colorScheme.surfaceContainer.copy(alpha = 0.4f)))
+        }
+}
+
+@Composable
 private fun ScrollToTopFab(
     onClick: () -> Unit,
+    containerColor: Color,
+    blurModifier: Modifier,
+    elevation: androidx.compose.material3.FloatingActionButtonElevation,
     modifier: Modifier = Modifier
 ) {
     androidx.compose.material3.FloatingActionButton(
         onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = containerColor,
         contentColor = MaterialTheme.colorScheme.primary,
         shape = SquircleShape(16.dp),
-        modifier = modifier.directionalFabShadow(
-            shape = SquircleShape(16.dp)
-        )
+        elevation = elevation,
+        modifier = modifier
+            .directionalFabShadow(shape = SquircleShape(16.dp))
+            .then(blurModifier)
     ) {
         Icon(
             imageVector = Icons.Rounded.VerticalAlignTop,

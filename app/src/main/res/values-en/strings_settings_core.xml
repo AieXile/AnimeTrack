@@ -57,7 +57,7 @@
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">Customize Navigation</string>
     <string name="nav_custom_style_title">Navigation Style</string>
-    <string name="nav_custom_style_bottom_desc">Classic Material Design bottom navigation bar</string>
+    <string name="nav_custom_style_bottom_desc">Classic Material Design style, docked at the bottom</string>
     <string name="nav_custom_style_capsule_desc">Floating capsule navigation bar with rounded corners</string>
     <string name="nav_custom_label_mode_title">Icons &amp; Labels</string>
     <string name="nav_custom_label_mode_subtitle">Choose how each navigation entry is displayed</string>
@@ -81,7 +81,6 @@
     <string name="nav_custom_typing_effect_desc">Typewriter animation for greeting</string>
     <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
-    <string name="nav_custom_capsule_effects_title">Capsule Effects</string>
     <string name="nav_custom_advanced_blur">Advanced Blur</string>
     <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule</string>
 </resources>

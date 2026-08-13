@@ -1,8 +1,10 @@
 package com.aiexile.animetrack.data.player
 
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import okhttp3.OkHttpClient
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class WebDAVDataSourceFactory(
     private val okHttpClient: OkHttpClient,
     private val username: String,

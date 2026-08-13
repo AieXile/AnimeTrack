@@ -120,21 +120,14 @@ fun NavigationCustomizeScreen(
                             isSelected = navigationStyle == NavigationStyle.CAPSULE,
                             onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
                         )
-                    }
-                }
-            }
-
-            if (navigationStyle == NavigationStyle.CAPSULE) {
-                item {
-                    SettingsGroup(
-                        title = stringResource(R.string.nav_custom_capsule_effects_title)
-                    ) {
-                        SwitchItem(
-                            title = stringResource(R.string.nav_custom_advanced_blur),
-                            description = stringResource(R.string.nav_custom_advanced_blur_desc),
-                            checked = capsuleAdvancedBlur,
-                            onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
-                        )
+                        if (navigationStyle == NavigationStyle.CAPSULE) {
+                            SwitchItem(
+                                title = stringResource(R.string.nav_custom_advanced_blur),
+                                description = stringResource(R.string.nav_custom_advanced_blur_desc),
+                                checked = capsuleAdvancedBlur,
+                                onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
+                            )
+                        }
                     }
                 }
             }

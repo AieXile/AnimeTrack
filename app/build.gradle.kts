@@ -24,7 +24,7 @@ val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
 
 android {
     namespace = "com.aiexile.animetrack"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.aiexile.animetrack"
@@ -130,6 +130,7 @@ dependencies {
     implementation("androidx.compose.animation:animation")
     implementation(libs.coil.compose)
     implementation(libs.graphics.shapes)
+    implementation(libs.haze)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     

@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.schedule
+package com.aiexile.animetrack.ui.schedule
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -104,7 +104,7 @@ fun ScheduleScreen(
     val tomorrowAnimes by viewModel.tomorrowAnimes.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: mutableStateOf(true))
+    val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: remember { mutableStateOf(true) })
 
     val labels = weekdayLabels()
     val weekdayLabelFormat = stringResource(R.string.schedule_weekday_label_format)

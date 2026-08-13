@@ -88,6 +88,9 @@ import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -107,6 +110,7 @@ fun AnimeTrackApp(
     val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsState(null)
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
+    val hazeState = rememberHazeState()
 
     val mainPages = remember(showFavorites, showTimeline, showSchedule) {
         buildMainPages(showFavorites, showTimeline, showSchedule)
@@ -243,6 +247,7 @@ fun AnimeTrackApp(
                         navigationStyle = navigationStyle,
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
+                        hazeState = hazeState,
                         onNavigateToScreen = { route ->
                             navController.navigate(route)
                         },
@@ -466,6 +471,7 @@ fun AnimeTrackApp(
                 mainPages = mainPages,
                 pagerState = pagerState,
                 homeViewModel = homeViewModel,
+                hazeState = hazeState,
                 settingsRepository = settingsRepository,
                 fabLocation = fabLocation,
                 currentRoute = currentMainRoute,
@@ -511,6 +517,7 @@ private fun MainScreen(
     navigationStyle: NavigationStyle,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -522,6 +529,7 @@ private fun MainScreen(
             isPagerScrollEnabled = isPagerScrollEnabled,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            hazeState = hazeState,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -552,26 +560,33 @@ private fun CapsuleNavLayout(
     isPagerScrollEnabled: Boolean,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier.fillMaxSize(),
-        userScrollEnabled = isPagerScrollEnabled
-    ) { page ->
-        MainPagerContent(
-            page = page,
-            mainPages = mainPages,
-            pagerState = pagerState,
-            settingsRepository = settingsRepository,
-            navigationStyle = NavigationStyle.CAPSULE,
-            homeViewModel = homeViewModel,
-            onNavigateToScreen = onNavigateToScreen,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .hazeSource(state = hazeState)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = isPagerScrollEnabled
+        ) { page ->
+            MainPagerContent(
+                page = page,
+                mainPages = mainPages,
+                pagerState = pagerState,
+                settingsRepository = settingsRepository,
+                navigationStyle = NavigationStyle.CAPSULE,
+                homeViewModel = homeViewModel,
+                onNavigateToScreen = onNavigateToScreen,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
     }
 }
 
@@ -706,6 +721,7 @@ private fun MainOverlay(
     mainPages: List<MainPage>,
     pagerState: PagerState,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     settingsRepository: SettingsRepository,
     fabLocation: FabLocation,
     currentRoute: String,
@@ -717,6 +733,7 @@ private fun MainOverlay(
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
 
     // 从 settingsRepository 读取 HomeTopBar 所需状态
     val customGreeting by settingsRepository.customGreeting.collectAsState("")
@@ -755,7 +772,9 @@ private fun MainOverlay(
                     onNavigate = onNavigate,
                     pagerState = pagerState,
                     jumpTarget = navJumpTarget,
-                    labelMode = navigationLabelMode
+                    labelMode = navigationLabelMode,
+                    hazeState = hazeState,
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled
                 )
             }
         } else {
@@ -795,6 +814,8 @@ private fun MainOverlay(
                     homeViewModel.scrollToTop()
                 },
                 onAddClick = onAddAnimeClick,
+                hazeState = hazeState,
+                advancedBlurEnabled = capsuleAdvancedBlurEnabled,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
         }

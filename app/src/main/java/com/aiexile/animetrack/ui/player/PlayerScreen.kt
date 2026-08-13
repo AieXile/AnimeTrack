@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.player
+package com.aiexile.animetrack.ui.player
 
 import android.app.Activity
 import android.content.Context
@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -188,10 +189,10 @@ fun PlayerScreen(
     }
     LaunchedEffect(uiState.isFullscreen) {
         if (uiState.isFullscreen) {
-            insetsController?.hide(android.view.WindowInsets.Type.systemBars())
+            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         } else {
-            insetsController?.show(android.view.WindowInsets.Type.systemBars())
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
@@ -199,7 +200,7 @@ fun PlayerScreen(
     // Restore system bars and orientation when leaving
     DisposableEffect(Unit) {
         onDispose {
-            insetsController?.show(android.view.WindowInsets.Type.systemBars())
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }

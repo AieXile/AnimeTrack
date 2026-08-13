@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 @Composable
+@Suppress("UnusedContentLambdaTargetStateParameter")
 fun UsageStatsDialog(
     onDismiss: () -> Unit
 ) {
@@ -117,7 +118,7 @@ fun UsageStatsDialog(
                         (slideOutHorizontally { w -> -direction * w / 4 } + fadeOut())
                     },
                     label = "statsTransition"
-                ) { _ ->
+                ) {
                     Column {
                         StatsItem(
                             label = stringResource(R.string.usage_stats_open_count),

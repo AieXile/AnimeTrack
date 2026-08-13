@@ -57,7 +57,7 @@
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">自訂導航欄</string>
     <string name="nav_custom_style_title">導航欄樣式</string>
-    <string name="nav_custom_style_bottom_desc">經典 Material Design 底部導航欄，貼底顯示</string>
+    <string name="nav_custom_style_bottom_desc">經典Material Design樣式，貼底顯示</string>
     <string name="nav_custom_style_capsule_desc">懸浮膠囊導航欄，圓角浮於內容之上</string>
     <string name="nav_custom_label_mode_title">圖示與文字</string>
     <string name="nav_custom_label_mode_subtitle">選擇導航欄每個入口的顯示方式</string>
@@ -81,7 +81,6 @@
     <string name="nav_custom_typing_effect_desc">歡迎語逐字顯示的打字機動畫</string>
     <string name="nav_custom_greeting_placeholder">留空則顯示隨機 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案過長可能會被截斷</string>
-    <string name="nav_custom_capsule_effects_title">膠囊效果</string>
     <string name="nav_custom_advanced_blur">進階模糊</string>
     <string name="nav_custom_advanced_blur_desc">為懸浮膠囊啟用背景模糊（毛玻璃）效果</string>
 </resources>

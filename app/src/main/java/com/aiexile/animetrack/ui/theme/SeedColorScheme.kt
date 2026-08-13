@@ -1,3 +1,9 @@
+@file:Suppress(
+    "RestrictedApi", // CorePalette/TonalPalette 为 Material Color Utilities 的内部 API，
+                     // 用于从 seed 色生成自定义 Material 3 配色；官方无完全等价的公开 API，
+                     // 为保证颜色与既有 UI 完全一致，此处有意直接使用内部类并抑制该 lint。
+)
+
 package com.aiexile.animetrack.ui.theme
 
 import androidx.compose.material3.ColorScheme
