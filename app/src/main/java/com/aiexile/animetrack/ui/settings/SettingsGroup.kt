@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,7 +96,7 @@ fun ExpandableSettingsGroup(
     showSubtitle: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(expanded) }
+    var isExpanded by rememberSaveable { mutableStateOf(expanded) }
     val arrowRotation by animateFloatAsState(
         targetValue = if (isExpanded) 180f else 0f,
         animationSpec = spring(

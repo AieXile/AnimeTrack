@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -29,6 +29,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -52,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
@@ -70,6 +74,8 @@ fun NavigationCustomizeScreen(
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
+    val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
 
     Scaffold(
         topBar = {
@@ -114,6 +120,49 @@ fun NavigationCustomizeScreen(
                             isSelected = navigationStyle == NavigationStyle.CAPSULE,
                             onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
                         )
+                    }
+                }
+            }
+
+            if (navigationStyle == NavigationStyle.CAPSULE) {
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.nav_custom_capsule_effects_title)
+                    ) {
+                        SwitchItem(
+                            title = stringResource(R.string.nav_custom_advanced_blur),
+                            description = stringResource(R.string.nav_custom_advanced_blur_desc),
+                            checked = capsuleAdvancedBlur,
+                            onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.nav_custom_label_mode_title),
+                    subtitle = stringResource(R.string.nav_custom_label_mode_subtitle)
+                ) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        NavigationLabelMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = navigationLabelMode == mode,
+                                onClick = { scope.launch { settingsRepository.setNavigationLabelMode(mode) } },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = NavigationLabelMode.entries.size
+                                ),
+                                icon = {},
+                                label = {
+                                    Text(
+                                        text = stringResource(mode.labelRes),
+                                        maxLines = 1,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }

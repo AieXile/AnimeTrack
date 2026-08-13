@@ -54,6 +54,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
@@ -715,6 +716,7 @@ private fun MainOverlay(
 ) {
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
+    val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
 
     // 从 settingsRepository 读取 HomeTopBar 所需状态
     val customGreeting by settingsRepository.customGreeting.collectAsState("")
@@ -752,7 +754,8 @@ private fun MainOverlay(
                     visiblePages = visiblePages,
                     onNavigate = onNavigate,
                     pagerState = pagerState,
-                    jumpTarget = navJumpTarget
+                    jumpTarget = navJumpTarget,
+                    labelMode = navigationLabelMode
                 )
             }
         } else {
@@ -761,6 +764,7 @@ private fun MainOverlay(
                 visiblePages = visiblePages,
                 onNavigate = onNavigate,
                 pagerState = pagerState,
+                labelMode = navigationLabelMode,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }

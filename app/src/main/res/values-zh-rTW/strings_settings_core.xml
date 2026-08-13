@@ -59,6 +59,11 @@
     <string name="nav_custom_style_title">導航欄樣式</string>
     <string name="nav_custom_style_bottom_desc">經典 Material Design 底部導航欄，貼底顯示</string>
     <string name="nav_custom_style_capsule_desc">懸浮膠囊導航欄，圓角浮於內容之上</string>
+    <string name="nav_custom_label_mode_title">圖示與文字</string>
+    <string name="nav_custom_label_mode_subtitle">選擇導航欄每個入口的顯示方式</string>
+    <string name="nav_custom_label_icon_only">僅圖示</string>
+    <string name="nav_custom_label_icon_text">圖示 + 文字</string>
+    <string name="nav_custom_label_text_only">僅文字</string>
     <string name="nav_custom_fab_title">新增番劇按鈕位置</string>
     <string name="nav_custom_fab_bottom_right_desc">懸浮在頁面右下角，經典 Material 風格</string>
     <string name="nav_custom_fab_top_bar_desc">嵌入頂部標題欄右側，更極簡緊湊</string>
@@ -76,4 +81,7 @@
     <string name="nav_custom_typing_effect_desc">歡迎語逐字顯示的打字機動畫</string>
     <string name="nav_custom_greeting_placeholder">留空則顯示隨機 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案過長可能會被截斷</string>
+    <string name="nav_custom_capsule_effects_title">膠囊效果</string>
+    <string name="nav_custom_advanced_blur">進階模糊</string>
+    <string name="nav_custom_advanced_blur_desc">為懸浮膠囊啟用背景模糊（毛玻璃）效果</string>
 </resources>

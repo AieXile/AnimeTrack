@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.NavigationLabelMode
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -62,6 +62,7 @@ fun CapsuleNavigationBar(
     visiblePages: List<String> = listOf("home", "favorites", "timeline", "settings"),
     pagerState: PagerState? = null,
     jumpTarget: Int? = null,
+    labelMode: NavigationLabelMode = NavigationLabelMode.ICON_AND_TEXT,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
@@ -121,7 +122,7 @@ fun CapsuleNavigationBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(54.dp)
                 .shadow(
                     elevation = 4.dp,
                     shape = SquircleShape(100.dp)
@@ -199,7 +200,8 @@ fun CapsuleNavigationBar(
                             CapsuleNavItem(
                                 item = item,
                                 selected = selected,
-                                proximity = proximity
+                                proximity = proximity,
+                                labelMode = labelMode
                             )
                         }
                     }
@@ -213,7 +215,8 @@ fun CapsuleNavigationBar(
 private fun CapsuleNavItem(
     item: BottomNavItem,
     selected: Boolean,
-    proximity: Float
+    proximity: Float,
+    labelMode: NavigationLabelMode
 ) {
     val iconColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary
@@ -237,19 +240,22 @@ private fun CapsuleNavItem(
             scaleY = scale
         }
     ) {
-        Icon(
-            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-            contentDescription = stringResource(item.titleRes),
-            tint = iconColor,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.height(1.dp))
-        Text(
-            text = stringResource(item.titleRes),
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = textColor,
-            maxLines = 1
-        )
+        if (labelMode != NavigationLabelMode.TEXT_ONLY) {
+            Icon(
+                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                contentDescription = stringResource(item.titleRes),
+                tint = iconColor,
+                modifier = Modifier.size(if (labelMode == NavigationLabelMode.ICON_ONLY) 24.dp else 20.dp)
+            )
+        }
+        if (labelMode != NavigationLabelMode.ICON_ONLY) {
+            Text(
+                text = stringResource(item.titleRes),
+                fontSize = if (labelMode == NavigationLabelMode.TEXT_ONLY) 14.sp else 10.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = textColor,
+                maxLines = 1
+            )
+        }
     }
 }

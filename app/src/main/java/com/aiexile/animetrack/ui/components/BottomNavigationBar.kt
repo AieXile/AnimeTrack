@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.components
+package com.aiexile.animetrack.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.NavigationLabelMode
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
@@ -104,6 +105,7 @@ fun BottomNavigationBar(
     onNavigate: (String) -> Unit,
     visiblePages: List<String> = listOf("home", "favorites", "timeline", "settings"),
     pagerState: PagerState? = null,
+    labelMode: NavigationLabelMode = NavigationLabelMode.ICON_AND_TEXT,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -153,18 +155,22 @@ fun BottomNavigationBar(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = stringResource(item.titleRes),
-                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = stringResource(item.titleRes),
-                            fontSize = 10.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (labelMode != NavigationLabelMode.TEXT_ONLY) {
+                            Icon(
+                                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = stringResource(item.titleRes),
+                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        if (labelMode != NavigationLabelMode.ICON_ONLY) {
+                            Text(
+                                text = stringResource(item.titleRes),
+                                fontSize = if (labelMode == NavigationLabelMode.TEXT_ONLY) 14.sp else 10.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

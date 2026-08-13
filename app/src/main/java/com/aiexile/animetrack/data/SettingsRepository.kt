@@ -52,6 +52,8 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_SCHEDULE_KEY = booleanPreferencesKey("show_schedule")
         private val NAVIGATION_STYLE_KEY = stringPreferencesKey("navigation_style")
         private val FAB_LOCATION_KEY = stringPreferencesKey("fab_location")
+        private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
+        private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
         private val CUSTOM_GREETING_KEY = stringPreferencesKey("custom_greeting")
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
@@ -221,6 +223,18 @@ class SettingsRepository(private val context: Context) {
         }
 
     suspend fun setFabLocation(location: FabLocation) = setPreference(FAB_LOCATION_KEY, location.name)
+
+    val navigationLabelMode: Flow<NavigationLabelMode> = preferenceFlow(NAVIGATION_LABEL_MODE_KEY, NavigationLabelMode.ICON_AND_TEXT.name)
+        .map { modeString ->
+            try { NavigationLabelMode.valueOf(modeString) } catch (_: IllegalArgumentException) { NavigationLabelMode.ICON_AND_TEXT }
+        }
+
+    suspend fun setNavigationLabelMode(mode: NavigationLabelMode) = setPreference(NAVIGATION_LABEL_MODE_KEY, mode.name)
+
+    /** 悬浮胶囊高级模糊（毛玻璃背景），默认关闭 */
+    val capsuleAdvancedBlurEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_ADVANCED_BLUR_KEY, false)
+
+    suspend fun setCapsuleAdvancedBlurEnabled(enabled: Boolean) = setPreference(CAPSULE_ADVANCED_BLUR_KEY, enabled)
 
     val customGreeting: Flow<String> = preferenceFlow(CUSTOM_GREETING_KEY, "")
 

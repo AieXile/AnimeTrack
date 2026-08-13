@@ -59,6 +59,11 @@
     <string name="nav_custom_style_title">Navigation Style</string>
     <string name="nav_custom_style_bottom_desc">Classic Material Design bottom navigation bar</string>
     <string name="nav_custom_style_capsule_desc">Floating capsule navigation bar with rounded corners</string>
+    <string name="nav_custom_label_mode_title">Icons &amp; Labels</string>
+    <string name="nav_custom_label_mode_subtitle">Choose how each navigation entry is displayed</string>
+    <string name="nav_custom_label_icon_only">Icons only</string>
+    <string name="nav_custom_label_icon_text">Icons + labels</string>
+    <string name="nav_custom_label_text_only">Labels only</string>
     <string name="nav_custom_fab_title">Add Anime Button Position</string>
     <string name="nav_custom_fab_bottom_right_desc">Floating at bottom right, classic Material style</string>
     <string name="nav_custom_fab_top_bar_desc">Embedded in top bar right, more minimal</string>
@@ -76,4 +81,7 @@
     <string name="nav_custom_typing_effect_desc">Typewriter animation for greeting</string>
     <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
+    <string name="nav_custom_capsule_effects_title">Capsule Effects</string>
+    <string name="nav_custom_advanced_blur">Advanced Blur</string>
+    <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule</string>
 </resources>
