@@ -2,7 +2,7 @@
   <img src="https://github.com/AieXile/AnimeTrack/blob/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp?raw=true" alt="AnimeTrack Logo" width="120" style="border-radius: 20px;"><br>
   <h1 align="center">AnimeTrack</h1>
   <p align="center">
-    <i>遵循 Material Design 3 的安卓追番记录工具 —— 看过的，都记得。</i>
+    <i>遵循 Material Design 3 的安卓**本地追番记录工具** —— 看过的，都记得。</i>
   </p>
   <p align="center">
     <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
