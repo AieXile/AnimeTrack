@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
@@ -76,6 +77,10 @@ fun NavigationCustomizeScreen(
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled.collectAsState(false)
+
+    // 大屏（Medium/Expanded）使用侧边导航栏且无 FAB：导航样式与 FAB 位置设置无效，隐藏对应分组
+    val showCompactOnlySettings = isCompactWidth()
 
     Scaffold(
         topBar = {
@@ -105,41 +110,67 @@ fun NavigationCustomizeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item(key = "spacer_top") { Spacer(modifier = Modifier.height(4.dp)) }
 
-            item {
-                ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_style_title)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        NavigationStyleCard(
-                            style = NavigationStyle.BOTTOM,
-                            isSelected = navigationStyle == NavigationStyle.BOTTOM,
-                            onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.BOTTOM) } }
-                        )
-                        NavigationStyleCard(
-                            style = NavigationStyle.CAPSULE,
-                            isSelected = navigationStyle == NavigationStyle.CAPSULE,
-                            onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
-                        )
+            if (showCompactOnlySettings) {
+                item(key = "nav_style_group") {
+                    ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_style_title)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NavigationStyleCard(
+                                style = NavigationStyle.BOTTOM,
+                                isSelected = navigationStyle == NavigationStyle.BOTTOM,
+                                onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.BOTTOM) } }
+                            )
+                            NavigationStyleCard(
+                                style = NavigationStyle.CAPSULE,
+                                isSelected = navigationStyle == NavigationStyle.CAPSULE,
+                                onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
+                            )
+                            // 选中胶囊时条件出现：动画展开/收起，避免高度瞬间跳变造成的闪动
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = navigationStyle == NavigationStyle.CAPSULE,
+                                enter = androidx.compose.animation.expandVertically(
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                    )
+                                ) + androidx.compose.animation.fadeIn(
+                                    animationSpec = androidx.compose.animation.core.tween(300)
+                                ),
+                                exit = androidx.compose.animation.shrinkVertically(
+                                    animationSpec = androidx.compose.animation.core.tween(200)
+                                ) + androidx.compose.animation.fadeOut(
+                                    animationSpec = androidx.compose.animation.core.tween(200)
+                                )
+                            ) {
+                                SwitchItem(
+                                    title = stringResource(R.string.nav_custom_advanced_blur),
+                                    description = stringResource(R.string.nav_custom_advanced_blur_desc),
+                                    checked = capsuleAdvancedBlur,
+                                    onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            if (navigationStyle == NavigationStyle.CAPSULE) {
-                item {
-                    SettingsGroup(
-                        title = stringResource(R.string.nav_custom_capsule_effects_title)
-                    ) {
-                        SwitchItem(
-                            title = stringResource(R.string.nav_custom_advanced_blur),
-                            description = stringResource(R.string.nav_custom_advanced_blur_desc),
-                            checked = capsuleAdvancedBlur,
-                            onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
-                        )
-                    }
+            // 顶部栏行为：手机与平板均可用
+            item(key = "topbar_group") {
+                SettingsGroup(
+                    title = stringResource(R.string.nav_custom_topbar_title),
+                    subtitle = stringResource(R.string.nav_custom_topbar_subtitle)
+                ) {
+                    SwitchItem(
+                        title = stringResource(R.string.nav_custom_hide_topbar_on_scroll),
+                        description = stringResource(R.string.nav_custom_hide_topbar_on_scroll_desc),
+                        checked = hideTopBarOnScroll,
+                        onCheckedChange = { scope.launch { settingsRepository.setHideTopBarOnScrollEnabled(it) } }
+                    )
                 }
             }
 
-            item {
+            item(key = "label_mode_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_label_mode_title),
                     subtitle = stringResource(R.string.nav_custom_label_mode_subtitle)
@@ -167,24 +198,27 @@ fun NavigationCustomizeScreen(
                 }
             }
 
-            item {
-                ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_fab_title)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FabLocationCard(
-                            location = FabLocation.BOTTOM_RIGHT,
-                            isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
-                            onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
-                        )
-                        FabLocationCard(
-                            location = FabLocation.TOP_BAR,
-                            isSelected = fabLocation == FabLocation.TOP_BAR,
-                            onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
-                        )
+            // 大屏无 FAB（添加入口在顶栏、回到顶部在侧边导航栏底部），FAB 位置设置无效
+            if (showCompactOnlySettings) {
+                item(key = "fab_group") {
+                    ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_fab_title)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FabLocationCard(
+                                location = FabLocation.BOTTOM_RIGHT,
+                                isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
+                            )
+                            FabLocationCard(
+                                location = FabLocation.TOP_BAR,
+                                isSelected = fabLocation == FabLocation.TOP_BAR,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
+                            )
+                        }
                     }
                 }
             }
 
-            item {
+            item(key = "content_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_content_title),
                     subtitle = stringResource(R.string.nav_custom_content_subtitle)
@@ -212,7 +246,7 @@ fun NavigationCustomizeScreen(
                 }
             }
 
-            item {
+            item(key = "greeting_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_greeting_title),
                     subtitle = stringResource(R.string.nav_custom_greeting_subtitle)
@@ -233,7 +267,7 @@ fun NavigationCustomizeScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item(key = "spacer_bottom") { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }

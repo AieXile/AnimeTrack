@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
+import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -63,6 +64,9 @@ fun CapsuleNavigationBar(
     pagerState: PagerState? = null,
     jumpTarget: Int? = null,
     labelMode: NavigationLabelMode = NavigationLabelMode.ICON_AND_TEXT,
+    hazeState: HazeState,
+    advancedBlurEnabled: Boolean = false,
+    blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
@@ -119,6 +123,12 @@ fun CapsuleNavigationBar(
                 )
             }
     ) {
+        val colorScheme = MaterialTheme.colorScheme
+        val capsuleColor = if (advancedBlurEnabled) {
+            Color.Transparent
+        } else {
+            colorScheme.surfaceContainer
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,8 +137,19 @@ fun CapsuleNavigationBar(
                     elevation = 4.dp,
                     shape = SquircleShape(100.dp)
                 )
-                .clip(SquircleShape(100.dp)),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+                .clip(SquircleShape(100.dp))
+                .then(
+                    if (advancedBlurEnabled) {
+                        advancedHazeEffect(
+                            hazeState = hazeState,
+                            config = blurConfig,
+                            shape = null
+                        )
+                    } else {
+                        Modifier
+                    }
+                ),
+            color = capsuleColor,
             shape = SquircleShape(100.dp),
             border = androidx.compose.foundation.BorderStroke(
                 width = 0.5.dp,

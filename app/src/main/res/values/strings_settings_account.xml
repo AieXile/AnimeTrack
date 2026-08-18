@@ -110,6 +110,15 @@
     <string name="developer_announcement_desc">查看与测试公告弹窗及投票</string>
     <string name="developer_open_announcement">打开公告</string>
     <string name="developer_mode_disabled">已关闭开发者模式</string>
+    <string name="developer_advanced_blur">高级模糊（毛玻璃）</string>
+    <string name="developer_advanced_blur_desc">调整悬浮胶囊与悬浮按钮的毛玻璃参数</string>
+    <string name="developer_blur_switch_desc">与导航自定义中的高级模糊开关同步</string>
+    <string name="developer_blur_radius">模糊半径</string>
+    <string name="developer_blur_background_alpha">底色不透明度</string>
+    <string name="developer_blur_tint_alpha">着色不透明度</string>
+    <string name="developer_blur_noise">噪点强度</string>
+    <string name="developer_blur_reset">恢复默认</string>
+    <string name="developer_blur_reset_toast">已恢复默认模糊参数</string>
     <string name="developer_test_notification_toast">3秒后发送测试通知</string>
     <string name="developer_added_debug_cards">已添加 %1$d 张调试卡片</string>
     <string name="developer_deleted_debug_cards">已删除 %1$d 张调试卡片</string>

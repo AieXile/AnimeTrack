@@ -1,4 +1,4 @@
-package com.aiexile.animetrack.ui.navigation
+﻿package com.aiexile.animetrack.ui.navigation
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -9,6 +9,12 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -19,9 +25,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -42,52 +52,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
-import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
+import com.aiexile.animetrack.ui.components.SideNavigationRail
+import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
 import com.aiexile.animetrack.ui.home.HomeTopBar
 import com.aiexile.animetrack.ui.home.HomeViewModel
+import com.aiexile.animetrack.ui.home.TopBarActionsCombinedWidth
+import com.aiexile.animetrack.ui.home.TopBarActionsFloating
+import com.aiexile.animetrack.ui.home.TopBarActionsSingleWidth
+import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
-import com.aiexile.animetrack.ui.settings.AboutScreen
-import com.aiexile.animetrack.ui.settings.AppearanceScreen
-import com.aiexile.animetrack.ui.settings.BangumiLoginScreen
-import com.aiexile.animetrack.ui.settings.BangumiAccountScreen
-import com.aiexile.animetrack.ui.settings.BangumiProxyScreen
-import com.aiexile.animetrack.ui.settings.BilibiliLoginScreen
-import com.aiexile.animetrack.ui.settings.DataManageScreen
-import com.aiexile.animetrack.ui.settings.DeveloperScreen
-import com.aiexile.animetrack.ui.settings.FeaturesScreen
-import com.aiexile.animetrack.ui.settings.FontSettingsScreen
-import com.aiexile.animetrack.ui.settings.LoginScreen
-import com.aiexile.animetrack.ui.settings.UserLoginScreen
-import com.aiexile.animetrack.ui.settings.UserRegisterScreen
-import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
 import com.aiexile.animetrack.ui.settings.SettingsScreen
-import com.aiexile.animetrack.ui.settings.UpdateNotificationScreen
-import com.aiexile.animetrack.ui.settings.WebDAVAutoSyncScreen
-import com.aiexile.animetrack.ui.settings.WebDAVSyncScreen
 import com.aiexile.animetrack.ui.player.PlayerScreen
-import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -103,16 +110,27 @@ fun AnimeTrackApp(
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val isPagerScrollEnabled = remember { mutableStateOf(true) }
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
+    // 大屏适配：Medium/Expanded 宽度使用左侧导航栏（覆盖导航样式设置），Compact 保持原底部导航/胶囊导航
+    val useSideNavigation = !isCompactWidth()
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsState(null)
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
+    val hazeState = rememberHazeState()
 
     val mainPages = remember(showFavorites, showTimeline, showSchedule) {
         buildMainPages(showFavorites, showTimeline, showSchedule)
     }
 
-    val navController = androidx.navigation.compose.rememberNavController()
+    val navController = rememberNavController()
+
+    // ===== 大屏 List-Detail pane 状态（实现见 AdaptivePaneNav.kt） =====
+    // Expanded 宽度下详情页/设置子页在右侧 pane 打开，主界面保持可见。
+    val paneState = rememberPaneNavState(
+        useSideNavigation = useSideNavigation,
+        fullscreenNavController = navController
+    )
+    val onNavigateToScreen: (String) -> Unit = paneState.navigateTo
 
     // 决定初始路由
     var startRoute by remember { mutableStateOf<String?>(null) }
@@ -241,183 +259,25 @@ fun AnimeTrackApp(
                         pagerState = pagerState,
                         isPagerScrollEnabled = isPagerScrollEnabled.value,
                         navigationStyle = navigationStyle,
+                        useSideNavigation = useSideNavigation,
+                        paneNavController = paneState.navController,
+                        paneWidth = paneState.paneWidth,
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
-                        onNavigateToScreen = { route ->
-                            navController.navigate(route)
-                        },
+                        hazeState = hazeState,
+                        onNavigateToScreen = onNavigateToScreen,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@composable
                     )
                 }
 
-                // 番剧详情
-                composable(
-                    route = Routes.ANIME_DETAIL,
-                    arguments = Routes.animeDetailArguments
-                ) { backStackEntry ->
-                    val animeId = backStackEntry.arguments?.getInt("animeId") ?: return@composable
-                    val coverUrl = backStackEntry.arguments?.getString("coverUrl")
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surface)
-                    ) {
-                        AnimeDetailScreen(
-                            animeId = animeId,
-                            coverUrl = coverUrl,
-                            onNavigateBack = { navController.popBackStack() },
-                            onNavigateToPlayer = { id ->
-                                navController.navigate(Routes.player(id))
-                            },
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this@composable
-                        )
-                    }
-                }
-
-                // 关于
-                composable(Routes.ABOUT) {
-                    AboutScreen(
-                        onBack = { navController.popBackStack() },
-                        onNavigateDeveloper = { navController.navigate(Routes.DEVELOPER) }
-                    )
-                }
-
-                // 定制导航栏
-                composable(Routes.NAVIGATION_CUSTOMIZE) {
-                    NavigationCustomizeScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 外观
-                composable(Routes.APPEARANCE) {
-                    AppearanceScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 功能
-                composable(Routes.FEATURES) {
-                    FeaturesScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // Bangumi 反向代理
-                composable(Routes.BANGUMI_PROXY) {
-                    BangumiProxyScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 字体设置
-                composable(Routes.FONT_SETTINGS) {
-                    FontSettingsScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 数据管理
-                composable(Routes.DATA_MANAGE) {
-                    DataManageScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() },
-                        onNavigateWebDAV = { navController.navigate(Routes.WEBDAV_SYNC) }
-                    )
-                }
-
-                // WebDAV 同步
-                composable(Routes.WEBDAV_SYNC) {
-                    WebDAVSyncScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() },
-                        onNavigateAutoSync = { navController.navigate(Routes.WEBDAV_AUTO_SYNC) }
-                    )
-                }
-
-                // WebDAV 自动同步
-                composable(Routes.WEBDAV_AUTO_SYNC) {
-                    WebDAVAutoSyncScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 更新通知
-                composable(Routes.UPDATE_NOTIFICATION) {
-                    UpdateNotificationScreen(
-                        settingsRepository = settingsRepository,
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 登录
-                composable(Routes.LOGIN) {
-                    LoginScreen(
-                        onBack = { navController.popBackStack() },
-                        onNavigateBilibiliLogin = { navController.navigate(Routes.BILIBILI_LOGIN) },
-                        onNavigateBangumiLogin = { navController.navigate(Routes.BANGUMI_LOGIN) },
-                        onNavigateBangumiAccount = { navController.navigate(Routes.BANGUMI_ACCOUNT) },
-                        onNavigateUserLogin = { navController.navigate(Routes.USER_LOGIN) },
-                        settingsRepository = settingsRepository
-                    )
-                }
-
-                // B站登录
-                composable(Routes.BILIBILI_LOGIN) {
-                    BilibiliLoginScreen(
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // Bangumi 登录
-                composable(Routes.BANGUMI_LOGIN) {
-                    BangumiLoginScreen(
-                        onBack = { navController.popBackStack() },
-                        onLoginSuccess = {
-                            navController.navigate(Routes.BANGUMI_ACCOUNT) {
-                                popUpTo(Routes.BANGUMI_LOGIN) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-
-                // Bangumi 账号管理
-                composable(Routes.BANGUMI_ACCOUNT) {
-                    BangumiAccountScreen(
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // AnimeTrack 账号登录
-                composable(Routes.USER_LOGIN) {
-                    UserLoginScreen(
-                        onBack = { navController.popBackStack() },
-                        onNavigateRegister = { navController.navigate(Routes.USER_REGISTER) }
-                    )
-                }
-
-                // 注册
-                composable(Routes.USER_REGISTER) {
-                    UserRegisterScreen(
-                        onBack = { navController.popBackStack() }
-                    )
-                }
-
-                // 开发者
-                composable(Routes.DEVELOPER) {
-                    DeveloperScreen(
-                        onBack = { navController.popBackStack() },
-                        onNavigateToPlayerSettings = { navController.navigate(Routes.PLAYER_SETTINGS) }
-                    )
-                }
+                // 详情页 + 设置子页：全屏 NavHost 与大屏 pane NavHost 共用注册
+                sharedDestinations(
+                    settingsRepository = settingsRepository,
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    hostController = navController,
+                    onNavigate = onNavigateToScreen
+                )
 
                 // 播放器
                 composable(
@@ -445,15 +305,6 @@ fun AnimeTrackApp(
                         onBack = { navController.popBackStack() }
                     )
                 }
-
-                // 播放器设置
-                composable(Routes.PLAYER_SETTINGS) {
-                    PlayerSettingsScreen(
-                        onBack = { navController.popBackStack() },
-                        onNavigateToPlayer = { navController.navigate(Routes.player(0)) },
-                        onNavigateToWebDAVBrowse = { navController.navigate(Routes.WEBDAV_BROWSE) }
-                    )
-                }
             }
         }
 
@@ -463,9 +314,12 @@ fun AnimeTrackApp(
         if (isMainRoute) {
             MainOverlay(
                 navigationStyle = navigationStyle,
+                useSideNavigation = useSideNavigation,
+                paneWidth = paneState.paneWidth,
                 mainPages = mainPages,
                 pagerState = pagerState,
                 homeViewModel = homeViewModel,
+                hazeState = hazeState,
                 settingsRepository = settingsRepository,
                 fabLocation = fabLocation,
                 currentRoute = currentMainRoute,
@@ -509,24 +363,43 @@ private fun MainScreen(
     pagerState: PagerState,
     isPagerScrollEnabled: Boolean,
     navigationStyle: NavigationStyle,
+    useSideNavigation: Boolean,
+    paneNavController: NavHostController,
+    paneWidth: Dp,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    when (navigationStyle) {
-        NavigationStyle.CAPSULE -> CapsuleNavLayout(
+    when {
+        // 大屏：导航栏移至左侧，Pager 内容避开侧边导航栏区域；详情/设置子页在右侧 pane 打开
+        useSideNavigation -> SideNavLayout(
+            mainPages = mainPages,
+            pagerState = pagerState,
+            isPagerScrollEnabled = isPagerScrollEnabled,
+            paneNavController = paneNavController,
+            paneWidth = paneWidth,
+            settingsRepository = settingsRepository,
+            homeViewModel = homeViewModel,
+            hazeState = hazeState,
+            onNavigateToScreen = onNavigateToScreen,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
+        navigationStyle == NavigationStyle.CAPSULE -> CapsuleNavLayout(
             mainPages = mainPages,
             pagerState = pagerState,
             isPagerScrollEnabled = isPagerScrollEnabled,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            hazeState = hazeState,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
         )
-        NavigationStyle.BOTTOM -> BottomNavLayout(
+        else -> BottomNavLayout(
             mainPages = mainPages,
             pagerState = pagerState,
             isPagerScrollEnabled = isPagerScrollEnabled,
@@ -538,6 +411,7 @@ private fun MainScreen(
         )
     }
 }
+
 
 /**
  * 胶囊导航栏布局：仅渲染 Pager 内容。
@@ -552,26 +426,33 @@ private fun CapsuleNavLayout(
     isPagerScrollEnabled: Boolean,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier.fillMaxSize(),
-        userScrollEnabled = isPagerScrollEnabled
-    ) { page ->
-        MainPagerContent(
-            page = page,
-            mainPages = mainPages,
-            pagerState = pagerState,
-            settingsRepository = settingsRepository,
-            navigationStyle = NavigationStyle.CAPSULE,
-            homeViewModel = homeViewModel,
-            onNavigateToScreen = onNavigateToScreen,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .hazeSource(state = hazeState)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = isPagerScrollEnabled
+        ) { page ->
+            MainPagerContent(
+                page = page,
+                mainPages = mainPages,
+                pagerState = pagerState,
+                settingsRepository = settingsRepository,
+                navigationStyle = NavigationStyle.CAPSULE,
+                homeViewModel = homeViewModel,
+                onNavigateToScreen = onNavigateToScreen,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
     }
 }
 
@@ -594,11 +475,12 @@ private fun BottomNavLayout(
     Scaffold(
         bottomBar = {
             // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
-            // 保留与 BottomNavigationBar 一致的高度（navigationBarsPadding + 68.dp）以维持内容区域 padding。
+            // 保留与 BottomNavigationBar 一致的高度（navigationBarsPadding + bottomNavBarHeight）以维持内容区域 padding。
+            val labelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
             Spacer(modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(68.dp))
+                .height(bottomNavBarHeight(labelMode)))
         }
     ) { paddingValues ->
         Box(
@@ -630,7 +512,7 @@ private fun BottomNavLayout(
 /** Pager 页面内容路由 */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
-private fun MainPagerContent(
+internal fun MainPagerContent(
     page: Int,
     mainPages: List<MainPage>,
     pagerState: PagerState,
@@ -685,16 +567,19 @@ private fun MainPagerContent(
 }
 
 /**
- * 主界面 Overlay：在 SharedTransitionLayout 外层渲染 TopBar/BottomBar/FAB。
+ * 主界面 Overlay：在 SharedTransitionLayout 外层渲染 TopBar/导航栏/FAB。
  *
  * 作用：SharedTransitionLayout 在转场期间会于其根节点注入 Overlay 渲染层，
  * 飞行中的共享元素渲染在 Overlay 上，位于其内部所有 Scaffold 内容之上。
  * 将 TopBar/BottomBar/FAB 提升到此 Overlay（即 SharedTransitionLayout 外层）之后，
  * 使其绘制顺序晚于共享元素 Overlay，从而避免被飞行卡片遮盖。
  *
+ * 导航形态：大屏（useSideNavigation）渲染左侧 NavigationRail；
+ * Compact 按导航样式设置渲染底部导航栏 / 胶囊导航栏。
+ *
  * 可见性：仅在 MAIN 路由可见，转场期间保持显示以遮盖飞行卡片。
  *
- * @param currentRoute 当前 Pager 页面对应的路由（用于 BottomBar 高亮与 TopBar/FAB 可见性判断）
+ * @param currentRoute 当前 Pager 页面对应的路由（用于导航栏高亮与 TopBar/FAB 可见性判断）
  * @param onNavigate Tab 点击导航回调
  * @param navJumpTarget CapsuleNav 直线跳转动画目标
  * @param onAddAnimeClick 添加番剧按钮点击回调
@@ -703,9 +588,12 @@ private fun MainPagerContent(
 @Composable
 private fun MainOverlay(
     navigationStyle: NavigationStyle,
+    useSideNavigation: Boolean,
+    paneWidth: Dp,
     mainPages: List<MainPage>,
     pagerState: PagerState,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     settingsRepository: SettingsRepository,
     fabLocation: FabLocation,
     currentRoute: String,
@@ -717,6 +605,21 @@ private fun MainOverlay(
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+
+    // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
+    val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+    val blurBackgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+    val blurTintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+    val blurNoise by settingsRepository.advancedBlurNoise.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+    val advancedBlurConfig = remember(blurRadius, blurBackgroundAlpha, blurTintAlpha, blurNoise) {
+        AdvancedBlurConfig(
+            blurRadius = blurRadius.dp,
+            backgroundColorAlpha = blurBackgroundAlpha,
+            tintAlpha = blurTintAlpha,
+            noiseFactor = blurNoise
+        )
+    }
 
     // 从 settingsRepository 读取 HomeTopBar 所需状态
     val customGreeting by settingsRepository.customGreeting.collectAsState("")
@@ -741,9 +644,97 @@ private fun MainOverlay(
             }
     }
 
+    // 顶栏下滑隐藏：开启开关后按滚动方向收起/展开顶栏（手机与平板一致）。
+    // MainOverlay 随路由切换销毁重建，collectAsState(false) 的初始 false 会在返回主页时
+    // 瞬态触发「开关关闭」重置，清掉记忆的收拢状态——故用 rememberSaveable 持有上次值
+    var hideTopBarOnScroll by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(settingsRepository) {
+        settingsRepository.hideTopBarOnScrollEnabled.collect { hideTopBarOnScroll = it }
+    }
+    val homeUiState by homeViewModel.uiState.collectAsState()
+    LaunchedEffect(gridState, hideTopBarOnScroll, isHomePage) {
+        if (!hideTopBarOnScroll) {
+            homeViewModel.updateTopBarHidden(false)
+            return@LaunchedEffect
+        }
+        // 回到主页（切页/详情返回）时按当前滚动位置恢复显隐（位置记忆，不强制展开）：
+        // 列表在顶部 → 展开顶栏；位置在中途 → 收起（与离开前的状态一致）
+        if (isHomePage && !homeViewModel.uiState.value.isLocalSearchActive) {
+            if (gridState.firstVisibleItemIndex <= 1) {
+                homeViewModel.updateTopBarHidden(false)
+            } else if (gridState.firstVisibleItemIndex > 2) {
+                homeViewModel.updateTopBarHidden(true)
+            }
+        }
+        var lastIndex = gridState.firstVisibleItemIndex
+        var lastOffset = gridState.firstVisibleItemScrollOffset
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                val delta = (index - lastIndex) * TOPBAR_SCROLL_DIRECTION_SCALE + (offset - lastOffset)
+                lastIndex = index
+                lastOffset = offset
+                // 仅响应用户真实滚动：pane 开合等布局变化导致列数/索引骤变不视为滚动方向
+                if (!gridState.isScrollInProgress) return@collect
+                // 悬浮搜索态冻结顶栏显隐：搜索由 FAB 展开的悬浮搜索条承载，不随滚动切换
+                if (homeViewModel.uiState.value.isLocalSearchActive) return@collect
+                if (delta > TOPBAR_SCROLL_DIRECTION_THRESHOLD) {
+                    // 向下浏览内容：收起顶栏
+                    if (!homeViewModel.isTopBarHidden) {
+                        homeViewModel.updateTopBarHidden(true)
+                    }
+                } else if (delta < -TOPBAR_SCROLL_DIRECTION_THRESHOLD) {
+                    // 向上回滚：展开顶栏
+                    if (homeViewModel.isTopBarHidden) {
+                        homeViewModel.updateTopBarHidden(false)
+                    }
+                }
+            }
+    }
+
+    // 搜索关闭后顶栏保持收拢（搜索条收回为 FAB 的动画可见，不被顶栏展开覆盖）；
+    // 顶栏仅在用户上滑回滚或列表回到顶部时经方向检测重新展开
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // 底部导航栏 / 胶囊导航栏
-        if (isCapsuleNav) {
+        // 导航栏：大屏使用左侧 NavigationRail，Compact 使用底部导航栏 / 胶囊导航栏
+        if (useSideNavigation) {
+            SideNavigationRail(
+                currentRoute = currentRoute,
+                visiblePages = visiblePages,
+                onNavigate = onNavigate,
+                labelMode = navigationLabelMode,
+                modifier = Modifier.align(Alignment.CenterStart),
+                // 大屏回到顶部按钮：置于 Rail 底部槽位（仅主页可见时提供），替代右下角 FAB
+                bottomContent = if (isHomePage) {
+                    {
+                        AnimatedVisibility(
+                            visible = showScrollToTop,
+                            enter = fadeIn(tween(300)) + scaleIn(
+                                initialScale = 0.8f,
+                                animationSpec = tween(300)
+                            ),
+                            exit = fadeOut(tween(200)) + scaleOut(
+                                targetScale = 0.8f,
+                                animationSpec = tween(200)
+                            )
+                        ) {
+                            IconButton(onClick = {
+                                // 点击后立即隐藏按钮，不等滚动完成
+                                showScrollToTop = false
+                                homeViewModel.scrollToTop()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.VerticalAlignTop,
+                                    contentDescription = stringResource(R.string.home_scroll_to_top),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    null
+                }
+            )
+        } else if (isCapsuleNav) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -755,7 +746,10 @@ private fun MainOverlay(
                     onNavigate = onNavigate,
                     pagerState = pagerState,
                     jumpTarget = navJumpTarget,
-                    labelMode = navigationLabelMode
+                    labelMode = navigationLabelMode,
+                    hazeState = hazeState,
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled,
+                    blurConfig = advancedBlurConfig
                 )
             }
         } else {
@@ -769,37 +763,116 @@ private fun MainOverlay(
             )
         }
 
-        // 主页 TopBar（仅在 home 页可见）
+        // 主页 TopBar（仅在 home 页可见）：开启「下滑隐藏顶栏」时，顶栏通过
+        // graphics-shapes Morph 真收拢成迁移 FAB（终点=按钮行位置，纵向零位移），
+        // 内容由 AnimeGrid contentPadding 预留顶栏高度，收拢/展开时内容零移动
         if (isHomePage) {
-            HomeTopBar(
-                viewModel = homeViewModel,
-                customGreeting = customGreeting,
-                greetingTypingEffect = greetingTypingEffect,
-                showSearchButton = showSearchButton,
-                fabLocation = fabLocation,
-                isCurrentPage = pagerState.currentPage == mainPages.indexOfFirst { it.route == "home" },
-                hasAnime = hasAnime,
-                hasFilteredItems = hasFilteredItems,
+            // 收拢进度（0=展开, 1=收拢为 FAB）：顶栏与迁移 FAB 共用，保证 morph 连续
+            val topBarCollapse by animateFloatAsState(
+                targetValue = if (homeViewModel.isTopBarHidden) 1f else 0f,
+                animationSpec = tween(300, easing = FastOutSlowInEasing),
+                label = "topBarCollapse"
+            )
+            // 顶栏按钮构成决定收拢终点宽度：单按钮 48dp，搜索+添加组合 97dp
+            val topBarShowSearch = showSearchButton && hasAnime && hasFilteredItems
+            val topBarShowAdd = fabLocation == FabLocation.TOP_BAR || useSideNavigation
+            val morphTargetWidth = if (topBarShowSearch && topBarShowAdd) {
+                TopBarActionsCombinedWidth
+            } else {
+                TopBarActionsSingleWidth
+            }
+            // 下滑隐藏 + 高级模糊同时开启：顶栏背景毛玻璃化（与 FAB 参数一致）
+            val topBarBlurEnabled = capsuleAdvancedBlurEnabled && hideTopBarOnScroll
+
+            // 完全收拢后移除顶栏（避免透明区域拦截点击）
+            if (topBarCollapse < 1f) {
+                HomeTopBar(
+                    viewModel = homeViewModel,
+                    customGreeting = customGreeting,
+                    greetingTypingEffect = greetingTypingEffect,
+                    showSearchButton = showSearchButton,
+                    fabLocation = fabLocation,
+                    // 大屏无 FAB，顶栏始终提供添加入口（不受 FAB 位置设置约束）
+                    alwaysShowAddButton = useSideNavigation,
+                    isCurrentPage = pagerState.currentPage == mainPages.indexOfFirst { it.route == "home" },
+                    hasAnime = hasAnime,
+                    hasFilteredItems = hasFilteredItems,
+                    onAddClick = onAddAnimeClick,
+                    morphCollapse = topBarCollapse,
+                    // 下滑隐藏 + 高级模糊同时开启时，顶栏背景改为毛玻璃（与 FAB 一致），
+                    // 收拢全程保持毛玻璃，与 FAB 无缝衔接；否则收拢时向 FAB 容器色插值
+                    morphTargetColor = if (topBarBlurEnabled) {
+                        null
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainer
+                    },
+                    blurEnabled = topBarBlurEnabled,
+                    hazeState = hazeState,
+                    blurConfig = advancedBlurConfig,
+                    // 大屏适配：顶栏从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .then(
+                            if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
+                        )
+                        .padding(end = paneWidth)
+                        // 真 morph：几何连续变形为按钮行位置的 Squircle（问候语早期淡出在 TopBar 内处理）
+                        .topBarCollapseMorph(topBarCollapse, morphTargetWidth)
+                )
+            }
+
+            // 顶栏动作迁移 FAB：顶栏收拢后期原位淡入（与收拢终点像素级重合）。
+            // 点击搜索 → 不展开顶栏，FAB 左边框向左展开为悬浮搜索条
+            TopBarActionsFloating(
+                collapseProgress = topBarCollapse,
+                isSearchActive = homeUiState.isLocalSearchActive,
+                searchQuery = homeUiState.localSearchQuery,
+                onSearchQueryChange = { homeViewModel.updateLocalSearchQuery(it) },
+                onCloseSearch = { homeViewModel.clearLocalSearch() },
+                showSearch = topBarShowSearch,
+                showAdd = topBarShowAdd,
+                onSearchClick = { homeViewModel.startLocalSearch() },
                 onAddClick = onAddAnimeClick,
-                modifier = Modifier.align(Alignment.TopCenter)
+                hazeState = hazeState,
+                advancedBlurEnabled = capsuleAdvancedBlurEnabled,
+                blurConfig = advancedBlurConfig,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    // 大屏适配：从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
+                    .then(
+                        if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
+                    )
+                    .padding(end = paneWidth)
+                    .statusBarsPadding()
+                    // 与原顶栏按钮对齐：顶栏 horizontal 20dp padding，按钮行自 statusBar 底起 48dp
+                    .padding(end = 20.dp)
             )
 
-            // 主页 FAB（仅在 home 页可见）
-            HomeFloatingActions(
-                fabLocation = fabLocation,
-                isCapsuleNav = isCapsuleNav,
-                showScrollToTop = showScrollToTop,
-                onScrollToTop = {
-                    // 点击后立即隐藏按钮，不等滚动完成
-                    showScrollToTop = false
-                    homeViewModel.scrollToTop()
-                },
-                onAddClick = onAddAnimeClick,
-                modifier = Modifier.align(Alignment.BottomEnd)
-            )
+            // 主页 FAB（仅 Compact 渲染）；大屏添加入口在顶栏、回到顶部在侧边导航栏底部槽位
+            if (!useSideNavigation) {
+                HomeFloatingActions(
+                    fabLocation = fabLocation,
+                    isCapsuleNav = isCapsuleNav && !useSideNavigation,
+                    showScrollToTop = showScrollToTop,
+                    onScrollToTop = {
+                        // 点击后立即隐藏按钮，不等滚动完成
+                        showScrollToTop = false
+                        homeViewModel.scrollToTop()
+                    },
+                    onAddClick = onAddAnimeClick,
+                    hazeState = hazeState,
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled,
+                    blurConfig = advancedBlurConfig,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                )
+            }
         }
     }
 }
+
+/** 顶栏滚动方向检测：跨 item 位置换算基数与触发阈值（px），阈值过滤微小抖动 */
+private const val TOPBAR_SCROLL_DIRECTION_SCALE = 100000
+private const val TOPBAR_SCROLL_DIRECTION_THRESHOLD = 24
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

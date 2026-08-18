@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -169,7 +170,11 @@ fun SettingsScreen(
                 .padding(top = 16.dp)
         ) {
             LazyColumn(
-                modifier = Modifier.padding(horizontal = 20.dp),
+                // 大屏适配：限制内容最大宽度并居中，避免平板上表单拉伸过宽（手机宽度 <720dp 不受影响）
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 720.dp)
+                    .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {

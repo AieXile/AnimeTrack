@@ -71,6 +71,31 @@ object Routes {
         USER_LOGIN, USER_REGISTER, FONT_SETTINGS
     )
 
+    /** 大屏 pane 空白根路由（pane 关闭时停留在该页） */
+    const val PANE_ROOT = "paneRoot"
+
+    /**
+     * 大屏 pane 路由集合：Expanded 宽度下这些路由在右侧 pane 打开而非全屏跳转。
+     * 播放器与 WebDAV 文件浏览保持全屏（沉浸式场景）。
+     * 注意：集合内为路由模式串（如 "animeDetail/{animeId}"），
+     * 匹配时需比较首段路由名（见 [isPaneRoute]）。
+     */
+    val paneRoutes = setOf(
+        ANIME_DETAIL, ABOUT, NAVIGATION_CUSTOMIZE, APPEARANCE, FEATURES,
+        DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
+        LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
+        DEVELOPER, UPDATE_NOTIFICATION, PLAYER_SETTINGS, BANGUMI_PROXY,
+        USER_LOGIN, USER_REGISTER, FONT_SETTINGS
+    )
+
+    /** 判断路由（可带参数）是否为番剧详情页 */
+    fun isAnimeDetailRoute(route: String): Boolean =
+        route.substringBefore('/') == ANIME_DETAIL.substringBefore('/')
+
+    /** 判断路由（可带参数）是否属于 pane 路由：按首段路由名匹配，忽略参数段 */
+    fun isPaneRoute(route: String): Boolean =
+        paneRoutes.any { it.substringBefore('/') == route.substringBefore('/') }
+
     /** 二级页面过渡对（parent → child），使用 Set<Pair> 避免重复 key 覆盖 */
     val secondaryTransitions = setOf(
         DATA_MANAGE to WEBDAV_SYNC,

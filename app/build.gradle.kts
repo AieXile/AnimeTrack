@@ -1,6 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.baselineprofile)
 }
@@ -21,14 +24,14 @@ val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
 
 android {
     namespace = "com.aiexile.animetrack"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 28
-        versionName = "v0.4.8-beta"
+        versionCode = 29
+        versionName = "v0.5.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -93,20 +96,20 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -120,6 +123,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.windowsizeclass)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.compose.ratingbar)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -127,6 +131,7 @@ dependencies {
     implementation("androidx.compose.animation:animation")
     implementation(libs.coil.compose)
     implementation(libs.graphics.shapes)
+    implementation(libs.haze)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     

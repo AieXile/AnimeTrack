@@ -45,6 +45,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -121,6 +123,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
@@ -129,6 +132,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import com.aiexile.animetrack.R
@@ -155,14 +159,18 @@ import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
+import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.advancedHazeEffect
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.AnimeCardStack
 import com.aiexile.animetrack.ui.components.animateEnter
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.update.UpdateDialog
+import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -206,8 +214,8 @@ fun HomeScreen(
     val isLoggedIn = userLoggedIn || bangumiLoggedIn || bilibiliLoggedIn
     // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
     val userAvatar = customAvatarUri ?: userAvatarUrl ?: bilibiliAvatar ?: bangumiAvatar
-    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: mutableStateOf(false))
-    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: mutableStateOf(true))
+    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
+    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: remember { mutableStateOf(true) })
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
@@ -217,8 +225,8 @@ fun HomeScreen(
 
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) {
-            // 切换导航栏离开当前页时结束本地搜索栏状态
-            viewModel.clearLocalSearch()
+            // 切页/进详情时保留本地搜索状态（由 ViewModel 持有），
+            // 返回主页后搜索条/搜索结果原样恢复
             viewModel.dismissBanner()
         }
     }
@@ -300,14 +308,9 @@ fun HomeScreen(
     
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            // TopBar 占位：实际 TopBar 在 MainOverlay（SharedTransitionLayout 外层）渲染
-            // 保留与 TopBar 一致的高度（statusBar + 48.dp）以维持内容区域 padding
-            Spacer(modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .height(48.dp))
-        },
+        // 顶栏区域不再用容器占位（收缩动画会拖拽内容整体上移），
+        // 改由 AnimeGrid 的 contentPadding 预留顶栏高度：顶栏隐藏时内容零移动，
+        // 滚动时列表可滚入顶栏背后（edge-to-edge，与 MainOverlay 顶栏遮盖配合）
         bottomBar = {
             if (showBottomBar) {
                 BottomNavigationBar(
@@ -335,9 +338,17 @@ fun HomeScreen(
                     )
                 }
         ) {
+            // 顶栏高度预留（statusBar + 48.dp）：与 MainOverlay 顶栏高度一致，
+            // 列表首屏从顶栏下方开始；顶栏隐藏时内容零移动（消除拖拽感）
+            val topBarReservedTop = WindowInsets.statusBars
+                .asPaddingValues()
+                .calculateTopPadding() + 48.dp
             if (animeList.isEmpty()) {
                 EmptyAnimePlaceholder(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .statusBarsPadding()
+                        .padding(top = 48.dp)
                 )
             } else {
                 AnimeGrid(
@@ -388,7 +399,8 @@ fun HomeScreen(
                     gridState = gridState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
-                    isCapsuleNav = isCapsuleNav
+                    isCapsuleNav = isCapsuleNav,
+                    topContentPadding = topBarReservedTop
                 )
             }
         }
@@ -465,6 +477,12 @@ fun HomeTopBar(
     hasAnime: Boolean,
     hasFilteredItems: Boolean,
     onAddClick: () -> Unit,
+    alwaysShowAddButton: Boolean = false,
+    morphCollapse: Float = 0f,
+    morphTargetColor: Color? = null,
+    blurEnabled: Boolean = false,
+    hazeState: HazeState? = null,
+    blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -476,10 +494,28 @@ fun HomeTopBar(
         }
     }
 
+    // morph 收拢时背景色向 FAB 容器色插值（收拢终点与 FAB 重合，避免色块断层）；
+    // 毛玻璃模式下背景由 hazeEffect 提供（底色透明），收拢全程与 FAB 毛玻璃一致
+    val containerColor = if (blurEnabled) {
+        Color.Transparent
+    } else if (morphTargetColor != null && morphCollapse > 0f) {
+        lerp(MaterialTheme.colorScheme.surface, morphTargetColor, morphCollapse)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .then(
+                if (blurEnabled && hazeState != null) {
+                    // 顶栏毛玻璃背景：参数与 FAB 一致；收拢时被外层 morph 裁剪，
+                    // 毛玻璃随几何同步收缩，与 FAB 毛玻璃无缝衔接
+                    advancedHazeEffect(hazeState, blurConfig)
+                } else {
+                    Modifier.background(containerColor)
+                }
+            )
             .statusBarsPadding()
             .padding(horizontal = 20.dp)
     ) {
@@ -562,9 +598,13 @@ fun HomeTopBar(
                 TypingGreeting(
                     greetingText = greetingText,
                     shouldAnimate = greetingTypingEffect && viewModel.shouldAnimateGreeting(greetingText),
-                    onAnimated = { viewModel.onGreetingAnimated(it) }
+                    onAnimated = { viewModel.onGreetingAnimated(it) },
+                    // morph 收拢早期（0→0.35）问候语先行淡出，右侧按钮保留到终点与 FAB 图标交接
+                    modifier = Modifier.graphicsLayer {
+                        alpha = 1f - (morphCollapse / 0.35f).coerceIn(0f, 1f)
+                    }
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     val showSearchIcon = showSearchButton && hasAnime && hasFilteredItems
                     if (showSearchIcon) {
                         IconButton(onClick = { viewModel.startLocalSearch() }) {
@@ -576,7 +616,17 @@ fun HomeTopBar(
                             )
                         }
                     }
-                    if (fabLocation == FabLocation.TOP_BAR) {
+                    // 大屏（alwaysShowAddButton）无 FAB，顶栏始终提供添加入口。
+                    // 与迁移 FAB 布局严格一致（48+1+48，无间距），morph 收拢时按钮位置零偏移
+                    if (fabLocation == FabLocation.TOP_BAR || alwaysShowAddButton) {
+                        if (showSearchIcon) {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(24.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                            )
+                        }
                         IconButton(onClick = onAddClick) {
                             Icon(
                                 imageVector = Icons.Rounded.Add,
@@ -603,8 +653,25 @@ fun HomeFloatingActions(
     showScrollToTop: Boolean,
     onScrollToTop: () -> Unit,
     onAddClick: () -> Unit,
+    hazeState: HazeState,
+    advancedBlurEnabled: Boolean = false,
+    blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     modifier: Modifier = Modifier
 ) {
+
+    val colorScheme = MaterialTheme.colorScheme
+    val fabContainerColor = if (advancedBlurEnabled) Color.Transparent else colorScheme.surfaceContainer
+    val fabBlur = fabBlurModifier(hazeState, advancedBlurEnabled, blurConfig)
+    val fabElevation = if (advancedBlurEnabled) {
+        androidx.compose.material3.FloatingActionButtonDefaults.elevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            focusedElevation = 0.dp,
+            hoveredElevation = 0.dp
+        )
+    } else {
+        androidx.compose.material3.FloatingActionButtonDefaults.elevation()
+    }
 
     val fabOffsetY = if (isCapsuleNav) (-56).dp else 0.dp
     val fabEndPadding = 24.dp
@@ -634,16 +701,17 @@ fun HomeFloatingActions(
                         animationSpec = tween(100, easing = FastOutSlowInEasing)
                     )
             ) {
-                ScrollToTopFab(onClick = onScrollToTop)
+                ScrollToTopFab(onClick = onScrollToTop, containerColor = fabContainerColor, blurModifier = fabBlur, elevation = fabElevation)
             }
             androidx.compose.material3.FloatingActionButton(
                 onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = fabContainerColor,
+                contentColor = colorScheme.primary,
                 shape = SquircleShape(16.dp),
-                modifier = Modifier.directionalFabShadow(
-                    shape = SquircleShape(16.dp)
-                )
+                elevation = fabElevation,
+                modifier = Modifier
+                    .directionalFabShadow(shape = SquircleShape(16.dp))
+                    .then(fabBlur)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
@@ -666,26 +734,26 @@ fun HomeFloatingActions(
                 scaleOut(
                     targetScale = 0.8f,
                     animationSpec = tween(100, easing = FastOutSlowInEasing)
-                )
+                ),
+            modifier = modifier
+                .offset(y = fabOffsetY)
+                .navigationBarsPadding()
+                .padding(end = fabEndPadding, bottom = fabBottomPadding)
         ) {
-            ScrollToTopFab(
-                onClick = onScrollToTop,
-                modifier = modifier
-                    .offset(y = fabOffsetY)
-                    .navigationBarsPadding()
-                    .padding(end = fabEndPadding, bottom = fabBottomPadding)
-            )
+            ScrollToTopFab(onClick = onScrollToTop, containerColor = fabContainerColor, blurModifier = fabBlur, elevation = fabElevation)
         }
     }
 }
 
-private fun Modifier.directionalFabShadow(
+internal fun Modifier.directionalFabShadow(
     shape: Shape,
     elevation: Dp = 2.dp,
-    shadowSpread: Dp = 8.dp
+    shadowSpread: Dp = 8.dp,
+    enabled: Boolean = true
 ): Modifier = this
-    .shadow(elevation = elevation, shape = shape)
+    .then(if (enabled) Modifier.shadow(elevation = elevation, shape = shape) else Modifier)
     .drawBehind {
+        if (!enabled) return@drawBehind
         val spread = shadowSpread.toPx()
         val shadowColor = Color.Black.copy(alpha = 0.18f)
 
@@ -724,18 +792,37 @@ private fun Modifier.directionalFabShadow(
     }
 
 @Composable
+internal fun fabBlurModifier(
+    hazeState: HazeState,
+    enabled: Boolean,
+    config: AdvancedBlurConfig,
+    shape: Shape = SquircleShape(16.dp)
+): Modifier {
+    if (!enabled) return Modifier
+    return advancedHazeEffect(
+        hazeState = hazeState,
+        config = config,
+        shape = shape
+    )
+}
+
+@Composable
 private fun ScrollToTopFab(
     onClick: () -> Unit,
+    containerColor: Color,
+    blurModifier: Modifier,
+    elevation: androidx.compose.material3.FloatingActionButtonElevation,
     modifier: Modifier = Modifier
 ) {
     androidx.compose.material3.FloatingActionButton(
         onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = containerColor,
         contentColor = MaterialTheme.colorScheme.primary,
         shape = SquircleShape(16.dp),
-        modifier = modifier.directionalFabShadow(
-            shape = SquircleShape(16.dp)
-        )
+        elevation = elevation,
+        modifier = modifier
+            .directionalFabShadow(shape = SquircleShape(16.dp))
+            .then(blurModifier)
     ) {
         Icon(
             imageVector = Icons.Rounded.VerticalAlignTop,
@@ -1545,20 +1632,9 @@ private fun AnimeGrid(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     isCapsuleNav: Boolean = false,
+    topContentPadding: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp.dp
-    val horizontalPadding = 24.dp
-    val cardMinWidth = 140.dp
-    val spacing = 12.dp
-    
-    val availableWidth = screenWidthDp - horizontalPadding
-    val calculatedColumns = ((availableWidth + spacing) / (cardMinWidth + spacing)).toInt()
-    // 平板适配：按屏幕方向限制列数上限（竖屏最多 4 列，横屏最多 6 列）
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val maxColumns = if (isLandscape) 6 else 4
-    val columns = calculatedColumns.coerceIn(3, maxColumns)
 
     // 已展开系列 key 集合：支持多系列同时独立展开。
     // 使用 stateSaver + listSaver 让 Set 可在配置变更/进程恢复后保留。
@@ -1657,16 +1733,40 @@ private fun AnimeGrid(
         }
     }
     
+    // 大屏适配：实测网格容器宽度计算列数（初值取窗口宽度，首帧后由 onGloballyPositioned 矫正），
+    // pane 打开压缩主界面时列数自适应减少（竖屏最多 4 列，横屏最多 6 列）
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    var containerWidth by remember { mutableStateOf(configuration.screenWidthDp.dp) }
+    val columns = rememberAdaptiveGridColumns(
+        availableWidth = containerWidth,
+        cardMinWidth = 140.dp,
+        spacing = 12.dp,
+        horizontalPadding = 24.dp,
+        minColumns = 3,
+        maxColumnsPortrait = 4,
+        maxColumnsLandscape = 6
+    )
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
+            .onGloballyPositioned { coords ->
+                // 实测容器宽度：pane 压缩/展开时列数随之自适应
+                containerWidth = with(density) { coords.size.width.toDp() }
+            }
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         state = gridState,
-        contentPadding = PaddingValues(bottom = if (isCapsuleNav) 96.dp else 16.dp)
+        contentPadding = PaddingValues(
+            // 顶栏高度预留（statusBar + 48.dp）：顶栏隐藏时内容零移动，
+            // 仅首屏让出顶栏区域，滚动后内容可自然滚入顶栏背后
+            top = topContentPadding,
+            bottom = if (isCapsuleNav) 96.dp else 16.dp
+        )
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Box(

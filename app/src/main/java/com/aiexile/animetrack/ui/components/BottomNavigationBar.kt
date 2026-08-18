@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
@@ -99,6 +100,13 @@ val bottomNavItems = listOf(
     BottomNavItem.Settings
 )
 
+/** 底部导航栏内容高度：仅图标/仅文字模式下内容更紧凑，相应降低高度避免留白过多 */
+fun bottomNavBarHeight(labelMode: NavigationLabelMode): Dp = when (labelMode) {
+    NavigationLabelMode.ICON_ONLY -> 56.dp
+    NavigationLabelMode.ICON_AND_TEXT -> 68.dp
+    NavigationLabelMode.TEXT_ONLY -> 52.dp
+}
+
 @Composable
 fun BottomNavigationBar(
     currentRoute: String,
@@ -139,7 +147,7 @@ fun BottomNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(68.dp),
+                    .height(bottomNavBarHeight(labelMode)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val visibleItems = bottomNavItems.filter { it.route in visiblePages }

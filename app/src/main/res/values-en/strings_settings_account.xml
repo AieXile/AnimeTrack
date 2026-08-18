@@ -110,6 +110,15 @@
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
+    <string name="developer_advanced_blur">Advanced Blur (Frosted Glass)</string>
+    <string name="developer_advanced_blur_desc">Tune the frosted glass parameters for the floating capsule and FAB</string>
+    <string name="developer_blur_switch_desc">Synced with the advanced blur switch in navigation customization</string>
+    <string name="developer_blur_radius">Blur Radius</string>
+    <string name="developer_blur_background_alpha">Background Opacity</string>
+    <string name="developer_blur_tint_alpha">Tint Opacity</string>
+    <string name="developer_blur_noise">Noise Strength</string>
+    <string name="developer_blur_reset">Reset to Defaults</string>
+    <string name="developer_blur_reset_toast">Blur parameters reset</string>
     <string name="developer_test_notification_toast">Test notification will be sent in 3 seconds</string>
     <string name="developer_added_debug_cards">Added %1$d debug cards</string>
     <string name="developer_deleted_debug_cards">Deleted %1$d debug cards</string>

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -160,9 +161,12 @@ private fun StackCardLayer(
                 this.alpha = alpha
             }
             .shadow(
+                // 与 AnimeCard 一致的黑色低透明度阴影，白底上边缘可见
                 elevation = elevation,
                 shape = CardShape,
-                clip = false
+                clip = false,
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.2f)
             )
             .clip(CardShape)
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)

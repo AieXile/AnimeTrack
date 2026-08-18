@@ -3,6 +3,7 @@ package com.aiexile.animetrack.data.player
 import android.net.Uri
 import android.util.Base64
 import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSourceException
@@ -12,6 +13,7 @@ import java.io.InputStream
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class WebDAVDataSource(
     private val okHttpClient: OkHttpClient,
     private val username: String,

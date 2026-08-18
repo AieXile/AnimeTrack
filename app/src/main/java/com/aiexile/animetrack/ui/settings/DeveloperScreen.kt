@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,12 +31,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +64,7 @@ import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -225,6 +230,13 @@ fun DeveloperScreen(
                     }
                 )
             }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            AdvancedBlurTuningSection(
+                settingsRepository = settingsRepository,
+                context = context
+            )
 
             Spacer(modifier = Modifier.size(24.dp))
 
@@ -456,7 +468,176 @@ fun DeveloperScreen(
                 Text(text = stringResource(R.string.developer_open_announcement))
             }
 
+
             Spacer(modifier = Modifier.size(24.dp))
         }
+    }
+}
+
+/**
+ * 开发者选项中的「高级模糊（毛玻璃）」参数调节区。
+ *
+ * 高级模糊开关与导航自定义中的悬浮胶囊高级模糊开关同步；
+ * 四个滑杆（模糊半径 / 底色不透明度 / 着色不透明度 / 噪点强度）
+ * 同时作用于悬浮胶囊与悬浮按钮。
+ *
+ * 滑杆拖动期间仅更新本地状态，松手后才写入 DataStore，避免拖拽时频繁持久化。
+ */
+@Composable
+private fun AdvancedBlurTuningSection(
+    settingsRepository: SettingsRepository,
+    context: Context
+) {
+    val scope = rememberCoroutineScope()
+    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+    val backgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+    val tintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+    val noise by settingsRepository.advancedBlurNoise.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+
+    // 本地拖拽状态：松手前只改本地值
+    var localRadius by remember { mutableFloatStateOf(blurRadius) }
+    var localBackgroundAlpha by remember { mutableFloatStateOf(backgroundAlpha) }
+    var localTintAlpha by remember { mutableFloatStateOf(tintAlpha) }
+    var localNoise by remember { mutableFloatStateOf(noise) }
+
+    // 持久化值变化（含恢复默认）时同步回滑杆
+    LaunchedEffect(blurRadius) { localRadius = blurRadius }
+    LaunchedEffect(backgroundAlpha) { localBackgroundAlpha = backgroundAlpha }
+    LaunchedEffect(tintAlpha) { localTintAlpha = tintAlpha }
+    LaunchedEffect(noise) { localNoise = noise }
+
+    Column {
+        Text(
+            text = stringResource(R.string.developer_advanced_blur),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.developer_advanced_blur_desc),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.size(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.nav_custom_advanced_blur),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.developer_blur_switch_desc),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AppSwitch(
+                checked = capsuleAdvancedBlur,
+                onCheckedChange = { enabled ->
+                    scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(enabled) }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.size(12.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DeveloperBlurSlider(
+                title = stringResource(R.string.developer_blur_radius),
+                value = localRadius,
+                valueRange = 0f..50f,
+                valueLabel = { it2 -> it2.roundToInt().toString() + " dp" },
+                onValueChange = { localRadius = it },
+                onValueChangeFinished = { scope.launch { settingsRepository.setAdvancedBlurRadius(localRadius) } }
+            )
+            DeveloperBlurSlider(
+                title = stringResource(R.string.developer_blur_background_alpha),
+                value = localBackgroundAlpha,
+                valueRange = 0f..1f,
+                valueLabel = { it2 -> ((it2 * 100).roundToInt()).toString() + "%" },
+                onValueChange = { localBackgroundAlpha = it },
+                onValueChangeFinished = { scope.launch { settingsRepository.setAdvancedBlurBackgroundAlpha(localBackgroundAlpha) } }
+            )
+            DeveloperBlurSlider(
+                title = stringResource(R.string.developer_blur_tint_alpha),
+                value = localTintAlpha,
+                valueRange = 0f..1f,
+                valueLabel = { it2 -> ((it2 * 100).roundToInt()).toString() + "%" },
+                onValueChange = { localTintAlpha = it },
+                onValueChangeFinished = { scope.launch { settingsRepository.setAdvancedBlurTintAlpha(localTintAlpha) } }
+            )
+            DeveloperBlurSlider(
+                title = stringResource(R.string.developer_blur_noise),
+                value = localNoise,
+                valueRange = 0f..1f,
+                valueLabel = { it2 -> ((it2 * 100).roundToInt()).toString() + "%" },
+                onValueChange = { localNoise = it },
+                onValueChangeFinished = { scope.launch { settingsRepository.setAdvancedBlurNoise(localNoise) } }
+            )
+        }
+
+        Spacer(modifier = Modifier.size(12.dp))
+
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    settingsRepository.setAdvancedBlurRadius(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+                    settingsRepository.setAdvancedBlurBackgroundAlpha(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+                    settingsRepository.setAdvancedBlurTintAlpha(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+                    settingsRepository.setAdvancedBlurNoise(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+                }
+                Toast.makeText(context, context.getString(R.string.developer_blur_reset_toast), Toast.LENGTH_SHORT).show()
+            },
+            shape = SquircleShape(12.dp)
+        ) {
+            Text(text = stringResource(R.string.developer_blur_reset))
+        }
+    }
+}
+
+/** 单个模糊参数滑杆：标题 + 当前值 + 滑杆 */
+@Composable
+private fun DeveloperBlurSlider(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueLabel: (Float) -> String,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = valueLabel(value),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange
+        )
     }
 }

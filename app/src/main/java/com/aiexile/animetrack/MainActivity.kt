@@ -7,6 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -15,6 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
@@ -74,6 +78,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -147,7 +152,11 @@ class MainActivity : ComponentActivity() {
                 themePreset = themePreset,
                 fontFamily = currentFontFamily
             ) {
-                AnimeTrackApp(settingsRepository = settingsRepository, isDataLoaded = isDataLoaded)
+                // 大屏适配：计算窗口尺寸档位（Compact/Medium/Expanded）并全局下发
+                val windowSizeClass = calculateWindowSizeClass(this)
+                CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+                    AnimeTrackApp(settingsRepository = settingsRepository, isDataLoaded = isDataLoaded)
+                }
             }
         }
     }

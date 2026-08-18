@@ -277,7 +277,10 @@ class AnimeDetailViewModel(
                 )
 
                 val updatedAnime = anime.copy(
-                    summary = detail.summary?.cleanSummary()?.takeIf { it.isNotBlank() } ?: anime.summary,
+                    // 本地已有简介（含用户自定义）时保留，仅在为空时才用远程补齐，
+                    // 避免 airEndDate 为空导致的重复拉取覆盖用户修改
+                    summary = anime.summary?.takeIf { it.isNotBlank() }
+                        ?: detail.summary?.cleanSummary()?.takeIf { it.isNotBlank() },
                     airDate = detail.date ?: anime.airDate,
                     airWeekday = detail.airWeekday ?: anime.airWeekday,
                     rating = detail.score?.toFloat() ?: anime.rating,
