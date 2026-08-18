@@ -82,5 +82,9 @@
     <string name="nav_custom_greeting_placeholder">留空则显示随机 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案过长可能会被截断</string>
     <string name="nav_custom_advanced_blur">高级模糊</string>
-    <string name="nav_custom_advanced_blur_desc">为悬浮胶囊启用背景模糊（毛玻璃）效果</string>
+    <string name="nav_custom_advanced_blur_desc">为悬浮胶囊与悬浮按钮启用背景模糊（毛玻璃）效果</string>
+    <string name="nav_custom_topbar_title">顶部栏</string>
+    <string name="nav_custom_topbar_subtitle">自定义主页顶部栏行为</string>
+    <string name="nav_custom_hide_topbar_on_scroll">下滑隐藏顶部栏</string>
+    <string name="nav_custom_hide_topbar_on_scroll_desc">向下滑动列表时收起顶部栏，搜索与添加按钮合并为悬浮按钮；向上滑动或回到顶部时恢复</string>
 </resources>

@@ -30,8 +30,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 28
-        versionName = "v0.4.8-beta"
+        versionCode = 29
+        versionName = "v0.5.0-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material3.windowsizeclass)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.compose.ratingbar)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

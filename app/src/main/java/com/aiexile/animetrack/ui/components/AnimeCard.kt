@@ -157,7 +157,7 @@ fun AnimeCard(
     }
     
     val elevation by animateDpAsState(
-        targetValue = if (isSelected || isHighlighted) 0.dp else 2.dp,
+        targetValue = if (isSelected || isHighlighted) 0.dp else 4.dp,
         animationSpec = spring(
             dampingRatio = 0.55f,
             stiffness = 400f
@@ -199,6 +199,16 @@ fun AnimeCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(
+                    // 黑色低透明度阴影（与悬浮胶囊导航一致）：
+                    // outline 着色（浅灰 20%）在白底上混色后与背景几乎无差别，肉眼不可见；
+                    // spot 为键光投影（更浓、集中在底边），ambient 为环境光（四周淡晕）。
+                    elevation = elevation,
+                    shape = CardShape,
+                    clip = false,
+                    ambientColor = Color.Black.copy(alpha = 0.08f),
+                    spotColor = Color.Black.copy(alpha = 0.2f)
+                )
                 .clip(CardShape)
                 .combinedClickable(
                     onClick = onClick,
@@ -211,10 +221,10 @@ fun AnimeCard(
                 ),
             shape = CardShape,
             elevation = CardDefaults.cardElevation(
-                defaultElevation = elevation,
-                pressedElevation = elevation,
-                focusedElevation = elevation,
-                hoveredElevation = elevation
+                defaultElevation = 0.dp,
+                pressedElevation = 0.dp,
+                focusedElevation = 0.dp,
+                hoveredElevation = 0.dp
             ),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLowest

@@ -28,6 +28,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.outlined.EventBusy
@@ -57,7 +58,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -410,9 +414,27 @@ private fun AnimeCoverGrid(
     onClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 大屏适配：实测容器宽度计算列数（初值取窗口宽度，首帧后由 onGloballyPositioned 矫正），
+    // 手机保持 3 列，竖屏平板最多 6 列，横屏最多 8 列；pane 压缩时列数自适应减少
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    var containerWidth by remember { mutableStateOf(configuration.screenWidthDp.dp) }
+    val columns = rememberAdaptiveGridColumns(
+        availableWidth = containerWidth,
+        cardMinWidth = 104.dp,
+        spacing = 10.dp,
+        horizontalPadding = 32.dp,
+        minColumns = 3,
+        maxColumnsPortrait = 6,
+        maxColumnsLandscape = 8
+    )
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = modifier,
+        columns = GridCells.Fixed(columns),
+        modifier = modifier
+            .onGloballyPositioned { coords ->
+                // 实测容器宽度：pane 压缩/展开时列数随之自适应
+                containerWidth = with(density) { coords.size.width.toDp() }
+            },
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)

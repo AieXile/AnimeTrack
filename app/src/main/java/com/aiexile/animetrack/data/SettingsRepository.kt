@@ -18,9 +18,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -54,6 +57,11 @@ class SettingsRepository(private val context: Context) {
         private val FAB_LOCATION_KEY = stringPreferencesKey("fab_location")
         private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
         private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
+        private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
+        private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
+        private val ADVANCED_BLUR_BACKGROUND_ALPHA_KEY = floatPreferencesKey("advanced_blur_background_alpha")
+        private val ADVANCED_BLUR_TINT_ALPHA_KEY = floatPreferencesKey("advanced_blur_tint_alpha")
+        private val ADVANCED_BLUR_NOISE_KEY = floatPreferencesKey("advanced_blur_noise")
         private val CUSTOM_GREETING_KEY = stringPreferencesKey("custom_greeting")
         private val AUTO_COMPLETE_KEY = booleanPreferencesKey("auto_complete_enabled")
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
@@ -114,6 +122,12 @@ class SettingsRepository(private val context: Context) {
         private val USER_AUTH_BASE_URL_KEY = stringPreferencesKey("user_auth_base_url")
         const val DEFAULT_USER_AUTH_BASE_URL = "https://www.aiexile.top/api"
 
+        // 高级模糊（毛玻璃）默认参数：与历史硬编码值保持一致
+        const val DEFAULT_ADVANCED_BLUR_RADIUS = 24f
+        const val DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA = 1f
+        const val DEFAULT_ADVANCED_BLUR_TINT_ALPHA = 0.4f
+        const val DEFAULT_ADVANCED_BLUR_NOISE = 0f
+
         const val DEFAULT_TMDB_API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZTFhNzUyY2Q3ZWI4ZjE4MzljMzBlZDNjZGRmMTI1ZCIsIm5iZiI6MTc3OTk2NzU2Ny4zMTEsInN1YiI6IjZhMTgyNjRmNTNmZTM5ZjRhNzE1ZGM2NyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.R7iyiJrJR2Fs7uE65xveVGaPnAkzJHnMyQ4OvM0zZ5o"
 
         private val FONT_FAMILY_KEY = stringPreferencesKey("font_family")
@@ -125,10 +139,21 @@ class SettingsRepository(private val context: Context) {
         private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
     }
 
-    private fun <T> preferenceFlow(key: Preferences.Key<T>, default: T): Flow<T> =
-        context.dataStore.data.map { it[key] ?: default }.distinctUntilChanged()
+    // 偏好内存缓存：DataStore 首次读取是异步的，collectAsState(默认值) 会先渲染默认值
+    // 再跳变为持久化值（开关/选项闪变）。缓存 DataStore 首次加载结果后，
+    // 每个偏好流的首个发射即为持久化值，消除 UI 初始闪烁
+    private val prefCache = ConcurrentHashMap<Preferences.Key<*>, Any?>()
+
+    private fun <T> preferenceFlow(key: Preferences.Key<T>, default: T): Flow<T> = flow {
+        // 缓存命中（App 启动后 DataStore 已完成首读）时立即发射持久化值，无闪变；
+        // 未命中（冷启动早期）退化为原行为：仅 DataStore 流
+        @Suppress("UNCHECKED_CAST")
+        (prefCache[key] as? T)?.let { emit(it) }
+        emitAll(context.dataStore.data.map { it[key] ?: default })
+    }.distinctUntilChanged()
 
     private suspend fun <T> setPreference(key: Preferences.Key<T>, value: T) {
+        prefCache[key] = value
         context.dataStore.edit { it[key] = value }
     }
 
@@ -172,6 +197,8 @@ class SettingsRepository(private val context: Context) {
             currentTmdbApiKey = key ?: DEFAULT_TMDB_API_KEY
 
             val prefs = context.dataStore.data.first()
+            // 填充偏好内存缓存：此后所有 preferenceFlow 首个发射即为持久化值
+            prefCache.putAll(prefs.asMap())
             bangumiProxyEnabled = prefs[BANGUMI_PROXY_ENABLED_KEY] ?: false
             bangumiProxyHost = prefs[BANGUMI_PROXY_HOST_KEY] ?: DEFAULT_BANGUMI_PROXY_HOST
             httpProxyEnabled = prefs[HTTP_PROXY_ENABLED_KEY] ?: false
@@ -210,9 +237,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowSchedule(show: Boolean) = setPreference(SHOW_SCHEDULE_KEY, show)
 
-    val navigationStyle: Flow<NavigationStyle> = preferenceFlow(NAVIGATION_STYLE_KEY, NavigationStyle.BOTTOM.name)
+    val navigationStyle: Flow<NavigationStyle> = preferenceFlow(NAVIGATION_STYLE_KEY, NavigationStyle.CAPSULE.name)
         .map { styleString ->
-            try { NavigationStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { NavigationStyle.BOTTOM }
+            try { NavigationStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { NavigationStyle.CAPSULE }
         }
 
     suspend fun setNavigationStyle(style: NavigationStyle) = setPreference(NAVIGATION_STYLE_KEY, style.name)
@@ -231,10 +258,35 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNavigationLabelMode(mode: NavigationLabelMode) = setPreference(NAVIGATION_LABEL_MODE_KEY, mode.name)
 
-    /** 悬浮胶囊高级模糊（毛玻璃背景），默认关闭 */
+    /** 悬浮胶囊高级模糊（毛玻璃背景），默认关闭。主页顶栏与悬浮按钮随此开关一并生效 */
     val capsuleAdvancedBlurEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_ADVANCED_BLUR_KEY, false)
 
     suspend fun setCapsuleAdvancedBlurEnabled(enabled: Boolean) = setPreference(CAPSULE_ADVANCED_BLUR_KEY, enabled)
+
+    /** 主页顶栏下滑隐藏，默认关闭。开启后向下滑动列表收起顶栏，搜索/添加按钮转为组合悬浮按钮 */
+    val hideTopBarOnScrollEnabled: Flow<Boolean> = preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, false)
+
+    suspend fun setHideTopBarOnScrollEnabled(enabled: Boolean) = setPreference(HIDE_TOPBAR_ON_SCROLL_KEY, enabled)
+
+    /** 高级模糊半径（dp），默认 24 */
+    val advancedBlurRadius: Flow<Float> = preferenceFlow(ADVANCED_BLUR_RADIUS_KEY, DEFAULT_ADVANCED_BLUR_RADIUS)
+
+    suspend fun setAdvancedBlurRadius(radius: Float) = setPreference(ADVANCED_BLUR_RADIUS_KEY, radius.coerceIn(0f, 50f))
+
+    /** 高级模糊底色不透明度（0..1），默认 1。调低后毛玻璃更透 */
+    val advancedBlurBackgroundAlpha: Flow<Float> = preferenceFlow(ADVANCED_BLUR_BACKGROUND_ALPHA_KEY, DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+
+    suspend fun setAdvancedBlurBackgroundAlpha(alpha: Float) = setPreference(ADVANCED_BLUR_BACKGROUND_ALPHA_KEY, alpha.coerceIn(0f, 1f))
+
+    /** 高级模糊着色不透明度（0..1），默认 0.4。调高可让浅色背景下玻璃更明显 */
+    val advancedBlurTintAlpha: Flow<Float> = preferenceFlow(ADVANCED_BLUR_TINT_ALPHA_KEY, DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+
+    suspend fun setAdvancedBlurTintAlpha(alpha: Float) = setPreference(ADVANCED_BLUR_TINT_ALPHA_KEY, alpha.coerceIn(0f, 1f))
+
+    /** 高级模糊噪点强度（0..1），默认 0。噪点可增强浅色背景下的磨砂质感 */
+    val advancedBlurNoise: Flow<Float> = preferenceFlow(ADVANCED_BLUR_NOISE_KEY, DEFAULT_ADVANCED_BLUR_NOISE)
+
+    suspend fun setAdvancedBlurNoise(noise: Float) = setPreference(ADVANCED_BLUR_NOISE_KEY, noise.coerceIn(0f, 1f))
 
     val customGreeting: Flow<String> = preferenceFlow(CUSTOM_GREETING_KEY, "")
 

@@ -50,8 +50,6 @@ import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 
@@ -68,6 +66,7 @@ fun CapsuleNavigationBar(
     labelMode: NavigationLabelMode = NavigationLabelMode.ICON_AND_TEXT,
     hazeState: HazeState,
     advancedBlurEnabled: Boolean = false,
+    blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
@@ -141,11 +140,11 @@ fun CapsuleNavigationBar(
                 .clip(SquircleShape(100.dp))
                 .then(
                     if (advancedBlurEnabled) {
-                        Modifier.hazeEffect(state = hazeState) {
-                            blurRadius = 24.dp
-                            backgroundColor = colorScheme.surfaceContainer
-                            tints = listOf(HazeTint(colorScheme.surfaceContainer.copy(alpha = 0.4f)))
-                        }
+                        advancedHazeEffect(
+                            hazeState = hazeState,
+                            config = blurConfig,
+                            shape = null
+                        )
                     } else {
                         Modifier
                     }

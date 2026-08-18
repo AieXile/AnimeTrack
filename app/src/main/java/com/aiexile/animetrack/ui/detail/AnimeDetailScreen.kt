@@ -47,6 +47,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.isExpandedWidth
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -177,6 +178,7 @@ fun AnimeDetailScreen(
     coverUrl: String? = null,
     onNavigateBack: () -> Unit,
     onNavigateToPlayer: (Int) -> Unit = {},
+    isInPane: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     viewModel: AnimeDetailViewModel = viewModel(
@@ -375,6 +377,7 @@ fun AnimeDetailScreen(
                             onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
                             onEditSummaryChange = { viewModel.updateEditSummary(it) },
                             onEditAiringStatusOverrideChange = { viewModel.updateEditAiringStatusOverride(it) },
+                            isInPane = isInPane,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -766,17 +769,19 @@ private fun AnimeDetailContent(
     onAdjustEditTotalEpisodes: (Int) -> Unit = {},
     onEditSummaryChange: (String) -> Unit = {},
     onEditAiringStatusOverrideChange: (Boolean?) -> Unit = {},
+    isInPane: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 24.dp)
-    ) {
+    // 大屏适配：Expanded 宽度（>=840dp）且非 pane 模式采用双栏布局——左栏封面信息头 + 简介，
+    // 右栏进度 / 笔记 / 状态，两栏独立滚动。pane 模式（详情在右侧窄 pane 打开）强制单列，
+    // 避免 pane 内再拆两列导致显示不全。分支不依赖编辑状态，
+    // 避免编辑模式切换时子树结构重建与 SharedTransition 动画冲突。
+    val isTwoPane = isExpandedWidth() && !isInPane
+
+    // 左栏内容：封面信息头 + 简介（单栏/双栏共用）
+    val headerSection: @Composable () -> Unit = {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1106,9 +1111,10 @@ private fun AnimeDetailContent(
             isEditing = editState.isEditing,
             onSummaryChange = onEditSummaryChange
         )
+    }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
+    // 右栏内容：进度 / 笔记 / 状态（单栏/双栏共用）
+    val detailSection: @Composable () -> Unit = {
         ProgressCard(
             anime = anime,
             onUpdateWatchedEpisodes = onUpdateWatchedEpisodes,
@@ -1141,6 +1147,50 @@ private fun AnimeDetailContent(
                 onStatusChange = onStatusChange,
                 onFinishDateChange = onFinishDateChange
             )
+        }
+    }
+
+    if (isTwoPane) {
+        // 大屏双栏布局：左栏（封面 + 简介）与右栏（进度 / 笔记 / 状态）各自独立滚动
+        Row(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(0.42f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp)
+            ) {
+                headerSection()
+            }
+
+            Spacer(modifier = Modifier.width(24.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(0.58f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 24.dp)
+            ) {
+                detailSection()
+            }
+        }
+    } else {
+        // 手机单栏布局：与原结构保持一致
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            headerSection()
+            Spacer(modifier = Modifier.height(12.dp))
+            detailSection()
         }
     }
 }

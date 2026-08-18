@@ -82,5 +82,9 @@
     <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
     <string name="nav_custom_advanced_blur">Advanced Blur</string>
-    <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule</string>
+    <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule and FAB</string>
+    <string name="nav_custom_topbar_title">Top Bar</string>
+    <string name="nav_custom_topbar_subtitle">Customize home top bar behavior</string>
+    <string name="nav_custom_hide_topbar_on_scroll">Hide top bar on scroll</string>
+    <string name="nav_custom_hide_topbar_on_scroll_desc">Collapse the top bar while scrolling down; search and add actions merge into one floating button. Scroll up or return to top to restore</string>
 </resources>

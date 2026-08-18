@@ -2,6 +2,9 @@ package com.aiexile.animetrack.ui.home
 
 import android.util.Log
 import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -99,6 +102,18 @@ class HomeViewModel(
     }
     
     val gridState = LazyGridState()
+
+    /**
+     * 主页顶栏是否被下滑隐藏（「下滑隐藏顶栏」开关开启时由滚动方向驱动）。
+     * MainOverlay 中计算写入，HomeScreen 顶栏占位与 MainOverlay 顶栏/FAB 同步消费。
+     * 搜索激活或回到列表顶部时恢复显示。
+     */
+    var isTopBarHidden by mutableStateOf(false)
+        private set
+
+    fun updateTopBarHidden(hidden: Boolean) {
+        isTopBarHidden = hidden
+    }
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
