@@ -7,15 +7,80 @@ class UpdateRepository {
 
     companion object {
         private const val TAG = "UpdateRepository"
-        /** Release body 中的强制更新标记，匹配 [FORCE_UPDATE] 或 <!-- force-update --> */
+        /** 更新日志中的强制更新标记，匹配 [FORCE_UPDATE] 或 <!-- force-update --> */
         private val FORCE_UPDATE_REGEX = Regex("""\s*\[FORCE_UPDATE]|\s*<!--\s*force-update\s*-->\s*""", RegexOption.IGNORE_CASE)
+        private const val GITHUB_RELEASES_URL = "https://github.com/AieXile/AnimeTrack/releases"
+        /** mirror 字段取值：服务器本地未同步，数据来自 GitHub 实时兜底 */
+        private const val MIRROR_GITHUB = "github"
     }
 
+    /**
+     * 检查更新：自建服务器（https://www.aiexile.top/update）优先，
+     * 服务器请求失败时回退 GitHub Releases。
+     * 服务器返回 prerelease 版本时视为无更新（不触发 GitHub 兜底）。
+     * mirror=github（服务器本地未同步、实时转发 GitHub 数据）时，
+     * App 直接切换 GitHub API 获取日志与下载链接，直连失败则退回服务器转发数据保底。
+     */
     suspend fun checkForUpdate(currentVersion: String): UpdateInfo? {
+        // 1. 自建服务器优先
+        try {
+            val server = RetrofitClient.updateApi.getUpdate()
+            Log.d(TAG, "Server version: ${server.version} (mirror=${server.mirror}), Local version: $currentVersion")
+
+            if (server.prerelease) {
+                Log.d(TAG, "Server latest is a prerelease, ignored")
+                return null
+            }
+
+            if (VersionComparator.isNewerVersion(server.version, currentVersion)) {
+                // 服务器本地未同步（数据来自 GitHub 实时兜底）→ 切换 GitHub 直连
+                if (server.mirror.equals(MIRROR_GITHUB, ignoreCase = true)) {
+                    Log.d(TAG, "Server data is GitHub-sourced, switching to GitHub API directly")
+                    val fromGithub = checkForUpdateFromGithub(currentVersion)
+                    if (fromGithub != null) return fromGithub
+                    // App 直连 GitHub 失败（如国内网络受限），退回服务器转发的 GitHub 数据保底
+                    Log.w(TAG, "Direct GitHub check unavailable, using server-forwarded GitHub data")
+                    return server.toUpdateInfo(DownloadSource.GITHUB)
+                }
+                return server.toUpdateInfo(DownloadSource.SERVER)
+            }
+            Log.d(TAG, "App is up to date (server)")
+            return null
+        } catch (e: Exception) {
+            Log.e(TAG, "Update server check failed, fallback to GitHub", e)
+        }
+
+        // 2. 服务器整体不可达 → GitHub 兜底
+        return checkForUpdateFromGithub(currentVersion)
+    }
+
+    /**
+     * 当前版本更新日志：服务器无按版本查询接口，
+     * 直接返回最新版 notes（当前已是最新版时内容一致）；
+     * 服务器失败时回退 GitHub 按版本 tag 查询。
+     */
+    suspend fun getCurrentVersionChangelog(currentVersion: String): String? {
+        try {
+            val server = RetrofitClient.updateApi.getUpdate()
+            if (server.notes.isNotBlank()) {
+                return server.notes
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Fetch changelog from server failed, fallback to GitHub", e)
+        }
         return try {
-            val release = RetrofitClient.updateApi.getLatestRelease()
+            RetrofitClient.githubUpdateApi.getReleaseByTag(currentVersion).body.ifBlank { null }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch changelog for $currentVersion", e)
+            null
+        }
+    }
+
+    private suspend fun checkForUpdateFromGithub(currentVersion: String): UpdateInfo? {
+        return try {
+            val release = RetrofitClient.githubUpdateApi.getLatestRelease()
             val remoteVersion = release.tagName
-            Log.d(TAG, "Remote version: $remoteVersion, Local version: $currentVersion")
+            Log.d(TAG, "GitHub fallback version: $remoteVersion, Local version: $currentVersion")
 
             if (VersionComparator.isNewerVersion(remoteVersion, currentVersion)) {
                 val apkAsset = release.assets.find {
@@ -32,27 +97,58 @@ class UpdateRepository {
                     apkSize = apkAsset?.size ?: 0L,
                     releaseUrl = release.htmlUrl,
                     apkDigest = apkAsset?.digest ?: "",
-                    isForceUpdate = isForceUpdate
+                    isForceUpdate = isForceUpdate,
+                    downloadSource = DownloadSource.GITHUB
                 )
             } else {
-                Log.d(TAG, "App is up to date")
+                Log.d(TAG, "App is up to date (GitHub)")
                 null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to check for update", e)
+            Log.e(TAG, "Failed to check for update on GitHub", e)
             null
         }
     }
 
-    suspend fun getCurrentVersionChangelog(currentVersion: String): String? {
+    /** 自建服务器响应 → 通用更新信息 */
+    private fun ServerUpdateResponse.toUpdateInfo(source: DownloadSource): UpdateInfo {
+        // 强制更新标记仍从 notes 中解析，与 GitHub 路径保持一致
+        val isForceUpdate = FORCE_UPDATE_REGEX.containsMatchIn(notes)
+        val cleanedChangelog = FORCE_UPDATE_REGEX.replace(notes, "").trim()
+        return UpdateInfo(
+            versionName = version,
+            changelog = cleanedChangelog,
+            downloadUrl = url,
+            apkSize = size,
+            releaseUrl = GITHUB_RELEASES_URL,
+            apkDigest = sha256,
+            isForceUpdate = isForceUpdate,
+            publishDate = formatDate(date),
+            downloadSource = source
+        )
+    }
+
+    /** ISO 8601 日期（如 "2026-08-18T19:02:58Z"）→ 本地时区 "yyyy-MM-dd"，解析失败原样返回 */
+    private fun formatDate(raw: String): String {
+        if (raw.isBlank()) return ""
         return try {
-            val release = RetrofitClient.updateApi.getReleaseByTag(currentVersion)
-            release.body.ifBlank { null }
+            java.time.OffsetDateTime.parse(raw)
+                .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+                .toString()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch changelog for $currentVersion", e)
-            null
+            Log.w(TAG, "Unparseable date: $raw")
+            raw
         }
     }
+}
+
+/** APK 下载/更新数据来源，用于 UI 提示下载速度差异 */
+enum class DownloadSource {
+    /** 自建服务器直链（服务器本地已同步），下载快 */
+    SERVER,
+    /** GitHub 直链（服务器未同步实时兜底或服务器不可达），国内可能慢 */
+    GITHUB
 }
 
 data class UpdateInfo(
@@ -61,8 +157,12 @@ data class UpdateInfo(
     val downloadUrl: String,
     val apkSize: Long,
     val releaseUrl: String,
-    /** GitHub asset 的摘要，格式如 "sha256:xxxxxx"，为空表示无校验信息 */
+    /** APK 的 SHA-256 摘要，GitHub 源格式如 "sha256:xxxxxx"，服务器源为裸 hex；为空表示无校验信息 */
     val apkDigest: String = "",
-    /** 是否为强制更新（从 release body 中的 [FORCE_UPDATE] 标记解析） */
-    val isForceUpdate: Boolean = false
+    /** 是否为强制更新（从更新日志中的 [FORCE_UPDATE] 标记解析） */
+    val isForceUpdate: Boolean = false,
+    /** 发布日期（已格式化为 "yyyy-MM-dd"，为空不展示） */
+    val publishDate: String = "",
+    /** 更新数据来源（server 镜像/GitHub 兜底），驱动弹窗下载源提示 */
+    val downloadSource: DownloadSource = DownloadSource.SERVER
 )

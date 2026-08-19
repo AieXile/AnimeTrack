@@ -127,7 +127,8 @@
     <string name="update_dialog_sha_pending">SHA-256 待校驗</string>
     <string name="update_dialog_force_update">強制更新</string>
     <string name="update_dialog_not_force_update">非強制更新</string>
-    <string name="update_dialog_download_notice">由於更新源為 GitHub，國內部分使用者存在無法下載或下載慢問題。\n若無法下載安裝包，請前往 GitHub 或 QQ 群手動下載新版本安裝包。</string>
+    <string name="update_dialog_download_notice">安裝包由自有伺服器提供。\n若無法下載安裝包，請前往 GitHub 或 QQ 群手動下載新版本安裝包。</string>
+    <string name="update_dialog_download_notice_github">目前走 GitHub 直連，國內下載可能較慢。伺服器每小時同步，可稍後重試取得快速通道。\n也可前往 GitHub 或 QQ 群手動下載新版本安裝包。</string>
     <string name="update_dialog_no_changelog">暫無更新日誌</string>
     <string name="update_dialog_skip">跳過該版本</string>
     <string name="update_dialog_redownload">重新下載</string>

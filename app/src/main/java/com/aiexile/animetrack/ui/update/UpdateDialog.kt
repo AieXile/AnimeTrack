@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.remote.DownloadSource
 import com.aiexile.animetrack.ui.components.MarkdownText
 
 @Composable
@@ -79,7 +80,9 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
             UpdateAvailableDialog(
                 currentVersion = uiState.currentVersion,
                 newVersion = info.versionName,
+                publishDate = info.publishDate,
                 changelog = info.changelog,
+                downloadSource = info.downloadSource,
                 isDownloading = uiState.isDownloading,
                 downloadProgress = uiState.downloadProgress,
                 downloadComplete = uiState.downloadComplete,
@@ -105,7 +108,9 @@ fun UpdateDialog(viewModel: UpdateViewModel) {
 private fun UpdateAvailableDialog(
     currentVersion: String,
     newVersion: String,
+    publishDate: String,
     changelog: String,
+    downloadSource: DownloadSource,
     isDownloading: Boolean,
     downloadProgress: Int,
     downloadComplete: Boolean,
@@ -126,7 +131,11 @@ private fun UpdateAvailableDialog(
     val shaPendingText = stringResource(R.string.update_dialog_sha_pending)
     val forceUpdateText = stringResource(R.string.update_dialog_force_update)
     val notForceUpdateText = stringResource(R.string.update_dialog_not_force_update)
-    val downloadNoticeText = stringResource(R.string.update_dialog_download_notice)
+    // 下载源提示：服务器直链（快）/ GitHub 直连（国内可能慢）
+    val downloadNoticeText = when (downloadSource) {
+        DownloadSource.SERVER -> stringResource(R.string.update_dialog_download_notice)
+        DownloadSource.GITHUB -> stringResource(R.string.update_dialog_download_notice_github)
+    }
 
     AlertDialog(
         // 强制更新或下载进行中时禁止关闭（点击外部 / 返回键）
@@ -160,6 +169,16 @@ private fun UpdateAvailableDialog(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // 发布日期（自建服务器返回时展示，原始字符串）
+                if (publishDate.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = publishDate,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -197,7 +216,7 @@ private fun UpdateAvailableDialog(
                     )
                 }
 
-                // GitHub 下载慢说明（小浅字）
+                // 下载源说明（小浅字，随 downloadSource 动态切换）
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = downloadNoticeText,

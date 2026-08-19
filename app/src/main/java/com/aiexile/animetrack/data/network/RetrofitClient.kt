@@ -6,6 +6,7 @@ import com.aiexile.animetrack.data.auth.AuthInterceptor
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthInterceptor
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.remote.GitHubUpdateApi
 import com.aiexile.animetrack.data.remote.UpdateApi
 import com.aiexile.animetrack.di.AppContainer
 import okhttp3.Cookie
@@ -30,6 +31,7 @@ object RetrofitClient {
     private const val BILIBILI_LOGIN_UA = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
     private const val TMDB_BASE_URL = "https://api.themoviedb.org/3/"
     private const val USER_AUTH_DEFAULT_BASE_URL = "https://www.aiexile.top/api/"
+    private const val UPDATE_SERVER_URL = "https://www.aiexile.top/"
 
     private val safeDns = SafeDns()
 
@@ -233,6 +235,13 @@ object RetrofitClient {
             .build()
     }
 
+    // 更新检查服务器客户端（自建服务器，仅需 UA + Accept JSON，无需鉴权）
+    private val updateServerOkHttpClient: OkHttpClient by lazy {
+        baseOkHttpClient.newBuilder()
+            .addInterceptor(headerInterceptor)
+            .build()
+    }
+
     private val tmdbOkHttpClient: OkHttpClient by lazy {
         baseOkHttpClient.newBuilder()
             .addInterceptor(tmdbInterceptor)
@@ -366,6 +375,14 @@ object RetrofitClient {
             .build()
     }
 
+    private val updateServerRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(UPDATE_SERVER_URL)
+            .client(updateServerOkHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
     private val tmdbRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(TMDB_BASE_URL)
@@ -408,8 +425,14 @@ object RetrofitClient {
         authRetrofit.create(BangumiApiService::class.java)
     }
 
+    /** 更新检查（自建服务器优先源） */
     val updateApi: UpdateApi by lazy {
-        githubRetrofit.create(UpdateApi::class.java)
+        updateServerRetrofit.create(UpdateApi::class.java)
+    }
+
+    /** 更新检查（GitHub 兜底源） */
+    val githubUpdateApi: GitHubUpdateApi by lazy {
+        githubRetrofit.create(GitHubUpdateApi::class.java)
     }
 
     val tmdbApi: TmdbApiService by lazy {

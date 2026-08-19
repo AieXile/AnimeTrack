@@ -1,13 +1,11 @@
 package com.aiexile.animetrack.data.remote
 
 import retrofit2.http.GET
-import retrofit2.http.Path
 
+/** 自建更新服务器接口（https://www.aiexile.top/） */
 interface UpdateApi {
 
-    @GET("repos/AieXile/AnimeTrack/releases/latest")
-    suspend fun getLatestRelease(): GitHubRelease
-
-    @GET("repos/AieXile/AnimeTrack/releases/tags/{tag}")
-    suspend fun getReleaseByTag(@Path("tag") tag: String): GitHubRelease
+    /** 检查更新，返回最新版本信息 */
+    @GET("update")
+    suspend fun getUpdate(): ServerUpdateResponse
 }
