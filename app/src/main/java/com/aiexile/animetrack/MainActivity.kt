@@ -1,11 +1,15 @@
 package com.aiexile.animetrack
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.animation.ObjectAnimator
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -15,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
@@ -35,6 +40,11 @@ class MainActivity : ComponentActivity() {
 
     // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
     private val customFontFamily = MutableStateFlow<FontFamily?>(null)
+
+    // Android 13+ 通知权限请求（推送通知显示的前提，需在 onCreate 前注册）
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     override fun attachBaseContext(newBase: android.content.Context) {
         // 在 Activity 创建前应用语言设置
@@ -103,6 +113,16 @@ class MainActivity : ComponentActivity() {
 
         // attachBaseContext 已调用 AppContainer.initialize，此处不再重复调用
         enableEdgeToEdge()
+
+        // Android 13+：主界面启动时请求通知权限（推送通知显示的前提）
+        // 已授权或用户曾拒绝过（系统不再弹窗）时静默跳过
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
         // App 启动时检查并上报极光推送 registrationId
         GlobalScope.launch(Dispatchers.IO) {
             PushRegistrationHelper.reportRegistrationIdIfNeeded(applicationContext)

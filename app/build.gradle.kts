@@ -161,7 +161,7 @@ dependencies {
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.media3.ui.compose)
     implementation(project(":jiguang"))
-    implementation(files("../jiguang/libs/jcore-android-5.4.0.aar"))
+    implementation(files("../jiguang/libs/jcore-android-5.5.0.aar"))
     implementation(files("../jiguang/libs/com.heytap.msp_V3.9.8.aar"))
     implementation(files("../jiguang/libs/HiPushSDK-10.0.13.305.aar"))
     implementation(files("../jiguang/libs/push-internal-5.0.5.aar"))

@@ -152,7 +152,7 @@ fun UpdateNotificationScreen(
                             UpdateNotificationManager.scheduleDailyNotification(
                                 context, timePickerState.hour, timePickerState.minute
                             )
-                            syncPushSettingsToServer(true, true, timePickerState.hour, timePickerState.minute)
+                            syncPushSettingsToServer(enabled, enabled, timePickerState.hour, timePickerState.minute)
                         }
                         showTimePicker = false
                     }
@@ -285,7 +285,7 @@ fun UpdateNotificationScreen(
                                     UpdateNotificationManager.scheduleDailyNotification(
                                         context, preset.hour, preset.minute
                                     )
-                                    syncPushSettingsToServer(true, true, preset.hour, preset.minute)
+                                    syncPushSettingsToServer(enabled, enabled, preset.hour, preset.minute)
                                 }
                             },
                         verticalAlignment = Alignment.CenterVertically
@@ -299,7 +299,7 @@ fun UpdateNotificationScreen(
                                     UpdateNotificationManager.scheduleDailyNotification(
                                         context, preset.hour, preset.minute
                                     )
-                                    syncPushSettingsToServer(true, true, preset.hour, preset.minute)
+                                    syncPushSettingsToServer(enabled, enabled, preset.hour, preset.minute)
                                 }
                             }
                         )
