@@ -160,6 +160,9 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.media3.ui.compose)
+    // 设置搜索：中文转拼音，支持拼音全拼/首字母模糊匹配
+    // （Maven Central 上的 pinyin4j，无传递依赖；TinyPinyin 在 JitPack 上构建已失效不可用）
+    implementation(libs.pinyin4j)
     implementation(project(":jiguang"))
     implementation(files("../jiguang/libs/jcore-android-5.5.0.aar"))
     implementation(files("../jiguang/libs/com.heytap.msp_V3.9.8.aar"))

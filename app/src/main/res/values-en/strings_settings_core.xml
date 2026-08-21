@@ -86,5 +86,9 @@
     <string name="nav_custom_topbar_title">Top Bar</string>
     <string name="nav_custom_topbar_subtitle">Customize home top bar behavior</string>
     <string name="nav_custom_hide_topbar_on_scroll">Hide top bar on scroll</string>
-    <string name="nav_custom_hide_topbar_on_scroll_desc">Collapse the top bar while scrolling down; search and add actions merge into one floating button. Scroll up or return to top to restore</string>
+    <string name="nav_custom_hide_topbar_on_scroll_desc">Collapse the top bar while scrolling down; search and add actions merge into one floating button. Scroll back to the top of the list to restore</string>
+    <string name="nav_custom_statusbar_mode">Status bar style</string>
+    <string name="statusbar_mode_fullscreen">Fullscreen</string>
+    <string name="statusbar_mode_scrim">Gradient scrim</string>
+    <string name="statusbar_mode_solid">Solid status bar</string>
 </resources>

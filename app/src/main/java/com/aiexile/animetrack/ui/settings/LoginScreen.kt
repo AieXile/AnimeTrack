@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,7 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +53,7 @@ import coil.request.ImageRequest
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +80,18 @@ fun LoginScreen(
     val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
     val autoSyncVisible by (settingsRepository?.autoSyncVisible?.collectAsState(false) ?: remember { mutableStateOf(false) })
 
+    // 搜索定位：高亮目标项并滚动到位
+    val highlightKey = rememberSettingsHighlight(Routes.LOGIN)
+    val listState = rememberLazyListState()
+    // LazyColumn 索引：0=AnimeTrack 1=Bilibili 2=Bangumi 3=自动同步 4=隐藏头像
+    val highlightAnchors = mapOf(
+        "auto_sync" to 3,
+        "hide_avatar" to 4
+    )
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -96,6 +111,7 @@ fun LoginScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -141,7 +157,8 @@ fun LoginScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .then(rememberHighlightModifier("auto_sync", highlightKey)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -168,7 +185,8 @@ fun LoginScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .then(rememberHighlightModifier("hide_avatar", highlightKey)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {

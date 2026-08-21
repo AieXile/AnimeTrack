@@ -38,6 +38,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,12 +54,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
+import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,10 +81,37 @@ fun NavigationCustomizeScreen(
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
-    val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled.collectAsState(false)
+    // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
+    val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
+        .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
+    val statusBarMode by settingsRepository.statusBarMode
+        .collectAsState(settingsRepository.cachedStatusBarMode())
 
     // 大屏（Medium/Expanded）使用侧边导航栏且无 FAB：导航样式与 FAB 位置设置无效，隐藏对应分组
     val showCompactOnlySettings = isCompactWidth()
+
+    // 搜索定位：高亮目标项并滚动到所在分组（锚点索引随大屏条件分组偏移）
+    val highlightKey = rememberSettingsHighlight(Routes.NAVIGATION_CUSTOMIZE)
+    val listState = rememberLazyListState()
+    val highlightAnchors = buildMap {
+        var i = 1
+        if (showCompactOnlySettings) {
+            put("nav_style", i); put("advanced_blur", i); i++
+        }
+        put("topbar", i); put("hide_topbar", i); put("statusbar", i); i++
+        put("label_mode", i); i++
+        if (showCompactOnlySettings) {
+            put("fab", i); i++
+        }
+        put("content", i); i++
+        put("greeting", i); put("typing_effect", i)
+    }
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
+    // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
+    val expandNavStyleGroup = highlightKey == "nav_style" || highlightKey == "advanced_blur"
+    val expandFabGroup = highlightKey == "fab"
 
     Scaffold(
         topBar = {
@@ -104,6 +135,7 @@ fun NavigationCustomizeScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -114,7 +146,10 @@ fun NavigationCustomizeScreen(
 
             if (showCompactOnlySettings) {
                 item(key = "nav_style_group") {
-                    ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_style_title)) {
+                    ExpandableSettingsGroup(
+                        title = stringResource(R.string.nav_custom_style_title),
+                        expanded = expandNavStyleGroup
+                    ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             NavigationStyleCard(
                                 style = NavigationStyle.BOTTOM,
@@ -147,7 +182,9 @@ fun NavigationCustomizeScreen(
                                     title = stringResource(R.string.nav_custom_advanced_blur),
                                     description = stringResource(R.string.nav_custom_advanced_blur_desc),
                                     checked = capsuleAdvancedBlur,
-                                    onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } }
+                                    onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } },
+                                    itemKey = "advanced_blur",
+                                    highlightKey = highlightKey
                                 )
                             }
                         }
@@ -159,21 +196,72 @@ fun NavigationCustomizeScreen(
             item(key = "topbar_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_topbar_title),
-                    subtitle = stringResource(R.string.nav_custom_topbar_subtitle)
+                    subtitle = stringResource(R.string.nav_custom_topbar_subtitle),
+                    modifier = rememberHighlightModifier("topbar", highlightKey)
                 ) {
                     SwitchItem(
                         title = stringResource(R.string.nav_custom_hide_topbar_on_scroll),
                         description = stringResource(R.string.nav_custom_hide_topbar_on_scroll_desc),
                         checked = hideTopBarOnScroll,
-                        onCheckedChange = { scope.launch { settingsRepository.setHideTopBarOnScrollEnabled(it) } }
+                        onCheckedChange = { scope.launch { settingsRepository.setHideTopBarOnScrollEnabled(it) } },
+                        itemKey = "hide_topbar",
+                        highlightKey = highlightKey
                     )
+                    // 状态栏显示方式：仅「下滑隐藏顶栏」开启时可选，动画展开/收起避免高度跳变闪动
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = hideTopBarOnScroll,
+                        enter = androidx.compose.animation.expandVertically(
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                            )
+                        ) + androidx.compose.animation.fadeIn(
+                            animationSpec = androidx.compose.animation.core.tween(300)
+                        ),
+                        exit = androidx.compose.animation.shrinkVertically(
+                            animationSpec = androidx.compose.animation.core.tween(200)
+                        ) + androidx.compose.animation.fadeOut(
+                            animationSpec = androidx.compose.animation.core.tween(200)
+                        )
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.nav_custom_statusbar_mode),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                StatusBarMode.entries.forEachIndexed { index, mode ->
+                                    SegmentedButton(
+                                        selected = statusBarMode == mode,
+                                        onClick = { scope.launch { settingsRepository.setStatusBarMode(mode) } },
+                                        shape = SegmentedButtonDefaults.itemShape(
+                                            index = index,
+                                            count = StatusBarMode.entries.size
+                                        ),
+                                        icon = {},
+                                        label = {
+                                            Text(
+                                                text = stringResource(mode.labelRes),
+                                                maxLines = 1,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             item(key = "label_mode_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_label_mode_title),
-                    subtitle = stringResource(R.string.nav_custom_label_mode_subtitle)
+                    subtitle = stringResource(R.string.nav_custom_label_mode_subtitle),
+                    modifier = rememberHighlightModifier("label_mode", highlightKey)
                 ) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         NavigationLabelMode.entries.forEachIndexed { index, mode ->
@@ -201,7 +289,10 @@ fun NavigationCustomizeScreen(
             // 大屏无 FAB（添加入口在顶栏、回到顶部在侧边导航栏底部），FAB 位置设置无效
             if (showCompactOnlySettings) {
                 item(key = "fab_group") {
-                    ExpandableSettingsGroup(title = stringResource(R.string.nav_custom_fab_title)) {
+                    ExpandableSettingsGroup(
+                        title = stringResource(R.string.nav_custom_fab_title),
+                        expanded = expandFabGroup
+                    ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FabLocationCard(
                                 location = FabLocation.BOTTOM_RIGHT,
@@ -221,7 +312,8 @@ fun NavigationCustomizeScreen(
             item(key = "content_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_content_title),
-                    subtitle = stringResource(R.string.nav_custom_content_subtitle)
+                    subtitle = stringResource(R.string.nav_custom_content_subtitle),
+                    modifier = rememberHighlightModifier("content", highlightKey)
                 ) {
                     Column {
                         SwitchItem(
@@ -249,7 +341,8 @@ fun NavigationCustomizeScreen(
             item(key = "greeting_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_greeting_title),
-                    subtitle = stringResource(R.string.nav_custom_greeting_subtitle)
+                    subtitle = stringResource(R.string.nav_custom_greeting_subtitle),
+                    modifier = rememberHighlightModifier("greeting", highlightKey)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
@@ -257,7 +350,9 @@ fun NavigationCustomizeScreen(
                             title = stringResource(R.string.nav_custom_typing_effect),
                             description = stringResource(R.string.nav_custom_typing_effect_desc),
                             checked = greetingTypingEffect,
-                            onCheckedChange = { scope.launch { settingsRepository.setGreetingTypingEffect(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setGreetingTypingEffect(it) } },
+                            itemKey = "typing_effect",
+                            highlightKey = highlightKey
                         )
                         CustomGreetingField(
                             customGreeting = settingsRepository.customGreeting.collectAsState("").value,
@@ -516,11 +611,14 @@ private fun SwitchItem(
     title: String,
     description: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    itemKey: String? = null,
+    highlightKey: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(rememberHighlightModifier(itemKey, highlightKey))
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

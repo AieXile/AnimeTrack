@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
@@ -39,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -52,9 +53,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
 
@@ -98,6 +101,14 @@ fun AppearanceScreen(
     val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
     val currentThemeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
 
+    // 搜索定位：高亮目标区块并滚动到位
+    val highlightKey = rememberSettingsHighlight(Routes.APPEARANCE)
+    val listState = rememberLazyListState()
+    val highlightAnchors = mapOf("mode" to 2, "color" to 4)
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,6 +131,7 @@ fun AppearanceScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -140,7 +152,9 @@ fun AppearanceScreen(
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(rememberHighlightModifier("mode", highlightKey)),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ThemeModePreviewCard(
@@ -175,7 +189,8 @@ fun AppearanceScreen(
             item {
                 SettingsGroup(
                     title = stringResource(R.string.appearance_color_title),
-                    subtitle = stringResource(R.string.appearance_color_subtitle)
+                    subtitle = stringResource(R.string.appearance_color_subtitle),
+                    modifier = rememberHighlightModifier("color", highlightKey)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

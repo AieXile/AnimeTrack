@@ -86,5 +86,9 @@
     <string name="nav_custom_topbar_title">頂部欄</string>
     <string name="nav_custom_topbar_subtitle">自訂首頁頂部欄行為</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隱藏頂部欄</string>
-    <string name="nav_custom_hide_topbar_on_scroll_desc">向下滑動列表時收起頂部欄，搜尋與新增按鈕合併為懸浮按鈕；向上滑動或回到頂部時恢復</string>
+    <string name="nav_custom_hide_topbar_on_scroll_desc">向下滑動列表時收起頂部欄，搜尋與新增按鈕合併為懸浮按鈕；回到列表頂部時恢復</string>
+    <string name="nav_custom_statusbar_mode">狀態欄顯示方式</string>
+    <string name="statusbar_mode_fullscreen">全螢幕</string>
+    <string name="statusbar_mode_scrim">留白遮罩</string>
+    <string name="statusbar_mode_solid">實心狀態欄</string>
 </resources>

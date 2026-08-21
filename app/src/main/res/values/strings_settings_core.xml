@@ -20,6 +20,10 @@
 
     <!-- SettingsScreen -->
     <string name="settings_title">设置</string>
+    <string name="settings_search_hint">搜索设置…</string>
+    <string name="settings_search_no_result">未找到相关设置</string>
+    <string name="settings_tmdb_api_key">TMDB API Key</string>
+    <string name="settings_tmdb_api_key_desc">配置 TMDB 元数据刮削密钥</string>
     <string name="settings_login">登录</string>
     <string name="settings_login_subtitle">同步你的追番数据</string>
     <string name="settings_connected_suffix">已连接</string>
@@ -86,5 +90,9 @@
     <string name="nav_custom_topbar_title">顶部栏</string>
     <string name="nav_custom_topbar_subtitle">自定义主页顶部栏行为</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隐藏顶部栏</string>
-    <string name="nav_custom_hide_topbar_on_scroll_desc">向下滑动列表时收起顶部栏，搜索与添加按钮合并为悬浮按钮；向上滑动或回到顶部时恢复</string>
+    <string name="nav_custom_hide_topbar_on_scroll_desc">向下滑动列表时收起顶部栏，搜索与添加按钮合并为悬浮按钮；回到列表顶部时恢复</string>
+    <string name="nav_custom_statusbar_mode">状态栏显示方式</string>
+    <string name="statusbar_mode_fullscreen">全屏</string>
+    <string name="statusbar_mode_scrim">留白遮罩</string>
+    <string name="statusbar_mode_solid">实心状态栏</string>
 </resources>

@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -30,6 +30,7 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,9 +41,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +65,22 @@ fun FeaturesScreen(
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
     val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
+
+    // 搜索定位：高亮目标项并滚动到所在分组
+    val highlightKey = rememberSettingsHighlight(Routes.FEATURES)
+    val listState = rememberLazyListState()
+    val highlightAnchors = mapOf(
+        "search_button" to 1,
+        "update_reminder" to 2,
+        "calendar_button" to 2,
+        "series_stack" to 3,
+        "auto_complete" to 4,
+        "celebration" to 4,
+        "rating" to 5
+    )
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -85,6 +104,7 @@ fun FeaturesScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -100,7 +120,9 @@ fun FeaturesScreen(
                             title = stringResource(R.string.features_search_button),
                             description = stringResource(R.string.features_search_button_desc),
                             checked = showSearchButton,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } },
+                            itemKey = "search_button",
+                            highlightKey = highlightKey
                         )
                     }
                 }
@@ -113,13 +135,17 @@ fun FeaturesScreen(
                             title = stringResource(R.string.features_today_update_reminder),
                             description = stringResource(R.string.features_today_update_reminder_desc),
                             checked = showUpdateBanner,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } },
+                            itemKey = "update_reminder",
+                            highlightKey = highlightKey
                         )
                         SwitchItem(
                             title = stringResource(R.string.features_calendar_preview_button),
                             description = stringResource(R.string.features_calendar_preview_button_desc),
                             checked = showCalendarButton,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } },
+                            itemKey = "calendar_button",
+                            highlightKey = highlightKey
                         )
                     }
                 }
@@ -133,7 +159,9 @@ fun FeaturesScreen(
                             description = stringResource(R.string.features_series_stack_desc),
                             checked = seriesStackEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
-                            badge = stringResource(R.string.features_series_stack_badge)
+                            badge = stringResource(R.string.features_series_stack_badge),
+                            itemKey = "series_stack",
+                            highlightKey = highlightKey
                         )
                     }
                 }
@@ -146,13 +174,17 @@ fun FeaturesScreen(
                             title = stringResource(R.string.features_auto_complete),
                             description = stringResource(R.string.features_auto_complete_desc),
                             checked = autoCompleteEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } },
+                            itemKey = "auto_complete",
+                            highlightKey = highlightKey
                         )
                         SwitchItem(
                             title = stringResource(R.string.features_completed_celebration),
                             description = stringResource(R.string.features_completed_celebration_desc),
                             checked = completedToastEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } }
+                            onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } },
+                            itemKey = "celebration",
+                            highlightKey = highlightKey
                         )
                     }
                 }
@@ -165,7 +197,9 @@ fun FeaturesScreen(
                             title = stringResource(R.string.features_rating_standard_source),
                             description = stringResource(R.string.features_rating_standard_source_desc),
                             selected = ratingStandard == RatingStandard.SOURCE,
-                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.SOURCE) } }
+                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.SOURCE) } },
+                            itemKey = "rating",
+                            highlightKey = highlightKey
                         )
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -200,11 +234,14 @@ private fun SwitchItem(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    badge: String? = null
+    badge: String? = null,
+    itemKey: String? = null,
+    highlightKey: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(rememberHighlightModifier(itemKey, highlightKey))
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -251,12 +288,15 @@ private fun RadioButtonItem(
     title: String,
     description: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    itemKey: String? = null,
+    highlightKey: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(rememberHighlightModifier(itemKey, highlightKey))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

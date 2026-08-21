@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +72,14 @@ fun BangumiProxyScreen(
     var httpHostInput by remember { mutableStateOf("") }
     var httpPortInput by remember { mutableStateOf("") }
 
+    // 搜索定位：高亮目标分组并滚动到位
+    val highlightKey = rememberSettingsHighlight(Routes.BANGUMI_PROXY)
+    val listState = rememberLazyListState()
+    val highlightAnchors = mapOf("reverse_proxy" to 1, "http_proxy" to 2)
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -91,6 +102,7 @@ fun BangumiProxyScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -100,7 +112,10 @@ fun BangumiProxyScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                SettingsGroup(title = stringResource(R.string.bangumi_proxy_reverse_group)) {
+                SettingsGroup(
+                    title = stringResource(R.string.bangumi_proxy_reverse_group),
+                    modifier = rememberHighlightModifier("reverse_proxy", highlightKey)
+                ) {
                     Column {
                         HostItem(
                             host = proxyHost,
@@ -124,7 +139,10 @@ fun BangumiProxyScreen(
             }
 
             item {
-                SettingsGroup(title = stringResource(R.string.bangumi_proxy_http_group)) {
+                SettingsGroup(
+                    title = stringResource(R.string.bangumi_proxy_http_group),
+                    modifier = rememberHighlightModifier("http_proxy", highlightKey)
+                ) {
                     Column {
                         HostPortItem(
                             host = httpProxyHost,

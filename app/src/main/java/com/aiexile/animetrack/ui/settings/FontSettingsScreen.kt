@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,10 +41,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AppLanguage
 import com.aiexile.animetrack.data.FontFamilyType
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -59,6 +62,14 @@ fun FontSettingsScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // 搜索定位：高亮目标分组并滚动到位
+    val highlightKey = rememberSettingsHighlight(Routes.FONT_SETTINGS)
+    val listState = rememberLazyListState()
+    val highlightAnchors = mapOf("font" to 1, "custom_font" to 2, "language" to 3)
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
 
     val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = FontFamilyType.SYSTEM.name)
     val customFontPath by settingsRepository.customFontPathFlow.collectAsState(initial = "")
@@ -136,6 +147,7 @@ fun FontSettingsScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -145,7 +157,11 @@ fun FontSettingsScreen(
             item { Spacer(modifier = Modifier.height(4.dp)) }
 
             item {
-                SettingsGroup(title = stringResource(R.string.font_title), subtitle = stringResource(R.string.font_select_font)) {
+                SettingsGroup(
+                    title = stringResource(R.string.font_title),
+                    subtitle = stringResource(R.string.font_select_font),
+                    modifier = rememberHighlightModifier("font", highlightKey)
+                ) {
                     Column {
                         val systemFontDesc = stringResource(R.string.font_system_default_desc)
                         val misansFontDesc = stringResource(R.string.font_misans_desc)
@@ -179,7 +195,11 @@ fun FontSettingsScreen(
             }
 
             item {
-                SettingsGroup(title = stringResource(R.string.font_custom_title), subtitle = stringResource(R.string.font_custom_subtitle)) {
+                SettingsGroup(
+                    title = stringResource(R.string.font_custom_title),
+                    subtitle = stringResource(R.string.font_custom_subtitle),
+                    modifier = rememberHighlightModifier("custom_font", highlightKey)
+                ) {
                     Column {
                         val notImportedShort = stringResource(R.string.font_not_imported_short)
                         Row(
@@ -212,7 +232,11 @@ fun FontSettingsScreen(
             }
 
             item {
-                SettingsGroup(title = stringResource(R.string.font_language_title), subtitle = stringResource(R.string.font_language_subtitle)) {
+                SettingsGroup(
+                    title = stringResource(R.string.font_language_title),
+                    subtitle = stringResource(R.string.font_language_subtitle),
+                    modifier = rememberHighlightModifier("language", highlightKey)
+                ) {
                     Column {
                         AppLanguage.entries.forEach { language ->
                             FontOptionRow(

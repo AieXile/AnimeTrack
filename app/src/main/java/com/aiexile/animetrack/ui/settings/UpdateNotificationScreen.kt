@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -53,6 +54,7 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.UpdatePushSettingsRequest
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.util.TimeZoneHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -74,6 +76,14 @@ fun UpdateNotificationScreen(
     val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
 
     var showTimePicker by remember { mutableStateOf(false) }
+
+    // 搜索定位：高亮目标项并滚动到位
+    val highlightKey = rememberSettingsHighlight(Routes.UPDATE_NOTIFICATION)
+    val listState = rememberLazyListState()
+    val highlightAnchors = mapOf("toggle" to 1, "time" to 2)
+    LaunchedEffect(highlightKey) {
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+    }
 
     // 登录后从后端拉取推送设置
     LaunchedEffect(isLoggedIn) {
@@ -208,6 +218,7 @@ fun UpdateNotificationScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -219,7 +230,9 @@ fun UpdateNotificationScreen(
             // 总开关
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(rememberHighlightModifier("toggle", highlightKey)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -263,7 +276,8 @@ fun UpdateNotificationScreen(
                         text = stringResource(R.string.update_notif_time),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = rememberHighlightModifier("time", highlightKey)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(

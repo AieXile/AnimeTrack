@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -60,6 +61,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -221,7 +223,18 @@ fun DataManageScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // 搜索定位：高亮目标项并滚动到所在分组
+            val highlightKey = rememberSettingsHighlight(Routes.DATA_MANAGE)
+            val listState = rememberLazyListState()
+            val highlightAnchors = mapOf(
+                "import" to 1, "export" to 1, "webdav" to 2
+            )
+            LaunchedEffect(highlightKey) {
+                highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+            }
+
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
@@ -236,14 +249,18 @@ fun DataManageScreen(
                                 title = stringResource(R.string.data_manage_import_markdown),
                                 subtitle = stringResource(R.string.data_manage_import_markdown_subtitle),
                                 icon = Icons.Rounded.FileOpen,
-                                onClick = { showImportGuide = true }
+                                onClick = { showImportGuide = true },
+                                itemKey = "import",
+                                highlightKey = highlightKey
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_export_data),
                                 subtitle = stringResource(R.string.data_manage_export_data_subtitle),
                                 icon = Icons.Rounded.FileDownload,
-                                onClick = { viewModel.prepareExport() }
+                                onClick = { viewModel.prepareExport() },
+                                itemKey = "export",
+                                highlightKey = highlightKey
                             )
                         }
                     }
@@ -255,7 +272,9 @@ fun DataManageScreen(
                             title = stringResource(R.string.data_manage_webdav_sync),
                             subtitle = stringResource(R.string.data_manage_webdav_sync_subtitle),
                             icon = Icons.Rounded.CloudUpload,
-                            onClick = onNavigateWebDAV
+                            onClick = onNavigateWebDAV,
+                            itemKey = "webdav",
+                            highlightKey = highlightKey
                         )
                     }
                 }
@@ -292,11 +311,14 @@ private fun SettingActionItem(
     title: String,
     subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    itemKey: String? = null,
+    highlightKey: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(rememberHighlightModifier(itemKey, highlightKey))
             .clip(SquircleShape(12.dp))
             .clickable { onClick() }
             .padding(12.dp),
