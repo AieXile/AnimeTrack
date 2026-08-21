@@ -107,6 +107,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -155,6 +156,7 @@ import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AirDateEditor
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
+import com.aiexile.animetrack.ui.components.rememberShrinkOnScrollTopAppBarBehavior
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDateDisplay
@@ -196,6 +198,9 @@ fun AnimeDetailScreen(
     val focusManager = LocalFocusManager.current
     val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
+
+    // 浏览下方内容时顶栏收缩变窄（64dp → 32dp），内容滚回顶部后才展开
+    val topBarScrollBehavior = rememberShrinkOnScrollTopAppBarBehavior(collapsedHeight = 32.dp)
 
     val showMatchDialog by viewModel.showMatchDialog.collectAsState()
     val matchSearchQuery by viewModel.matchSearchQuery.collectAsState()
@@ -314,7 +319,8 @@ fun AnimeDetailScreen(
                                 )
                             }
                         }
-                    }
+                    },
+                    scrollBehavior = topBarScrollBehavior
                 )
             }
         ) { paddingValues ->
@@ -322,6 +328,7 @@ fun AnimeDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .nestedScroll(topBarScrollBehavior.nestedScrollConnection)
             ) {
                 when {
                     uiState.isLoading -> {
