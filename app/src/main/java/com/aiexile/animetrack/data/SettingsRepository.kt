@@ -58,6 +58,7 @@ class SettingsRepository(private val context: Context) {
         private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
         private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
         private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
+        private val STATUS_BAR_MODE_KEY = stringPreferencesKey("status_bar_mode")
         private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
         private val ADVANCED_BLUR_BACKGROUND_ALPHA_KEY = floatPreferencesKey("advanced_blur_background_alpha")
         private val ADVANCED_BLUR_TINT_ALPHA_KEY = floatPreferencesKey("advanced_blur_tint_alpha")
@@ -267,6 +268,24 @@ class SettingsRepository(private val context: Context) {
     val hideTopBarOnScrollEnabled: Flow<Boolean> = preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, false)
 
     suspend fun setHideTopBarOnScrollEnabled(enabled: Boolean) = setPreference(HIDE_TOPBAR_ON_SCROLL_KEY, enabled)
+
+    /** 「下滑隐藏顶部栏」的同步缓存值：作为 collectAsState 的初始值，
+     *  避免设置页首帧先渲染默认关闭态、下一帧才跳变为已开启的闪变（缓存未就绪时退回默认值） */
+    fun cachedHideTopBarOnScroll(): Boolean = prefCache[HIDE_TOPBAR_ON_SCROLL_KEY] as? Boolean ?: false
+
+    /** 顶栏收起后的状态栏处理方式，默认留白遮罩（仅「下滑隐藏顶栏」开启时生效） */
+    val statusBarMode: Flow<StatusBarMode> = preferenceFlow(STATUS_BAR_MODE_KEY, StatusBarMode.SCRIM.name)
+        .map { modeString ->
+            try { StatusBarMode.valueOf(modeString) } catch (_: IllegalArgumentException) { StatusBarMode.SCRIM }
+        }
+
+    suspend fun setStatusBarMode(mode: StatusBarMode) = setPreference(STATUS_BAR_MODE_KEY, mode.name)
+
+    /** 状态栏处理方式的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedStatusBarMode(): StatusBarMode {
+        val cached = prefCache[STATUS_BAR_MODE_KEY] as? String ?: return StatusBarMode.SCRIM
+        return try { StatusBarMode.valueOf(cached) } catch (_: IllegalArgumentException) { StatusBarMode.SCRIM }
+    }
 
     /** 高级模糊半径（dp），默认 24 */
     val advancedBlurRadius: Flow<Float> = preferenceFlow(ADVANCED_BLUR_RADIUS_KEY, DEFAULT_ADVANCED_BLUR_RADIUS)

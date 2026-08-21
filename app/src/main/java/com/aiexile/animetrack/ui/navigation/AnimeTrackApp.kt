@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.navigation
+package com.aiexile.animetrack.ui.navigation
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
@@ -26,6 +26,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +51,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
@@ -72,6 +76,7 @@ import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
@@ -198,6 +203,8 @@ fun AnimeTrackApp(
         settingsRepository.setFirstLaunchCompleted()
         navController.navigate(Routes.MAIN) {
             popUpTo(Routes.ONBOARDING) { inclusive = true }
+            // 开发者选项可会话中途重入向导：pop 后栈顶可能已是 MAIN，singleTop 避免重复压栈
+            launchSingleTop = true
         }
         onboardingRevealRadius.snapTo(0f)
         onboardingRevealRadius.animateTo(
@@ -243,6 +250,7 @@ fun AnimeTrackApp(
                 // 引导页
                 composable(Routes.ONBOARDING) {
                     OnboardingScreen(
+                        settingsRepository = settingsRepository,
                         onStartReveal = { center ->
                             onboardingRevealCenter = center
                         }
@@ -644,13 +652,16 @@ private fun MainOverlay(
             }
     }
 
-    // 顶栏下滑隐藏：开启开关后按滚动方向收起/展开顶栏（手机与平板一致）。
+    // 顶栏下滑隐藏：开启开关后下滑收起顶栏，滚回列表顶部时展开（手机与平板一致）。
     // MainOverlay 随路由切换销毁重建，collectAsState(false) 的初始 false 会在返回主页时
     // 瞬态触发「开关关闭」重置，清掉记忆的收拢状态——故用 rememberSaveable 持有上次值
     var hideTopBarOnScroll by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(settingsRepository) {
         settingsRepository.hideTopBarOnScrollEnabled.collect { hideTopBarOnScroll = it }
     }
+    // 顶栏收起后的状态栏处理方式（全屏/留白遮罩/实心），初始值取同步缓存避免闪变
+    val statusBarMode by settingsRepository.statusBarMode
+        .collectAsState(settingsRepository.cachedStatusBarMode())
     val homeUiState by homeViewModel.uiState.collectAsState()
     LaunchedEffect(gridState, hideTopBarOnScroll, isHomePage) {
         if (!hideTopBarOnScroll) {
@@ -673,26 +684,30 @@ private fun MainOverlay(
                 val delta = (index - lastIndex) * TOPBAR_SCROLL_DIRECTION_SCALE + (offset - lastOffset)
                 lastIndex = index
                 lastOffset = offset
-                // 仅响应用户真实滚动：pane 开合等布局变化导致列数/索引骤变不视为滚动方向
-                if (!gridState.isScrollInProgress) return@collect
                 // 悬浮搜索态冻结顶栏显隐：搜索由 FAB 展开的悬浮搜索条承载，不随滚动切换
                 if (homeViewModel.uiState.value.isLocalSearchActive) return@collect
+                // 列表滚回顶部：展开顶栏（置于 isScrollInProgress 过滤之前，
+                // 甩动停稳后最后一帧位置变化也要触发）
+                if (index == 0 && offset == 0) {
+                    if (homeViewModel.isTopBarHidden) {
+                        homeViewModel.updateTopBarHidden(false)
+                    }
+                    return@collect
+                }
+                // 仅响应用户真实滚动：pane 开合等布局变化导致列数/索引骤变不视为滚动方向
+                if (!gridState.isScrollInProgress) return@collect
                 if (delta > TOPBAR_SCROLL_DIRECTION_THRESHOLD) {
                     // 向下浏览内容：收起顶栏
                     if (!homeViewModel.isTopBarHidden) {
                         homeViewModel.updateTopBarHidden(true)
                     }
-                } else if (delta < -TOPBAR_SCROLL_DIRECTION_THRESHOLD) {
-                    // 向上回滚：展开顶栏
-                    if (homeViewModel.isTopBarHidden) {
-                        homeViewModel.updateTopBarHidden(false)
-                    }
                 }
+                // 上滑回滚不再展开顶栏：仅当列表滚回顶部（上方 index/offset 归零分支）才展开
             }
     }
 
     // 搜索关闭后顶栏保持收拢（搜索条收回为 FAB 的动画可见，不被顶栏展开覆盖）；
-    // 顶栏仅在用户上滑回滚或列表回到顶部时经方向检测重新展开
+    // 顶栏仅在列表滚回顶部时重新展开，上滑回滚途中不触发
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 导航栏：大屏使用左侧 NavigationRail，Compact 使用底部导航栏 / 胶囊导航栏
@@ -818,6 +833,46 @@ private fun MainOverlay(
                         .padding(end = paneWidth)
                         // 真 morph：几何连续变形为按钮行位置的 Squircle（问候语早期淡出在 TopBar 内处理）
                         .topBarCollapseMorph(topBarCollapse, morphTargetWidth)
+                )
+            }
+
+            // 状态栏处理方式（「下滑隐藏顶栏」开启时生效，绘制在顶栏之后）：
+            // 全屏 = 不渲染，内容滚入透明状态栏区域；留白遮罩 = 表面色纵向渐变盖在内容上；
+            // 实心状态栏 = 实色条（HomeScreen 顶部预留同步收紧，内容被顶到其下沿），
+            // 高级模糊时顶栏为毛玻璃，实色条保证状态栏区域始终实底。随收拢进度淡入，
+            // 展开时被顶栏自身背景覆盖，无感知
+            if (hideTopBarOnScroll && topBarCollapse > 0f && statusBarMode != StatusBarMode.FULLSCREEN) {
+                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val surfaceColor = MaterialTheme.colorScheme.surface
+                val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
+                    Modifier
+                        // 渐变略高于状态栏，下缘柔和隐入内容；顶部实色确保状态栏图标易读
+                        .height(statusBarHeight + 12.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    surfaceColor.copy(alpha = 1f),
+                                    surfaceColor.copy(alpha = 0.65f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                } else {
+                    Modifier
+                        .height(statusBarHeight)
+                        .background(surfaceColor)
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        // 大屏适配：与顶栏一致，从侧边导航栏右侧开始；pane 打开时让出 pane 宽度
+                        .then(
+                            if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
+                        )
+                        .padding(end = paneWidth)
+                        .fillMaxWidth()
+                        .then(scrimModifier)
+                        .graphicsLayer { alpha = topBarCollapse }
                 )
             }
 

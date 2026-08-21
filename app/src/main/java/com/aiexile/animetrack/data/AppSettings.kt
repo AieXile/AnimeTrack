@@ -19,3 +19,15 @@ enum class NavigationLabelMode(@StringRes val labelRes: Int) {
     ICON_AND_TEXT(R.string.nav_custom_label_icon_text),
     TEXT_ONLY(R.string.nav_custom_label_text_only),
 }
+
+/** 「下滑隐藏顶栏」开启时，顶栏收起后的状态栏处理方式 */
+enum class StatusBarMode(@StringRes val labelRes: Int) {
+    /** 全屏：不处理，列表内容滚入透明状态栏区域 */
+    FULLSCREEN(R.string.statusbar_mode_fullscreen),
+
+    /** 留白遮罩：表面色纵向渐变盖在状态栏区域内容之上 */
+    SCRIM(R.string.statusbar_mode_scrim),
+
+    /** 实心状态栏：实色状态栏条，列表顶部预留随收拢收紧，内容被顶到其下方 */
+    SOLID(R.string.statusbar_mode_solid),
+}

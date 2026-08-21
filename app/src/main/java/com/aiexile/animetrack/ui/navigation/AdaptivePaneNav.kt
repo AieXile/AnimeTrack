@@ -463,7 +463,12 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.DEVELOPER) {
         DeveloperScreen(
             onBack = navigateBack,
-            onNavigateToPlayerSettings = { onNavigate(Routes.PLAYER_SETTINGS) }
+            onNavigateToPlayerSettings = { onNavigate(Routes.PLAYER_SETTINGS) },
+            // 重触发向导：大屏先收起 pane，向导为非 pane 路由会经 onNavigate 分流至全屏
+            onNavigateToOnboarding = {
+                onClosePane()
+                onNavigate(Routes.ONBOARDING)
+            }
         )
     }
 

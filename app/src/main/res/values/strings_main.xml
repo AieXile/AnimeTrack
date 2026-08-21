@@ -132,13 +132,21 @@
 
     <!-- OnboardingScreen -->
     <string name="onboarding_page1_title">追踪你的番剧</string>
-    <string name="onboarding_page1_description">本地记录观看进度，手动管理追番状态\n不再因时间过长忘记看到哪一集</string>
+    <string name="onboarding_page1_description">本地记录观看进度，收藏与时间线随时回顾\n不再因时间过长忘记看到哪一集</string>
     <string name="onboarding_page2_title">多平台同步</string>
     <string name="onboarding_page2_description">一键导入 B站 与 Bangumi 追番列表\n自动同步观看进度</string>
     <string name="onboarding_page3_title">数据备份与看板</string>
-    <string name="onboarding_page3_description">WebDAV 云端备份守护数据\n番剧时间表不再错过更新</string>
-    <string name="onboarding_page4_title">个性定制</string>
-    <string name="onboarding_page4_description">主题配色、导航样式、自定义欢迎语\n自定义应用体验</string>
+    <string name="onboarding_page3_description">WebDAV 云端备份守护数据\n时间表与更新提醒不再错过追番</string>
+    <string name="onboarding_theme_title">主题外观</string>
+    <string name="onboarding_theme_description">选择喜欢的主题配色与深浅模式\n当前界面会实时预览效果</string>
+    <string name="onboarding_nav_title">导航定制</string>
+    <string name="onboarding_nav_description">选择底部导航栏样式与显示内容\n预览框实时展示效果</string>
+    <string name="onboarding_ready_title">一切就绪</string>
+    <string name="onboarding_ready_description">你的专属配置已保存\n随时可在设置中调整</string>
+    <string name="onboarding_theme_preset_label">主题配色</string>
+    <string name="onboarding_theme_mode_label">深浅模式</string>
+    <string name="onboarding_nav_style_label">导航样式</string>
+    <string name="onboarding_nav_content_label">导航内容</string>
     <string name="onboarding_skip">跳过</string>
     <string name="onboarding_start">开始体验</string>
     <string name="onboarding_next">下一步</string>

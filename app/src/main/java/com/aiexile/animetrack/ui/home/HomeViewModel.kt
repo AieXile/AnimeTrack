@@ -104,9 +104,9 @@ class HomeViewModel(
     val gridState = LazyGridState()
 
     /**
-     * 主页顶栏是否被下滑隐藏（「下滑隐藏顶栏」开关开启时由滚动方向驱动）。
+     * 主页顶栏是否被下滑隐藏（「下滑隐藏顶栏」开关开启时由滚动驱动）。
      * MainOverlay 中计算写入，HomeScreen 顶栏占位与 MainOverlay 顶栏/FAB 同步消费。
-     * 搜索激活或回到列表顶部时恢复显示。
+     * 搜索激活期间显隐冻结；列表滚回顶部时恢复显示。
      */
     var isTopBarHidden by mutableStateOf(false)
         private set

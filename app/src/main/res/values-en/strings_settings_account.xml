@@ -109,6 +109,9 @@
     <string name="developer_announcement">Announcement</string>
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>
+    <string name="developer_onboarding">First-Launch Onboarding</string>
+    <string name="developer_onboarding_desc">Re-enter the first-launch onboarding screens</string>
+    <string name="developer_open_onboarding">Open Onboarding</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
     <string name="developer_advanced_blur">Advanced Blur (Frosted Glass)</string>
     <string name="developer_advanced_blur_desc">Tune the frosted glass parameters for the floating capsule and FAB</string>

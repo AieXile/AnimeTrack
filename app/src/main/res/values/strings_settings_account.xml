@@ -109,6 +109,9 @@
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看与测试公告弹窗及投票</string>
     <string name="developer_open_announcement">打开公告</string>
+    <string name="developer_onboarding">首次启动向导</string>
+    <string name="developer_onboarding_desc">重新进入首次启动向导界面</string>
+    <string name="developer_open_onboarding">打开向导</string>
     <string name="developer_mode_disabled">已关闭开发者模式</string>
     <string name="developer_advanced_blur">高级模糊（毛玻璃）</string>
     <string name="developer_advanced_blur_desc">调整悬浮胶囊与悬浮按钮的毛玻璃参数</string>

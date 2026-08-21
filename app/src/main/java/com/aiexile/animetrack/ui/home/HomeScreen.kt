@@ -8,6 +8,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -169,6 +170,7 @@ import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
@@ -216,6 +218,14 @@ fun HomeScreen(
     val userAvatar = customAvatarUri ?: userAvatarUrl ?: bilibiliAvatar ?: bangumiAvatar
     val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
     val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: remember { mutableStateOf(true) })
+    // 「下滑隐藏顶栏」与状态栏处理方式：实心状态栏模式收起时列表顶部预留随之收紧，
+    // 内容被实心状态栏条顶下去（初始值取同步缓存防闪变）
+    val hideTopBarOnScroll by (settingsRepository?.hideTopBarOnScrollEnabled
+        ?.collectAsState(settingsRepository.cachedHideTopBarOnScroll())
+        ?: remember { mutableStateOf(false) })
+    val statusBarMode by (settingsRepository?.statusBarMode
+        ?.collectAsState(settingsRepository.cachedStatusBarMode())
+        ?: remember { mutableStateOf(StatusBarMode.SCRIM) })
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
@@ -338,17 +348,23 @@ fun HomeScreen(
                     )
                 }
         ) {
-            // 顶栏高度预留（statusBar + 48.dp）：与 MainOverlay 顶栏高度一致，
-            // 列表首屏从顶栏下方开始；顶栏隐藏时内容零移动（消除拖拽感）
-            val topBarReservedTop = WindowInsets.statusBars
-                .asPaddingValues()
-                .calculateTopPadding() + 48.dp
+            // 顶栏高度预留（statusBar + 48.dp）：与 MainOverlay 顶栏高度一致，列表首屏从顶栏下方开始。
+            // 实心状态栏模式 +「下滑隐藏顶栏」开启且顶栏收起时，48dp 预留随收拢动画同步收紧
+            // （与 MainOverlay morph 同一 300ms 缓动），列表上移紧贴实心状态栏条下沿；
+            // 全屏/留白遮罩模式保持固定预留，内容可滚入状态栏区域；滚动中途 LazyGrid 锚定可见项，内容不跳
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val topBarExtraPadding by animateDpAsState(
+                targetValue = if (statusBarMode == StatusBarMode.SOLID && hideTopBarOnScroll && viewModel.isTopBarHidden) 0.dp else 48.dp,
+                animationSpec = tween(300, easing = FastOutSlowInEasing),
+                label = "topBarExtraPadding"
+            )
+            val topBarReservedTop = statusBarTop + topBarExtraPadding
             if (animeList.isEmpty()) {
                 EmptyAnimePlaceholder(
                     modifier = Modifier
                         .weight(1f)
                         .statusBarsPadding()
-                        .padding(top = 48.dp)
+                        .padding(top = topBarExtraPadding)
                 )
             } else {
                 AnimeGrid(

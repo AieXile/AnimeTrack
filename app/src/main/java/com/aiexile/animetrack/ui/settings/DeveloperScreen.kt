@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,7 +71,8 @@ import kotlin.math.roundToInt
 @Composable
 fun DeveloperScreen(
     onBack: () -> Unit,
-    onNavigateToPlayerSettings: () -> Unit = {}
+    onNavigateToPlayerSettings: () -> Unit = {},
+    onNavigateToOnboarding: () -> Unit = {}
 ) {
     val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val animeRepository = remember { AppContainer.getAnimeRepository() }
@@ -468,6 +470,40 @@ fun DeveloperScreen(
                 Text(text = stringResource(R.string.developer_open_announcement))
             }
 
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Text(
+                text = stringResource(R.string.developer_onboarding),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.developer_onboarding_desc),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Button(
+                onClick = onNavigateToOnboarding,
+                shape = SquircleShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.RocketLaunch,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = stringResource(R.string.developer_open_onboarding))
+            }
 
             Spacer(modifier = Modifier.size(24.dp))
         }
