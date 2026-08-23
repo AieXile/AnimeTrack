@@ -132,6 +132,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.graphics.shapes)
     implementation(libs.haze)
+    implementation(libs.backdrop)
+    implementation(libs.kyant.shapes)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     

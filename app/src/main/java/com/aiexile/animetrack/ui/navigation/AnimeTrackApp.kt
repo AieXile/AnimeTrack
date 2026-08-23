@@ -99,6 +99,7 @@ import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -122,6 +123,7 @@ fun AnimeTrackApp(
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
     val hazeState = rememberHazeState()
+    val navBackdrop = rememberLayerBackdrop()
 
     val mainPages = remember(showFavorites, showTimeline, showSchedule) {
         buildMainPages(showFavorites, showTimeline, showSchedule)
@@ -442,6 +444,7 @@ private fun CapsuleNavLayout(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .layerBackdrop(navBackdrop)
             .hazeSource(state = hazeState)
     ) {
         HorizontalPager(
@@ -614,6 +617,7 @@ private fun MainOverlay(
     val isHomePage = currentRoute == "home"
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
 
     // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
     val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -763,8 +767,10 @@ private fun MainOverlay(
                     jumpTarget = navJumpTarget,
                     labelMode = navigationLabelMode,
                     hazeState = hazeState,
-                    advancedBlurEnabled = capsuleAdvancedBlurEnabled,
-                    blurConfig = advancedBlurConfig
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                    blurConfig = advancedBlurConfig,
+                    liquidGlassEnabled = capsuleLiquidGlassEnabled,
+                    backdrop = navBackdrop
                 )
             }
         } else {

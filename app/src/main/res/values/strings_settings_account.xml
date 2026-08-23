@@ -113,6 +113,8 @@
     <string name="developer_onboarding_desc">重新进入首次启动向导界面</string>
     <string name="developer_open_onboarding">打开向导</string>
     <string name="developer_mode_disabled">已关闭开发者模式</string>
+    <string name="developer_liquid_glass">液态玻璃</string>
+    <string name="developer_liquid_glass_desc">悬浮胶囊使用折射玻璃渲染，替代普通模糊</string>
     <string name="developer_advanced_blur">高级模糊（毛玻璃）</string>
     <string name="developer_advanced_blur_desc">调整悬浮胶囊与悬浮按钮的毛玻璃参数</string>
     <string name="developer_blur_switch_desc">与导航自定义中的高级模糊开关同步</string>

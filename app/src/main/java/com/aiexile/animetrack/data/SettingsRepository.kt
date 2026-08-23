@@ -57,6 +57,7 @@ class SettingsRepository(private val context: Context) {
         private val FAB_LOCATION_KEY = stringPreferencesKey("fab_location")
         private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
         private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
+        private val CAPSULE_LIQUID_GLASS_KEY = booleanPreferencesKey("capsule_liquid_glass")
         private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
         private val STATUS_BAR_MODE_KEY = stringPreferencesKey("status_bar_mode")
         private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
@@ -263,6 +264,12 @@ class SettingsRepository(private val context: Context) {
     val capsuleAdvancedBlurEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_ADVANCED_BLUR_KEY, false)
 
     suspend fun setCapsuleAdvancedBlurEnabled(enabled: Boolean) = setPreference(CAPSULE_ADVANCED_BLUR_KEY, enabled)
+
+    /** 悬浮胶囊液态玻璃效果（折射玻璃质感），默认关闭。开启后替代普通模糊，尺寸与布局不变 */
+    val capsuleLiquidGlassEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_LIQUID_GLASS_KEY, false)
+    suspend fun setCapsuleLiquidGlassEnabled(enabled: Boolean) = setPreference(CAPSULE_LIQUID_GLASS_KEY, enabled)
+    /** 液态玻璃的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
+    fun cachedCapsuleLiquidGlass(): Boolean = prefCache[CAPSULE_LIQUID_GLASS_KEY] as? Boolean ?: false
 
     /** 主页顶栏下滑隐藏，默认关闭。开启后向下滑动列表收起顶栏，搜索/添加按钮转为组合悬浮按钮 */
     val hideTopBarOnScrollEnabled: Flow<Boolean> = preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, false)

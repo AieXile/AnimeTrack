@@ -23,6 +23,8 @@ workRuntime = "2.11.2"
 media3 = "1.10.1"
 graphicsShapes = "1.1.0"
 haze = "1.7.2"
+backdrop = "2.0.0"
+kyantShapes = "1.2.0"
 profileinstaller = "1.4.1"
 benchmarkMacro = "1.4.1"
 baselineprofile = "1.4.1"
@@ -68,6 +70,8 @@ media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasourc
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "media3" }
 graphics-shapes = { group = "androidx.graphics", name = "graphics-shapes", version.ref = "graphicsShapes" }
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
+kyant-shapes = { group = "io.github.kyant0", name = "shapes", version.ref = "kyantShapes" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacro" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
