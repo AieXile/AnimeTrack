@@ -29,8 +29,6 @@ import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
@@ -40,6 +38,9 @@ class MainActivity : ComponentActivity() {
 
     // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
     private val customFontFamily = MutableStateFlow<FontFamily?>(null)
+
+    // 应用级协程作用域（生命周期与进程一致，适合“启动即完成、不随 Activity 销毁”的后台任务）
+    private val appScope get() = (application as AnimeTrackApp).appScope
 
     // Android 13+ 通知权限请求（推送通知显示的前提，需在 onCreate 前注册）
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -52,9 +53,9 @@ class MainActivity : ComponentActivity() {
         val languageName = AppContainer.getSettingsRepository()
             .getAppLanguageBlocking()
         val locale = when (languageName) {
-            "ENGLISH" -> Locale("en")
-            "TRADITIONAL_CHINESE" -> Locale("zh", "TW")
-            else -> Locale("zh", "CN")
+            "ENGLISH" -> Locale.forLanguageTag("en")
+            "TRADITIONAL_CHINESE" -> Locale.forLanguageTag("zh-TW")
+            else -> Locale.forLanguageTag("zh-CN")
         }
         val config = newBase.resources.configuration
         config.setLocale(locale)
@@ -65,7 +66,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AppContainer.sessionStartTime = System.currentTimeMillis()
-        GlobalScope.launch(Dispatchers.IO) {
+        appScope.launch {
             AppContainer.getUsageStatsRepository().incrementOpenCount()
             // 冷启动 / 从后台切回前台时，拉取服务器订阅列表到本地（只下载不上传）
             AppContainer.getAnimeRepository().triggerPullSubscriptionsFromServer()
@@ -81,7 +82,7 @@ class MainActivity : ComponentActivity() {
             val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
             AppContainer.sessionStartTime = 0L
             if (elapsedSeconds >= 5) {
-                GlobalScope.launch(Dispatchers.IO) {
+                appScope.launch {
                     AppContainer.getUsageStatsRepository().addUsageSeconds(elapsedSeconds)
                 }
             }
@@ -124,13 +125,13 @@ class MainActivity : ComponentActivity() {
         }
 
         // App 启动时检查并上报极光推送 registrationId
-        GlobalScope.launch(Dispatchers.IO) {
+        appScope.launch {
             PushRegistrationHelper.reportRegistrationIdIfNeeded(applicationContext)
         }
         // 字体异步加载：先用默认 FontFamily 渲染 UI，后台加载自定义字体完成后通过 StateFlow 触发更新。
         // 保留原 CUSTOM 分支路径判断逻辑（非空 + File.exists），仅将 Typeface.createFromFile 移至 IO 线程。
         val settingsRepository = AppContainer.getSettingsRepository()
-        GlobalScope.launch(Dispatchers.IO) {
+        appScope.launch {
             settingsRepository.customFontPathFlow.collect { path ->
                 val loaded = if (!path.isNullOrBlank() && File(path).exists()) {
                     FontFamily(android.graphics.Typeface.createFromFile(path))

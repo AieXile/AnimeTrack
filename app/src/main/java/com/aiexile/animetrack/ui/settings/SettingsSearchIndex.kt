@@ -21,8 +21,8 @@ import java.util.concurrent.ConcurrentHashMap
 data class SearchableSetting(
     val route: String,
     val key: String?,
-    @StringRes val titleRes: Int,
-    @StringRes val descRes: Int? = null,
+    @param:StringRes val titleRes: Int,
+    @param:StringRes val descRes: Int? = null,
     val keywords: List<String> = emptyList()
 )
 

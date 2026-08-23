@@ -100,6 +100,7 @@ import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -592,7 +593,7 @@ internal fun MainPagerContent(
  * @param navJumpTarget CapsuleNav 直线跳转动画目标
  * @param onAddAnimeClick 添加番剧按钮点击回调
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, FlowPreview::class)
 @Composable
 private fun MainOverlay(
     navigationStyle: NavigationStyle,

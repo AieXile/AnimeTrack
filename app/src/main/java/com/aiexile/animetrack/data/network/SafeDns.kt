@@ -11,10 +11,11 @@ class SafeDns : Dns {
                 val systemAddresses = Dns.SYSTEM.lookup(hostname)
 
                 val isPolluted = systemAddresses.any { address ->
-                    val ip = address.hostAddress
-                    ip.startsWith("31.13.") ||
-                    ip.startsWith("157.240.") ||
-                    ip.startsWith("168.143.")
+                    address.hostAddress?.let { ip ->
+                        ip.startsWith("31.13.") ||
+                        ip.startsWith("157.240.") ||
+                        ip.startsWith("168.143.")
+                    } == true
                 }
 
                 if (isPolluted) {

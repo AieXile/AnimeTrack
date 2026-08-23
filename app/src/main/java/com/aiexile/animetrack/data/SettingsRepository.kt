@@ -10,12 +10,14 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.aiexile.animetrack.AnimeTrackApp
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.ui.theme.ThemePreset
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -193,7 +195,11 @@ class SettingsRepository(private val context: Context) {
     private val localePrefs = context.getSharedPreferences("locale_prefs", Context.MODE_PRIVATE)
 
     init {
-        GlobalScope.launch(Dispatchers.IO) {
+        // 复用 Application 级协程作用域（替代 GlobalScope）加载缓存；
+        // Application 未就绪时兜底自建一次性作用域，保证初始化任务仍能执行。
+        val scope = (context.applicationContext as? AnimeTrackApp)?.appScope
+            ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
             val key = context.dataStore.data.first()[TMDB_API_KEY_KEY]
             currentTmdbApiKey = key ?: DEFAULT_TMDB_API_KEY
 

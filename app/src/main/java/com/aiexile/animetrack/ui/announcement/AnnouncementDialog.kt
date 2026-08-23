@@ -64,14 +64,14 @@ private fun formatAnnouncementTime(iso: String?): String? {
     return try {
         val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         input.timeZone = utc
-        val date = input.parse(iso)
+        val date = input.parse(iso) ?: error("Unparseable date: $iso")
         val output = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         output.format(date)
     } catch (_: Exception) {
         try {
             val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
             input.timeZone = utc
-            val date = input.parse(iso)
+            val date = input.parse(iso) ?: error("Unparseable date: $iso")
             val output = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
             output.format(date)
         } catch (_: Exception) {

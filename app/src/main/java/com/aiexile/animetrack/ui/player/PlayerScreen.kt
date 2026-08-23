@@ -32,7 +32,9 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.BrightnessHigh
@@ -41,12 +43,10 @@ import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
-import androidx.compose.material.icons.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -968,7 +968,7 @@ private fun EmptyMediaState(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = Icons.Rounded.InsertDriveFile,
+                imageVector = Icons.AutoMirrored.Rounded.InsertDriveFile,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -1057,7 +1057,7 @@ private fun GestureFeedbackOverlay(
                     is GestureFeedback.Volume -> {
                         Icon(
                             imageVector = when {
-                                feedback.value <= 0f -> Icons.Rounded.VolumeOff
+                                feedback.value <= 0f -> Icons.AutoMirrored.Rounded.VolumeOff
                                 feedback.value < 0.5f -> Icons.AutoMirrored.Rounded.VolumeDown
                                 else -> Icons.AutoMirrored.Rounded.VolumeUp
                             },

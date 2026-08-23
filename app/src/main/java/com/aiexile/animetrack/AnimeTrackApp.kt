@@ -14,7 +14,8 @@ import okhttp3.Interceptor
 
 class AnimeTrackApp : Application(), ImageLoaderFactory {
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // 应用级协程作用域：供 MainActivity、SettingsRepository 等复用，替代 GlobalScope
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val bilibiliRefererInterceptor = Interceptor { chain ->
         val request = chain.request()

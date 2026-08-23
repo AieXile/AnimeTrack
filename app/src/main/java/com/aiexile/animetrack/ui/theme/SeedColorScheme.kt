@@ -66,6 +66,18 @@ private fun lightScheme(p: CorePalette, e: TonalPalette): ColorScheme = ColorSch
     surfaceContainerHighest = Color(p.n1.tone(90)),
     surfaceContainerLow = Color(p.n1.tone(96)),
     surfaceContainerLowest = Color(p.n1.tone(100)),
+    primaryFixed = Color(p.a1.tone(90)),
+    primaryFixedDim = Color(p.a1.tone(80)),
+    onPrimaryFixed = Color(p.a1.tone(10)),
+    onPrimaryFixedVariant = Color(p.a1.tone(30)),
+    secondaryFixed = Color(p.a2.tone(90)),
+    secondaryFixedDim = Color(p.a2.tone(80)),
+    onSecondaryFixed = Color(p.a2.tone(10)),
+    onSecondaryFixedVariant = Color(p.a2.tone(30)),
+    tertiaryFixed = Color(p.a3.tone(90)),
+    tertiaryFixedDim = Color(p.a3.tone(80)),
+    onTertiaryFixed = Color(p.a3.tone(10)),
+    onTertiaryFixedVariant = Color(p.a3.tone(30)),
 )
 
 private fun darkScheme(p: CorePalette, e: TonalPalette): ColorScheme = ColorScheme(
@@ -105,4 +117,17 @@ private fun darkScheme(p: CorePalette, e: TonalPalette): ColorScheme = ColorSche
     surfaceContainerHighest = Color(p.n1.tone(22)),
     surfaceContainerLow = Color(p.n1.tone(10)),
     surfaceContainerLowest = Color(p.n1.tone(4)),
+    // fixed 角色不随明暗模式变化，与浅色方案保持同一组 tone 值
+    primaryFixed = Color(p.a1.tone(90)),
+    primaryFixedDim = Color(p.a1.tone(80)),
+    onPrimaryFixed = Color(p.a1.tone(10)),
+    onPrimaryFixedVariant = Color(p.a1.tone(30)),
+    secondaryFixed = Color(p.a2.tone(90)),
+    secondaryFixedDim = Color(p.a2.tone(80)),
+    onSecondaryFixed = Color(p.a2.tone(10)),
+    onSecondaryFixedVariant = Color(p.a2.tone(30)),
+    tertiaryFixed = Color(p.a3.tone(90)),
+    tertiaryFixedDim = Color(p.a3.tone(80)),
+    onTertiaryFixed = Color(p.a3.tone(10)),
+    onTertiaryFixedVariant = Color(p.a3.tone(30)),
 )

@@ -174,7 +174,7 @@ object ShareCardRenderer {
         }
 
         // 右侧信息 - 标题（最多2行）
-        val titleLayout = StaticLayout.Builder.obtain(anime.title, 0, anime.title.length, titlePaint, infoWidth.toInt())
+        val titleLayout = StaticLayout.Builder.obtain(anime.title, 0, anime.title.length, titlePaint, infoWidth)
             .setMaxLines(2)
             .setEllipsize(TextUtils.TruncateAt.END)
             .build()

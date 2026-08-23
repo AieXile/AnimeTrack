@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
 
 sealed class BottomNavItem(
     val route: String,
-    @StringRes val titleRes: Int,
+    @param:StringRes val titleRes: Int,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {

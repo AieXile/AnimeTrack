@@ -21,7 +21,7 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -198,7 +198,7 @@ private fun MiniAccountRow(isConnected: Boolean) {
             }
             Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(if (isConnected) MaterialTheme.colorScheme.primary else onSurface.copy(alpha = 0.2f)))
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(Icons.Rounded.KeyboardArrowRight, null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
         }
     }
 }

@@ -63,7 +63,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun TimelineScreen(
     viewModel: TimelineViewModel = viewModel(factory = TimelineViewModel.Factory()),

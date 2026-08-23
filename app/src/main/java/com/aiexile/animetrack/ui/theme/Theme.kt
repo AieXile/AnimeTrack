@@ -12,7 +12,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -64,9 +63,9 @@ fun AnimeTrackTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
+            // 系统栏透明化由 MainActivity#enableEdgeToEdge() 处理；
+            // window.statusBarColor / navigationBarColor 在 API 35+ 已废弃，不再手动设置。
             val window = (view.context as Activity).window
-            window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = Color.Transparent.toArgb()
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme
@@ -119,6 +118,18 @@ internal fun monoBlackLightScheme(): ColorScheme = ColorScheme(
     surfaceContainerHighest = Color(0xFFE6E6E6),
     surfaceContainerLow = Color(0xFFF6F6F6),
     surfaceContainerLowest = Color(0xFFFFFFFF),
+    primaryFixed = Color(0xFFE0E0E0),
+    primaryFixedDim = Color(0xFFBDBDBD),
+    onPrimaryFixed = Color(0xFF1A1A1A),
+    onPrimaryFixedVariant = Color(0xFF424242),
+    secondaryFixed = Color(0xFFEEEEEE),
+    secondaryFixedDim = Color(0xFFBDBDBD),
+    onSecondaryFixed = Color(0xFF212121),
+    onSecondaryFixedVariant = Color(0xFF474747),
+    tertiaryFixed = Color(0xFFF5F5F5),
+    tertiaryFixedDim = Color(0xFFCCCCCC),
+    onTertiaryFixed = Color(0xFF212121),
+    onTertiaryFixedVariant = Color(0xFF474747),
 )
 
 private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
@@ -158,4 +169,17 @@ private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
     surfaceContainerHighest = Color(0xFF2C2C2C),
     surfaceContainerLow = Color(0xFF141414),
     surfaceContainerLowest = Color(0xFF1A1A1A),
+    // fixed 角色不随明暗模式变化，与浅色方案保持一致
+    primaryFixed = Color(0xFFE0E0E0),
+    primaryFixedDim = Color(0xFFBDBDBD),
+    onPrimaryFixed = Color(0xFF1A1A1A),
+    onPrimaryFixedVariant = Color(0xFF424242),
+    secondaryFixed = Color(0xFFEEEEEE),
+    secondaryFixedDim = Color(0xFFBDBDBD),
+    onSecondaryFixed = Color(0xFF212121),
+    onSecondaryFixedVariant = Color(0xFF474747),
+    tertiaryFixed = Color(0xFFF5F5F5),
+    tertiaryFixedDim = Color(0xFFCCCCCC),
+    onTertiaryFixed = Color(0xFF212121),
+    onTertiaryFixedVariant = Color(0xFF474747),
 )

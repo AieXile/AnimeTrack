@@ -45,8 +45,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Forum
-import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -386,7 +386,7 @@ private fun SocialLinksRow(
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(imageVector = Icons.Rounded.Send, contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(imageVector = Icons.AutoMirrored.Rounded.Send, contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
             label = "Telegram",
             onClick = onTgClick,
             onLongClick = onTgLongClick,
