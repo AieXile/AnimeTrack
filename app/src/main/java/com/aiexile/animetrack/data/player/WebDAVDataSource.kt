@@ -62,8 +62,30 @@ class WebDAVDataSource(
         val request = requestBuilder.build()
 
         try {
-            val call = okHttpClient.newCall(request)
-            val response = call.execute()
+            var response = okHttpClient.newCall(request).execute()
+
+            // Basic 被拒且服务器提供 Digest 质询时，改用 Digest 认证重试一次
+            if (response.code == 401 && username.isNotEmpty()) {
+                val challenge = response.header("WWW-Authenticate")
+                if (challenge != null && challenge.trim().startsWith("Digest", ignoreCase = true)) {
+                    val digestUri = request.url.encodedPath +
+                        (request.url.query?.let { "?$it" } ?: "")
+                    val digestHeader = DigestAuth.buildAuthorization(
+                        method = "GET",
+                        uri = digestUri,
+                        challenge = challenge,
+                        username = username,
+                        password = password
+                    )
+                    if (digestHeader != null) {
+                        response.close()
+                        val digestRequest = request.newBuilder()
+                            .header("Authorization", digestHeader)
+                            .build()
+                        response = okHttpClient.newCall(digestRequest).execute()
+                    }
+                }
+            }
 
             val statusCode = response.code
             when {

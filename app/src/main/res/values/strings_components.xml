@@ -95,6 +95,8 @@
     <string name="player_brightness">亮度</string>
     <string name="player_volume">音量</string>
     <string name="player_long_press_speed">长按加速中</string>
+    <string name="player_subtitles">字幕</string>
+    <string name="player_audio_track">音轨</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器设置</string>

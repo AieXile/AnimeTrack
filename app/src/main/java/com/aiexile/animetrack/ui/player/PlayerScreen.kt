@@ -12,6 +12,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -39,10 +41,12 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.BrightnessLow
+import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.SkipNext
@@ -70,6 +74,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,7 +85,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -96,7 +101,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.media3.common.C
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.TrackSelectionDialogBuilder
 import com.aiexile.animetrack.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -142,9 +149,27 @@ fun PlayerScreen(
             }
     }
 
+    // 从番剧详情页进入（animeId > 0）时自动打开 WebDAV 浏览，让用户选择对应视频文件；
+    // rememberSaveable 防止从浏览页返回后重复触发
+    var autoBrowseTriggered by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(animeId) {
+        if (animeId > 0 && !autoBrowseTriggered) {
+            autoBrowseTriggered = true
+            onBrowseWebDAV()
+        }
+    }
+
     var showControls by remember { mutableStateOf(true) }
     var controlsHideJob by remember { mutableStateOf<Job?>(null) }
     var showSpeedMenu by remember { mutableStateOf(false) }
+
+    // 字幕/音轨选择弹窗（media3 官方 TrackSelectionDialogBuilder）
+    fun showTrackSelectionDialog(trackType: Int, title: String) {
+        TrackSelectionDialogBuilder(context, title, viewModel.player, trackType)
+            .setShowDisableOption(trackType == C.TRACK_TYPE_TEXT)
+            .build()
+            .show()
+    }
 
     // Gesture feedback state
     var gestureFeedback by remember { mutableStateOf<GestureFeedback?>(null) }
@@ -247,7 +272,9 @@ fun PlayerScreen(
         if (uiState.error != null) {
             ErrorOverlay(
                 error = uiState.error!!,
-                onRetry = { viewModel.playWebDavUrl("", uiState.mediaTitle) },
+                onRetry = {
+                    if (!viewModel.retryLast()) onBack()
+                },
                 onBack = onBack
             )
         } else if (uiState.durationMs <= 0 && !uiState.isPlaying) {
@@ -283,18 +310,14 @@ fun PlayerScreen(
                             }
                         )
                     }
-                    // 长按加速时，松手恢复
-                    .pointerInput(uiState.isLongPressSpeedActive) {
-                        if (uiState.isLongPressSpeedActive) {
-                            awaitPointerEventScope {
-                                var released = false
-                                while (!released) {
-                                    val event = awaitPointerEvent()
-                                    if (event.type == PointerEventType.Release) {
-                                        released = true
-                                    }
-                                }
-                            }
+                    // 长按加速时，松手恢复：常驻层从每次按下跟踪到全部抬起，
+                    // 抬起瞬间同步调用恢复（未激活时为 no-op），不依赖重组与状态置位，无延迟
+                    .pointerInput(viewModel) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            do {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                            } while (event.changes.any { it.pressed })
                             viewModel.stopLongPressSpeed()
                         }
                     }
@@ -480,6 +503,20 @@ fun PlayerScreen(
                             viewModel.seekToNext()
                             resetControlsTimer()
                         },
+                        onSelectSubtitles = {
+                            showTrackSelectionDialog(
+                                C.TRACK_TYPE_TEXT,
+                                context.getString(R.string.player_subtitles)
+                            )
+                            resetControlsTimer()
+                        },
+                        onSelectAudio = {
+                            showTrackSelectionDialog(
+                                C.TRACK_TYPE_AUDIO,
+                                context.getString(R.string.player_audio_track)
+                            )
+                            resetControlsTimer()
+                        },
                         onToggleFullscreen = {
                             viewModel.toggleFullscreen()
                             resetControlsTimer()
@@ -597,6 +634,8 @@ private fun BottomControlBar(
     onSeekDragEnd: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onNextEpisode: () -> Unit,
+    onSelectSubtitles: () -> Unit,
+    onSelectAudio: () -> Unit,
     onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -688,6 +727,26 @@ private fun BottomControlBar(
                         onSpeedMenuChange(false)
                         onSpeedSelected(speed)
                     }
+                )
+            }
+
+            // 字幕轨选择（无字幕轨时 media3 弹窗内为空列表，不影响使用）
+            IconButton(onClick = onSelectSubtitles) {
+                Icon(
+                    imageVector = Icons.Rounded.ClosedCaption,
+                    contentDescription = stringResource(R.string.player_subtitles),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            // 音频轨选择
+            IconButton(onClick = onSelectAudio) {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = stringResource(R.string.player_audio_track),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
 

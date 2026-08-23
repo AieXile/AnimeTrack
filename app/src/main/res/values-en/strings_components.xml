@@ -95,6 +95,8 @@
     <string name="player_brightness">Brightness</string>
     <string name="player_volume">Volume</string>
     <string name="player_long_press_speed">Long press speed boost</string>
+    <string name="player_subtitles">Subtitles</string>
+    <string name="player_audio_track">Audio track</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">Player Settings</string>

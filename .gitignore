@@ -52,6 +52,7 @@ secrets.properties
 app/release/
 
 # Editor / AI assistant working dirs
+AGENTS.md
 .trae/
 .zcode/
 .docs/

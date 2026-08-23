@@ -1,7 +1,9 @@
 package com.aiexile.animetrack.ui.player
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
+import android.os.Handler
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -14,13 +16,21 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.video.VideoRendererEventListener
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.WebDAVDataSourceFactory
 import com.aiexile.animetrack.di.AppContainer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 
 data class PlayerUiState(
@@ -43,6 +54,13 @@ data class PlayerUiState(
     val isLongPressSpeedActive: Boolean = false
 )
 
+/** 最近一次播放请求，用于错误后重试 */
+private sealed interface PlayRequest {
+    data class WebDav(val url: String, val title: String?) : PlayRequest
+    data class Local(val uri: Uri, val title: String?) : PlayRequest
+    data class Playlist(val items: List<MediaItem>, val startIndex: Int) : PlayRequest
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class PlayerViewModel(
     private val application: Application,
@@ -55,7 +73,13 @@ class PlayerViewModel(
         private const val POSITION_UPDATE_INTERVAL_MS = 500L
     }
 
-    val player: ExoPlayer = ExoPlayer.Builder(application)
+    /** 硬件加速开关仅在构建播放器时读取一次（RenderersFactory 只能构建期传入），
+     *  更改设置后需重新进入播放器页面生效。 */
+    private val hardwareAccelerationEnabled: Boolean = runBlocking(Dispatchers.IO) {
+        settingsRepository.playerHardwareAcceleration.first()
+    }
+
+    val player: ExoPlayer = ExoPlayer.Builder(application, createRenderersFactory(application, hardwareAccelerationEnabled))
         .setSeekBackIncrementMs(10000)
         .setSeekForwardIncrementMs(10000)
         .setAudioAttributes(
@@ -73,10 +97,22 @@ class PlayerViewModel(
 
     private var currentMediaId: String? = null
 
+    private var lastPlayRequest: PlayRequest? = null
+
     private var positionUpdateJob: Job? = null
 
     /** 长按加速前的原始播放速度 */
     private var speedBeforeLongPress: Float = 1f
+
+    /** 设置项内存缓存：避免触发路径上的异步 IO，保证即时生效 */
+    private var longPressSpeedCache: Float = 2f
+    private var defaultSpeedCache: Float = 1f
+    private var rememberPositionCache: Boolean = true
+
+    /** 独立于 viewModelScope 的持久化作用域：
+     *  viewModelScope 在 onCleared 前即被关闭，其内启动的保存协程不会执行；
+     *  此作用域 fire-and-forget，不手动取消，让退出时的最后一次写入自然完成。 */
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val okHttpClient = OkHttpClient()
 
@@ -98,6 +134,8 @@ class PlayerViewModel(
                 Player.STATE_ENDED -> {
                     stopPositionUpdates()
                     _uiState.update { it.copy(isPlaying = false) }
+                    // 播完保存：进度 ≥95% 时仓库层会自动清除记忆（下次从头播）
+                    saveCurrentPosition()
                 }
             }
             updatePositionState()
@@ -124,7 +162,54 @@ class PlayerViewModel(
 
     init {
         player.addListener(playerListener)
+        // 常驻订阅各设置项，保证触发时可同步应用
+        viewModelScope.launch {
+            settingsRepository.playerLongPressSpeed.collect { longPressSpeedCache = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.playerDefaultSpeed.collect { defaultSpeedCache = it }
+        }
+        viewModelScope.launch {
+            settingsRepository.playerRememberPosition.collect { rememberPositionCache = it }
+        }
+        // 自动连播：关闭时在每集结尾暂停（官方 API，仅影响自动过渡，手动点下一集不受限）
+        viewModelScope.launch {
+            settingsRepository.playerAutoPlayNext.collect { enabled ->
+                player.setPauseAtEndOfMediaItems(!enabled)
+            }
+        }
     }
+
+    /** 构建渲染器工厂：硬解关闭时强制软件解码（保留回退，避免无解码器黑屏） */
+    private fun createRenderersFactory(context: Context, allowHardware: Boolean): RenderersFactory =
+        object : DefaultRenderersFactory(context) {
+            override fun buildVideoRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                eventHandler: Handler,
+                eventListener: VideoRendererEventListener,
+                allowedVideoJoiningTimeMs: Long,
+                out: ArrayList<Renderer>
+            ) {
+                if (allowHardware) {
+                    super.buildVideoRenderers(
+                        context, extensionRendererMode, mediaCodecSelector, enableDecoderFallback,
+                        eventHandler, eventListener, allowedVideoJoiningTimeMs, out
+                    )
+                    return
+                }
+                val softwareOnlySelector = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                    val all = MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+                    all.filterNot { it.hardwareAccelerated }.ifEmpty { all }
+                }
+                super.buildVideoRenderers(
+                    context, extensionRendererMode, softwareOnlySelector, true,
+                    eventHandler, eventListener, allowedVideoJoiningTimeMs, out
+                )
+            }
+        }
 
     private fun startPositionUpdates() {
         if (positionUpdateJob?.isActive == true) return
@@ -152,6 +237,11 @@ class PlayerViewModel(
     }
 
     fun playWebDavUrl(url: String, title: String? = null) {
+        if (url.isBlank()) {
+            _uiState.update { it.copy(error = "无效的播放地址") }
+            return
+        }
+        lastPlayRequest = PlayRequest.WebDav(url, title)
         viewModelScope.launch {
             try {
                 val baseUrl = settingsRepository.webdavUrl.first()
@@ -171,11 +261,8 @@ class PlayerViewModel(
 
                 player.setMediaSource(mediaSource)
                 player.prepare()
-
-                val savedPosition = playerRepository.getPlaybackPosition(mediaId)
-                if (savedPosition != null && savedPosition > 0) {
-                    player.seekTo(savedPosition)
-                }
+                applyPlaybackDefaults()
+                restorePositionIfRemembered(mediaId)
 
                 player.playWhenReady = true
             } catch (e: Exception) {
@@ -186,6 +273,7 @@ class PlayerViewModel(
     }
 
     fun playLocalUri(uri: Uri, title: String? = null) {
+        lastPlayRequest = PlayRequest.Local(uri, title)
         val dataSourceFactory = DefaultDataSource.Factory(application)
         val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
             .createMediaSource(MediaItem.fromUri(uri))
@@ -197,39 +285,76 @@ class PlayerViewModel(
 
         player.setMediaSource(mediaSource)
         player.prepare()
-
-        viewModelScope.launch {
-            val savedPosition = playerRepository.getPlaybackPosition(mediaId)
-            if (savedPosition != null && savedPosition > 0) {
-                player.seekTo(savedPosition)
-            }
-        }
+        applyPlaybackDefaults()
+        restorePositionIfRemembered(mediaId)
 
         player.playWhenReady = true
     }
 
     fun playMediaItems(items: List<MediaItem>, startIndex: Int = 0) {
         if (items.isEmpty()) return
+        lastPlayRequest = PlayRequest.Playlist(items, startIndex)
 
         currentMediaId = items[startIndex].mediaId
         _uiState.update { it.copy(mediaTitle = items[startIndex].mediaMetadata.title?.toString(), error = null) }
 
         player.setMediaItems(items, startIndex, 0L)
         player.prepare()
+        applyPlaybackDefaults()
+        restorePositionIfRemembered(currentMediaId!!)
 
+        player.playWhenReady = true
+    }
+
+    /** 错误重试：重放最近一次播放请求；无可重试请求时返回 false */
+    fun retryLast(): Boolean {
+        val request = lastPlayRequest ?: return false
+        _uiState.update { it.copy(error = null) }
+        when (request) {
+            is PlayRequest.WebDav -> playWebDavUrl(request.url, request.title)
+            is PlayRequest.Local -> playLocalUri(request.uri, request.title)
+            is PlayRequest.Playlist -> playMediaItems(request.items, request.startIndex)
+        }
+        return true
+    }
+
+    /** 每次起播应用默认播放速度，并复位长按加速状态 */
+    private fun applyPlaybackDefaults() {
+        player.setPlaybackSpeed(defaultSpeedCache)
+        _uiState.update { it.copy(isLongPressSpeedActive = false) }
+    }
+
+    /** 按「记忆播放位置」开关恢复进度 */
+    private fun restorePositionIfRemembered(mediaId: String) {
+        if (!rememberPositionCache) return
         viewModelScope.launch {
-            val savedPosition = playerRepository.getPlaybackPosition(currentMediaId!!)
+            val savedPosition = playerRepository.getPlaybackPosition(mediaId)
             if (savedPosition != null && savedPosition > 0) {
                 player.seekTo(savedPosition)
             }
         }
+    }
 
-        player.playWhenReady = true
+    /** 按「记忆播放位置」开关保存当前进度（幂等，可在暂停/播完/退出时多次调用） */
+    private fun saveCurrentPosition() {
+        val mediaId = currentMediaId ?: return
+        if (!rememberPositionCache) return
+        val position = player.currentPosition
+        val duration = player.duration
+        if (duration <= 0) return
+        persistScope.launch {
+            try {
+                playerRepository.savePlaybackPosition(mediaId, position, duration)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save playback position", e)
+            }
+        }
     }
 
     fun togglePlayPause() {
         if (player.isPlaying) {
             player.pause()
+            saveCurrentPosition()
         } else {
             player.play()
         }
@@ -266,15 +391,12 @@ class PlayerViewModel(
     /** 是否有下一集 */
     fun hasNextEpisode(): Boolean = player.hasNextMediaItem()
 
-    /** 长按加速：切换到长按速度 */
+    /** 长按加速：切换到长按速度（同步执行，避免竞态与延迟） */
     fun startLongPressSpeed() {
         if (_uiState.value.isLongPressSpeedActive) return
         speedBeforeLongPress = player.playbackParameters.speed
-        viewModelScope.launch {
-            val longPressSpeed = settingsRepository.playerLongPressSpeed.first()
-            player.setPlaybackSpeed(longPressSpeed)
-            _uiState.update { it.copy(isLongPressSpeedActive = true) }
-        }
+        player.setPlaybackSpeed(longPressSpeedCache)
+        _uiState.update { it.copy(isLongPressSpeedActive = true) }
     }
 
     /** 松手恢复：回到长按前的速度 */
@@ -296,24 +418,11 @@ class PlayerViewModel(
     override fun onCleared() {
         super.onCleared()
         stopPositionUpdates()
-
-        val mediaId = currentMediaId
-        if (mediaId != null) {
-            val position = player.currentPosition
-            val duration = player.duration
-            if (duration > 0) {
-                viewModelScope.launch {
-                    try {
-                        playerRepository.savePlaybackPosition(mediaId, position, duration)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to save playback position", e)
-                    }
-                }
-            }
-        }
+        saveCurrentPosition()
 
         player.removeListener(playerListener)
         player.release()
+        // 注意：persistScope 有意不取消，保证最后一次位置写入完成
     }
 
     class Factory : ViewModelProvider.Factory {
