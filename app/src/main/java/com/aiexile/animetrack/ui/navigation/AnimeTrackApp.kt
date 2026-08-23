@@ -569,6 +569,7 @@ internal fun MainPagerContent(
             onNavigateLogin = { onNavigateToScreen(Routes.LOGIN) },
             onNavigateBangumiProxy = { onNavigateToScreen(Routes.BANGUMI_PROXY) },
             onNavigateFontSettings = { onNavigateToScreen(Routes.FONT_SETTINGS) },
+            onNavigatePlayback = { onNavigateToScreen(Routes.PLAYER_SETTINGS) },
             onNavigate = { },
             settingsRepository = settingsRepository
         )

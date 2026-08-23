@@ -472,12 +472,13 @@ internal fun NavGraphBuilder.sharedDestinations(
         )
     }
 
-    // 播放器设置
+    // 播放器设置（视频播放聚合页）
     composable(Routes.PLAYER_SETTINGS) {
         com.aiexile.animetrack.ui.player.PlayerSettingsScreen(
             onBack = navigateBack,
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
-            onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) }
+            onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
+            onNavigateToWebDAVSync = { onNavigate(Routes.WEBDAV_SYNC) }
         )
     }
 }

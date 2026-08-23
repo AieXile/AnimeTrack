@@ -98,6 +98,15 @@
     <string name="player_subtitles">Subtitles</string>
     <string name="player_audio_track">Audio track</string>
 
+    <!-- Video playback hub -->
+    <string name="settings_playback">Video Playback</string>
+    <string name="settings_playback_subtitle">Speed · Autoplay · Position memory · WebDAV</string>
+    <string name="player_section_behavior">Playback Behavior</string>
+    <string name="player_section_source">Media Sources</string>
+    <string name="player_webdav_browse">WebDAV Browser</string>
+    <string name="player_webdav_browse_desc">Browse and play video files on WebDAV</string>
+    <string name="player_webdav_server">WebDAV Server</string>
+
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">Player Settings</string>
     <string name="player_settings_default_speed">Default Playback Speed</string>

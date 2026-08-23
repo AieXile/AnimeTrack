@@ -104,6 +104,7 @@ class SettingsRepository(private val context: Context) {
         private val UPDATE_NOTIFICATION_MINUTE_KEY = intPreferencesKey("update_notification_minute")
         private val UPDATE_NOTIFICATION_VISIBLE_KEY = booleanPreferencesKey("update_notification_visible")
 
+        private val PLAYER_HUB_VISIBLE_KEY = booleanPreferencesKey("player_hub_visible")
         private val PLAYER_DEFAULT_SPEED_KEY = floatPreferencesKey("player_default_speed")
         private val PLAYER_HARDWARE_ACCELERATION_KEY = booleanPreferencesKey("player_hardware_acceleration")
         private val PLAYER_REMEMBER_POSITION_KEY = booleanPreferencesKey("player_remember_position")
@@ -510,6 +511,10 @@ class SettingsRepository(private val context: Context) {
     val updateNotificationMinute: Flow<Int> = preferenceFlow(UPDATE_NOTIFICATION_MINUTE_KEY, 0)
 
     suspend fun setUpdateNotificationMinute(minute: Int) = setPreference(UPDATE_NOTIFICATION_MINUTE_KEY, minute)
+
+    /** 设置页是否显示「视频播放」聚合入口（开发者选项控制，默认隐藏） */
+    val playerHubVisible: Flow<Boolean> = preferenceFlow(PLAYER_HUB_VISIBLE_KEY, false)
+    suspend fun setPlayerHubVisible(visible: Boolean) = setPreference(PLAYER_HUB_VISIBLE_KEY, visible)
 
     val updateNotificationVisible: Flow<Boolean> = preferenceFlow(UPDATE_NOTIFICATION_VISIBLE_KEY, false)
 

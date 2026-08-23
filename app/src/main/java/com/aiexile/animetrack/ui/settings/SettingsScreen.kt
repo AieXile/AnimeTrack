@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.TextFields
@@ -81,6 +82,7 @@ fun SettingsScreen(
     onNavigateUpdateNotification: () -> Unit = {},
     onNavigateBangumiProxy: () -> Unit = {},
     onNavigateFontSettings: () -> Unit = {},
+    onNavigatePlayback: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
 ) {
@@ -92,6 +94,9 @@ fun SettingsScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsState(initial = false)
+        ?: remember { mutableStateOf(false) }
+    // 「视频播放」聚合入口：开发者选项控制，默认隐藏
+    val playerHubVisible by settingsRepository?.playerHubVisible?.collectAsState(initial = false)
         ?: remember { mutableStateOf(false) }
     val updateNotificationEnabled by settingsRepository?.updateNotificationEnabled?.collectAsState(initial = false)
         ?: remember { mutableStateOf(false) }
@@ -228,6 +233,9 @@ fun SettingsScreen(
 
         val fontTitle = stringResource(R.string.settings_font)
         val fontSubtitle = stringResource(R.string.settings_font_subtitle)
+
+        val playbackTitle = stringResource(R.string.settings_playback)
+        val playbackSubtitle = stringResource(R.string.settings_playback_subtitle)
         val customizeNavTitle = stringResource(R.string.settings_customize_nav)
         val featuresTitle = stringResource(R.string.settings_features)
         val proxyTitle = stringResource(R.string.settings_proxy)
@@ -366,6 +374,17 @@ fun SettingsScreen(
                             icon = Icons.Rounded.TextFields,
                             onClick = onNavigateFontSettings
                         )
+                    }
+                    // 视频播放入口（受开发者开关控制）
+                    if (playerHubVisible) {
+                        item(key = "playback") {
+                            SettingCard(
+                                title = playbackTitle,
+                                subtitle = playbackSubtitle,
+                                icon = Icons.Rounded.PlayCircle,
+                                onClick = onNavigatePlayback
+                            )
+                        }
                     }
                     item(key = "customize_nav") {
                         SettingCard(

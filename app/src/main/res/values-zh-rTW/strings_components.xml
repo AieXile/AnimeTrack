@@ -98,6 +98,15 @@
     <string name="player_subtitles">字幕</string>
     <string name="player_audio_track">音軌</string>
 
+    <!-- 影片播放聚合頁 -->
+    <string name="settings_playback">影片播放</string>
+    <string name="settings_playback_subtitle">倍速·連播·記憶位置·WebDAV</string>
+    <string name="player_section_behavior">播放行為</string>
+    <string name="player_section_source">媒體來源</string>
+    <string name="player_webdav_browse">WebDAV 媒體瀏覽</string>
+    <string name="player_webdav_browse_desc">瀏覽並播放 WebDAV 上的影片檔案</string>
+    <string name="player_webdav_server">WebDAV 伺服器</string>
+
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器設定</string>
     <string name="player_settings_default_speed">預設播放速度</string>

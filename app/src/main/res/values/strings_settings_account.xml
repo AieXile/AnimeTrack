@@ -106,6 +106,8 @@
     <string name="developer_video_player">视频播放器</string>
     <string name="developer_video_player_desc">播放器设置与测试</string>
     <string name="developer_player_settings">播放器设置</string>
+    <string name="developer_player_hub_entry">设置页显示「视频播放」</string>
+    <string name="developer_player_hub_entry_desc">在设置列表中展示视频播放聚合入口，默认隐藏</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看与测试公告弹窗及投票</string>
     <string name="developer_open_announcement">打开公告</string>

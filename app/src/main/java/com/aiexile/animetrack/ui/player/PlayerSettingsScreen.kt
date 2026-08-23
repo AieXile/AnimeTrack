@@ -17,10 +17,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Bookmarks
+import androidx.compose.material.icons.rounded.CloudQueue
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,12 +55,21 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
 
+/**
+ * 视频播放聚合页：设置中「视频播放」入口的目标页面。
+ *
+ * 汇总所有与播放相关的功能，分三组：
+ * - 播放行为：默认倍速、长按加速、记忆位置、自动连播、硬件加速
+ * - 媒体来源：WebDAV 媒体浏览、WebDAV 服务器配置
+ * - 打开播放器
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettingsScreen(
     onBack: () -> Unit,
     onNavigateToPlayer: () -> Unit = {},
     onNavigateToWebDAVBrowse: () -> Unit = {},
+    onNavigateToWebDAVSync: () -> Unit = {},
     settingsRepository: SettingsRepository = remember { AppContainer.getSettingsRepository() }
 ) {
     val scope = rememberCoroutineScope()
@@ -62,6 +80,7 @@ fun PlayerSettingsScreen(
     val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsState(initial = false)
     val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsState(initial = 2f)
     val webdavMediaPath by settingsRepository.webdavMediaPath.collectAsState(initial = "")
+    val webdavUrl by settingsRepository.webdavUrl.collectAsState(initial = "")
 
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showLongPressSpeedDialog by remember { mutableStateOf(false) }
@@ -71,7 +90,7 @@ fun PlayerSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.player_settings_title),
+                        text = stringResource(R.string.settings_playback),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -94,190 +113,94 @@ fun PlayerSettingsScreen(
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.size(8.dp))
+
+            // ==================== 播放行为 ====================
+            SectionTitle(text = stringResource(R.string.player_section_behavior))
 
             // 默认播放速度
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showSpeedDialog = true },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_default_speed),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${defaultSpeed}x",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
+            SettingRow(
+                icon = Icons.Rounded.Speed,
+                title = stringResource(R.string.player_settings_default_speed),
+                subtitle = "${defaultSpeed}x",
+                onClick = { showSpeedDialog = true }
+            )
 
             // 长按加速速度
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showLongPressSpeedDialog = true },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_long_press_speed),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.player_settings_long_press_speed_hint, longPressSpeed),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            SettingRow(
+                icon = Icons.Rounded.FastForward,
+                title = stringResource(R.string.player_settings_long_press_speed),
+                subtitle = stringResource(R.string.player_settings_long_press_speed_hint, longPressSpeed),
+                onClick = { showLongPressSpeedDialog = true }
+            )
 
-            Spacer(modifier = Modifier.size(24.dp))
-
-            // 硬件加速
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_hardware_acceleration),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.player_settings_hardware_acceleration_hint),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                AppSwitch(
-                    checked = hardwareAcceleration,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerHardwareAcceleration(enabled) }
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
+            SettingDivider()
 
             // 记忆播放位置
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_remember_position),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.player_settings_remember_position_hint),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            SwitchRow(
+                icon = Icons.Rounded.Bookmarks,
+                title = stringResource(R.string.player_settings_remember_position),
+                subtitle = stringResource(R.string.player_settings_remember_position_hint),
+                checked = rememberPosition,
+                onCheckedChange = { enabled ->
+                    scope.launch { settingsRepository.setPlayerRememberPosition(enabled) }
                 }
-                AppSwitch(
-                    checked = rememberPosition,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerRememberPosition(enabled) }
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
+            )
 
             // 自动播放下一集
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_auto_play_next),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.player_settings_auto_play_next_hint),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            SwitchRow(
+                icon = Icons.Rounded.SkipNext,
+                title = stringResource(R.string.player_settings_auto_play_next),
+                subtitle = stringResource(R.string.player_settings_auto_play_next_hint),
+                checked = autoPlayNext,
+                onCheckedChange = { enabled ->
+                    scope.launch { settingsRepository.setPlayerAutoPlayNext(enabled) }
                 }
-                AppSwitch(
-                    checked = autoPlayNext,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerAutoPlayNext(enabled) }
-                    }
-                )
-            }
+            )
 
-            Spacer(modifier = Modifier.size(24.dp))
-
-            // WebDAV 媒体路径
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToWebDAVBrowse() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.player_settings_webdav_path),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = if (webdavMediaPath.isBlank()) stringResource(R.string.common_not_set) else webdavMediaPath,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
+            // 硬件加速
+            SwitchRow(
+                icon = Icons.Rounded.Memory,
+                title = stringResource(R.string.player_settings_hardware_acceleration),
+                subtitle = stringResource(R.string.player_settings_hardware_acceleration_hint),
+                checked = hardwareAcceleration,
+                onCheckedChange = { enabled ->
+                    scope.launch { settingsRepository.setPlayerHardwareAcceleration(enabled) }
                 }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            )
 
-            Spacer(modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.size(20.dp))
 
-            // 打开播放器
+            // ==================== 媒体来源 ====================
+            SectionTitle(text = stringResource(R.string.player_section_source))
+
+            // WebDAV 媒体浏览
+            SettingRow(
+                icon = Icons.Rounded.FolderOpen,
+                title = stringResource(R.string.player_webdav_browse),
+                subtitle = if (webdavMediaPath.isBlank()) {
+                    stringResource(R.string.common_not_set)
+                } else {
+                    webdavMediaPath
+                },
+                onClick = onNavigateToWebDAVBrowse
+            )
+
+            // WebDAV 服务器配置（复用同步设置页）
+            SettingRow(
+                icon = Icons.Rounded.CloudQueue,
+                title = stringResource(R.string.player_webdav_server),
+                subtitle = if (webdavUrl.isBlank()) {
+                    stringResource(R.string.common_not_set)
+                } else {
+                    webdavUrl
+                },
+                onClick = onNavigateToWebDAVSync
+            )
+
+            Spacer(modifier = Modifier.size(28.dp))
+
+            // ==================== 打开播放器 ====================
             Button(
                 onClick = onNavigateToPlayer,
                 shape = SquircleShape(12.dp),
@@ -293,7 +216,7 @@ fun PlayerSettingsScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = stringResource(R.string.player_settings_open_player))
+                Text(text = stringResource(R.string.developer_video_player))
             }
 
             Spacer(modifier = Modifier.size(24.dp))
@@ -323,6 +246,122 @@ fun PlayerSettingsScreen(
                 showLongPressSpeedDialog = false
             },
             onDismiss = { showLongPressSpeedDialog = false }
+        )
+    }
+}
+
+/** 分组标题 */
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 16.dp, bottom = 10.dp)
+    )
+}
+
+/** 行间细分隔线 */
+@Composable
+private fun SettingDivider() {
+    HorizontalDivider(
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+        modifier = Modifier.padding(vertical = 6.dp)
+    )
+}
+
+/** 点击进入型设置行（图标 + 标题 + 当前值摘要） */
+@Composable
+private fun SettingRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+/** 开关型设置行（图标 + 标题 + 描述 + 开关） */
+@Composable
+private fun SwitchRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        AppSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }
