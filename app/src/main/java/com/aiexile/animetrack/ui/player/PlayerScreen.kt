@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -277,6 +278,14 @@ fun PlayerScreen(
                 },
                 onBack = onBack
             )
+        } else if (!uiState.isControllerReady) {
+            // 后台播放服务连接中（通常不到一瞬，感知不到）
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color.White)
+            }
         } else if (uiState.durationMs <= 0 && !uiState.isPlaying) {
             // Empty state - no media loaded
             EmptyMediaState(
