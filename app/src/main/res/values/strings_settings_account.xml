@@ -103,9 +103,6 @@
     <string name="developer_simulate_update">模拟更新</string>
     <string name="developer_simulate_update_desc">模拟完整更新流程，不会下载真实文件</string>
     <string name="developer_trigger_simulate_update">触发模拟更新</string>
-    <string name="developer_video_player">视频播放器</string>
-    <string name="developer_video_player_desc">播放器设置与测试</string>
-    <string name="developer_player_settings">播放器设置</string>
     <string name="developer_player_hub_entry">设置页显示「视频播放」</string>
     <string name="developer_player_hub_entry_desc">在设置列表中展示视频播放聚合入口，默认隐藏</string>
     <string name="developer_announcement">公告</string>

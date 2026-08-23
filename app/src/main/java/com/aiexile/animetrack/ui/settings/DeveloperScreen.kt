@@ -71,7 +71,6 @@ import kotlin.math.roundToInt
 @Composable
 fun DeveloperScreen(
     onBack: () -> Unit,
-    onNavigateToPlayerSettings: () -> Unit = {},
     onNavigateToOnboarding: () -> Unit = {}
 ) {
     val settingsRepository = remember { AppContainer.getSettingsRepository() }
@@ -431,40 +430,6 @@ fun DeveloperScreen(
                 enabled = !uiState.isDownloading && uiState.updateInfo == null
             ) {
                 Text(text = stringResource(R.string.developer_trigger_simulate_update))
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
-
-            Text(
-                text = stringResource(R.string.developer_video_player),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.developer_video_player_desc),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.size(12.dp))
-
-            Button(
-                onClick = onNavigateToPlayerSettings,
-                shape = SquircleShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = stringResource(R.string.developer_player_settings))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

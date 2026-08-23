@@ -78,8 +78,8 @@ class PlaybackService : MediaSessionService() {
      * 一个工厂同时覆盖 WebDAV 流式播放与本地文件播放。
      */
     private fun createDataSourceFactory(): DataSource.Factory = DataSource.Factory {
-        val username = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().webdavUsername.first() }
-        val password = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().webdavPassword.first() }
+        val username = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().playerWebdavUsername.first() }
+        val password = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().playerWebdavPassword.first() }
         val webdavSource = WebDAVDataSourceFactory(okHttpClient, username, password).createDataSource()
         DefaultDataSource(this, webdavSource)
     }

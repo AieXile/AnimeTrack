@@ -213,7 +213,7 @@ class PlayerViewModel(
         lastPlayRequest = PlayRequest.WebDav(url, title)
         viewModelScope.launch {
             try {
-                val baseUrl = settingsRepository.webdavUrl.first()
+                val baseUrl = settingsRepository.playerWebdavUrl.first()
                 val fullUrl = buildFullUrl(baseUrl, url)
 
                 val mediaId = fullUrl

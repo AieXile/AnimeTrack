@@ -105,6 +105,10 @@ class SettingsRepository(private val context: Context) {
         private val UPDATE_NOTIFICATION_VISIBLE_KEY = booleanPreferencesKey("update_notification_visible")
 
         private val PLAYER_HUB_VISIBLE_KEY = booleanPreferencesKey("player_hub_visible")
+        /** 播放器专属 WebDAV 配置：与备份同步相互独立 */
+        private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
+        private val PLAYER_WEBDAV_USERNAME_KEY = stringPreferencesKey("player_webdav_username")
+        private val PLAYER_WEBDAV_PASSWORD_KEY = stringPreferencesKey("player_webdav_password")
         private val PLAYER_DEFAULT_SPEED_KEY = floatPreferencesKey("player_default_speed")
         private val PLAYER_HARDWARE_ACCELERATION_KEY = booleanPreferencesKey("player_hardware_acceleration")
         private val PLAYER_REMEMBER_POSITION_KEY = booleanPreferencesKey("player_remember_position")
@@ -515,6 +519,17 @@ class SettingsRepository(private val context: Context) {
     /** 设置页是否显示「视频播放」聚合入口（开发者选项控制，默认隐藏） */
     val playerHubVisible: Flow<Boolean> = preferenceFlow(PLAYER_HUB_VISIBLE_KEY, false)
     suspend fun setPlayerHubVisible(visible: Boolean) = setPreference(PLAYER_HUB_VISIBLE_KEY, visible)
+
+    // ---- 播放器专属 WebDAV（与备份同步的 webdavUrl 三件套互不影响）----
+    val playerWebdavUrl: Flow<String> = preferenceFlow(PLAYER_WEBDAV_URL_KEY, "")
+    val playerWebdavUsername: Flow<String> = preferenceFlow(PLAYER_WEBDAV_USERNAME_KEY, "")
+    val playerWebdavPassword: Flow<String> = preferenceFlow(PLAYER_WEBDAV_PASSWORD_KEY, "")
+
+    suspend fun setPlayerWebdavCredentials(url: String, username: String, password: String) {
+        setPreference(PLAYER_WEBDAV_URL_KEY, url)
+        setPreference(PLAYER_WEBDAV_USERNAME_KEY, username)
+        setPreference(PLAYER_WEBDAV_PASSWORD_KEY, password)
+    }
 
     val updateNotificationVisible: Flow<Boolean> = preferenceFlow(UPDATE_NOTIFICATION_VISIBLE_KEY, false)
 

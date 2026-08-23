@@ -69,7 +69,7 @@ fun PlayerSettingsScreen(
     onBack: () -> Unit,
     onNavigateToPlayer: () -> Unit = {},
     onNavigateToWebDAVBrowse: () -> Unit = {},
-    onNavigateToWebDAVSync: () -> Unit = {},
+    onNavigateToPlayerWebDavConfig: () -> Unit = {},
     settingsRepository: SettingsRepository = remember { AppContainer.getSettingsRepository() }
 ) {
     val scope = rememberCoroutineScope()
@@ -80,7 +80,7 @@ fun PlayerSettingsScreen(
     val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsState(initial = false)
     val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsState(initial = 2f)
     val webdavMediaPath by settingsRepository.webdavMediaPath.collectAsState(initial = "")
-    val webdavUrl by settingsRepository.webdavUrl.collectAsState(initial = "")
+    val playerWebdavUrl by settingsRepository.playerWebdavUrl.collectAsState(initial = "")
 
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showLongPressSpeedDialog by remember { mutableStateOf(false) }
@@ -186,16 +186,16 @@ fun PlayerSettingsScreen(
                 onClick = onNavigateToWebDAVBrowse
             )
 
-            // WebDAV 服务器配置（复用同步设置页）
+            // 播放器专属 WebDAV 配置（与备份同步独立）
             SettingRow(
                 icon = Icons.Rounded.CloudQueue,
                 title = stringResource(R.string.player_webdav_server),
-                subtitle = if (webdavUrl.isBlank()) {
+                subtitle = if (playerWebdavUrl.isBlank()) {
                     stringResource(R.string.common_not_set)
                 } else {
-                    webdavUrl
+                    playerWebdavUrl
                 },
-                onClick = onNavigateToWebDAVSync
+                onClick = onNavigateToPlayerWebDavConfig
             )
 
             Spacer(modifier = Modifier.size(28.dp))
@@ -216,7 +216,7 @@ fun PlayerSettingsScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = stringResource(R.string.developer_video_player))
+                Text(text = stringResource(R.string.player_settings_open_player))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

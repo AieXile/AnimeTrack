@@ -49,9 +49,9 @@ class WebDAVBrowseViewModel(
 
     fun browseDirectory(path: String? = null) {
         viewModelScope.launch {
-            val url = settingsRepository.webdavUrl.first()
-            val username = settingsRepository.webdavUsername.first()
-            val password = settingsRepository.webdavPassword.first()
+            val url = settingsRepository.playerWebdavUrl.first()
+            val username = settingsRepository.playerWebdavUsername.first()
+            val password = settingsRepository.playerWebdavPassword.first()
             val mediaPath = settingsRepository.webdavMediaPath.first()
 
             if (url.isBlank()) {

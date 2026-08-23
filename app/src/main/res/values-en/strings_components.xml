@@ -105,7 +105,10 @@
     <string name="player_section_source">Media Sources</string>
     <string name="player_webdav_browse">WebDAV Browser</string>
     <string name="player_webdav_browse_desc">Browse and play video files on WebDAV</string>
-    <string name="player_webdav_server">WebDAV Server</string>
+    <string name="player_webdav_server">Player WebDAV</string>
+    <string name="player_webdav_config_hint">These settings are used only by the player and are independent of the backup sync server. A different server or account can be used.</string>
+    <string name="player_webdav_import_from_backup">Fill from backup config</string>
+    <string name="player_webdav_backup_empty_hint">Backup sync has no WebDAV configured yet, nothing to fill in</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">Player Settings</string>

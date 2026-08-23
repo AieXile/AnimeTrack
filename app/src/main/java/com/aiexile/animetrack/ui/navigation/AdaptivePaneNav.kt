@@ -463,7 +463,6 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.DEVELOPER) {
         DeveloperScreen(
             onBack = navigateBack,
-            onNavigateToPlayerSettings = { onNavigate(Routes.PLAYER_SETTINGS) },
             // 重触发向导：大屏先收起 pane，向导为非 pane 路由会经 onNavigate 分流至全屏
             onNavigateToOnboarding = {
                 onClosePane()
@@ -478,7 +477,14 @@ internal fun NavGraphBuilder.sharedDestinations(
             onBack = navigateBack,
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
             onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
-            onNavigateToWebDAVSync = { onNavigate(Routes.WEBDAV_SYNC) }
+            onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) }
+        )
+    }
+
+    // 播放器专属 WebDAV 配置（与备份同步独立）
+    composable(Routes.PLAYER_WEBDAV_CONFIG) {
+        com.aiexile.animetrack.ui.player.PlayerWebDavConfigScreen(
+            onBack = navigateBack
         )
     }
 }

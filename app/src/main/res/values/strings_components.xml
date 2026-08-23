@@ -105,7 +105,10 @@
     <string name="player_section_source">媒体来源</string>
     <string name="player_webdav_browse">WebDAV 媒体浏览</string>
     <string name="player_webdav_browse_desc">浏览并播放 WebDAV 上的视频文件</string>
-    <string name="player_webdav_server">WebDAV 服务器</string>
+    <string name="player_webdav_server">播放器 WebDAV</string>
+    <string name="player_webdav_config_hint">此配置仅供播放器使用，与备份同步的服务器相互独立，可以是不同的服务器或账号。</string>
+    <string name="player_webdav_import_from_backup">从备份配置填入</string>
+    <string name="player_webdav_backup_empty_hint">备份同步尚未配置 WebDAV，无可填入的配置</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器设置</string>
