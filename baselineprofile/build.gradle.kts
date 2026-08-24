@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.aiexile.animetrack.baselineprofile"
-    compileSdk = 36
+    compileSdk = 37
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

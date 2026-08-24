@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.kyant.backdrop.Backdrop
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -67,9 +68,26 @@ fun CapsuleNavigationBar(
     hazeState: HazeState,
     advancedBlurEnabled: Boolean = false,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
+    liquidGlassEnabled: Boolean = false,
+    backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
+
+    // 液态玻璃模式：独立渲染路径，尺寸与布局与普通模式一致
+    if (liquidGlassEnabled && backdrop != null && visibleItems.isNotEmpty()) {
+        LiquidGlassNavBar(
+            currentRoute = currentRoute,
+            onNavigate = onNavigate,
+            visibleItems = visibleItems,
+            pagerState = pagerState,
+            jumpTarget = jumpTarget,
+            labelMode = labelMode,
+            backdrop = backdrop,
+            modifier = modifier
+        )
+        return
+    }
     val selectedIndex = visibleItems.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val itemCount = visibleItems.size
     val scope = rememberCoroutineScope()
@@ -233,7 +251,7 @@ fun CapsuleNavigationBar(
 }
 
 @Composable
-private fun CapsuleNavItem(
+internal fun CapsuleNavItem(
     item: BottomNavItem,
     selected: Boolean,
     proximity: Float,

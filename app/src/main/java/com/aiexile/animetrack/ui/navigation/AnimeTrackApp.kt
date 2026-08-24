@@ -99,6 +99,9 @@ import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -123,6 +126,7 @@ fun AnimeTrackApp(
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
     val hazeState = rememberHazeState()
+    val navBackdrop = rememberLayerBackdrop()
 
     val mainPages = remember(showFavorites, showTimeline, showSchedule) {
         buildMainPages(showFavorites, showTimeline, showSchedule)
@@ -274,6 +278,7 @@ fun AnimeTrackApp(
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
                         hazeState = hazeState,
+                        navBackdrop = navBackdrop,
                         onNavigateToScreen = onNavigateToScreen,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@composable
@@ -335,7 +340,8 @@ fun AnimeTrackApp(
                 visiblePages = visibleMainPages,
                 onNavigate = onTabNavigate,
                 navJumpTarget = navJumpTarget,
-                onAddAnimeClick = { homeViewModel.showBottomSheet() }
+                onAddAnimeClick = { homeViewModel.showBottomSheet() },
+                navBackdrop = navBackdrop
             )
         }
 
@@ -378,6 +384,7 @@ private fun MainScreen(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -404,6 +411,7 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             hazeState = hazeState,
+            navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -436,6 +444,7 @@ private fun CapsuleNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -443,6 +452,7 @@ private fun CapsuleNavLayout(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .layerBackdrop(navBackdrop)
             .hazeSource(state = hazeState)
     ) {
         HorizontalPager(
@@ -610,12 +620,14 @@ private fun MainOverlay(
     visiblePages: List<String>,
     onNavigate: (String) -> Unit,
     navJumpTarget: Int?,
-    onAddAnimeClick: () -> Unit
+    onAddAnimeClick: () -> Unit,
+    navBackdrop: LayerBackdrop
 ) {
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
 
     // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
     val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -765,8 +777,10 @@ private fun MainOverlay(
                     jumpTarget = navJumpTarget,
                     labelMode = navigationLabelMode,
                     hazeState = hazeState,
-                    advancedBlurEnabled = capsuleAdvancedBlurEnabled,
-                    blurConfig = advancedBlurConfig
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                    blurConfig = advancedBlurConfig,
+                    liquidGlassEnabled = capsuleLiquidGlassEnabled,
+                    backdrop = navBackdrop
                 )
             }
         } else {

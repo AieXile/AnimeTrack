@@ -24,7 +24,8 @@ val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
 
 android {
     namespace = "com.aiexile.animetrack"
-    compileSdk = 36
+    // compileSdk 37：backdrop 2.0.0（液态玻璃）要求 minCompileSdk 37
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.aiexile.animetrack"
@@ -132,6 +133,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.graphics.shapes)
     implementation(libs.haze)
+    implementation(libs.backdrop)
+    implementation(libs.kyant.shapes)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     

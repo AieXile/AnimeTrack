@@ -112,6 +112,8 @@
     <string name="developer_onboarding_desc">Re-enter the first-launch onboarding screens</string>
     <string name="developer_open_onboarding">Open Onboarding</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
+    <string name="developer_liquid_glass">Liquid Glass</string>
+    <string name="developer_liquid_glass_desc">Render the floating capsule with refraction glass instead of blur</string>
     <string name="developer_advanced_blur">Advanced Blur (Frosted Glass)</string>
     <string name="developer_advanced_blur_desc">Tune the frosted glass parameters for the floating capsule and FAB</string>
     <string name="developer_blur_switch_desc">Synced with the advanced blur switch in navigation customization</string>
