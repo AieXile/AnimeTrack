@@ -99,6 +99,8 @@ import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.debounce
@@ -275,6 +277,7 @@ fun AnimeTrackApp(
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
                         hazeState = hazeState,
+                        navBackdrop = navBackdrop,
                         onNavigateToScreen = onNavigateToScreen,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@composable
@@ -336,7 +339,8 @@ fun AnimeTrackApp(
                 visiblePages = visibleMainPages,
                 onNavigate = onTabNavigate,
                 navJumpTarget = navJumpTarget,
-                onAddAnimeClick = { homeViewModel.showBottomSheet() }
+                onAddAnimeClick = { homeViewModel.showBottomSheet() },
+                navBackdrop = navBackdrop
             )
         }
 
@@ -379,6 +383,7 @@ private fun MainScreen(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -405,6 +410,7 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             hazeState = hazeState,
+            navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -437,6 +443,7 @@ private fun CapsuleNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -611,7 +618,8 @@ private fun MainOverlay(
     visiblePages: List<String>,
     onNavigate: (String) -> Unit,
     navJumpTarget: Int?,
-    onAddAnimeClick: () -> Unit
+    onAddAnimeClick: () -> Unit,
+    navBackdrop: LayerBackdrop
 ) {
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"

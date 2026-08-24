@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
@@ -92,7 +93,8 @@ class DampedDragAnimation(
 
     fun release() {
         animationScope.launch {
-            awaitFrame()
+            // 等待下一帧再开始释放动画（当前 Compose 版本无顶层 awaitFrame，用 withFrameNanos 等价实现）
+            withFrameNanos { }
             if (value != targetValue) {
                 val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
                 snapshotFlow { valueAnimation.value }

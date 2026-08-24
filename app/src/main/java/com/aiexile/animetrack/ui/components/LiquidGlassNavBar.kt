@@ -4,14 +4,15 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
@@ -54,9 +56,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
-
-/** 液态玻璃 Tab 的按压缩放（与示例一致） */
-internal val LocalLiquidNavTabScale = androidx.compose.runtime.staticCompositionLocalOf { { 1f } }
 
 /**
  * 液态玻璃悬浮导航栏。
@@ -93,7 +92,6 @@ internal fun LiquidGlassNavBar(
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
         // 外层总高 54dp，内部留 4dp 边距 → 浮块高 46dp（与普通模式一致）
-        val navHeight = with(density) { 54f.dp.toPx() }
         val tabWidth = with(density) {
             (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / itemCount.coerceAtLeast(1)
         }
@@ -119,7 +117,9 @@ internal fun LiquidGlassNavBar(
             }
         }
 
-        val dampedDragAnimation = remember(animationScope) {
+        // key 包含 tabWidth/itemCount/isLtr：布局或可见 Tab 变化时重建，
+        // 避免拖拽回调闭包捕获过期的尺寸与索引范围（旋转/改设置后拖拽失准）
+        val dampedDragAnimation = remember(animationScope, tabWidth, itemCount, isLtr) {
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = selectedIndex.toFloat(),
@@ -171,7 +171,8 @@ internal fun LiquidGlassNavBar(
             }
         }
 
-        val interactiveHighlight = remember(animationScope) {
+        // key 包含 dampedDragAnimation：指示器动画对象重建后高亮跟随新实例
+        val interactiveHighlight = remember(dampedDragAnimation, tabWidth, isLtr) {
             InteractiveHighlight(
                 animationScope = animationScope,
                 position = { size, offset ->
@@ -215,49 +216,43 @@ internal fun LiquidGlassNavBar(
         )
 
         // ===== 镜像内容层（隐形，用于给图标上强调色并参与折射）=====
-        CompositionLocalProvider(
-            LocalLiquidNavTabScale provides {
-                lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
-            }
-        ) {
-            Row(
-                Modifier
-                    .clearAndSetSemantics {}
-                    .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
-                    .graphicsLayer { translationX = panelOffset }
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { Capsule() },
-                        effects = {
-                            val progress = dampedDragAnimation.pressProgress
-                            vibrancy()
-                            blur(8f.dp.toPx())
-                            lens(
-                                24f.dp.toPx() * progress,
-                                24f.dp.toPx() * progress
-                            )
-                        },
-                        highlight = {
-                            val progress = dampedDragAnimation.pressProgress
-                            Highlight.Default.copy(alpha = progress)
-                        },
-                        onDrawSurface = { drawRect(containerColor) }
-                    )
-                    .then(interactiveHighlight.modifier)
-                    .height(46f.dp)
-                    .fillMaxWidth()
-                    .padding(horizontal = 4f.dp)
-                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
-                verticalAlignment = Alignment.CenterVertically,
-                content = {
-                    visibleItems.forEachIndexed { index, item ->
-                        val selected = index == currentIndex
-                        NavTabContent(item = item, selected = selected, labelMode = labelMode)
-                    }
+        Row(
+            Modifier
+                .clearAndSetSemantics {}
+                .alpha(0f)
+                .layerBackdrop(tabsBackdrop)
+                .graphicsLayer { translationX = panelOffset }
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { Capsule() },
+                    effects = {
+                        val progress = dampedDragAnimation.pressProgress
+                        vibrancy()
+                        blur(8f.dp.toPx())
+                        lens(
+                            24f.dp.toPx() * progress,
+                            24f.dp.toPx() * progress
+                        )
+                    },
+                    highlight = {
+                        val progress = dampedDragAnimation.pressProgress
+                        Highlight.Default.copy(alpha = progress)
+                    },
+                    onDrawSurface = { drawRect(containerColor) }
+                )
+                .then(interactiveHighlight.modifier)
+                .height(46f.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 4f.dp)
+                .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
+            verticalAlignment = Alignment.CenterVertically,
+            content = {
+                visibleItems.forEachIndexed { index, item ->
+                    val selected = index == currentIndex
+                    NavTabContent(item = item, selected = selected, labelMode = labelMode)
                 }
-            )
-        }
+            }
+        )
 
         // ===== 可拖拽玻璃浮块（选中指示器）=====
         Box(

@@ -48,32 +48,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.util.fastCoerceIn
-import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.util.lerp
 import com.aiexile.animetrack.data.NavigationLabelMode
-import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
-import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
-import com.kyant.shapes.Capsule
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
-import kotlin.math.sign
 import kotlinx.coroutines.launch
 
 /** 指示器滑动过程中的最小缩放比例（缩小到 60%） */
@@ -94,12 +72,14 @@ fun CapsuleNavigationBar(
     backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
+    val visibleItems = bottomNavItems.filter { it.route in visiblePages }
+
     // 液态玻璃模式：独立渲染路径，尺寸与布局与普通模式一致
-    if (liquidGlassEnabled && backdrop != null && itemCount0(visiblePages)) {
+    if (liquidGlassEnabled && backdrop != null && visibleItems.isNotEmpty()) {
         LiquidGlassNavBar(
             currentRoute = currentRoute,
             onNavigate = onNavigate,
-            visibleItems = bottomNavItems.filter { it.route in visiblePages },
+            visibleItems = visibleItems,
             pagerState = pagerState,
             jumpTarget = jumpTarget,
             labelMode = labelMode,
@@ -108,7 +88,6 @@ fun CapsuleNavigationBar(
         )
         return
     }
-    val visibleItems = bottomNavItems.filter { it.route in visiblePages }
     val selectedIndex = visibleItems.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val itemCount = visibleItems.size
     val scope = rememberCoroutineScope()
@@ -272,7 +251,7 @@ fun CapsuleNavigationBar(
 }
 
 @Composable
-private fun CapsuleNavItem(
+internal fun CapsuleNavItem(
     item: BottomNavItem,
     selected: Boolean,
     proximity: Float,
@@ -319,7 +298,3 @@ private fun CapsuleNavItem(
         }
     }
 }
-
-
-private fun itemCount0(visiblePages: List<String>): Boolean =
-    bottomNavItems.count { it.route in visiblePages } > 0
