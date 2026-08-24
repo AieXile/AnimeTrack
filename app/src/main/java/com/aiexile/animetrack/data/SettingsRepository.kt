@@ -278,6 +278,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCapsuleAdvancedBlurEnabled(enabled: Boolean) = setPreference(CAPSULE_ADVANCED_BLUR_KEY, enabled)
 
+    /** 悬浮胶囊高级模糊的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
+    fun cachedCapsuleAdvancedBlur(): Boolean = prefCache[CAPSULE_ADVANCED_BLUR_KEY] as? Boolean ?: false
+
     /** 悬浮胶囊液态玻璃效果（折射玻璃质感），默认关闭。开启后替代普通模糊，尺寸与布局不变 */
     val capsuleLiquidGlassEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_LIQUID_GLASS_KEY, false)
     suspend fun setCapsuleLiquidGlassEnabled(enabled: Boolean) = setPreference(CAPSULE_LIQUID_GLASS_KEY, enabled)

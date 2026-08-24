@@ -3,6 +3,8 @@ package com.aiexile.animetrack.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -52,29 +55,29 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
 /**
- * 液态玻璃悬浮导航栏。
+ * 液态玻璃悬浮胶囊导航栏（悬浮胶囊的液态玻璃形态）。
  *
- * 交互逻辑参照 Kyant0/AndroidLiquidGlass 示例 LiquidBottomTabs：
- * - 玻璃浮块指示器可横向拖拽，松手弹性吸附最近 Tab；
- * - 拖拽/点击切换时整条胶囊有轻微弹性位移（panelOffset）；
- * - 按压时浮块放大 + Highlight/Shadow/InnerShadow 渐显 + 色差折射；
- * - Pager 滑动联动、jumpTarget 直线跳转语义保留。
+ * 渲染与交互完全参照 Kyant0/AndroidLiquidGlass 示例 LiquidBottomTabs 的三层结构：
+ * 1. 胶囊容器：液态模糊（vibrancy + blur + lens 折射）+ 可见 Tab 内容，可点击切换；
+ * 2. 镜像内容层（不可见）：捕获 Tab 内容到 [tabsBackdrop]，供浮块折射出强调色图标，
+ *    按压时内容随浮块放大 1.2 倍（折射放大效果）；
+ * 3. 玻璃浮块（选中指示器）：拖拽移动、松手弹性吸附最近 Tab，按压时放大 +
+ *    高光/阴影/内阴影渐显 + 色差折射；拖拽时整条胶囊有轻微弹性位移（panelOffset）。
  *
- * 尺寸与 [CapsuleNavigationBar] 完全一致（高 54dp + 4dp 内边距，水平 32dp 边距由外部传入）。
+ * 尺寸与 [CapsuleNavigationBar] 普通模式一致：胶囊高 54dp、内部 4dp 边距、
+ * 浮块高 46dp；水平 32dp / 底部 24dp 边距由 [CapsuleNavigationBar] 统一应用。
  */
 @Composable
 internal fun LiquidGlassNavBar(
     currentRoute: String,
     onNavigate: (String) -> Unit,
     visibleItems: List<BottomNavItem>,
-    pagerState: androidx.compose.foundation.pager.PagerState?,
-    jumpTarget: Int?,
+    pagerState: PagerState?,
     labelMode: NavigationLabelMode,
     backdrop: Backdrop,
     modifier: Modifier = Modifier
@@ -91,7 +94,7 @@ internal fun LiquidGlassNavBar(
     val tabsBackdrop = rememberLayerBackdrop()
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
-        // 外层总高 54dp，内部留 4dp 边距 → 浮块高 46dp（与普通模式一致）
+        // 胶囊总高 54dp，左右各留 4dp 边距 → 浮块/Tab 宽 = (总宽 - 8dp) / Tab 数
         val tabWidth = with(density) {
             (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / itemCount.coerceAtLeast(1)
         }
@@ -107,15 +110,9 @@ internal fun LiquidGlassNavBar(
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
 
-        var currentIndex by remember(selectedIndex) { mutableIntStateOf(selectedIndex) }
-
-        // Pager 滑动联动时同步 currentIndex（不触发动画循环：仅当非拖拽状态）
-        LaunchedEffect(pagerState) {
-            if (pagerState == null) return@LaunchedEffect
-            snapshotFlow { pagerState.settledPage }.collectLatest { page ->
-                if (page in visibleItems.indices) currentIndex = page
-            }
-        }
+        // 注意 remember 不带 key：currentRoute 变化统一由下方 route sync effect
+        // 处理（更新索引 + 浮块动画），避免重置绕过动画导致浮块不动
+        var currentIndex by remember { mutableIntStateOf(selectedIndex) }
 
         // key 包含 tabWidth/itemCount/isLtr：布局或可见 Tab 变化时重建，
         // 避免拖拽回调闭包捕获过期的尺寸与索引范围（旋转/改设置后拖拽失准）
@@ -126,17 +123,21 @@ internal fun LiquidGlassNavBar(
                 valueRange = 0f..(itemCount - 1).toFloat(),
                 visibilityThreshold = 0.001f,
                 initialScale = 1f,
-                pressedScale = 78f / 56f,
+                // 46dp 浮块按压放大 22dp（与示例 56→78dp 的放大增量一致）
+                pressedScale = 68f / 46f,
                 onDragStarted = {},
                 onDragStopped = {
                     val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
+                    if (targetIndex in visibleItems.indices) {
+                        onNavigate(visibleItems[targetIndex].route)
+                    }
                     animationScope.launch {
                         offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                     }
                 },
-                onDrag = { _, dragAmount ->
+                onDrag = { _, dragAmount, _ ->
                     updateValue(
                         (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
                             .fastCoerceIn(0f, (itemCount - 1).toFloat())
@@ -148,26 +149,27 @@ internal fun LiquidGlassNavBar(
             )
         }
 
-        // 点击外部 Tab 时直线吸附到目标（对应原 jumpTarget 直线跳转语义）
-        LaunchedEffect(Unit) {
-            snapshotFlow { currentIndex }
-                .drop(1)
-                .collectLatest { index ->
-                    dampedDragAnimation.animateToValue(index.toFloat())
-                    if (index in visibleItems.indices) {
-                        onNavigate(visibleItems[index].route)
-                    }
+        // Pager 滑动联动：targetPage（将要停的页）驱动浮块平滑跟随（回弹自然弹回）。
+        // 注意用 updateValue 而非 animateToValue：程序驱动不触发按压（press），
+        // 否则滑动时浮块高光/放大持续渐显，胶囊中间会出现一条移动亮线
+        LaunchedEffect(pagerState, visibleItems, dampedDragAnimation) {
+            if (pagerState == null) return@LaunchedEffect
+            snapshotFlow { pagerState.targetPage }.collectLatest { page ->
+                if (page in visibleItems.indices) {
+                    currentIndex = page
+                    dampedDragAnimation.updateValue(page.toFloat())
                 }
-        }
-        LaunchedEffect(jumpTarget) {
-            if (jumpTarget != null && jumpTarget in visibleItems.indices) {
-                currentIndex = jumpTarget
             }
         }
-        LaunchedEffect(currentRoute) {
+        // 路由兜底：非 Pager 驱动的选中变化（如可见页集合变动后索引移位），
+        // 仅同步显示状态、不回调 onNavigate——回调会与 Pager 滚动形成回环竞态：
+        // 滚动途中 currentPage 变化 → onNavigate(中间页) → 又触发
+        // animateScrollToPage(中间页) 取消原滚动，表现为点击后页面卡住不动
+        LaunchedEffect(currentRoute, dampedDragAnimation, visibleItems) {
             val idx = visibleItems.indexOfFirst { it.route == currentRoute }
             if (idx >= 0 && idx != currentIndex) {
-                dampedDragAnimation.animateToValue(idx.toFloat())
+                currentIndex = idx
+                dampedDragAnimation.updateValue(idx.toFloat())
             }
         }
 
@@ -185,7 +187,7 @@ internal fun LiquidGlassNavBar(
             )
         }
 
-        // ===== 主容器（54dp 高玻璃胶囊）=====
+        // ===== 1. 胶囊容器（54dp 液态玻璃 + 可见可点击的 Tab）=====
         Row(
             Modifier
                 .graphicsLayer { translationX = panelOffset }
@@ -198,6 +200,7 @@ internal fun LiquidGlassNavBar(
                         lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {
+                        // 按压浮块时整条胶囊轻微放大（与浮块放大联动）
                         val progress = dampedDragAnimation.pressProgress
                         val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
                         scaleX = scale
@@ -209,13 +212,25 @@ internal fun LiquidGlassNavBar(
                 .height(54f.dp)
                 .fillMaxWidth()
                 .padding(4f.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            content = {
-                // 占位内容：实际图标绘制在下方镜像 Row 中着色
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            visibleItems.forEachIndexed { index, item ->
+                GlassNavTab(
+                    item = item,
+                    selected = index == currentIndex,
+                    labelMode = labelMode,
+                    onClick = {
+                        if (index != currentIndex) {
+                            currentIndex = index
+                            dampedDragAnimation.animateToValue(index.toFloat())
+                            onNavigate(item.route)
+                        }
+                    }
+                )
             }
-        )
+        }
 
-        // ===== 镜像内容层（隐形，用于给图标上强调色并参与折射）=====
+        // ===== 2. 镜像内容层（隐形：捕获 Tab 内容供浮块折射出强调色图标）=====
         Row(
             Modifier
                 .clearAndSetSemantics {}
@@ -245,16 +260,32 @@ internal fun LiquidGlassNavBar(
                 .fillMaxWidth()
                 .padding(horizontal = 4f.dp)
                 .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
-            verticalAlignment = Alignment.CenterVertically,
-            content = {
-                visibleItems.forEachIndexed { index, item ->
-                    val selected = index == currentIndex
-                    NavTabContent(item = item, selected = selected, labelMode = labelMode)
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            visibleItems.forEachIndexed { index, item ->
+                // 折射内容按压时放大 1.2 倍，与浮块放大同步（示例 LocalLiquidBottomTabScale 语义）
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .graphicsLayer {
+                            val scale = lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    CapsuleNavItem(
+                        item = item,
+                        selected = index == currentIndex,
+                        proximity = if (index == currentIndex) 1f else 0f,
+                        labelMode = labelMode
+                    )
                 }
             }
-        )
+        }
 
-        // ===== 可拖拽玻璃浮块（选中指示器）=====
+        // ===== 3. 可拖拽玻璃浮块（选中指示器）=====
         Box(
             Modifier
                 .padding(horizontal = 4f.dp)
@@ -294,6 +325,7 @@ internal fun LiquidGlassNavBar(
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX
                         scaleY = dampedDragAnimation.scaleY
+                        // 拖拽速度带来的果冻拉伸形变
                         val velocity = dampedDragAnimation.velocity / 10f
                         scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
@@ -314,17 +346,22 @@ internal fun LiquidGlassNavBar(
     }
 }
 
+/** 液态玻璃胶囊内的可见 Tab：点击切换，选中态与普通胶囊一致 */
 @Composable
-private fun RowScope.NavTabContent(
+private fun RowScope.GlassNavTab(
     item: BottomNavItem,
     selected: Boolean,
-    labelMode: NavigationLabelMode
+    labelMode: NavigationLabelMode,
+    onClick: () -> Unit
 ) {
-    // 复用普通模式的 item 渲染逻辑（图标+文字），颜色由外层 ColorFilter.tint 统一处理
     Box(
         modifier = Modifier
             .weight(1f)
-            .fillMaxHeight(),
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() },
         contentAlignment = Alignment.Center
     ) {
         CapsuleNavItem(

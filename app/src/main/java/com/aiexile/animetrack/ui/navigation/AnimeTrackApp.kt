@@ -18,6 +18,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +55,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -102,6 +104,9 @@ import dev.chrisbanes.haze.hazeSource
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.vibrancy
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -635,8 +640,11 @@ private fun MainOverlay(
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
-    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
-    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
+    // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现普通/高级模糊旧胶囊
+    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
+    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled
+        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
 
     // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
     val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -864,11 +872,15 @@ private fun MainOverlay(
             // 状态栏处理方式（「下滑隐藏顶栏」开启时生效，绘制在顶栏之后）：
             // 全屏 = 不渲染，内容滚入透明状态栏区域；留白遮罩 = 表面色纵向渐变盖在内容上；
             // 实心状态栏 = 实色条（HomeScreen 顶部预留同步收紧，内容被顶到其下沿），
-            // 高级模糊时顶栏为毛玻璃，实色条保证状态栏区域始终实底。随收拢进度淡入，
-            // 展开时被顶栏自身背景覆盖，无感知
+            // 高级模糊时顶栏为毛玻璃，实色条保证状态栏区域始终实底。
+            // 液态玻璃开启时实心条改为玻璃条（与 FAB/胶囊同质感），全屏/留白遮罩不受影响。
+            // 随收拢进度淡入，展开时被顶栏自身背景覆盖，无感知
             if (hideTopBarOnScroll && topBarCollapse > 0f && statusBarMode != StatusBarMode.FULLSCREEN) {
                 val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val surfaceColor = MaterialTheme.colorScheme.surface
+                val glassBarColor =
+                    if (isSystemInDarkTheme()) Color(0xFF121212).copy(0.4f)
+                    else Color(0xFFFAFAFA).copy(0.4f)
                 val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
                     Modifier
                         // 渐变略高于状态栏，下缘柔和隐入内容；顶部实色确保状态栏图标易读
@@ -881,6 +893,19 @@ private fun MainOverlay(
                                     Color.Transparent
                                 )
                             )
+                        )
+                } else if (capsuleLiquidGlassEnabled) {
+                    // 液态玻璃条：仅模糊+提亮（薄条不做 lens 折射，避免边缘畸变）
+                    Modifier
+                        .height(statusBarHeight)
+                        .drawBackdrop(
+                            backdrop = navBackdrop,
+                            shape = { RectangleShape },
+                            effects = {
+                                vibrancy()
+                                blur(8.dp.toPx())
+                            },
+                            onDrawSurface = { drawRect(glassBarColor) }
                         )
                 } else {
                     Modifier
@@ -902,7 +927,8 @@ private fun MainOverlay(
             }
 
             // 顶栏动作迁移 FAB：顶栏收拢后期原位淡入（与收拢终点像素级重合）。
-            // 点击搜索 → 不展开顶栏，FAB 左边框向左展开为悬浮搜索条
+            // 点击搜索 → 不展开顶栏，FAB 左边框向左展开为悬浮搜索条。
+            // 液态玻璃开启时 FAB/搜索条为折射玻璃渲染（与悬浮胶囊同质感）
             TopBarActionsFloating(
                 collapseProgress = topBarCollapse,
                 isSearchActive = homeUiState.isLocalSearchActive,
@@ -914,8 +940,10 @@ private fun MainOverlay(
                 onSearchClick = { homeViewModel.startLocalSearch() },
                 onAddClick = onAddAnimeClick,
                 hazeState = hazeState,
-                advancedBlurEnabled = capsuleAdvancedBlurEnabled,
+                advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
                 blurConfig = advancedBlurConfig,
+                liquidGlassEnabled = capsuleLiquidGlassEnabled,
+                backdrop = navBackdrop,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     // 大屏适配：从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
@@ -941,8 +969,10 @@ private fun MainOverlay(
                     },
                     onAddClick = onAddAnimeClick,
                     hazeState = hazeState,
-                    advancedBlurEnabled = capsuleAdvancedBlurEnabled,
+                    advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
                     blurConfig = advancedBlurConfig,
+                    liquidGlassEnabled = capsuleLiquidGlassEnabled,
+                    backdrop = navBackdrop,
                     modifier = Modifier.align(Alignment.BottomEnd)
                 )
             }

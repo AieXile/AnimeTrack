@@ -5,6 +5,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -27,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +52,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceAtMost
+import androidx.compose.ui.util.lerp
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
@@ -57,7 +62,18 @@ import androidx.graphics.shapes.toPath
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import dev.chrisbanes.haze.HazeState
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.tanh
 
 /** 迁移 FAB 与原顶栏按钮行同尺寸（IconButton 48dp），高度与 morph 收拢终点一致 */
 internal val TopBarActionsHeight = 48.dp
@@ -180,13 +196,16 @@ private class TopBarMorphShape(
  * 顶栏右上角的搜索/添加按钮在原位置以悬浮 FAB 形式出现（尺寸/位置与原按钮一致）。
  * 按钮构成与顶栏一致——仅搜索时单个搜索 FAB；顶栏含添加按钮时为
  * 「搜索 + 添加」组合 FAB（两动作放在一起，非独立两个 FAB）。
- * 背景跟随高级模糊开关（模糊时透明底 + hazeEffect），圆角使用 SquircleShape 平滑圆角。
+ * 背景跟随高级模糊/液态玻璃开关（模糊时透明底 + hazeEffect，液态玻璃时折射玻璃渲染），
+ * 圆角使用 SquircleShape 平滑圆角。
  *
  * 悬浮搜索：顶栏隐藏时点击搜索按钮，FAB 左边框向左展开为悬浮搜索条
  * （右边框/垂直位置不动），关闭后收缩回 FAB。
  *
  * @param collapseProgress 顶栏收拢进度（与顶栏侧共用同一动画值，保证 morph 连续）：
  * 0 = 顶栏展开（FAB 不存在），1 = 顶栏完全收拢（FAB 完全显示）
+ * @param liquidGlassEnabled 液态玻璃模式：FAB/搜索条改为折射玻璃渲染（需 backdrop）
+ * @param backdrop 液态玻璃折射内容来源（页面内容层）
  */
 @Composable
 fun TopBarActionsFloating(
@@ -202,17 +221,35 @@ fun TopBarActionsFloating(
     hazeState: HazeState,
     advancedBlurEnabled: Boolean = false,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
+    liquidGlassEnabled: Boolean = false,
+    backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
     // 顶栏本身无按钮时无需迁移（搜索激活时除外——搜索条需常驻可编辑）；顶栏展开时 FAB 不存在
     if ((!showSearch && !showAdd && !isSearchActive) || collapseProgress <= 0f) return
 
     val colorScheme = MaterialTheme.colorScheme
-    val fabContainerColor = if (advancedBlurEnabled) Color.Transparent else colorScheme.surfaceContainer
-    val fabShape = SquircleShape(TopBarMorphCorner)
+    // 液态玻璃模式优先生效（与悬浮胶囊导航栏一致）
+    val liquidGlass = liquidGlassEnabled && backdrop != null
+    val isLightTheme = !isSystemInDarkTheme()
+    val glassContainerColor =
+        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
+        else Color(0xFF121212).copy(0.4f)
+    val fabContainerColor = when {
+        liquidGlass -> glassContainerColor
+        advancedBlurEnabled -> Color.Transparent
+        else -> colorScheme.surfaceContainer
+    }
+    // lens 折射只支持 RoundedRectangularShape / CornerBasedShape，
+    // SquircleShape（自定义平滑圆角）会直接抛异常，玻璃模式换普通圆角（视觉差异可忽略）
+    val fabShape = if (liquidGlass) {
+        RoundedCornerShape(TopBarMorphCorner)
+    } else {
+        SquircleShape(TopBarMorphCorner)
+    }
     // 模糊 shape 与 FAB 圆角一致（14dp），避免 haze 层与背景层圆角不匹配产生的边缘白圈
-    val fabBlur = fabBlurModifier(hazeState, advancedBlurEnabled, blurConfig, shape = fabShape)
-    val shadowElevation = if (advancedBlurEnabled) 0.dp else 6.dp
+    val fabBlur = fabBlurModifier(hazeState, !liquidGlass && advancedBlurEnabled, blurConfig, shape = fabShape)
+    val shadowElevation = if (liquidGlass || advancedBlurEnabled) 0.dp else 6.dp
 
     // morph 出现：顶栏收拢后期（0.75→1）原位淡入，位置/尺寸与顶栏收拢终点完全重合
     Box(
@@ -249,6 +286,8 @@ fun TopBarActionsFloating(
                         blurModifier = fabBlur,
                         shadowElevation = shadowElevation,
                         advancedBlurEnabled = advancedBlurEnabled,
+                        liquidGlassEnabled = liquidGlass,
+                        glassBackdrop = backdrop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -263,6 +302,8 @@ fun TopBarActionsFloating(
                             blurModifier = fabBlur,
                             shadowElevation = shadowElevation,
                             advancedBlurEnabled = advancedBlurEnabled,
+                            liquidGlassEnabled = liquidGlass,
+                            glassBackdrop = backdrop,
                             // 收缩过渡期间容器比 FAB 宽，FAB 始终贴右缘（右边框不动）
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
@@ -276,6 +317,7 @@ fun TopBarActionsFloating(
 /**
  * 悬浮搜索条：FAB 向左展开而来（高度 48dp 不变，右边框对齐 FAB 右缘），
  * 宽度由外层宽度驱动容器动画。两端图标均 24dp、视觉边距均 12dp（严格对称）。
+ * 液态玻璃模式：整条为折射玻璃渲染（vibrancy + blur + lens）。
  */
 @Composable
 private fun FloatingSearchBar(
@@ -287,6 +329,8 @@ private fun FloatingSearchBar(
     blurModifier: Modifier,
     shadowElevation: Dp,
     advancedBlurEnabled: Boolean,
+    liquidGlassEnabled: Boolean = false,
+    glassBackdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -295,15 +339,31 @@ private fun FloatingSearchBar(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            // 阴影必须在 clip 外层：放内侧会被裁进形状内，渐变/环境阴影显示为内部阴影
-            .then(
-                if (advancedBlurEnabled) Modifier
-                else Modifier.shadow(elevation = shadowElevation, shape = shape)
-            )
-            .clip(shape)
-            .background(containerColor)
-            .then(blurModifier)
+        modifier = modifier.then(
+            if (liquidGlassEnabled && glassBackdrop != null) {
+                // 液态玻璃：折射玻璃渲染（参数与 Kyant0 LiquidButton 一致）
+                Modifier.drawBackdrop(
+                    backdrop = glassBackdrop,
+                    shape = { shape },
+                    effects = {
+                        vibrancy()
+                        blur(2.dp.toPx())
+                        lens(12.dp.toPx(), 24.dp.toPx())
+                    },
+                    onDrawSurface = { drawRect(containerColor) }
+                )
+            } else {
+                Modifier
+                    // 阴影必须在 clip 外层：放内侧会被裁进形状内，渐变/环境阴影显示为内部阴影
+                    .then(
+                        if (advancedBlurEnabled) Modifier
+                        else Modifier.shadow(elevation = shadowElevation, shape = shape)
+                    )
+                    .clip(shape)
+                    .background(containerColor)
+                    .then(blurModifier)
+            }
+        )
     ) {
         Icon(
             imageVector = Icons.Rounded.Search,
@@ -369,6 +429,7 @@ private fun FloatingSearchBar(
  * 「搜索 + 添加」组合 FAB：两动作合并为一个悬浮单元（非独立两个 FAB）。
  * 尺寸与原顶栏按钮行严格一致（高 48dp，IconButton 48dp，图标 22/26dp），
  * 单动作时为 48dp 方块，两者齐备时为宽 FAB（搜索 + 分隔线 + 添加）。
+ * 液态玻璃模式：整块为折射玻璃渲染（vibrancy + blur + lens）。
  */
 @Composable
 private fun CombinedActionsFab(
@@ -381,21 +442,70 @@ private fun CombinedActionsFab(
     blurModifier: Modifier,
     shadowElevation: Dp = 6.dp,
     advancedBlurEnabled: Boolean,
+    liquidGlassEnabled: Boolean = false,
+    glassBackdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val contentColor = MaterialTheme.colorScheme.primary
+    // 交互物理反馈（Kyant0 LiquidButton 同款）：按压整体放大、拖动朝手指方向
+    // 平移并沿角度拉伸（tanh 限幅）、指尖跟随高光
+    val animationScope = rememberCoroutineScope()
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(animationScope)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .height(TopBarActionsHeight)
-            // 阴影必须在 clip 外层：放内侧会被裁进形状内，渐变/环境阴影显示为内部阴影
             .then(
-                if (advancedBlurEnabled) Modifier
-                else Modifier.shadow(elevation = shadowElevation, shape = shape)
+                if (liquidGlassEnabled && glassBackdrop != null) {
+                    Modifier
+                        .drawBackdrop(
+                            backdrop = glassBackdrop,
+                            shape = { shape },
+                            effects = {
+                                vibrancy()
+                                blur(2.dp.toPx())
+                                lens(12.dp.toPx(), 24.dp.toPx())
+                            },
+                            layerBlock = {
+                                val width = size.width
+                                val height = size.height
+                                val progress = interactiveHighlight.pressProgress
+                                val scale = lerp(1f, 1f + 4.dp.toPx() / height, progress)
+                                val maxOffset = size.minDimension
+                                val initialDerivative = 0.05f
+                                val offset = interactiveHighlight.offset
+                                translationX =
+                                    maxOffset * tanh(initialDerivative * offset.x / maxOffset)
+                                translationY =
+                                    maxOffset * tanh(initialDerivative * offset.y / maxOffset)
+                                val maxDragScale = 4.dp.toPx() / height
+                                val offsetAngle = atan2(offset.y, offset.x)
+                                scaleX = scale + maxDragScale *
+                                    abs(cos(offsetAngle) * offset.x / size.maxDimension) *
+                                    (width / height).fastCoerceAtMost(1f)
+                                scaleY = scale + maxDragScale *
+                                    abs(sin(offsetAngle) * offset.y / size.maxDimension) *
+                                    (height / width).fastCoerceAtMost(1f)
+                            },
+                            onDrawSurface = { drawRect(containerColor) }
+                        )
+                        // 高光层绘制在玻璃之上、图标之下；手势仅观察不消费，不影响内部按钮点击
+                        .then(interactiveHighlight.modifier)
+                        .then(interactiveHighlight.gestureModifier)
+                } else {
+                    Modifier
+                        // 阴影必须在 clip 外层：放内侧会被裁进形状内，渐变/环境阴影显示为内部阴影
+                        .then(
+                            if (advancedBlurEnabled) Modifier
+                            else Modifier.shadow(elevation = shadowElevation, shape = shape)
+                        )
+                        .clip(shape)
+                        .background(containerColor)
+                        .then(blurModifier)
+                }
             )
-            .clip(shape)
-            .background(containerColor)
-            .then(blurModifier)
     ) {
         if (showSearch) {
             IconButton(onClick = onSearchClick) {
