@@ -6,6 +6,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +48,11 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // 应用级依赖容器在此初始化：Application 保证先于所有组件（Activity/Service/Receiver）创建。
+        // 此前仅在 MainActivity.attachBaseContext 初始化，导致 PlaybackService 等可被系统
+        // 独立拉起的组件（通知栏媒体卡片/媒体按键/会话恢复）在冷启动进程中拿到未就绪的容器而崩溃；
+        // MainActivity 处的调用保留作幂等双保险
+        AppContainer.initialize(this)
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
         appScope.launch {
             JPushInterface.init(this@AnimeTrackApp)

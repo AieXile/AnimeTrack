@@ -110,7 +110,10 @@ object Routes {
         ABOUT to DEVELOPER,
         DATA_MANAGE to WEBDAV_BROWSE,
         DEVELOPER to PLAYER_SETTINGS,
-        PLAYER_SETTINGS to PLAYER_WEBDAV_CONFIG
+        PLAYER_SETTINGS to PLAYER_WEBDAV_CONFIG,
+        // 视频播放设置 → WebDAV 媒体浏览：pop 返回时走 isSecondaryBackward，
+        // 底层页放大淡入就位（否则误入"设置子页间过渡"分支，底层页从右滑入导致退出观感异常）
+        PLAYER_SETTINGS to WEBDAV_BROWSE
     )
 }
 

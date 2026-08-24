@@ -110,11 +110,13 @@ class SettingsRepository(private val context: Context) {
         private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
         private val PLAYER_WEBDAV_USERNAME_KEY = stringPreferencesKey("player_webdav_username")
         private val PLAYER_WEBDAV_PASSWORD_KEY = stringPreferencesKey("player_webdav_password")
+        private val PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY = booleanPreferencesKey("player_webdav_trust_all_certs")
         private val PLAYER_DEFAULT_SPEED_KEY = floatPreferencesKey("player_default_speed")
         private val PLAYER_HARDWARE_ACCELERATION_KEY = booleanPreferencesKey("player_hardware_acceleration")
         private val PLAYER_REMEMBER_POSITION_KEY = booleanPreferencesKey("player_remember_position")
         private val PLAYER_AUTO_PLAY_NEXT_KEY = booleanPreferencesKey("player_auto_play_next")
         private val PLAYER_LONG_PRESS_SPEED_KEY = floatPreferencesKey("player_long_press_speed")
+        private val PLAYER_AUTO_LANDSCAPE_KEY = booleanPreferencesKey("player_auto_landscape")
 
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
@@ -538,6 +540,10 @@ class SettingsRepository(private val context: Context) {
         setPreference(PLAYER_WEBDAV_PASSWORD_KEY, password)
     }
 
+    /** 信任所有证书（自签名/IP 直连 NAS 场景），仅作用于播放器 WebDAV 链路 */
+    val playerWebdavTrustAllCerts: Flow<Boolean> = preferenceFlow(PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY, false)
+    suspend fun setPlayerWebdavTrustAllCerts(enabled: Boolean) = setPreference(PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY, enabled)
+
     val updateNotificationVisible: Flow<Boolean> = preferenceFlow(UPDATE_NOTIFICATION_VISIBLE_KEY, false)
 
     suspend fun setUpdateNotificationVisible(visible: Boolean) = setPreference(UPDATE_NOTIFICATION_VISIBLE_KEY, visible)
@@ -561,6 +567,11 @@ class SettingsRepository(private val context: Context) {
     val playerLongPressSpeed: Flow<Float> = preferenceFlow(PLAYER_LONG_PRESS_SPEED_KEY, 2f)
 
     suspend fun setPlayerLongPressSpeed(speed: Float) = setPreference(PLAYER_LONG_PRESS_SPEED_KEY, speed)
+
+    /** 自动横屏：播放横屏视频时自动进入全屏并旋转。默认关闭（默认保持竖屏） */
+    val playerAutoLandscape: Flow<Boolean> = preferenceFlow(PLAYER_AUTO_LANDSCAPE_KEY, false)
+
+    suspend fun setPlayerAutoLandscape(enabled: Boolean) = setPreference(PLAYER_AUTO_LANDSCAPE_KEY, enabled)
 
     val fontFamilyFlow: Flow<String> = preferenceFlow(FONT_FAMILY_KEY, FontFamilyType.SYSTEM.name)
 

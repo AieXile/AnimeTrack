@@ -12,14 +12,16 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.player.PlaybackService
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.player.SubtitleLocator
 import com.aiexile.animetrack.di.AppContainer
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,7 +34,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 
 data class PlayerUiState(
     val isPlaying: Boolean = false,
@@ -45,7 +46,9 @@ data class PlayerUiState(
     val mediaTitle: String? = null,
     val isLongPressSpeedActive: Boolean = false,
     /** 遥控器(MediaController)是否已连上后台播放服务 */
-    val isControllerReady: Boolean = false
+    val isControllerReady: Boolean = false,
+    /** 自动横屏：播放横屏视频时自动进入全屏并旋转，默认关闭（手动全屏按钮不受影响） */
+    val autoLandscape: Boolean = false
 )
 
 /** 最近一次播放请求，用于错误后重试 */
@@ -77,6 +80,9 @@ class PlayerViewModel(
     /** 遥控器：连接 PlaybackService 内的播放器。所有指令经它转发到服务侧。 */
     private var controller: MediaController? = null
 
+    /** 进行中的连接：快速退出页面时在 onCleared 取消，防止 controller 迟到后无人释放 */
+    private var controllerFuture: ListenableFuture<MediaController>? = null
+
     /** 仅在 isControllerReady=true 之后访问；供 PlayerView / 轨道选择弹窗使用 */
     val player: Player
         get() = checkNotNull(controller) { "PlaybackService not connected yet" }
@@ -97,23 +103,42 @@ class PlayerViewModel(
     private var longPressSpeedCache: Float = 2f
     private var defaultSpeedCache: Float = 1f
     private var rememberPositionCache: Boolean = true
+    private var autoLandscapeCache: Boolean = false
+
+    /** 本次起播期望的初始位置：用于 READY 时校验位置是否被字幕合并重启丢掉 */
+    private var expectedStartPositionMs = 0L
+
+    /** 容器声明的视频分辨率（来自轨道 Format 元数据）。
+     *  libass 特效渲染管线下 onVideoSizeChanged/videoSize 可能被重写或丢失，
+     *  封装层元数据与渲染器无关，始终可靠。 */
+    private var videoFormatWidth = 0
+    private var videoFormatHeight = 0
 
     /** 独立于 viewModelScope 的持久化作用域：
      *  viewModelScope 在 onCleared 前即被关闭，其内启动的保存协程不会执行；
      *  此作用域 fire-and-forget，不手动取消，让退出时的最后一次写入自然完成。 */
     private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val okHttpClient = OkHttpClient()
-
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _uiState.update { it.copy(isPlaying = isPlaying) }
-            if (isPlaying) startPositionUpdates() else stopPositionUpdates()
+            if (isPlaying) {
+                startPositionUpdates()
+            } else {
+                stopPositionUpdates()
+                // 任一来源的暂停（通知栏/音频焦点丢失/片尾自动暂停）都落一次进度，
+                // 不再只依赖手动暂停与页面退出两条路径（幂等，多次写入无害）
+                saveCurrentPosition()
+            }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
-                Player.STATE_READY -> _uiState.update { it.copy(error = null) }
+                Player.STATE_READY -> {
+                    _uiState.update { it.copy(error = null) }
+                    restoreStartPositionIfNeeded()
+                    tryEnterFullscreenByAspectRatio()
+                }
                 Player.STATE_ENDED -> {
                     stopPositionUpdates()
                     _uiState.update { it.copy(isPlaying = false) }
@@ -133,11 +158,19 @@ class PlayerViewModel(
             _uiState.update { it.copy(playbackSpeed = playbackParameters.speed) }
         }
 
-        override fun onVideoSizeChanged(videoSize: VideoSize) {
-            // 横屏视频自动进入全屏
-            if (videoSize.width > 0 && videoSize.height > 0 && videoSize.width > videoSize.height) {
-                if (!_uiState.value.isFullscreen) {
-                    _uiState.update { it.copy(isFullscreen = true) }
+        override fun onTracksChanged(tracks: Tracks) {
+            // 记录当前选中视频轨的容器分辨率，供「自动横屏」判断使用。
+            // 不用 onVideoSizeChanged/videoSize：libass 特效渲染管线下会被重写或丢失，
+            // 封装层元数据与渲染器无关，始终可靠
+            for (group in tracks.groups) {
+                if (group.type != C.TRACK_TYPE_VIDEO) continue
+                for (i in 0 until group.length) {
+                    if (!group.isTrackSelected(i)) continue
+                    val f = group.getTrackFormat(i)
+                    if (f.width > 0 && f.height > 0) {
+                        videoFormatWidth = f.width
+                        videoFormatHeight = f.height
+                    }
                 }
             }
         }
@@ -155,6 +188,12 @@ class PlayerViewModel(
         viewModelScope.launch {
             settingsRepository.playerRememberPosition.collect { rememberPositionCache = it }
         }
+        viewModelScope.launch {
+            settingsRepository.playerAutoLandscape.collect { enabled ->
+                autoLandscapeCache = enabled
+                _uiState.update { it.copy(autoLandscape = enabled) }
+            }
+        }
         // 注：硬件加速与自动连播在 PlaybackService 启动时读取，更改后重新进入播放器生效
     }
 
@@ -165,6 +204,7 @@ class PlayerViewModel(
             ComponentName(application, PlaybackService::class.java)
         )
         val future = MediaController.Builder(application, sessionToken).buildAsync()
+        controllerFuture = future
         future.addListener({
             try {
                 controller = future.get().also {
@@ -172,6 +212,8 @@ class PlayerViewModel(
                     // 连接期间可能已有排队的请求，补挂自动连播状态由服务侧管理，此处仅标记就绪
                 }
                 _uiState.update { it.copy(isControllerReady = true) }
+            } catch (e: java.util.concurrent.CancellationException) {
+                // onCleared 已取消连接（快速退出页面），controller 由 future 内部释放
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to connect to PlaybackService", e)
                 _uiState.update { it.copy(error = "无法启动播放服务: ${e.message}") }
@@ -220,8 +262,14 @@ class PlayerViewModel(
                 currentMediaId = mediaId
                 _uiState.update { it.copy(mediaTitle = title, error = null) }
 
-                // URI 解析与认证由服务侧 MediaSourceFactory 完成（WebDAV DataSource 在服务内）
-                startPlayback(MediaItem.fromUri(fullUrl), mediaId)
+                // 扫描同目录外挂字幕（失败/无字幕静默降级，不阻塞起播）
+                val subtitles = SubtitleLocator.findExternalSubtitles(fullUrl, settingsRepository)
+
+                val mediaItem = MediaItem.Builder()
+                    .setUri(fullUrl)
+                    .setSubtitleConfigurations(subtitles)
+                    .build()
+                startPlayback(mediaItem, mediaId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to play WebDAV URL", e)
                 _uiState.update { it.copy(error = "无法播放: ${e.message}") }
@@ -247,32 +295,78 @@ class PlayerViewModel(
         startPlaylist(items, startIndex, currentMediaId!!)
     }
 
-    /** 单媒体项起播：设源 → prepare → 应用默认值 → 恢复进度 → 播放 */
+    /** 单媒体项起播：读记忆进度 → 带初始位置设源 → prepare → 应用默认值 → 播放 */
     private fun startPlayback(mediaItem: MediaItem, mediaId: String) {
         val c = controller
         if (c == null) {
             _uiState.update { it.copy(error = "播放服务尚未就绪") }
             return
         }
-        c.setMediaItem(mediaItem)
-        c.prepare()
-        applyPlaybackDefaults(c)
-        restorePositionIfRemembered(mediaId)
-        c.playWhenReady = true
+        viewModelScope.launch {
+            // 官方姿势：IDLE 状态下 setMediaItem(item, startPositionMs)，
+            // prepare 后直接从该位置起播，避免 prepare 后再异步 seek 的竞态
+            val startPosition = readSavedPosition(mediaId)
+            expectedStartPositionMs = startPosition
+            c.setMediaItem(mediaItem, startPosition)
+            c.prepare()
+            applyPlaybackDefaults(c)
+            c.playWhenReady = true
+        }
     }
 
-    /** 多媒体列表起播 */
+    /** 多媒体列表起播（仅首项恢复记忆进度，后续集从头播） */
     private fun startPlaylist(items: List<MediaItem>, startIndex: Int, mediaId: String) {
         val c = controller
         if (c == null) {
             _uiState.update { it.copy(error = "播放服务尚未就绪") }
             return
         }
-        c.setMediaItems(items, startIndex, 0L)
-        c.prepare()
-        applyPlaybackDefaults(c)
-        restorePositionIfRemembered(mediaId)
-        c.playWhenReady = true
+        viewModelScope.launch {
+            val startPosition = readSavedPosition(mediaId)
+            expectedStartPositionMs = startPosition
+            c.setMediaItems(items, startIndex, startPosition)
+            c.prepare()
+            applyPlaybackDefaults(c)
+            c.playWhenReady = true
+        }
+    }
+
+    /** 按「记住播放位置」开关读取已存进度（无记录/开关关闭返回 0） */
+    private suspend fun readSavedPosition(mediaId: String): Long {
+        if (!rememberPositionCache) return 0L
+        return try {
+            playerRepository.getPlaybackPosition(mediaId)?.coerceAtLeast(0L) ?: 0L
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read saved position", e)
+            0L
+        }
+    }
+
+    /** 首次 READY 时校验记忆位置是否真的生效。
+     *  实测：外挂字幕（MergingMediaSource）合并完成时会重启视频提取，
+     *  setMediaItem(item, startPosition) 的初始位置会被丢回 0；
+     *  发现回退即补偿 seek，保证「播放记忆」可靠。 */
+    private fun restoreStartPositionIfNeeded() {
+        val expected = expectedStartPositionMs
+        if (expected <= 0L) return
+        expectedStartPositionMs = 0L
+        val c = controller ?: return
+        if (c.currentPosition < expected - 1000L) {
+            c.seekTo(expected)
+        }
+    }
+
+    /** 横向视频且「自动横屏」开启且未全屏 → 进入全屏（UI 层随 isFullscreen 旋转到横向）。
+     *  唯一触发点：STATE_READY；分辨率取轨道 Format，缺失时回退 controller.videoSize。 */
+    private fun tryEnterFullscreenByAspectRatio() {
+        if (!autoLandscapeCache) return
+        if (_uiState.value.isFullscreen) return
+        val vs = controller?.videoSize
+        val w = videoFormatWidth.takeIf { it > 0 } ?: (vs?.width ?: 0)
+        val h = videoFormatHeight.takeIf { it > 0 } ?: (vs?.height ?: 0)
+        if (w > 0 && h > 0 && w > h) {
+            _uiState.update { it.copy(isFullscreen = true) }
+        }
     }
 
     /** 错误重试：重放最近一次播放请求；无可重试请求时返回 false */
@@ -293,25 +387,16 @@ class PlayerViewModel(
         _uiState.update { it.copy(isLongPressSpeedActive = false) }
     }
 
-    /** 按「记忆播放位置」开关恢复进度 */
-    private fun restorePositionIfRemembered(mediaId: String) {
-        if (!rememberPositionCache) return
-        viewModelScope.launch {
-            val savedPosition = playerRepository.getPlaybackPosition(mediaId)
-            if (savedPosition != null && savedPosition > 0) {
-                controller?.seekTo(savedPosition)
-            }
-        }
-    }
-
-    /** 按「记忆播放位置」开关保存当前进度（幂等，可在暂停/播完/退出时多次调用） */
+    /** 按「记住播放位置」开关保存当前进度（幂等，可在暂停/播完/退出时多次调用）。
+     *  仅在 STATE_READY 后才取位置，避免 IDLE/BUFFERING 期间读到无效的 0。 */
     private fun saveCurrentPosition() {
         val mediaId = currentMediaId ?: return
         if (!rememberPositionCache) return
         val c = controller ?: return
+        if (c.playbackState != Player.STATE_READY) return
         val position = c.currentPosition
         val duration = c.duration
-        if (duration <= 0) return
+        if (duration <= 0 || position <= 0) return
         persistScope.launch {
             try {
                 playerRepository.savePlaybackPosition(mediaId, position, duration)
@@ -350,6 +435,11 @@ class PlayerViewModel(
 
     fun toggleFullscreen() {
         _uiState.update { it.copy(isFullscreen = !it.isFullscreen) }
+    }
+
+    /** 设置「自动横屏」开关：开启后播放横屏视频时自动进入全屏并旋转（持久化） */
+    fun setAutoLandscape(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setPlayerAutoLandscape(enabled) }
     }
 
     /** 跳到下一个媒体项 */
@@ -396,6 +486,10 @@ class PlayerViewModel(
 
         // 退出播放页 = 停止播放并关掉后台服务
         // （后台播放指锁屏/切换其他应用场景；页面销毁不应留下无界面的持续播放）
+        // 连接尚未完成就退出：取消挂起的连接，否则 controller 迟到后无人释放，
+        // binder 连接会阻止 stopService 销毁服务 → 通知栏媒体卡片残留
+        controllerFuture?.let { if (!it.isDone) it.cancel(true) }
+        controllerFuture = null
         controller?.let {
             it.removeListener(playerListener)
             it.release()

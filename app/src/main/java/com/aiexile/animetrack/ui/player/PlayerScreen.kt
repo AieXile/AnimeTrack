@@ -7,8 +7,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -47,8 +50,10 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.FullscreenExit
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.ScreenRotation
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
@@ -59,11 +64,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -85,10 +92,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -100,11 +109,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
-import androidx.media3.ui.TrackSelectionDialogBuilder
 import com.aiexile.animetrack.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -113,6 +123,9 @@ import kotlin.math.abs
 
 private val ControlsBarColor = Color.Black.copy(alpha = 0.5f)
 private val GestureOverlayColor = Color.Black.copy(alpha = 0.7f)
+
+/** 播放器手势四边防误触距离：避开系统侧滑返回/下拉状态栏/上滑回桌面手势区 */
+private val GestureEdgeExclusion = 28.dp
 
 @Composable
 fun PlayerScreen(
@@ -136,18 +149,19 @@ fun PlayerScreen(
     }
 
     // Observe WebDAV file path from savedStateHandle (set by WebDAVBrowseScreen)
+    // 用 StateFlow 单订阅：LiveData.observe 会随 LaunchedEffect 重启叠加多个 observer，
+    // 且 LiveData 值分发是广播式的——曾导致 playWebDavUrl 被重复触发多次
     val navBackStackEntry = navController.currentBackStackEntryAsState()
-    LaunchedEffect(navBackStackEntry.value) {
-        navBackStackEntry.value?.savedStateHandle
-            ?.getLiveData<String?>("webdav_file_path")
-            ?.observe(navBackStackEntry.value!!) { path: String? ->
-                if (path != null) {
-                    val fileName = navBackStackEntry.value?.savedStateHandle
-                        ?.getLiveData<String?>("webdav_file_name")?.value
+    navBackStackEntry.value?.let { entry ->
+        LaunchedEffect(entry) {
+            entry.savedStateHandle.getStateFlow<String?>("webdav_file_path", null)
+                .filterNotNull()
+                .collect { path ->
+                    val fileName = entry.savedStateHandle.get<String?>("webdav_file_name")
                     viewModel.playWebDavUrl(path, fileName)
-                    navBackStackEntry.value?.savedStateHandle?.set("webdav_file_path", null)
+                    entry.savedStateHandle["webdav_file_path"] = null
                 }
-            }
+        }
     }
 
     // 从番剧详情页进入（animeId > 0）时自动打开 WebDAV 浏览，让用户选择对应视频文件；
@@ -164,13 +178,15 @@ fun PlayerScreen(
     var controlsHideJob by remember { mutableStateOf<Job?>(null) }
     var showSpeedMenu by remember { mutableStateOf(false) }
 
-    // 字幕/音轨选择弹窗（media3 官方 TrackSelectionDialogBuilder）
-    fun showTrackSelectionDialog(trackType: Int, title: String) {
-        TrackSelectionDialogBuilder(context, title, viewModel.player, trackType)
-            .setShowDisableOption(trackType == C.TRACK_TYPE_TEXT)
-            .build()
-            .show()
-    }
+    // 字幕/音轨选择弹窗：null = 关闭；值为 C.TRACK_TYPE_TEXT / C.TRACK_TYPE_AUDIO
+    // 自建 Compose 弹窗替代 media3 TrackSelectionDialogBuilder（后者要求 FragmentActivity，本项目为 ComponentActivity 会闪退）
+    var trackDialogType by remember { mutableIntStateOf(-1) }
+
+    // 右上角「更多」菜单：面板渲染在顶层，与控制条自动隐藏互不影响
+    var moreMenuExpanded by remember { mutableStateOf(false) }
+
+    // 半屏面板（字幕/音轨选择、更多菜单）是否打开：用于联动隐藏上下控制条
+    val anyPanelOpen = trackDialogType >= 0 || moreMenuExpanded
 
     // Gesture feedback state
     var gestureFeedback by remember { mutableStateOf<GestureFeedback?>(null) }
@@ -178,6 +194,17 @@ fun PlayerScreen(
 
     // Seek gesture state
     var seekDeltaMs by remember { mutableLongStateOf(0L) }
+
+    // 四边防误触：给系统手势留空间（左侧滑返回/右侧滑返回、顶部下拉状态栏、底部上滑回桌面），
+    // 起点落在边缘区内时忽略播放器的拖动手势与点按
+    val gestureEdgeExclusionPx = with(LocalDensity.current) { GestureEdgeExclusion.toPx() }
+    var ignoreVerticalGesture by remember { mutableStateOf(false) }
+    var ignoreHorizontalGesture by remember { mutableStateOf(false) }
+
+    fun isInGestureEdgeZone(x: Float, y: Float, w: Int, h: Int): Boolean {
+        val e = gestureEdgeExclusionPx
+        return x < e || y < e || x > w - e || y > h - e
+    }
 
     // Brightness & volume state
     var currentBrightness by remember { mutableFloatStateOf(-1f) }
@@ -199,12 +226,23 @@ fun PlayerScreen(
         }
     }
 
-    // Keep controls visible when paused
+    // Keep controls visible when paused（半屏面板打开期间保持隐藏，由面板关闭逻辑恢复）
     LaunchedEffect(uiState.isPlaying) {
         if (!uiState.isPlaying) {
             controlsHideJob?.cancel()
-            showControls = true
+            if (!anyPanelOpen) showControls = true
         } else {
+            resetControlsTimer()
+        }
+    }
+
+    // 半屏面板打开期间强制隐藏上下控制条；面板完全退出（含退场动画）后恢复显示并重新计时
+    LaunchedEffect(anyPanelOpen) {
+        if (anyPanelOpen) {
+            controlsHideJob?.cancel()
+            showControls = false
+        } else {
+            showControls = true
             resetControlsTimer()
         }
     }
@@ -213,6 +251,9 @@ fun PlayerScreen(
     val insetsController = activity?.let {
         WindowCompat.getInsetsController(it.window, it.window.decorView)
     }
+    // Fullscreen mode - hide/show system bars & change orientation。
+    // 手动全屏按钮永远旋转到横向；「自动横屏」开关只控制播放横屏视频时
+    // 是否自动进入全屏（见 PlayerViewModel.onVideoSizeChanged）
     LaunchedEffect(uiState.isFullscreen) {
         if (uiState.isFullscreen) {
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
@@ -307,15 +348,22 @@ fun PlayerScreen(
                     .fillMaxSize()
                     .pointerInput(Unit) {
                         detectTapGestures(
-                            onTap = {
-                                showControls = !showControls
-                                if (showControls) resetControlsTimer()
+                            onTap = { offset ->
+                                // 边缘防误触：不响应点按，避免与系统手势冲突
+                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                    showControls = !showControls
+                                    if (showControls) resetControlsTimer()
+                                }
                             },
-                            onDoubleTap = {
-                                viewModel.togglePlayPause()
+                            onDoubleTap = { offset ->
+                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                    viewModel.togglePlayPause()
+                                }
                             },
-                            onLongPress = {
-                                viewModel.startLongPressSpeed()
+                            onLongPress = { offset ->
+                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                    viewModel.startLongPressSpeed()
+                                }
                             }
                         )
                     }
@@ -332,10 +380,14 @@ fun PlayerScreen(
                     }
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
-                            onDragStart = {
+                            onDragStart = { offset ->
                                 seekDeltaMs = 0L
+                                // 起点在四边防误触区内则整段手势忽略且不消费事件，
+                                // 让系统侧滑返回/下拉状态栏/上滑回桌面正常接管
+                                ignoreVerticalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
                             },
                             onVerticalDrag = { change, dragAmount ->
+                                if (ignoreVerticalGesture) return@detectVerticalDragGestures
                                 change.consume()
                                 val screenWidth = size.width
                                 val isLeftHalf = change.position.x < screenWidth / 2
@@ -375,17 +427,19 @@ fun PlayerScreen(
                     }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
-                            onDragStart = {
+                            onDragStart = { offset ->
                                 seekDeltaMs = 0L
+                                ignoreHorizontalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
                             },
                             onHorizontalDrag = { change, dragAmount ->
+                                if (ignoreHorizontalGesture) return@detectHorizontalDragGestures
                                 change.consume()
                                 // ~60 seconds per screen width
                                 val seekPerPx = 60_000f / size.width
                                 seekDeltaMs += (dragAmount * seekPerPx).toLong()
                             },
                             onDragEnd = {
-                                if (seekDeltaMs != 0L) {
+                                if (seekDeltaMs != 0L && !ignoreHorizontalGesture) {
                                     val newPosition =
                                         (uiState.currentPositionMs + seekDeltaMs)
                                             .coerceIn(0, uiState.durationMs)
@@ -466,6 +520,7 @@ fun PlayerScreen(
                             viewModel.seekTo(uiState.currentPositionMs + 85_000L)
                             resetControlsTimer()
                         },
+                        onOpenMoreMenu = { moreMenuExpanded = true },
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .then(
@@ -513,17 +568,7 @@ fun PlayerScreen(
                             resetControlsTimer()
                         },
                         onSelectSubtitles = {
-                            showTrackSelectionDialog(
-                                C.TRACK_TYPE_TEXT,
-                                context.getString(R.string.player_subtitles)
-                            )
-                            resetControlsTimer()
-                        },
-                        onSelectAudio = {
-                            showTrackSelectionDialog(
-                                C.TRACK_TYPE_AUDIO,
-                                context.getString(R.string.player_audio_track)
-                            )
+                            trackDialogType = C.TRACK_TYPE_TEXT
                             resetControlsTimer()
                         },
                         onToggleFullscreen = {
@@ -540,7 +585,38 @@ fun PlayerScreen(
                 }
             }
         }
-    }
+
+        // 字幕/音轨选择面板（右侧半透明抽屉，实现见 PlayerPanels.kt）
+        if (trackDialogType >= 0) {
+            TrackSelectionPanel(
+                trackType = trackDialogType,
+                player = viewModel.player,
+                onDismiss = { trackDialogType = -1 }
+            )
+        }
+
+        // 右上角「更多」菜单：与字幕抽屉同一套视觉语言（1/3 屏宽右侧抽屉），
+        // 渲染在控制条之外，打开期间控制条由 anyPanelOpen 联动隐藏
+        if (moreMenuExpanded) {
+            PlayerMenuPanel(
+                onDismiss = { moreMenuExpanded = false }
+            ) { requestClose ->
+                PlayerMenuItem(
+                    icon = Icons.Rounded.MusicNote,
+                    label = stringResource(R.string.player_audio_track),
+                    onClick = {
+                        requestClose()
+                        trackDialogType = C.TRACK_TYPE_AUDIO
+                    }
+                )
+                PlayerMenuItemToggle(
+                    icon = Icons.Rounded.ScreenRotation,
+                    label = stringResource(R.string.player_auto_landscape),
+                    checked = uiState.autoLandscape,
+                    onCheckedChange = { viewModel.setAutoLandscape(it) }
+                )
+            }
+        }    }
 }
 
 @Composable
@@ -564,6 +640,7 @@ private fun TopControlBar(
     title: String?,
     onBack: () -> Unit,
     onSkipForward: () -> Unit,
+    onOpenMoreMenu: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -621,6 +698,17 @@ private fun TopControlBar(
                     )
                 }
             }
+
+            // 更多选项菜单：面板由 PlayerScreen 顶层渲染（与字幕抽屉同风格），
+            // 不随控制条自动隐藏而消失
+            IconButton(onClick = onOpenMoreMenu) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = stringResource(R.string.common_more),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
     }
 }
@@ -644,7 +732,6 @@ private fun BottomControlBar(
     onTogglePlayPause: () -> Unit,
     onNextEpisode: () -> Unit,
     onSelectSubtitles: () -> Unit,
-    onSelectAudio: () -> Unit,
     onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -739,21 +826,11 @@ private fun BottomControlBar(
                 )
             }
 
-            // 字幕轨选择（无字幕轨时 media3 弹窗内为空列表，不影响使用）
+            // 字幕轨选择（无字幕轨时面板显示空提示）
             IconButton(onClick = onSelectSubtitles) {
                 Icon(
                     imageVector = Icons.Rounded.ClosedCaption,
                     contentDescription = stringResource(R.string.player_subtitles),
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            // 音频轨选择
-            IconButton(onClick = onSelectAudio) {
-                Icon(
-                    imageVector = Icons.Rounded.MusicNote,
-                    contentDescription = stringResource(R.string.player_audio_track),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )

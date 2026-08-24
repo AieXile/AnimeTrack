@@ -227,6 +227,15 @@ fun AnimeTrackApp(
     val currentNavRoute by navController.currentBackStackEntryAsState()
     val isMainRoute = currentNavRoute?.destination?.route == Routes.MAIN
 
+    // NavHost 容器背景随路由切换：沉浸式黑色页面（播放器/WebDAV 浏览）互转时容器底色同步变黑，
+    // 避免转场中页面缩放淡入露出浅色底造成白闪（浏览页退出动画观感与其他二级页不一致的根因）；
+    // 返回浅色页面时恢复主题背景，表现与二三级页面一致。currentBackStackEntry 在导航触发瞬间即更新，与转场同步
+    val navHostContainerColor = if (isImmersiveRoute(currentNavRoute?.destination?.route)) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.background
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -238,7 +247,7 @@ fun AnimeTrackApp(
                 startDestination = currentStartRoute,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                    .background(navHostContainerColor),
                 enterTransition = {
                     enterTransition()
                 },

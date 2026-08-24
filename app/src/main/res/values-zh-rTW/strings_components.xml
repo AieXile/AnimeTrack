@@ -97,6 +97,10 @@
     <string name="player_long_press_speed">長按加速中</string>
     <string name="player_subtitles">字幕</string>
     <string name="player_audio_track">音軌</string>
+    <string name="player_track_none_available">未偵測到可用的字幕或音軌</string>
+    <string name="player_track_disable">關閉</string>
+    <string name="player_menu_more">更多</string>
+    <string name="player_auto_landscape">自動橫向</string>
 
     <!-- 影片播放聚合頁 -->
     <string name="settings_playback">影片播放</string>
@@ -109,6 +113,8 @@
     <string name="player_webdav_config_hint">此設定僅供播放器使用，與備份同步的伺服器相互獨立，可以是不同的伺服器或帳號。</string>
     <string name="player_webdav_import_from_backup">從備份配置填入</string>
     <string name="player_webdav_backup_empty_hint">備份同步尚未配置 WebDAV，無可填入的配置</string>
+    <string name="player_webdav_trust_all_certs">信任所有證書</string>
+    <string name="player_webdav_trust_all_certs_desc">用 IP 直連 NAS 或自簽名證書時開啟；僅作用於播放器，重新啟動應用後生效，請勿在不可信網路中使用</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器設定</string>

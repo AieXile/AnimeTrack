@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.player.PlayerWebDavHttpClient
 import com.aiexile.animetrack.di.AppContainer
 import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 data class WebDAVFileItem(
     val name: String,
@@ -68,7 +70,8 @@ class WebDAVBrowseViewModel(
             )
 
             try {
-                val sardine = OkHttpSardine()
+                val trustAll = settingsRepository.playerWebdavTrustAllCerts.first()
+                val sardine = OkHttpSardine(PlayerWebDavHttpClient.create(trustAll))
                 if (username.isNotEmpty()) {
                     sardine.setCredentials(username, password)
                 }
@@ -93,8 +96,11 @@ class WebDAVBrowseViewModel(
                 }
 
                 for (resource in resources) {
-                    val resPath = resource.href.toString()
-                    val resName = resPath.trimEnd('/').substringAfterLast('/')
+                    // NAS 可能返回相对 href（如 /Movies/xxx.mkv），统一转为绝对 URL
+                    val resPath = toAbsoluteUrl(resource.href.toString(), targetPath)
+                    // 显示名优先用服务器提供的 displayName（中文等非 ASCII 字符不会是百分号编码）
+                    val resName = resource.displayName?.takeIf { it.isNotBlank() }
+                        ?: android.net.Uri.decode(resPath.trimEnd('/').substringAfterLast('/'))
                     if (resName.isBlank()) continue
 
                     // Skip the directory itself (first result is always the listed directory)
@@ -158,6 +164,18 @@ class WebDAVBrowseViewModel(
     private fun normalizeUrl(url: String): String {
         val trimmed = url.trimEnd('/')
         return "$trimmed/"
+    }
+
+    /** 将 WebDAV 响应中的 href 规范化为绝对 URL：
+     *  部分服务器（如飞牛 OS）返回相对路径，需以当前请求 URL 为基准解析；
+     *  resolve 会正确处理百分号编码与 ../ 等相对引用。 */
+    private fun toAbsoluteUrl(href: String, requestUrl: String): String {
+        if (href.startsWith("http://") || href.startsWith("https://")) return href
+        return try {
+            requestUrl.toHttpUrlOrNull()?.resolve(href)?.toString() ?: href
+        } catch (e: Exception) {
+            href
+        }
     }
 
     private fun getParentPath(path: String): String {

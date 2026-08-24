@@ -163,6 +163,8 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.media3.datasource.okhttp)
     implementation(libs.media3.session)
+    // libass 特效字幕引擎（native 渲染，绕开 Java 堆限制；ass-media 为其 media3 桥接库）
+    implementation(libs.ass.media)
     // 设置搜索：中文转拼音，支持拼音全拼/首字母模糊匹配
     // （Maven Central 上的 pinyin4j，无传递依赖；TinyPinyin 在 JitPack 上构建已失效不可用）
     implementation(libs.pinyin4j)

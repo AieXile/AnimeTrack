@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.SquircleShape
 import kotlinx.coroutines.launch
 
 /**
@@ -57,6 +61,7 @@ fun PlayerWebDavConfigScreen(
     val savedUrl by settingsRepository.playerWebdavUrl.collectAsState(initial = "")
     val savedUsername by settingsRepository.playerWebdavUsername.collectAsState(initial = "")
     val savedPassword by settingsRepository.playerWebdavPassword.collectAsState(initial = "")
+    val trustAllCerts by settingsRepository.playerWebdavTrustAllCerts.collectAsState(initial = false)
     val backupUrl by settingsRepository.webdavUrl.collectAsState(initial = "")
     val backupUsername by settingsRepository.webdavUsername.collectAsState(initial = "")
     val backupPassword by settingsRepository.webdavPassword.collectAsState(initial = "")
@@ -147,7 +152,7 @@ fun PlayerWebDavConfigScreen(
                         onBack()
                     }
                 },
-                shape = com.aiexile.animetrack.ui.components.SquircleShape(12.dp),
+                shape = SquircleShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -168,7 +173,7 @@ fun PlayerWebDavConfigScreen(
                     passwordDraft = backupPassword
                 },
                 enabled = backupUrl.isNotBlank(),
-                shape = com.aiexile.animetrack.ui.components.SquircleShape(12.dp),
+                shape = SquircleShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = stringResource(R.string.player_webdav_import_from_backup))
@@ -180,6 +185,36 @@ fun PlayerWebDavConfigScreen(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 信任所有证书：IP 直连 NAS / 自签名证书场景（写入 DataStore；
+            // PlaybackService 的 OkHttp client 为懒加载单例，重启应用后生效）
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.player_webdav_trust_all_certs),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.player_webdav_trust_all_certs_desc),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                AppSwitch(
+                    checked = trustAllCerts,
+                    onCheckedChange = { enabled ->
+                        scope.launch { settingsRepository.setPlayerWebdavTrustAllCerts(enabled) }
+                    }
                 )
             }
 

@@ -42,6 +42,9 @@ object AppContainer {
     }
 
     fun initialize(context: Context) {
+        // 幂等守卫：Application.onCreate 必先于所有组件执行；MainActivity.attachBaseContext
+        // 等处的重复调用直接跳过，避免重建全套实例（旧实例泄漏 + 状态不一致窗口）
+        if (this.context != null) return
         this.context = context.applicationContext
         database = AnimeDatabase.getDatabase(this.context!!)
         repository = AnimeRepositoryImpl(database!!.animeDao(), this.context!!)
