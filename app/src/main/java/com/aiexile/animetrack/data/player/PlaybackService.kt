@@ -23,8 +23,10 @@ import io.github.peerless2012.ass.media.AssHandlerConfig
 import io.github.peerless2012.ass.media.kt.buildWithAssSupport
 import io.github.peerless2012.ass.media.type.AssRenderType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
 
 /**
  * 后台播放服务：ExoPlayer 的常驻之家。
@@ -42,37 +44,39 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
-    private val okHttpClient by lazy {
-        PlayerWebDavHttpClient.create(
-            runBlocking(Dispatchers.IO) {
-                AppContainer.getSettingsRepository().playerWebdavTrustAllCerts.first()
-            }
-        )
-    }
+    /** onCreate 初始化一次；凭据变化经 DataSource.Factory 每次实时读取，此处只涉及证书信任模式 */
+    private lateinit var okHttpClient: OkHttpClient
 
     override fun onCreate() {
         super.onCreate()
         val settingsRepository = AppContainer.getSettingsRepository()
 
-        // 服务启动时读取一次的开关：更改后重新进入播放器生效（与原实现一致）
-        val allowHardware = runBlocking(Dispatchers.IO) {
-            settingsRepository.playerHardwareAcceleration.first()
+        // 并行读取服务启动所需的设置（原先串行 4 次 DataStore IO，都在主线程 runBlocking）
+        data class StartupSettings(
+            val allowHardware: Boolean,
+            val autoPlayNext: Boolean,
+            val trustAllCerts: Boolean
+        )
+
+        val startup = runBlocking(Dispatchers.IO) {
+            val hardware = async { settingsRepository.playerHardwareAcceleration.first() }
+            val autoNext = async { settingsRepository.playerAutoPlayNext.first() }
+            val trustAll = async { settingsRepository.playerWebdavTrustAllCerts.first() }
+            StartupSettings(hardware.await(), autoNext.await(), trustAll.await())
         }
-        // 自动连播关闭时：每集结尾暂停（仅影响自动过渡，手动切集不受限）
-        val autoPlayNext = runBlocking(Dispatchers.IO) {
-            settingsRepository.playerAutoPlayNext.first()
-        }
+
+        okHttpClient = PlayerWebDavHttpClient.create(startup.trustAllCerts)
 
         // 字幕渲染交给 libass（native 引擎）：特效/定位/卡拉OK全支持，
         // 且解析与栅格化发生在 native 堆，不再挤爆 Java 堆（历史 OOM 根因）。
         // EFFECTS_OPEN_GL：字幕作为视频特效在 GL 管线内合成，与 MediaSession 架构自洽。
         val player = try {
-            buildLibAssPlayer(this, allowHardware, autoPlayNext)
+            buildLibAssPlayer(this, startup.allowHardware, startup.autoPlayNext)
         } catch (t: Throwable) {
             // libass 桥接层基于 media3 1.8 开发，与 1.10.1 存在版本兼容风险：
             // 构建失败时回退普通播放器保证视频可看，并留下完整堆栈供定位
             Log.e(TAG, "LibAss player build failed, fallback to plain player", t)
-            buildPlainPlayer(this, allowHardware, autoPlayNext)
+            buildPlainPlayer(this, startup.allowHardware, startup.autoPlayNext)
         }
 
         mediaSession = MediaSession.Builder(this, player).build()

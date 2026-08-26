@@ -71,14 +71,19 @@ object SubtitleLocator {
             val dirUrl = videoUrl.substringBeforeLast('/')
             if (dirUrl.isBlank()) return@runCatching emptyList()
 
-            val trustAll = settingsRepository.playerWebdavTrustAllCerts.first()
-            val sardine = OkHttpSardine(PlayerWebDavHttpClient.create(trustAll))
-            val username = settingsRepository.playerWebdavUsername.first()
-            if (username.isNotEmpty()) {
-                sardine.setCredentials(username, settingsRepository.playerWebdavPassword.first())
-            }
+            // 优先复用浏览页刚列过的目录（缓存命中时零网络请求，消除起播延迟）
+            var resources = WebDavDirectoryCache.get(dirUrl)
+            if (resources == null) {
+                val trustAll = settingsRepository.playerWebdavTrustAllCerts.first()
+                val sardine = OkHttpSardine(PlayerWebDavHttpClient.create(trustAll))
+                val username = settingsRepository.playerWebdavUsername.first()
+                if (username.isNotEmpty()) {
+                    sardine.setCredentials(username, settingsRepository.playerWebdavPassword.first())
+                }
 
-            val resources = sardine.list(dirUrl, 1) ?: return@runCatching emptyList()
+                resources = sardine.list(dirUrl, 1) ?: return@runCatching emptyList()
+                WebDavDirectoryCache.put(dirUrl, resources)
+            }
 
             val videoBaseName = baseName(videoUrl)
             data class Candidate(val url: String, val name: String, val mime: String, val score: Int)

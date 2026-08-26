@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.player.PlayerWebDavHttpClient
+import com.aiexile.animetrack.data.player.WebDavDirectoryCache
 import com.aiexile.animetrack.di.AppContainer
 import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +80,8 @@ class WebDAVBrowseViewModel(
                 val resources = withContext(Dispatchers.IO) {
                     sardine.list(targetPath, 1)
                 }
+                // 供播放前外挂字幕扫描复用（命中缓存则点播零网络请求起播）
+                WebDavDirectoryCache.put(targetPath, resources)
 
                 val currentNormalized = normalizeUrl(url)
                 val isRoot = targetPath.trimEnd('/') == currentNormalized.trimEnd('/')

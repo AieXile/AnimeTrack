@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class PlayerUiState(
     val isPlaying: Boolean = false,
@@ -75,6 +77,9 @@ class PlayerViewModel(
     companion object {
         private const val TAG = "PlayerViewModel"
         private const val POSITION_UPDATE_INTERVAL_MS = 500L
+
+        /** 起播前外挂字幕扫描的等待上限：超时降级为无字幕起播，防慢服务器拖死点播 */
+        private const val SUBTITLE_SCAN_TIMEOUT_MS = 3_000L
     }
 
     /** 遥控器：连接 PlaybackService 内的播放器。所有指令经它转发到服务侧。 */
@@ -110,9 +115,14 @@ class PlayerViewModel(
 
     /** 容器声明的视频分辨率（来自轨道 Format 元数据）。
      *  libass 特效渲染管线下 onVideoSizeChanged/videoSize 可能被重写或丢失，
-     *  封装层元数据与渲染器无关，始终可靠。 */
+     *  封装层元数据与渲染器无关，始终可靠。切集时在 onMediaItemTransition 重置。 */
     private var videoFormatWidth = 0
     private var videoFormatHeight = 0
+
+    /** 当前媒体项是否已做过「自动横屏」评估。
+     *  每集只评估一次：用户手动退出全屏后，缓冲恢复（STATE_READY 反复触发）
+     *  不得再次强制横屏；切集时重置。 */
+    private var autoLandscapeEvaluated = false
 
     /** 独立于 viewModelScope 的持久化作用域：
      *  viewModelScope 在 onCleared 前即被关闭，其内启动的保存协程不会执行；
@@ -173,6 +183,14 @@ class PlayerViewModel(
                     }
                 }
             }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // 切集：清掉上一集的容器尺寸并重置自动横屏评估，
+            // 避免横屏视频的旧尺寸误判新集（新集轨道信息到达前 READY 先触发）
+            videoFormatWidth = 0
+            videoFormatHeight = 0
+            autoLandscapeEvaluated = false
         }
     }
 
@@ -262,8 +280,10 @@ class PlayerViewModel(
                 currentMediaId = mediaId
                 _uiState.update { it.copy(mediaTitle = title, error = null) }
 
-                // 扫描同目录外挂字幕（失败/无字幕静默降级，不阻塞起播）
-                val subtitles = SubtitleLocator.findExternalSubtitles(fullUrl, settingsRepository)
+                // 扫描同目录外挂字幕（优先读浏览页目录缓存；失败/无字幕/超时均静默降级，不阻塞起播）
+                val subtitles = withTimeoutOrNull(SUBTITLE_SCAN_TIMEOUT_MS) {
+                    SubtitleLocator.findExternalSubtitles(fullUrl, settingsRepository)
+                } ?: emptyList()
 
                 val mediaItem = MediaItem.Builder()
                     .setUri(fullUrl)
@@ -295,14 +315,13 @@ class PlayerViewModel(
         startPlaylist(items, startIndex, currentMediaId!!)
     }
 
-    /** 单媒体项起播：读记忆进度 → 带初始位置设源 → prepare → 应用默认值 → 播放 */
+    /** 单媒体项起播：等连接就绪 → 读记忆进度 → 带初始位置设源 → prepare → 应用默认值 → 播放 */
     private fun startPlayback(mediaItem: MediaItem, mediaId: String) {
-        val c = controller
-        if (c == null) {
-            _uiState.update { it.copy(error = "播放服务尚未就绪") }
-            return
-        }
         viewModelScope.launch {
+            val c = awaitController() ?: run {
+                _uiState.update { it.copy(error = "无法连接播放服务") }
+                return@launch
+            }
             // 官方姿势：IDLE 状态下 setMediaItem(item, startPositionMs)，
             // prepare 后直接从该位置起播，避免 prepare 后再异步 seek 的竞态
             val startPosition = readSavedPosition(mediaId)
@@ -316,18 +335,34 @@ class PlayerViewModel(
 
     /** 多媒体列表起播（仅首项恢复记忆进度，后续集从头播） */
     private fun startPlaylist(items: List<MediaItem>, startIndex: Int, mediaId: String) {
-        val c = controller
-        if (c == null) {
-            _uiState.update { it.copy(error = "播放服务尚未就绪") }
-            return
-        }
         viewModelScope.launch {
+            val c = awaitController() ?: run {
+                _uiState.update { it.copy(error = "无法连接播放服务") }
+                return@launch
+            }
             val startPosition = readSavedPosition(mediaId)
             expectedStartPositionMs = startPosition
             c.setMediaItems(items, startIndex, startPosition)
             c.prepare()
             applyPlaybackDefaults(c)
             c.playWhenReady = true
+        }
+    }
+
+    /**
+     * 挂起等待遥控器连接完成（起播请求先到、服务后连上的竞态场景）。
+     * 已连接直接返回；页面退出或连接失败返回 null。
+     */
+    private suspend fun awaitController(): MediaController? {
+        controller?.let { return it }
+        val future = controllerFuture ?: return null
+        return suspendCancellableCoroutine { cont ->
+            future.addListener({
+                val c = runCatching { future.get() }.getOrNull()
+                // runCatching 防御极端竞态（协程已取消后 resume）时抛出的异常
+                runCatching { cont.resumeWith(Result.success(c)) }
+            }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
+            cont.invokeOnCancellation { future.cancel(true) }
         }
     }
 
@@ -357,14 +392,19 @@ class PlayerViewModel(
     }
 
     /** 横向视频且「自动横屏」开启且未全屏 → 进入全屏（UI 层随 isFullscreen 旋转到横向）。
-     *  唯一触发点：STATE_READY；分辨率取轨道 Format，缺失时回退 controller.videoSize。 */
+     *  唯一触发点：STATE_READY；每集只评估一次（见 autoLandscapeEvaluated）；
+     *  分辨率取轨道 Format，缺失时回退 controller.videoSize。 */
     private fun tryEnterFullscreenByAspectRatio() {
         if (!autoLandscapeCache) return
-        if (_uiState.value.isFullscreen) return
+        // 每集一次：评估完成后，缓冲恢复等后续 READY 不再强制横屏，
+        // 用户手动退出全屏的意愿必须被尊重；切集时重置重新评估
+        if (autoLandscapeEvaluated) return
+        autoLandscapeEvaluated = true
+
         val vs = controller?.videoSize
         val w = videoFormatWidth.takeIf { it > 0 } ?: (vs?.width ?: 0)
         val h = videoFormatHeight.takeIf { it > 0 } ?: (vs?.height ?: 0)
-        if (w > 0 && h > 0 && w > h) {
+        if (w > 0 && h > 0 && w > h && !_uiState.value.isFullscreen) {
             _uiState.update { it.copy(isFullscreen = true) }
         }
     }

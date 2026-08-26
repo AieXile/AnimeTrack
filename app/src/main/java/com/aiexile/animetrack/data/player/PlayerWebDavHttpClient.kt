@@ -18,21 +18,35 @@ import javax.net.ssl.X509TrustManager
  */
 object PlayerWebDavHttpClient {
 
+    /** 按信任模式各缓存一个实例：共享连接池/线程池，避免每次请求重新 DNS + TLS 握手 */
+    private val clients = arrayOfNulls<OkHttpClient>(2)
+
+    private const val INDEX_STRICT = 0
+    private const val INDEX_TRUST_ALL = 1
+
+    @Synchronized
     fun create(trustAllCerts: Boolean): OkHttpClient {
-        if (!trustAllCerts) return OkHttpClient()
+        val index = if (trustAllCerts) INDEX_TRUST_ALL else INDEX_STRICT
+        clients[index]?.let { return it }
 
-        val trustAllManager = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        }
-        val sslContext = SSLContext.getInstance("TLS").apply {
-            init(null, arrayOf<TrustManager>(trustAllManager), SecureRandom())
-        }
+        val client = if (!trustAllCerts) {
+            OkHttpClient()
+        } else {
+            val trustAllManager = object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            }
+            val sslContext = SSLContext.getInstance("TLS").apply {
+                init(null, arrayOf<TrustManager>(trustAllManager), SecureRandom())
+            }
 
-        return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustAllManager)
-            .hostnameVerifier { _, _ -> true }
-            .build()
+            OkHttpClient.Builder()
+                .sslSocketFactory(sslContext.socketFactory, trustAllManager)
+                .hostnameVerifier { _, _ -> true }
+                .build()
+        }
+        clients[index] = client
+        return client
     }
 }

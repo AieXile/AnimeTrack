@@ -595,7 +595,7 @@ fun PlayerScreen(
             )
         }
 
-        // 右上角「更多」菜单：与字幕抽屉同一套视觉语言（1/3 屏宽右侧抽屉），
+        // 右上角「更多」菜单：与字幕抽屉同一套视觉语言（1/2 屏宽右侧抽屉），
         // 渲染在控制条之外，打开期间控制条由 anyPanelOpen 联动隐藏
         if (moreMenuExpanded) {
             PlayerMenuPanel(

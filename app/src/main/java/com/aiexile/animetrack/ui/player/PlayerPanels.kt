@@ -128,7 +128,7 @@ private fun PanelScrimLayer(visible: Boolean, onClose: () -> Unit) {
 }
 
 /**
- * 播放器右侧抽屉面板容器：约 1/3 屏宽、全高，半透明黑底 + 左缘渐隐 + 右侧滑入，
+ * 播放器右侧抽屉面板容器：约 1/2 屏宽、全高，半透明黑底 + 左缘渐隐 + 右侧滑入，
  * 点击面板外任意处关闭。字幕/音轨选择与右上角「更多」菜单共用同一视觉语言。
  *
  * 内容起始缩进大于左缘渐隐宽度，保证条目文字不压在模糊渐变区上。
@@ -142,9 +142,9 @@ private fun SideDrawerPanel(
 ) {
     val (close, visible) = rememberPanelCloseController(onDismissed)
 
-    // 面板宽度：横屏约 1/3 屏，竖屏不低于 220dp
+    // 面板宽度：横屏约 1/2 屏；竖屏按 300dp 下限兜底（保证竖屏也有足够宽度）
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    val panelWidth = maxOf(screenWidthDp * 0.33f, 220.dp)
+    val panelWidth = maxOf(screenWidthDp * 0.5f, 300.dp)
 
     Box(modifier = Modifier.fillMaxSize()) {
         PanelScrimLayer(visible = visible, onClose = close)
@@ -318,7 +318,7 @@ private fun trackLabel(group: Tracks.Group, trackIndex: Int, fallbackIndex: Int)
 
 /**
  * 播放器右上角「更多」菜单面板：与字幕/音轨抽屉同一套视觉语言——
- * 右侧约 1/3 屏宽的全高抽屉（半透明黑底 + 左缘渐隐 + 右侧滑入），
+ * 右侧约 1/2 屏宽的全高抽屉（半透明黑底 + 左缘渐隐 + 右侧滑入），
  * 打开期间由调用方联动隐藏播放控制条，点击面板外任意处关闭。
  */
 @Composable
