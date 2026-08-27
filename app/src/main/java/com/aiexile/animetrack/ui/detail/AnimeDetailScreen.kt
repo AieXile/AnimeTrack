@@ -129,7 +129,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -1797,7 +1796,8 @@ private fun NotesCard(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (!isEditingNotes) {
+            // 无备注时点击卡片即可进入编辑，无需按钮；有内容后才显示编辑入口
+            if (!isEditingNotes && notes.isNotBlank()) {
                 IconButton(
                     onClick = onEditNotes,
                     modifier = Modifier.size(32.dp)
@@ -2023,8 +2023,7 @@ private fun StatusCard(
                         Text(stringResource(R.string.common_clear))
                     }
                 }
-            },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            }
         ) {
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = finishDate ?: System.currentTimeMillis()

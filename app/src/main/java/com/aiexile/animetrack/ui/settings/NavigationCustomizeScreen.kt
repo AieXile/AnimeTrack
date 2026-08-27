@@ -180,35 +180,38 @@ fun NavigationCustomizeScreen(
                                     animationSpec = androidx.compose.animation.core.tween(200)
                                 )
                             ) {
-                                SwitchItem(
-                                    title = stringResource(R.string.nav_custom_advanced_blur),
-                                    description = stringResource(R.string.nav_custom_advanced_blur_desc),
-                                    checked = capsuleAdvancedBlur,
-                                    onCheckedChange = { enabled ->
-                                        scope.launch {
-                                            settingsRepository.setCapsuleAdvancedBlurEnabled(enabled)
-                                            // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
-                                            if (enabled) settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                                        }
-                                    },
-                                    itemKey = "advanced_blur",
-                                    highlightKey = highlightKey
-                                )
-                                // 液态玻璃：开启后悬浮胶囊使用折射玻璃渲染，与高级模糊互斥
-                                SwitchItem(
-                                    title = stringResource(R.string.nav_custom_liquid_glass),
-                                    description = stringResource(R.string.nav_custom_liquid_glass_desc),
-                                    checked = capsuleLiquidGlass,
-                                    onCheckedChange = { enabled ->
-                                        scope.launch {
-                                            settingsRepository.setCapsuleLiquidGlassEnabled(enabled)
-                                            // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
-                                            if (enabled) settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                                        }
-                                    },
-                                    itemKey = "liquid_glass",
-                                    highlightKey = highlightKey
-                                )
+                                // AnimatedVisibility 的多个直接子项会叠加在同一位置，需用 Column 包裹
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SwitchItem(
+                                        title = stringResource(R.string.nav_custom_advanced_blur),
+                                        description = stringResource(R.string.nav_custom_advanced_blur_desc),
+                                        checked = capsuleAdvancedBlur,
+                                        onCheckedChange = { enabled ->
+                                            scope.launch {
+                                                settingsRepository.setCapsuleAdvancedBlurEnabled(enabled)
+                                                // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
+                                                if (enabled) settingsRepository.setCapsuleLiquidGlassEnabled(false)
+                                            }
+                                        },
+                                        itemKey = "advanced_blur",
+                                        highlightKey = highlightKey
+                                    )
+                                    // 液态玻璃：开启后悬浮胶囊使用折射玻璃渲染，与高级模糊互斥
+                                    SwitchItem(
+                                        title = stringResource(R.string.nav_custom_liquid_glass),
+                                        description = stringResource(R.string.nav_custom_liquid_glass_desc),
+                                        checked = capsuleLiquidGlass,
+                                        onCheckedChange = { enabled ->
+                                            scope.launch {
+                                                settingsRepository.setCapsuleLiquidGlassEnabled(enabled)
+                                                // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
+                                                if (enabled) settingsRepository.setCapsuleAdvancedBlurEnabled(false)
+                                            }
+                                        },
+                                        itemKey = "liquid_glass",
+                                        highlightKey = highlightKey
+                                    )
+                                }
                             }
                         }
                     }
