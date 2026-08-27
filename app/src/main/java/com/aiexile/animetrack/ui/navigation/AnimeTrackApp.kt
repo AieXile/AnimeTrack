@@ -44,7 +44,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -684,12 +683,11 @@ private fun MainOverlay(
     }
 
     // 顶栏下滑隐藏：开启开关后下滑收起顶栏，滚回列表顶部时展开（手机与平板一致）。
-    // MainOverlay 随路由切换销毁重建，collectAsState(false) 的初始 false 会在返回主页时
-    // 瞬态触发「开关关闭」重置，清掉记忆的收拢状态——故用 rememberSaveable 持有上次值
-    var hideTopBarOnScroll by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(settingsRepository) {
-        settingsRepository.hideTopBarOnScrollEnabled.collect { hideTopBarOnScroll = it }
-    }
+    // MainOverlay 随路由切换销毁重建（进详情页离开 MAIN 路由），rememberSaveable 无法
+    // 跨销毁存活，初始 false 会瞬态触发「开关关闭」重置，清掉记忆的收拢状态——
+    // 故初始值取同步缓存（与悬浮胶囊开关同方案），返回主页首帧即为真实开关值
+    val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
+        .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
     // 顶栏收起后的状态栏处理方式（全屏/留白遮罩/实心），初始值取同步缓存避免闪变
     val statusBarMode by settingsRepository.statusBarMode
         .collectAsState(settingsRepository.cachedStatusBarMode())
@@ -699,10 +697,11 @@ private fun MainOverlay(
             homeViewModel.updateTopBarHidden(false)
             return@LaunchedEffect
         }
-        // 回到主页（切页/详情返回）时按当前滚动位置恢复显隐（位置记忆，不强制展开）：
-        // 列表在顶部 → 展开顶栏；位置在中途 → 收起（与离开前的状态一致）
+        // 回到主页（切页/详情返回）时按当前滚动位置恢复显隐：列表恰在顶部 → 展开顶栏；
+        // 深处（index > 2）→ 收起；其余中途位置保持离开前状态（homeViewModel 已记忆，
+        // 不因 index <= 1 强制展开——轻微下滑收起后进详情返回应保持收起）
         if (isHomePage && !homeViewModel.uiState.value.isLocalSearchActive) {
-            if (gridState.firstVisibleItemIndex <= 1) {
+            if (gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0) {
                 homeViewModel.updateTopBarHidden(false)
             } else if (gridState.firstVisibleItemIndex > 2) {
                 homeViewModel.updateTopBarHidden(true)
