@@ -1,12 +1,10 @@
 <p align="center">
-  <img src="https://github.com/AieXile/AnimeTrack/blob/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp?raw=true" alt="AnimeTrack Logo" width="120" style="border-radius: 20px;"><br>
-  <h1 align="center">AnimeTrack</h1>
-  <p align="center">
-    <i>An Android anime tracking tool following Material Design 3 — Remember what you've watched.</i>
-  </p>
-  <p align="center">
-    <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
-  </p>
+  <img src="assets/banner_en.png" alt="AnimeTrack — An Android anime tracking tool following Material Design 3. Remember what you've watched." width="100%">
+</p>
+
+<p align="center">
+  <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
+</p>
   <p align="center">
     <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="Stars">
     <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
