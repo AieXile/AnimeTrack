@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatAirDateDisplay
@@ -114,7 +116,7 @@ fun AirDateEditor(
 
 /**
  * 放送日期选择 Dialog：单 Dialog 内切换「完整日期」（M3 DatePicker）与「仅年月」（年/月输入）。
- * 完整日期走 M3 DatePicker 的自适应宽度，不强制固定尺寸。
+ * 关闭平台默认窗口宽度限制，DatePicker 铺满弹窗（328~360dp），避免星期表头被挤压。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,39 +145,47 @@ fun AirDatePickerDialog(
     var yearText by remember { mutableStateOf(initialYear.toString()) }
     var monthText by remember { mutableStateOf(initialMonth.toString()) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
-            modifier = Modifier.width(360.dp),
+            modifier = Modifier
+                .padding(horizontal = 12.dp)
+                .widthIn(min = 328.dp, max = 360.dp),
             shape = SquircleShape(24.dp),
             color = MaterialTheme.colorScheme.surface
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = stringResource(R.string.detail_edit_air_date),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AirDateModeChip(
-                        text = stringResource(R.string.detail_air_date_mode_full),
-                        selected = !yearMonthMode,
-                        onClick = { yearMonthMode = false }
+            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Text(
+                        text = stringResource(R.string.detail_edit_air_date),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    AirDateModeChip(
-                        text = stringResource(R.string.detail_air_date_mode_year_month),
-                        selected = yearMonthMode,
-                        onClick = { yearMonthMode = true }
-                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AirDateModeChip(
+                            text = stringResource(R.string.detail_air_date_mode_full),
+                            selected = !yearMonthMode,
+                            onClick = { yearMonthMode = false }
+                        )
+                        AirDateModeChip(
+                            text = stringResource(R.string.detail_air_date_mode_year_month),
+                            selected = yearMonthMode,
+                            onClick = { yearMonthMode = true }
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (yearMonthMode) {
                     Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -207,14 +217,17 @@ fun AirDatePickerDialog(
                         )
                     }
                 } else {
-                    // M3 DatePicker 自适应 Dialog 宽度，不做额外尺寸约束
+                    // DatePicker 铺满弹窗宽度（其最小宽度为 328dp），
+                    // 周围不再加水平内边距，避免周日/周六表头被挤压重叠
                     DatePicker(state = datePickerState, showModeToggle = false)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
@@ -634,7 +635,8 @@ private fun DateSelectors(
                 ) {
                     Text(stringResource(R.string.common_ok))
                 }
-            }
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = startDate ?: System.currentTimeMillis()
@@ -658,7 +660,8 @@ private fun DateSelectors(
                 ) {
                     Text(stringResource(R.string.common_ok))
                 }
-            }
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = finishDate ?: System.currentTimeMillis()

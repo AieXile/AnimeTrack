@@ -10,6 +10,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -86,6 +87,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -97,6 +99,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -110,9 +113,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -122,6 +129,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -202,6 +210,14 @@ fun AnimeDetailScreen(
     // 浏览下方内容时顶栏收缩变窄（64dp → 32dp），内容滚回顶部后才展开
     val topBarScrollBehavior = rememberShrinkOnScrollTopAppBarBehavior(collapsedHeight = 32.dp)
 
+    // 标题跟随滚动：跟踪内容标题底边与顶栏底边（窗口坐标 px），
+    // 标题滚出顶栏下沿后，顶栏标题淡入接管显示；滚回时反向消失
+    val topBarBottomPx = remember { mutableFloatStateOf(0f) }
+    val contentTitleBottomPx = remember { mutableFloatStateOf(Float.MAX_VALUE) }
+    val isContentTitleVisible by remember {
+        derivedStateOf { contentTitleBottomPx.floatValue > topBarBottomPx.floatValue }
+    }
+
     val showMatchDialog by viewModel.showMatchDialog.collectAsState()
     val matchSearchQuery by viewModel.matchSearchQuery.collectAsState()
     val matchSearchState by viewModel.matchSearchState.collectAsState()
@@ -244,7 +260,51 @@ fun AnimeDetailScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { },
+                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                        topBarBottomPx.floatValue = coordinates.boundsInWindow().bottom
+                    },
+                    title = {
+                        // 内容标题滚出可视区后，顶栏标题淡入上移出现；过长单行省略。
+                        // 标题常驻布局（透明度 0 时不可见），仅用 graphicsLayer 做动画，
+                        // 并裁剪在自身边界内——动画过程中不会画到返回按钮区域
+                        val topBarTitle = uiState.anime?.let { anime ->
+                            if (editState.isEditing) editState.title else anime.title
+                        }
+                        val titleVisible = !isContentTitleVisible && topBarTitle != null
+                        val titleAlpha by animateFloatAsState(
+                            targetValue = if (titleVisible) 1f else 0f,
+                            animationSpec = tween(200),
+                            label = "top_bar_title_alpha"
+                        )
+                        val density = LocalDensity.current
+                        val titleSlidePx by animateFloatAsState(
+                            targetValue = if (titleVisible) 0f else with(density) { 4.dp.toPx() },
+                            animationSpec = tween(200),
+                            label = "top_bar_title_slide"
+                        )
+                        Text(
+                            text = topBarTitle.orEmpty(),
+                            fontSize = 16.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                // 常驻布局下 title 槽左端从导航图标右缘起算且带默认
+                                // start padding；用 layout 平移收紧（视觉内缩，不越界）
+                                .layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints)
+                                    layout(placeable.width, placeable.height) {
+                                        placeable.placeRelative(x = -8.dp.roundToPx(), y = 0)
+                                    }
+                                }
+                                .clipToBounds()
+                                .graphicsLayer {
+                                    alpha = titleAlpha
+                                    translationY = titleSlidePx
+                                }
+                        )
+                    },
                     navigationIcon = {
                         IconButton(onClick = {
                             if (editState.isEditing) {
@@ -378,6 +438,7 @@ fun AnimeDetailScreen(
                             onEditTitleChange = { viewModel.updateEditTitle(it) },
                             onEditTitleStart = { viewModel.setEditingTitle(true) },
                             onEditTitleDone = { viewModel.setEditingTitle(false) },
+                            onTitlePositionChanged = { contentTitleBottomPx.floatValue = it },
                             onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
                             onEditAirDateChange = { viewModel.updateEditAirDate(it) },
                             onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
@@ -770,6 +831,8 @@ private fun AnimeDetailContent(
     onEditTitleChange: (String) -> Unit = {},
     onEditTitleStart: () -> Unit = {},
     onEditTitleDone: () -> Unit = {},
+    // 标题底边（窗口坐标 px）变化时回调，供顶栏判断标题是否滚出可视区
+    onTitlePositionChanged: (Float) -> Unit = {},
     onEditAirWeekdayChange: (Int?) -> Unit = {},
     onEditAirDateChange: (String?) -> Unit = {},
     onUpdateEditTotalEpisodes: (Int) -> Unit = {},
@@ -995,7 +1058,10 @@ private fun AnimeDetailContent(
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            onTextLayout = { titleLineCount = it.lineCount }
+                            onTextLayout = { titleLineCount = it.lineCount },
+                            modifier = Modifier.onGloballyPositioned { coordinates ->
+                                onTitlePositionChanged(coordinates.boundsInWindow().bottom)
+                            }
                         )
                     }
 
@@ -1714,13 +1780,37 @@ private fun NotesCard(
     onEditNotes: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var hasOverflow by remember { mutableStateOf(false) }
+
     DetailCard(modifier = modifier) {
-        Text(
-            text = stringResource(R.string.detail_notes),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.detail_notes),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (!isEditingNotes) {
+                IconButton(
+                    onClick = onEditNotes,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = stringResource(R.string.detail_notes),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -1730,7 +1820,8 @@ private fun NotesCard(
                 onValueChange = onNotesChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp),
+                    // 短内容保持原高度，长内容自动增高至上限，超出部分在输入框内滚动
+                    .heightIn(min = 100.dp, max = 240.dp),
                 placeholder = { Text(stringResource(R.string.detail_add_notes_hint)) },
                 shape = SquircleShape(12.dp),
                 colors = TextFieldDefaults.colors(
@@ -1773,6 +1864,47 @@ private fun NotesCard(
                     Text(stringResource(R.string.common_save))
                 }
             }
+        } else if (notes.isNotBlank()) {
+            // 与简介一致的展开/收起交互：默认最多 5 行，点击切换展开
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        if (hasOverflow) isExpanded = !isExpanded
+                    }
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
+            ) {
+                Text(
+                    text = notes,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 22.sp,
+                    maxLines = if (isExpanded) Int.MAX_VALUE else 5,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        if (!isExpanded) {
+                            hasOverflow = result.hasVisualOverflow
+                        }
+                    }
+                )
+
+                if (hasOverflow && !isExpanded) {
+                    Text(
+                        text = stringResource(R.string.detail_click_to_expand),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
         } else {
             Surface(
                 modifier = Modifier
@@ -1787,19 +1919,11 @@ private fun NotesCard(
                         .fillMaxSize()
                         .padding(12.dp)
                 ) {
-                    if (notes.isNotBlank()) {
-                        Text(
-                            text = notes,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.detail_click_to_add_notes),
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.detail_click_to_add_notes),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
                 }
             }
         }
@@ -1899,7 +2023,8 @@ private fun StatusCard(
                         Text(stringResource(R.string.common_clear))
                     }
                 }
-            }
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             val datePickerState = rememberDatePickerState(
                 initialSelectedDateMillis = finishDate ?: System.currentTimeMillis()
