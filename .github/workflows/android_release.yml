@@ -39,9 +39,12 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
+          cd app/build/outputs/apk/release
+          mv app-armeabi-v7a-release.apk AnimeTrack-${{ github.ref_name }}-v7a.apk
+          mv app-arm64-v8a-release.apk AnimeTrack-${{ github.ref_name }}-v8a.apk
+          mv app-universal-release.apk AnimeTrack-${{ github.ref_name }}-universal.apk
 
       - name: Generate Custom Changelog
         id: changelog
@@ -67,7 +70,10 @@ jobs:
 
             ---
             *由 GitHub Actions 自动构建*
-          files: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}.apk
+          files: |
+            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v7a.apk
+            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v8a.apk
+            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-universal.apk
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -41,10 +41,6 @@ android {
 
         buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
 
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
-
         manifestPlaceholders["JPUSH_PKGNAME"] = applicationId!!
         manifestPlaceholders["JPUSH_APPKEY"] = "b9ce1be738b374cd17feed0c"
         manifestPlaceholders["JPUSH_CHANNEL"] = "developer-default"
@@ -104,6 +100,17 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // ABI 分包：assembleRelease 时同时产出 arm64-v8a / armeabi-v7a 单架构包与 universal 全包含包
+    // （替代原 ndk.abiFilters：abiFilters 会限制所有产物的 ABI，与 splits 冲突）
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = true
         }
     }
 }
