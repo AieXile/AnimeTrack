@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -98,6 +99,7 @@ fun AnimeCard(
     isHighlighted: Boolean = false,
     onStatusChange: (AnimeStatus) -> Unit = {},
     onDelete: () -> Unit = {},
+    onTogglePin: () -> Unit = {},
     onEditProgress: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
@@ -239,6 +241,7 @@ fun AnimeCard(
                     title = anime.title,
                     animeId = anime.id,
                     airDate = anime.airDate,
+                    isPinned = anime.isPinned,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
@@ -297,6 +300,36 @@ fun AnimeCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // 置顶：未置顶为描边样式；已置顶为 primary 填充（图标+背景反色），再点取消置顶
+                    IconButton(
+                        onClick = onTogglePin,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                clip = false,
+                                ambientColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                spotColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                            )
+                            .background(
+                                if (anime.isPinned) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerLowest,
+                                CircleShape
+                            )
+                            .clip(CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.VerticalAlignTop,
+                            contentDescription = stringResource(
+                                if (anime.isPinned) R.string.common_unpin else R.string.common_pin
+                            ),
+                            tint = if (anime.isPinned) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
                     Box {
                         IconButton(
                             onClick = { showStatusMenu = true },
@@ -419,6 +452,7 @@ private fun AnimeCoverWithStatus(
     title: String,
     animeId: Int,
     airDate: String? = null,
+    isPinned: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -471,6 +505,26 @@ private fun AnimeCoverWithStatus(
                 .align(Alignment.TopEnd)
                 .padding(6.dp)
         )
+
+        // 置顶角标：左下角小图钉，标识该卡片固定排在列表最前
+        if (isPinned) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp),
+                shape = BadgeShape,
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.VerticalAlignTop,
+                    contentDescription = stringResource(R.string.common_pin),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .size(12.dp)
+                )
+            }
+        }
     }
 }
 

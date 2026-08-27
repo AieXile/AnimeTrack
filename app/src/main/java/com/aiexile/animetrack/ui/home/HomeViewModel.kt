@@ -444,6 +444,15 @@ class HomeViewModel(
         }
     }
 
+    /** 切换置顶状态：置顶的卡片固定排在列表最前，不受筛选/排序影响 */
+    fun togglePin(anime: Anime) {
+        viewModelScope.launch {
+            repository.setPinned(anime.id, !anime.isPinned)
+            if (BuildConfig.DEBUG) Log.d(TAG, "Toggled pin: ${anime.title} -> ${!anime.isPinned}")
+            clearSelection()
+        }
+    }
+
     fun hideFormDialog() {
         _uiState.update { it.copy(showFormDialog = false) }
     }
@@ -645,7 +654,7 @@ class HomeViewModel(
             }
         }
 
-        return if (searchQuery.isNotBlank()) {
+        val result = if (searchQuery.isNotBlank()) {
             sorted.filter { it.title.contains(searchQuery, ignoreCase = true) }
         } else if (pinnedIds.isNotEmpty()) {
             val pinned = sorted.filter { it.id.toLong() in pinnedIds }
@@ -654,6 +663,10 @@ class HomeViewModel(
         } else {
             sorted
         }
+
+        // 用户手动置顶的卡片固定排在最前，不受筛选/排序/搜索影响；
+        // sortedBy 为稳定排序，多个置顶之间及其余卡片仍保持上述排序顺序
+        return result.sortedBy { !it.isPinned }
     }
 
     fun updateLocalSearchQuery(query: String) {

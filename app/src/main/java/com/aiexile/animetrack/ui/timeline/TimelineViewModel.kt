@@ -59,7 +59,11 @@ class TimelineViewModel(
             )
 
         watchingAnimeList = sharedAnimeList
-            .map { animeList -> animeList.filter { it.status == AnimeStatus.WATCHING } }
+            .map { animeList ->
+                // 正在观看列表：置顶的排最前（与主界面一致），其余保持原有顺序
+                animeList.filter { it.status == AnimeStatus.WATCHING }
+                    .sortedBy { !it.isPinned }
+            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

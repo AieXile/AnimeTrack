@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 18,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -286,6 +286,17 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 18→19 迁移：新增 isPinned 列（用户手动置顶，非空默认 false）。
+         *
+         * 置顶的卡片固定排在主界面列表最前，不受筛选/排序影响。
+         */
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN isPinned INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -299,7 +310,7 @@ abstract class AnimeDatabase : RoomDatabase() {
                         MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                         MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
-                        MIGRATION_16_17, MIGRATION_17_18
+                        MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()

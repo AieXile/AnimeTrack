@@ -26,8 +26,10 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -285,14 +287,28 @@ private fun WatchingAnimeCard(
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = anime.title,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // 置顶标识：与主界面卡片角标一致的图钉样式
+                if (anime.isPinned) {
+                    Icon(
+                        imageVector = Icons.Rounded.VerticalAlignTop,
+                        contentDescription = stringResource(R.string.common_pin),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Text(
+                    text = anime.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             if (anime.status != AnimeStatus.COMPLETED) {
                 Row(

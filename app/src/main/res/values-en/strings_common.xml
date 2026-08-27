@@ -5,6 +5,8 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_save">Save</string>
     <string name="common_delete">Delete</string>
+    <string name="common_pin">Pin</string>
+    <string name="common_unpin">Unpin</string>
     <string name="common_back">Back</string>
     <string name="common_close">Close</string>
     <string name="common_retry">Retry</string>

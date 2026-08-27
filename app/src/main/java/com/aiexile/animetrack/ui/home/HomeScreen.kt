@@ -421,6 +421,7 @@ fun HomeScreen(
                     },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
+                    onTogglePin = { anime -> viewModel.togglePin(anime) },
                     onFilterSelected = { viewModel.setFilter(it) },
                     onAvatarClick = {
                         showAccountPanel = true
@@ -1764,6 +1765,7 @@ private fun AnimeGrid(
     onAnimeLongPress: (Anime) -> Unit,
     onStatusChange: (Anime, com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: (Anime) -> Unit,
+    onTogglePin: (Anime) -> Unit,
     onFilterSelected: (AnimeFilter) -> Unit,
     onAvatarClick: () -> Unit = {},
     onDismissBanner: () -> Unit = {},
@@ -1975,6 +1977,7 @@ private fun AnimeGrid(
                                 isSelected = isSelected,
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { onDelete(anime) },
+                                onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -1987,6 +1990,7 @@ private fun AnimeGrid(
                                 isHighlighted = isHighlighted,
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { onDelete(anime) },
+                                onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -2096,6 +2100,7 @@ private fun AnimeGrid(
                                 isSelected = false,
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { onDelete(anime) },
+                                onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -2110,6 +2115,7 @@ private fun AnimeGrid(
                                 isHighlighted = isHighlighted,
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { onDelete(anime) },
+                                onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -2260,6 +2266,7 @@ private fun NewAnimeCardWrapper(
     isSelected: Boolean,
     onStatusChange: (com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: () -> Unit,
+    onTogglePin: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -2296,6 +2303,7 @@ private fun NewAnimeCardWrapper(
             isSelected = isSelected,
             onStatusChange = onStatusChange,
             onDelete = onDelete,
+            onTogglePin = onTogglePin,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier.graphicsLayer {

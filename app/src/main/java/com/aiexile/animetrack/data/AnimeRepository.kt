@@ -119,6 +119,12 @@ interface AnimeRepository {
     suspend fun clearNewUpdate(id: Int)
 
     /**
+     * 设置/取消置顶。置顶的卡片固定排在主界面列表最前，不受筛选/排序影响。
+     * 纯本地字段变更，不触发后端订阅同步，但会通知 WebDAV 备份。
+     */
+    suspend fun setPinned(id: Int, isPinned: Boolean)
+
+    /**
      * 重新识别所有番剧的 seriesKey 并持久化。
      * 在添加/删除番剧或 app 启动时调用，避免每次列表刷新都重新匹配标题。
      */
@@ -470,6 +476,11 @@ class AnimeRepositoryImpl(
 
     override suspend fun clearNewUpdate(id: Int) {
         animeDao.clearNewUpdate(id)
+    }
+
+    override suspend fun setPinned(id: Int, isPinned: Boolean) {
+        animeDao.setPinned(id, isPinned)
+        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
     }
 
     /**

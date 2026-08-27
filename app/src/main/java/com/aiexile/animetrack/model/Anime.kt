@@ -60,7 +60,9 @@ data class Anime(
      */
     val airingStatusOverride: Boolean? = null,
     /** 最近一次更新观看进度的时间戳。用于主界面排序（最近更新进度的排前面）。null 表示从未更新过。 */
-    val lastProgressAt: Long? = null
+    val lastProgressAt: Long? = null,
+    /** 用户手动置顶。置顶的卡片固定排在列表最前，不受筛选/排序影响。 */
+    val isPinned: Boolean = false
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

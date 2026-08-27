@@ -5,6 +5,8 @@
     <string name="common_cancel">取消</string>
     <string name="common_save">儲存</string>
     <string name="common_delete">刪除</string>
+    <string name="common_pin">置頂</string>
+    <string name="common_unpin">取消置頂</string>
     <string name="common_back">返回</string>
     <string name="common_close">關閉</string>
     <string name="common_retry">重試</string>

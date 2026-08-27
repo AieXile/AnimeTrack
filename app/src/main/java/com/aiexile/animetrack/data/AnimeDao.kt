@@ -61,6 +61,9 @@ interface AnimeDao {
     @Query("UPDATE anime SET hasNewUpdate = 0 WHERE id = :id")
     suspend fun clearNewUpdate(id: Int)
 
+    @Query("UPDATE anime SET isPinned = :isPinned WHERE id = :id")
+    suspend fun setPinned(id: Int, isPinned: Boolean)
+
     @Query("UPDATE anime SET coverUrl = :coverUrl WHERE id = :id")
     suspend fun updateCoverUrl(id: Int, coverUrl: String)
 
