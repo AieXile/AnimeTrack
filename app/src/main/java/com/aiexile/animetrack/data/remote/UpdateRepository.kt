@@ -10,8 +10,27 @@ class UpdateRepository {
         /** 更新日志中的强制更新标记，匹配 [FORCE_UPDATE] 或 <!-- force-update --> */
         private val FORCE_UPDATE_REGEX = Regex("""\s*\[FORCE_UPDATE]|\s*<!--\s*force-update\s*-->\s*""", RegexOption.IGNORE_CASE)
         private const val GITHUB_RELEASES_URL = "https://github.com/AieXile/AnimeTrack/releases"
+        /** GitHub Release 下载直链的国内加速镜像前缀（App 直连 GitHub 下载慢，经镜像转发提速） */
+        private const val GH_DOWNLOAD_MIRROR = "https://gh-proxy.com/"
         /** mirror 字段取值：服务器本地未同步，数据来自 GitHub 实时兜底 */
         private const val MIRROR_GITHUB = "github"
+
+        /** 设备首选 ABI 对应的安装包标识，服务器/GitHub 按架构分包返回 */
+        private val DEVICE_ABI: String = runCatching {
+            val abis = android.os.Build.SUPPORTED_ABIS
+            when {
+                abis?.contains("arm64-v8a") == true -> "arm64-v8a"
+                abis?.contains("armeabi-v7a") == true -> "armeabi-v7a"
+                else -> "universal"
+            }
+        }.getOrDefault("universal")
+
+        /** GitHub Release 资产文件名后缀（AnimeTrack-v1.2.3-v8a.apk 等） */
+        private val ABI_ASSET_SUFFIX: String = when (DEVICE_ABI) {
+            "arm64-v8a" -> "v8a"
+            "armeabi-v7a" -> "v7a"
+            else -> "universal"
+        }
     }
 
     /**
@@ -22,9 +41,9 @@ class UpdateRepository {
      * App 直接切换 GitHub API 获取日志与下载链接，直连失败则退回服务器转发数据保底。
      */
     suspend fun checkForUpdate(currentVersion: String): UpdateInfo? {
-        // 1. 自建服务器优先
+        // 1. 自建服务器优先（携带设备架构，服务器返回对应分包）
         try {
-            val server = RetrofitClient.updateApi.getUpdate()
+            val server = RetrofitClient.updateApi.getUpdate(DEVICE_ABI)
             Log.d(TAG, "Server version: ${server.version} (mirror=${server.mirror}), Local version: $currentVersion")
 
             if (server.prerelease) {
@@ -61,7 +80,7 @@ class UpdateRepository {
      */
     suspend fun getCurrentVersionChangelog(currentVersion: String): String? {
         try {
-            val server = RetrofitClient.updateApi.getUpdate()
+            val server = RetrofitClient.updateApi.getUpdate(DEVICE_ABI)
             if (server.notes.isNotBlank()) {
                 return server.notes
             }
@@ -83,7 +102,10 @@ class UpdateRepository {
             Log.d(TAG, "GitHub fallback version: $remoteVersion, Local version: $currentVersion")
 
             if (VersionComparator.isNewerVersion(remoteVersion, currentVersion)) {
+                // 优先按设备架构选择分包资产，Release 无对应资产时回退任意 APK
                 val apkAsset = release.assets.find {
+                    it.name.endsWith("-$ABI_ASSET_SUFFIX.apk", ignoreCase = true)
+                } ?: release.assets.find {
                     it.name.endsWith(".apk", ignoreCase = true)
                 }
                 // 从 release body 检测强制更新标记 [FORCE_UPDATE]，并从 changelog 中移除该标记
@@ -93,7 +115,8 @@ class UpdateRepository {
                 UpdateInfo(
                     versionName = remoteVersion,
                     changelog = cleanedChangelog,
-                    downloadUrl = apkAsset?.browserDownloadUrl ?: "",
+                    // GitHub 直链经国内镜像加速；镜像不可用时用户仍可跳转 releaseUrl 手动下载
+                    downloadUrl = apkAsset?.browserDownloadUrl?.let { GH_DOWNLOAD_MIRROR + it } ?: "",
                     apkSize = apkAsset?.size ?: 0L,
                     releaseUrl = release.htmlUrl,
                     apkDigest = apkAsset?.digest ?: "",
