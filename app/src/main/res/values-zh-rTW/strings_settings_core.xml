@@ -82,7 +82,9 @@
     <string name="nav_custom_greeting_placeholder">留空則顯示隨機 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案過長可能會被截斷</string>
     <string name="nav_custom_advanced_blur">進階模糊</string>
-    <string name="nav_custom_advanced_blur_desc">為懸浮膠囊與懸浮按鈕啟用背景模糊（毛玻璃）效果</string>
+    <string name="nav_custom_advanced_blur_desc">為懸浮膠囊與懸浮按鈕啟用背景模糊（毛玻璃）效果，與液態玻璃互斥</string>
+    <string name="nav_custom_liquid_glass">液態玻璃</string>
+    <string name="nav_custom_liquid_glass_desc">懸浮膠囊使用折射玻璃渲染，替代進階模糊，兩者互斥</string>
     <string name="nav_custom_topbar_title">頂部欄</string>
     <string name="nav_custom_topbar_subtitle">自訂首頁頂部欄行為</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隱藏頂部欄</string>

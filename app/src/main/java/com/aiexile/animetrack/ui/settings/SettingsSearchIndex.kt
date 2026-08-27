@@ -139,6 +139,11 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("毛玻璃", "模糊", "blur")
     ),
     SearchableSetting(
+        route = Routes.NAVIGATION_CUSTOMIZE, key = "liquid_glass",
+        titleRes = R.string.nav_custom_liquid_glass, descRes = R.string.nav_custom_liquid_glass_desc,
+        keywords = listOf("液态玻璃", "玻璃", "glass")
+    ),
+    SearchableSetting(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "topbar",
         titleRes = R.string.nav_custom_topbar_title, descRes = R.string.nav_custom_topbar_subtitle,
         keywords = listOf("顶栏", "顶部栏")

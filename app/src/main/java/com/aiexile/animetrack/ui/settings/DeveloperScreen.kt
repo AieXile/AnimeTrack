@@ -540,33 +540,6 @@ private fun AdvancedBlurTuningSection(
     LaunchedEffect(noise) { localNoise = noise }
 
     Column {
-        // 液态玻璃开关：开启后悬浮胶囊使用折射玻璃渲染，替代普通模糊（尺寸布局不变）
-        val liquidGlass by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.developer_liquid_glass),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = stringResource(R.string.developer_liquid_glass_desc),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            AppSwitch(
-                checked = liquidGlass,
-                onCheckedChange = { enabled ->
-                    scope.launch { settingsRepository.setCapsuleLiquidGlassEnabled(enabled) }
-                }
-            )
-        }
-        Spacer(modifier = Modifier.size(8.dp))
         Text(
             text = stringResource(R.string.developer_advanced_blur),
             fontSize = 15.sp,

@@ -81,6 +81,7 @@ fun NavigationCustomizeScreen(
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
         .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
@@ -96,7 +97,7 @@ fun NavigationCustomizeScreen(
     val highlightAnchors = buildMap {
         var i = 1
         if (showCompactOnlySettings) {
-            put("nav_style", i); put("advanced_blur", i); i++
+            put("nav_style", i); put("advanced_blur", i); put("liquid_glass", i); i++
         }
         put("topbar", i); put("hide_topbar", i); put("statusbar", i); i++
         put("label_mode", i); i++
@@ -110,7 +111,8 @@ fun NavigationCustomizeScreen(
         highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
     }
     // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
-    val expandNavStyleGroup = highlightKey == "nav_style" || highlightKey == "advanced_blur"
+    val expandNavStyleGroup = highlightKey == "nav_style" ||
+            highlightKey == "advanced_blur" || highlightKey == "liquid_glass"
     val expandFabGroup = highlightKey == "fab"
 
     Scaffold(
@@ -182,8 +184,29 @@ fun NavigationCustomizeScreen(
                                     title = stringResource(R.string.nav_custom_advanced_blur),
                                     description = stringResource(R.string.nav_custom_advanced_blur_desc),
                                     checked = capsuleAdvancedBlur,
-                                    onCheckedChange = { scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(it) } },
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            settingsRepository.setCapsuleAdvancedBlurEnabled(enabled)
+                                            // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
+                                            if (enabled) settingsRepository.setCapsuleLiquidGlassEnabled(false)
+                                        }
+                                    },
                                     itemKey = "advanced_blur",
+                                    highlightKey = highlightKey
+                                )
+                                // 液态玻璃：开启后悬浮胶囊使用折射玻璃渲染，与高级模糊互斥
+                                SwitchItem(
+                                    title = stringResource(R.string.nav_custom_liquid_glass),
+                                    description = stringResource(R.string.nav_custom_liquid_glass_desc),
+                                    checked = capsuleLiquidGlass,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            settingsRepository.setCapsuleLiquidGlassEnabled(enabled)
+                                            // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
+                                            if (enabled) settingsRepository.setCapsuleAdvancedBlurEnabled(false)
+                                        }
+                                    },
+                                    itemKey = "liquid_glass",
                                     highlightKey = highlightKey
                                 )
                             }
