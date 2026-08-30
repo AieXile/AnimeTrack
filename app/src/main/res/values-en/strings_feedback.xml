@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FeedbackScreen (chat-style feedback) -->
+    <string name="settings_feedback">Feedback</string>
+    <string name="settings_feedback_subtitle">Report issues &amp; suggestions</string>
+    <string name="feedback_title">Feedback</string>
+    <string name="feedback_greeting">Hey, %1$s</string>
+    <string name="feedback_greeting_no_name">Hey</string>
+    <string name="feedback_greeting_sub">Say something</string>
+    <string name="feedback_input_hint">Describe your issue or suggestion…</string>
+    <string name="feedback_send">Send</string>
+    <string name="feedback_history">Feedback history</string>
+    <string name="feedback_history_entry">View past feedback</string>
+    <string name="feedback_back">Back</string>
+    <string name="feedback_received">Feedback received, we\'ll reply soon</string>
+
+    <!-- Login required -->
+    <string name="feedback_login_required">Sign in to submit feedback and view history</string>
+    <string name="feedback_login_action">Sign in</string>
+
+    <!-- History -->
+    <string name="feedback_history_empty">No feedback yet</string>
+    <string name="feedback_history_load_failed">Load failed, tap to retry</string>
+    <string name="feedback_status_open">Open</string>
+    <string name="feedback_status_pending">Replied</string>
+    <string name="feedback_status_closed">Closed</string>
+
+    <!-- Session detail -->
+    <string name="feedback_append">Add reply</string>
+    <string name="feedback_append_closed">This session is closed</string>
+    <string name="feedback_session_load_failed">Failed to load session</string>
+    <string name="feedback_attachment_file">Attachment</string>
+
+    <!-- Attachments -->
+    <string name="feedback_attach_image">Image</string>
+    <string name="feedback_attach_file">File</string>
+    <string name="feedback_attach_log">Attach app logs</string>
+    <string name="feedback_log_dialog_title">Attach app logs</string>
+    <string name="feedback_log_dialog_message">This will attach logs from the last 3 days (including crash records, device and app info). They are used only to troubleshoot your feedback and contain no passwords or sensitive account data.</string>
+    <string name="feedback_log_dialog_confirm">Attach</string>
+    <string name="feedback_log_file_name">app_log.zip</string>
+    <string name="feedback_log_generate_failed">Failed to export logs; your feedback will be sent without them</string>
+    <string name="feedback_attachment_limit">Up to %1$d attachments</string>
+    <string name="feedback_image_too_large">Image exceeds %1$d MB</string>
+    <string name="feedback_file_too_large">File exceeds %1$d MB</string>
+
+    <!-- Errors -->
+    <string name="feedback_error_rate_limited">Sending too fast, retry in %1$ds</string>
+    <string name="feedback_error_hourly_limit">Hourly feedback limit reached, try later</string>
+    <string name="feedback_error_sensitive">Content contains disallowed words</string>
+    <string name="feedback_error_session_closed">Session closed, start a new one</string>
+    <string name="feedback_error_session_not_found">Session not found or deleted</string>
+    <string name="feedback_error_attachment">Attachment upload failed</string>
+    <string name="feedback_error_auth_expired">Login expired, please sign in again</string>
+    <string name="feedback_unread_pill">New feedback reply</string>
+    <string name="feedback_error_network">Network error, try again later</string>
+    <string name="feedback_error_empty">Please enter your feedback</string>
+    <string name="feedback_error_too_long">Content exceeds %1$d characters</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- FeedbackScreen（聊天式回報） -->
+    <string name="settings_feedback">意見回報</string>
+    <string name="settings_feedback_subtitle">問題回報與功能建議</string>
+    <string name="feedback_title">意見回報</string>
+    <string name="feedback_greeting">Hey，%1$s</string>
+    <string name="feedback_greeting_no_name">Hey</string>
+    <string name="feedback_greeting_sub">想說點什麼</string>
+    <string name="feedback_input_hint">描述你遇到的問題或建議…</string>
+    <string name="feedback_send">傳送</string>
+    <string name="feedback_history">回報歷史</string>
+    <string name="feedback_history_entry">查看歷史回報</string>
+    <string name="feedback_back">返回</string>
+    <string name="feedback_received">已收到你的回報，我們會盡快回覆</string>
+
+    <!-- 登入引導 -->
+    <string name="feedback_login_required">登入後即可回報並查看歷史記錄</string>
+    <string name="feedback_login_action">去登入</string>
+
+    <!-- 歷史列表 -->
+    <string name="feedback_history_empty">還沒有回報記錄</string>
+    <string name="feedback_history_load_failed">載入失敗，點擊重試</string>
+    <string name="feedback_status_open">進行中</string>
+    <string name="feedback_status_pending">已回覆</string>
+    <string name="feedback_status_closed">已結束</string>
+
+    <!-- 會話詳情 -->
+    <string name="feedback_append">追加回報</string>
+    <string name="feedback_append_closed">會話已結束，無法繼續追加</string>
+    <string name="feedback_session_load_failed">載入會話失敗</string>
+    <string name="feedback_attachment_file">附件</string>
+
+    <!-- 附件 -->
+    <string name="feedback_attach_image">圖片</string>
+    <string name="feedback_attach_file">檔案</string>
+    <string name="feedback_attach_log">附帶 App 日誌</string>
+    <string name="feedback_log_dialog_title">附帶 App 日誌</string>
+    <string name="feedback_log_dialog_message">將附帶最近 3 天的執行日誌（含崩潰記錄、裝置與應用資訊），僅用於排查你回報的問題，不包含帳號密碼等敏感資訊。</string>
+    <string name="feedback_log_dialog_confirm">附帶</string>
+    <string name="feedback_log_file_name">app_log.zip</string>
+    <string name="feedback_log_generate_failed">日誌匯出失敗，本次回報將不附帶日誌</string>
+    <string name="feedback_attachment_limit">最多附帶 %1$d 個附件</string>
+    <string name="feedback_image_too_large">圖片不能超過 %1$d MB</string>
+    <string name="feedback_file_too_large">檔案不能超過 %1$d MB</string>
+
+    <!-- 錯誤提示 -->
+    <string name="feedback_error_rate_limited">傳送太頻繁，請 %1$d 秒後再試</string>
+    <string name="feedback_error_hourly_limit">1 小時內回報已達上限，請稍後再試</string>
+    <string name="feedback_error_sensitive">內容包含不允許的詞彙，請修改後再試</string>
+    <string name="feedback_error_session_closed">該回報已結束，請發起新回報</string>
+    <string name="feedback_error_session_not_found">會話不存在或已被刪除</string>
+    <string name="feedback_error_attachment">附件上傳失敗，請重試</string>
+    <string name="feedback_error_auth_expired">登入已過期，請重新登入</string>
+    <string name="feedback_unread_pill">回饋有新回覆</string>
+    <string name="feedback_error_network">網路異常，請稍後重試</string>
+    <string name="feedback_error_empty">請輸入回報內容</string>
+    <string name="feedback_error_too_long">內容不能超過 %1$d 字</string>
+</resources>

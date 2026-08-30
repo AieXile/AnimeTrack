@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Interceptor
 import okhttp3.Response
+import retrofit2.HttpException
 
 class UserAuthInterceptor : Interceptor {
 
@@ -62,6 +63,13 @@ class UserAuthInterceptor : Interceptor {
                                     userAuthManager.logout()
                                     null
                                 }
+                            } catch (e: HttpException) {
+                                if (e.code() == 401) {
+                                    // 服务端明确判定 Refresh Token 无效（已过期/被新登录吊销），
+                                    // 属确定性失效而非瞬时网络错误：清除登录状态，引导用户重新登录
+                                    userAuthManager.logout()
+                                }
+                                null
                             } catch (_: Exception) {
                                 // 网络错误等，不清除登录状态，让用户稍后重试
                                 null

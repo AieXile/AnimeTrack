@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.onboarding
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +51,11 @@ internal fun MiniHomeScreen() {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Card(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, SquircleShape(28.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f)
+            .shadow(8.dp, SquircleShape(28.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape(28.dp)),
         shape = SquircleShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = surface)
     ) {
@@ -150,7 +155,11 @@ internal fun MiniSyncScreen() {
 
         // 居中悬浮对话框
         Card(
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.88f).shadow(16.dp, SquircleShape(24.dp)),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.88f)
+                .shadow(16.dp, SquircleShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape(24.dp)),
             shape = SquircleShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
@@ -211,7 +220,11 @@ internal fun MiniScheduleScreen() {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Card(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).shadow(8.dp, SquircleShape(28.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f)
+            .shadow(8.dp, SquircleShape(28.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape(28.dp)),
         shape = SquircleShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

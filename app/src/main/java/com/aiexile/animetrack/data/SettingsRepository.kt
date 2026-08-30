@@ -273,6 +273,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNavigationLabelMode(mode: NavigationLabelMode) = setPreference(NAVIGATION_LABEL_MODE_KEY, mode.name)
 
+    /** 导航栏标签模式的同步缓存值：作为 collectAsState 初始值，
+     *  避免 MainOverlay 路由重建时先闪现默认「图标+文字」再跳变为已选模式 */
+    fun cachedNavigationLabelMode(): NavigationLabelMode {
+        val cached = prefCache[NAVIGATION_LABEL_MODE_KEY] as? String ?: return NavigationLabelMode.ICON_AND_TEXT
+        return try { NavigationLabelMode.valueOf(cached) } catch (_: IllegalArgumentException) { NavigationLabelMode.ICON_AND_TEXT }
+    }
+
     /** 悬浮胶囊高级模糊（毛玻璃背景），默认关闭。主页顶栏与悬浮按钮随此开关一并生效 */
     val capsuleAdvancedBlurEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_ADVANCED_BLUR_KEY, false)
 

@@ -12,10 +12,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
+
+/**
+ * 当前应用是否处于暗色主题（跟随 app 内主题选择，而非系统设置）。
+ * 通过当前 colorScheme 背景亮度判断，供液态玻璃等需要明暗分支的组件使用，
+ * 避免 isSystemInDarkTheme() 在「应用暗色≠系统暗色」时玻璃底色不切换的问题。
+ */
+@Composable
+fun isAppDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
 
 @Composable
 fun AnimeTrackTheme(

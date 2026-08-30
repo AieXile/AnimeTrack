@@ -25,7 +25,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -157,6 +156,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -179,6 +179,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.update.UpdateDialog
@@ -211,7 +212,8 @@ fun HomeScreen(
     onNavigateBilibiliLogin: () -> Unit = {},
     onNavigateBangumiLogin: () -> Unit = {},
     onNavigateBangumiAccount: () -> Unit = {},
-    onNavigateUserLogin: () -> Unit = {}
+    onNavigateUserLogin: () -> Unit = {},
+    onNavigateFeedback: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val animeList by viewModel.animeList.collectAsState()
@@ -245,6 +247,20 @@ fun HomeScreen(
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val autoSyncState by viewModel.autoSyncState.collectAsState()
+
+    // 反馈有新回复（显示胶囊提示，无红点）：登录状态下主页可见时检查
+    var hasFeedbackReply by remember { mutableStateOf(false) }
+    val feedbackScope = rememberCoroutineScope()
+    LifecycleResumeEffect(isCurrentPage) {
+        if (isCurrentPage && userLoggedIn) {
+            feedbackScope.launch {
+                hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
+            }
+        } else if (!userLoggedIn) {
+            hasFeedbackReply = false
+        }
+        onPauseOrDispose { }
+    }
     // customGreeting / greetingTypingEffect / showSearchButton / focusRequester
     // 已移至 MainOverlay（SharedTransitionLayout 外层）的 HomeTopBar 中维护
 
@@ -398,7 +414,8 @@ fun HomeScreen(
                         hideBangumiAvatar = hideBangumiAvatar,
                         showBanner = showUpdateBanner && todayUpdateCount > 0 && !bannerDismissed,
                         todayUpdateCount = todayUpdateCount,
-                        autoSyncState = autoSyncState
+                        autoSyncState = autoSyncState,
+                        hasFeedbackReply = hasFeedbackReply
                     ),
                     onHighlightComplete = { viewModel.onHighlightCompleted() },
                     onAnimeClick = { anime ->
@@ -428,6 +445,7 @@ fun HomeScreen(
                     },
                     onDismissBanner = { viewModel.dismissBanner() },
                     onBannerClick = { viewModel.highlightTodayUpdates() },
+                    onFeedbackClick = onNavigateFeedback,
                     gridState = gridState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
@@ -826,7 +844,7 @@ private fun LiquidGlassFab(
         InteractiveHighlight(animationScope)
     }
     val containerColor =
-        if (isSystemInDarkTheme()) Color(0xFF121212).copy(0.4f)
+        if (isAppDarkTheme()) Color(0xFF121212).copy(0.4f)
         else Color(0xFFFAFAFA).copy(0.4f)
     val contentColor = MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(16.dp)
@@ -1752,7 +1770,9 @@ private data class AnimeGridHeaderState(
     val hideBangumiAvatar: Boolean = false,
     val showBanner: Boolean = false,
     val todayUpdateCount: Int = 0,
-    val autoSyncState: AutoSyncState = AutoSyncState.Idle
+    val autoSyncState: AutoSyncState = AutoSyncState.Idle,
+    /** 反馈有未读回复（显示胶囊提示，无红点） */
+    val hasFeedbackReply: Boolean = false
 )
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -1770,6 +1790,7 @@ private fun AnimeGrid(
     onAvatarClick: () -> Unit = {},
     onDismissBanner: () -> Unit = {},
     onBannerClick: () -> Unit = {},
+    onFeedbackClick: () -> Unit = {},
     gridState: LazyGridState,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
@@ -1931,6 +1952,8 @@ private fun AnimeGrid(
                     showTodayBanner = headerState.showBanner,
                     todayUpdateCount = headerState.todayUpdateCount,
                     onBannerClick = onBannerClick,
+                    showFeedbackPill = headerState.hasFeedbackReply,
+                    onFeedbackClick = onFeedbackClick,
                     modifier = Modifier.align(Alignment.Center)
                 )
 
@@ -2166,6 +2189,8 @@ private fun SyncBannerArea(
     showTodayBanner: Boolean,
     todayUpdateCount: Int,
     onBannerClick: () -> Unit,
+    showFeedbackPill: Boolean = false,
+    onFeedbackClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 自动同步状态优先：非 Idle 时显示同步 Banner（含退出动画）
@@ -2236,8 +2261,25 @@ private fun SyncBannerArea(
         }
     }
 
-    // 今日更新 Banner：仅在自动同步完全隐藏时显示
-    if (!isAutoSyncVisible && showTodayBanner) {
+    // Banner 优先级：自动同步 > 反馈新回复 > 今日更新
+    // 有未读反馈时只显示反馈胶囊；进入反馈界面（标记已读）回来后才显示今日更新
+    if (!isAutoSyncVisible && showFeedbackPill) {
+        Surface(
+            color = Color.Transparent,
+            shape = SquircleShape(50),
+            modifier = modifier
+                .clip(SquircleShape(50))
+                .clickable { onFeedbackClick() }
+        ) {
+            Text(
+                text = stringResource(R.string.feedback_unread_pill),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+    } else if (!isAutoSyncVisible && showTodayBanner) {
         Surface(
             color = Color.Transparent,
             shape = SquircleShape(50),

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -344,7 +345,7 @@ private fun NavStyleOptionCard(
                 .height(44.dp)
                 .clip(SquircleShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, SquircleShape(8.dp))
         ) {
             if (style == NavigationStyle.BOTTOM) {
                 Box(
@@ -352,8 +353,7 @@ private fun NavStyleOptionCard(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(10.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -494,16 +494,21 @@ internal fun MiniPhonePreview(
                 }
             }
         } else {
+            // 悬浮胶囊预览：固定高度（真实胶囊不随显示模式变化），
+            // 内容紧凑居中，避免图标与文字模式下胶囊被撑得过于臃肿
             Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
                 Surface(
-                    modifier = Modifier.align(Alignment.Center).widthIn(max = 280.dp),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .widthIn(max = 280.dp)
+                        .height(34.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         previewItems.forEachIndexed { index, item ->
@@ -535,7 +540,7 @@ private fun MiniNavItem(
             Icon(
                 imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                 contentDescription = label,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp),
                 tint = tint
             )
         }
@@ -544,10 +549,10 @@ private fun MiniNavItem(
                 Icon(
                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                     contentDescription = label,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = tint
                 )
-                Text(text = label, fontSize = 9.sp, color = tint, maxLines = 1)
+                Text(text = label, fontSize = 8.sp, color = tint, maxLines = 1)
             }
         }
         NavigationLabelMode.TEXT_ONLY -> {

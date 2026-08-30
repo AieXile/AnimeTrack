@@ -450,4 +450,9 @@ object RetrofitClient {
     val userAuthApi: UserAuthApiService by lazy {
         userAuthRetrofit.create(UserAuthApiService::class.java)
     }
+
+    /** 反馈 API：与用户体系同源同鉴权（Bearer + 401 自动刷新 + URL 重写） */
+    val feedbackApi: FeedbackApiService by lazy {
+        userAuthRetrofit.create(FeedbackApiService::class.java)
+    }
 }

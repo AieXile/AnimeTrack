@@ -22,6 +22,7 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CloudQueue
+import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Notifications
@@ -61,6 +62,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -82,6 +87,7 @@ fun SettingsScreen(
     onNavigateUpdateNotification: () -> Unit = {},
     onNavigateBangumiProxy: () -> Unit = {},
     onNavigateFontSettings: () -> Unit = {},
+    onNavigateFeedback: () -> Unit = {},
     onNavigatePlayback: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
@@ -92,6 +98,21 @@ fun SettingsScreen(
     var tmdbApiKeyInput by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
+    // 反馈新回复红点：登录状态下每次页面可见时检查（从反馈页返回后自动消除）
+    var feedbackUnread by remember { mutableStateOf(false) }
+    val settingsScope = rememberCoroutineScope()
+    val userLoggedIn by AppContainer.getUserAuthManager().isLoggedIn.collectAsState(initial = false)
+    LifecycleResumeEffect(userLoggedIn) {
+        if (userLoggedIn) {
+            settingsScope.launch {
+                feedbackUnread = AppContainer.getFeedbackRepository().hasNewReplies()
+            }
+        } else {
+            feedbackUnread = false
+        }
+        onPauseOrDispose { }
+    }
 
     val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsState(initial = false)
         ?: remember { mutableStateOf(false) }
@@ -438,6 +459,15 @@ fun SettingsScreen(
                             }
                         )
                     }
+                    item(key = "feedback") {
+                        SettingCard(
+                            title = stringResource(R.string.settings_feedback),
+                            subtitle = stringResource(R.string.settings_feedback_subtitle),
+                            icon = Icons.Rounded.Feedback,
+                            showBadge = feedbackUnread,
+                            onClick = onNavigateFeedback
+                        )
+                    }
                     item(key = "about") {
                         SettingCard(
                             title = aboutTitle,
@@ -456,6 +486,7 @@ private fun SettingCard(
     title: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     subtitle: String? = null,
+    showBadge: Boolean = false,
     onClick: () -> Unit
 ) {
     Box(
@@ -508,6 +539,17 @@ private fun SettingCard(
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
+            }
+
+            if (showBadge) {
+                // 新消息红点：紧贴右侧箭头
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                )
             }
 
             Icon(

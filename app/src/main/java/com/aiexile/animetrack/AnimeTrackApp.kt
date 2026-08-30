@@ -6,6 +6,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,8 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         // 独立拉起的组件（通知栏媒体卡片/媒体按键/会话恢复）在冷启动进程中拿到未就绪的容器而崩溃；
         // MainActivity 处的调用保留作幂等双保险
         AppContainer.initialize(this)
+        // 文件日志系统：须在其他组件写日志前初始化（崩溃捕获自此刻生效）
+        AppLogManager.init(this)
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
         appScope.launch {
             JPushInterface.init(this@AnimeTrackApp)

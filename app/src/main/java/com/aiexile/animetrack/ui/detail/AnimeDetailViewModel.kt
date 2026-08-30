@@ -1057,12 +1057,8 @@ class AnimeDetailViewModel(
         viewModelScope.launch {
             try {
                 val bitmap = ShareCardRenderer.renderShareCard(context, anime, shareNotes, settingsRepository)
-                val file = ShareCardRenderer.saveShareImage(context, bitmap)
-                val uri = androidx.core.content.FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file
-                )
+                val uri = ShareCardRenderer.saveShareImageToGallery(context, bitmap)
+                    ?: throw IllegalStateException("写入媒体库失败")
                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "image/png"
                     putExtra(android.content.Intent.EXTRA_STREAM, uri)
@@ -1070,11 +1066,6 @@ class AnimeDetailViewModel(
                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, "分享番剧"))
-                // 延迟清理临时文件，给系统分享足够时间读取
-                viewModelScope.launch {
-                    delay(5000)
-                    ShareCardRenderer.cleanupShareImages(context)
-                }
             } catch (e: Exception) {
                 Log.e(TAG, "分享失败", e)
             }

@@ -31,10 +31,16 @@ object Routes {
     const val USER_LOGIN = "userLogin"
     const val USER_REGISTER = "userRegister"
     const val FONT_SETTINGS = "fontSettings"
+    const val FEEDBACK = "feedback"
+    const val FEEDBACK_HISTORY = "feedbackHistory"
+    const val FEEDBACK_SESSION = "feedbackSession/{sessionId}"
 
     /** 带参数的详情路由 */
     fun animeDetail(animeId: Int, coverUrl: String?) =
         "animeDetail/$animeId${if (coverUrl != null) "?coverUrl=${android.net.Uri.encode(coverUrl)}" else ""}"
+
+    /** 反馈会话详情路由 */
+    fun feedbackSession(sessionId: String) = "feedbackSession/$sessionId"
 
     /** 播放器路由 */
     fun player(animeId: Int) = "player/$animeId"
@@ -57,6 +63,11 @@ object Routes {
         }
     )
 
+    /** 反馈会话详情 navArguments */
+    val feedbackSessionArguments = listOf(
+        navArgument("sessionId") { type = NavType.StringType }
+    )
+
     /** 播放器 navArguments */
     val playerArguments = listOf(
         navArgument("animeId") { type = NavType.IntType }
@@ -69,7 +80,8 @@ object Routes {
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION,
         PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
-        USER_LOGIN, USER_REGISTER, FONT_SETTINGS
+        USER_LOGIN, USER_REGISTER, FONT_SETTINGS,
+        FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION
     )
 
     /** 大屏 pane 空白根路由（pane 关闭时停留在该页） */
@@ -86,7 +98,8 @@ object Routes {
         DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
-        USER_LOGIN, USER_REGISTER, FONT_SETTINGS
+        USER_LOGIN, USER_REGISTER, FONT_SETTINGS,
+        FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION
     )
 
     /** 判断路由（可带参数）是否为番剧详情页 */
@@ -113,7 +126,10 @@ object Routes {
         PLAYER_SETTINGS to PLAYER_WEBDAV_CONFIG,
         // 视频播放设置 → WebDAV 媒体浏览：pop 返回时走 isSecondaryBackward，
         // 底层页放大淡入就位（否则误入"设置子页间过渡"分支，底层页从右滑入导致退出观感异常）
-        PLAYER_SETTINGS to WEBDAV_BROWSE
+        PLAYER_SETTINGS to WEBDAV_BROWSE,
+        // 反馈层级链：聊天主页 → 历史 → 会话详情
+        FEEDBACK to FEEDBACK_HISTORY,
+        FEEDBACK_HISTORY to FEEDBACK_SESSION
     )
 }
 

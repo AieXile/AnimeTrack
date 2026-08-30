@@ -18,7 +18,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -74,7 +73,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.VerticalAlignTop
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FabLocation
-import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
@@ -95,6 +93,7 @@ import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.SettingsScreen
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
@@ -508,7 +507,8 @@ private fun BottomNavLayout(
         bottomBar = {
             // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
             // 保留与 BottomNavigationBar 一致的高度（navigationBarsPadding + bottomNavBarHeight）以维持内容区域 padding。
-            val labelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+            val labelMode by settingsRepository.navigationLabelMode
+                .collectAsState(settingsRepository.cachedNavigationLabelMode())
             Spacer(modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
@@ -571,7 +571,8 @@ internal fun MainPagerContent(
             onNavigateBilibiliLogin = { onNavigateToScreen(Routes.BILIBILI_LOGIN) },
             onNavigateBangumiLogin = { onNavigateToScreen(Routes.BANGUMI_LOGIN) },
             onNavigateBangumiAccount = { onNavigateToScreen(Routes.BANGUMI_ACCOUNT) },
-            onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) }
+            onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) },
+            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK) }
         )
         "favorites" -> PlaceholderScreen(title = stringResource(R.string.nav_app_favorites), showBottomBar = false)
         "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
@@ -592,6 +593,7 @@ internal fun MainPagerContent(
             onNavigateLogin = { onNavigateToScreen(Routes.LOGIN) },
             onNavigateBangumiProxy = { onNavigateToScreen(Routes.BANGUMI_PROXY) },
             onNavigateFontSettings = { onNavigateToScreen(Routes.FONT_SETTINGS) },
+            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK) },
             onNavigatePlayback = { onNavigateToScreen(Routes.PLAYER_SETTINGS) },
             onNavigate = { },
             settingsRepository = settingsRepository
@@ -638,7 +640,9 @@ private fun MainOverlay(
 ) {
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
-    val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+    // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现默认「图标+文字」
+    val navigationLabelMode by settingsRepository.navigationLabelMode
+        .collectAsState(settingsRepository.cachedNavigationLabelMode())
     // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现普通/高级模糊旧胶囊
     val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
         .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
@@ -878,7 +882,7 @@ private fun MainOverlay(
                 val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val surfaceColor = MaterialTheme.colorScheme.surface
                 val glassBarColor =
-                    if (isSystemInDarkTheme()) Color(0xFF121212).copy(0.4f)
+                    if (isAppDarkTheme()) Color(0xFF121212).copy(0.4f)
                     else Color(0xFFFAFAFA).copy(0.4f)
                 val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
                     Modifier

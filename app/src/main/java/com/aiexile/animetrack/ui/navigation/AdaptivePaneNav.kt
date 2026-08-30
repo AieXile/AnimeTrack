@@ -36,6 +36,9 @@ import androidx.navigation.compose.rememberNavController
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
+import com.aiexile.animetrack.ui.feedback.FeedbackHistoryScreen
+import com.aiexile.animetrack.ui.feedback.FeedbackScreen
+import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
@@ -455,6 +458,35 @@ internal fun NavGraphBuilder.sharedDestinations(
     // 注册
     composable(Routes.USER_REGISTER) {
         UserRegisterScreen(
+            onBack = navigateBack
+        )
+    }
+
+    // 意见反馈（聊天式）
+    composable(Routes.FEEDBACK) {
+        FeedbackScreen(
+            onBack = navigateBack,
+            onNavigateHistory = { onNavigate(Routes.FEEDBACK_HISTORY) },
+            onNavigateLogin = { onNavigate(Routes.USER_LOGIN) }
+        )
+    }
+
+    // 反馈历史
+    composable(Routes.FEEDBACK_HISTORY) {
+        FeedbackHistoryScreen(
+            onBack = navigateBack,
+            onOpenSession = { sessionId -> onNavigate(Routes.feedbackSession(sessionId)) }
+        )
+    }
+
+    // 反馈会话详情（只读 + 追加）
+    composable(
+        route = Routes.FEEDBACK_SESSION,
+        arguments = Routes.feedbackSessionArguments
+    ) { backStackEntry ->
+        val sid = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+        FeedbackSessionScreen(
+            sessionId = sid,
             onBack = navigateBack
         )
     }

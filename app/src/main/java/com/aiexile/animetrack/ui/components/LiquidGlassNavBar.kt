@@ -5,7 +5,6 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -43,6 +42,7 @@ import androidx.compose.ui.util.lerp
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
@@ -83,7 +83,8 @@ internal fun LiquidGlassNavBar(
     backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
-    val isLightTheme = !isSystemInDarkTheme()
+    // 跟随应用内主题选择（而非系统暗色），保证 app 切暗色时玻璃底色同步切换
+    val isLightTheme = !isAppDarkTheme()
     // 折射强调色跟随应用主题（与普通胶囊选中色同源），不写死示例的蓝色，
     // 保证浮块中选项颜色与用户所选主题一致
     val accentColor = MaterialTheme.colorScheme.primary

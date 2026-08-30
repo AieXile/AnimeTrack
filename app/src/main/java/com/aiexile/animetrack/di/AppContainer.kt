@@ -10,6 +10,7 @@ import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
@@ -28,6 +29,7 @@ object AppContainer {
     private var bilibiliSyncManager: BilibiliSyncManager? = null
     private var playerRepository: PlayerRepository? = null
     private var usageStatsRepository: UsageStatsRepository? = null
+    private var feedbackRepository: FeedbackRepository? = null
 
     // 当前会话开始时间（由 MainActivity.onStart 设置）
     @Volatile
@@ -56,6 +58,7 @@ object AppContainer {
         bilibiliSyncManager = BilibiliSyncManager(bilibiliAuthManager!!, repository!!)
         playerRepository = PlayerRepository(this.context!!)
         usageStatsRepository = UsageStatsRepository(this.context!!)
+        feedbackRepository = FeedbackRepository(this.context!!)
         WebDAVAutoSyncManager.initialize(this.context!!, settingsRepository!!, database!!.animeDao())
     }
     
@@ -111,6 +114,11 @@ object AppContainer {
 
     fun getUsageStatsRepository(): UsageStatsRepository {
         return usageStatsRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getFeedbackRepository(): FeedbackRepository {
+        return feedbackRepository
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 }

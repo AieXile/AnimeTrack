@@ -274,6 +274,13 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("刮削", "元数据", "tmdb", "api", "key")
     ),
 
+    // ---- 意见反馈 ----
+    SearchableSetting(
+        route = Routes.FEEDBACK, key = null,
+        titleRes = R.string.settings_feedback, descRes = R.string.settings_feedback_subtitle,
+        keywords = listOf("反馈", "建议", "问题", "意见", "聊天", "feedback", "report")
+    ),
+
     // ---- 关于 ----
     SearchableSetting(
         route = Routes.ABOUT, key = null,

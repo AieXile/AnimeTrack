@@ -5,7 +5,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -63,6 +62,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -231,7 +231,8 @@ fun TopBarActionsFloating(
     val colorScheme = MaterialTheme.colorScheme
     // 液态玻璃模式优先生效（与悬浮胶囊导航栏一致）
     val liquidGlass = liquidGlassEnabled && backdrop != null
-    val isLightTheme = !isSystemInDarkTheme()
+    // 跟随应用内主题选择（而非系统暗色），保证 app 切暗色时玻璃底色同步切换
+    val isLightTheme = !isAppDarkTheme()
     val glassContainerColor =
         if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
         else Color(0xFF121212).copy(0.4f)
