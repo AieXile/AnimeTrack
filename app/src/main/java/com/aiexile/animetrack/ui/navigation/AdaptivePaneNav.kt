@@ -35,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackHistoryScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackScreen
@@ -58,6 +59,8 @@ import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.settings.UpdateNotificationScreen
 import com.aiexile.animetrack.ui.settings.UserLoginScreen
 import com.aiexile.animetrack.ui.settings.UserRegisterScreen
+import com.aiexile.animetrack.ui.settings.EmailBindScreen
+import com.aiexile.animetrack.ui.settings.ForgotPasswordScreen
 import com.aiexile.animetrack.ui.settings.WebDAVAutoSyncScreen
 import com.aiexile.animetrack.ui.settings.WebDAVSyncScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
@@ -123,6 +126,19 @@ fun rememberPaneNavState(
     val paneEntry by paneNavController.currentBackStackEntryAsState()
     val isPaneVisible = useSideNavigation && paneEntry != null &&
         paneEntry!!.destination.route != Routes.PANE_ROOT
+
+    // 用户操作路径埋点：大屏 pane 路由变化写入反馈日志（与全屏 NavHost 埋点互补）
+    LaunchedEffect(paneEntry) {
+        val entry = paneEntry ?: return@LaunchedEffect
+        val route = entry.destination.route ?: return@LaunchedEffect
+        if (route == Routes.PANE_ROOT) return@LaunchedEffect
+        val args = entry.arguments
+        val extras = buildList {
+            args?.getInt("animeId")?.let { add("animeId=$it") }
+            args?.getString("sessionId")?.let { add("sessionId=$it") }
+        }
+        AppLogManager.i("Nav", "Pane: $route${if (extras.isEmpty()) "" else " ${extras.joinToString()}"}")
+    }
 
     // pane 宽度动画：打开时主界面平滑压缩（300ms，与页面过渡规范一致）
     val paneTargetWidth = (LocalConfiguration.current.screenWidthDp.dp - SideNavRailWidth) * 0.45f
@@ -451,13 +467,33 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.USER_LOGIN) {
         UserLoginScreen(
             onBack = navigateBack,
-            onNavigateRegister = { onNavigate(Routes.USER_REGISTER) }
+            onNavigateRegister = { onNavigate(Routes.USER_REGISTER) },
+            onNavigateForgotPassword = { onNavigate(Routes.FORGOT_PASSWORD) },
+            onNavigateEmailBind = { bindToken -> onNavigate(Routes.emailBind(bindToken)) }
         )
     }
 
     // 注册
     composable(Routes.USER_REGISTER) {
         UserRegisterScreen(
+            onBack = navigateBack
+        )
+    }
+
+    // 绑定邮箱（登录时服务端要求 bindToken 流程；已登录强制绑定走全局 Dialog）
+    composable(
+        route = Routes.EMAIL_BIND,
+        arguments = Routes.emailBindArguments
+    ) {
+        EmailBindScreen(
+            bindToken = it.arguments?.getString("bindToken") ?: "",
+            onBack = navigateBack
+        )
+    }
+
+    // 忘记密码
+    composable(Routes.FORGOT_PASSWORD) {
+        ForgotPasswordScreen(
             onBack = navigateBack
         )
     }

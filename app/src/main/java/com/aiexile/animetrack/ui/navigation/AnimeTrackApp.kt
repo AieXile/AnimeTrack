@@ -76,6 +76,9 @@ import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
+import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
@@ -92,6 +95,7 @@ import com.aiexile.animetrack.ui.home.TopBarActionsSingleWidth
 import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
+import com.aiexile.animetrack.ui.settings.EmailBindDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.player.PlayerScreen
@@ -222,6 +226,50 @@ fun AnimeTrackApp(
         onboardingRevealCenter = null
     }
 
+    // ===== 全局邮箱绑定检测 =====
+    // 已登录但本地无邮箱的存量用户（服务器启用邮箱验证前登录的会话）：
+    // 通过 profile 接口确认服务端也未绑定时，弹出强制绑定 Dialog（绑定或退出登录）。
+    // 若已在其他设备绑定则回填本地邮箱，不弹窗。
+    // 弹窗时序：等待启动的更新弹窗/公告弹窗全部结束后再显示，避免弹窗叠加。
+    val userAuthManager = remember { AppContainer.getUserAuthManager() }
+    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+    val userEmail by userAuthManager.email.collectAsState(initial = null)
+    val startupDialogsActive by AppContainer.startupDialogsActive.collectAsState()
+    var forceBindToken by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(userLoggedIn, userEmail) {
+        if (userLoggedIn && userEmail == null) {
+            val token = userAuthManager.getCachedAccessToken() ?: return@LaunchedEffect
+            try {
+                val profile = RetrofitClient.userAuthApi.getProfile("Bearer $token")
+                val profileEmail = profile.user?.email
+                if (profileEmail.isNullOrBlank()) {
+                    // 服务端确认未绑定 → 等待启动弹窗结束后弹出强制绑定
+                    forceBindToken = token
+                } else {
+                    // 其他设备已绑定，回填本地避免下次重复检测
+                    userAuthManager.updateEmail(profileEmail)
+                }
+            } catch (_: Exception) {
+                // 网络失败不弹窗，下次启动重试
+            }
+        } else {
+            forceBindToken = null
+        }
+    }
+
+    // 等待更新/公告弹窗结束（startupDialogsActive = false）后再显示强制绑定 Dialog
+    if (forceBindToken != null && !startupDialogsActive) {
+        EmailBindDialog(
+            token = forceBindToken!!,
+            onDismiss = {
+                forceBindToken = null
+                appScope.launch { userAuthManager.logout() }
+            },
+            onBound = { forceBindToken = null }
+        )
+    }
+
     // 等待初始路由确定
     val currentStartRoute = startRoute
     if (currentStartRoute == null) return
@@ -229,6 +277,20 @@ fun AnimeTrackApp(
     // 跟踪 NavController 当前路由，供 MainOverlay 判断可见性
     val currentNavRoute by navController.currentBackStackEntryAsState()
     val isMainRoute = currentNavRoute?.destination?.route == Routes.MAIN
+
+    // 用户操作路径埋点：全屏路由变化写入反馈日志（AppLogManager），
+    // 崩溃或异常反馈时可还原用户所在页面与导航轨迹
+    LaunchedEffect(currentNavRoute) {
+        val entry = currentNavRoute ?: return@LaunchedEffect
+        val route = entry.destination.route ?: return@LaunchedEffect
+        val args = entry.arguments
+        val extras = buildList {
+            args?.getInt("animeId")?.let { add("animeId=$it") }
+            args?.getInt("pageIndex")?.let { add("pageIndex=$it") }
+            args?.getString("sessionId")?.let { add("sessionId=$it") }
+        }
+        AppLogManager.i("Nav", "页面: $route${if (extras.isEmpty()) "" else " ${extras.joinToString()}"}")
+    }
 
     // NavHost 容器背景随路由切换：沉浸式黑色页面（播放器/WebDAV 浏览）互转时容器底色同步变黑，
     // 避免转场中页面缩放淡入露出浅色底造成白闪（浏览页退出动画观感与其他二级页不一致的根因）；
@@ -461,11 +523,22 @@ private fun CapsuleNavLayout(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
+    // 条件挂载 backdrop 源：仅实际有消费者时才录制内容层，
+    // 避免无消费者时的全屏 layer 录制开销（滚动时内容每帧变化会触发重录）。
+    // - layerBackdrop 消费方（胶囊/搜索条/FAB/状态栏玻璃条）全部由液态玻璃开关控制
+    // - hazeSource 消费方（胶囊毛玻璃/FAB/顶栏毛玻璃）全部由高级模糊开关控制。
+    //   两开关由设置层互斥（NavigationCustomizeScreen 开其一自动关另一），
+    //   但顶栏毛玻璃条件（topBarBlurEnabled）未带液态玻璃排除，
+    //   故此处条件保持不带排除，与其一致以防互斥被绕过时顶栏采样到空 haze
+    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled
+        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .layerBackdrop(navBackdrop)
-            .hazeSource(state = hazeState)
+            .then(if (capsuleLiquidGlassEnabled) Modifier.layerBackdrop(navBackdrop) else Modifier)
+            .then(if (capsuleAdvancedBlurEnabled) Modifier.hazeSource(state = hazeState) else Modifier)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -572,7 +645,8 @@ internal fun MainPagerContent(
             onNavigateBangumiLogin = { onNavigateToScreen(Routes.BANGUMI_LOGIN) },
             onNavigateBangumiAccount = { onNavigateToScreen(Routes.BANGUMI_ACCOUNT) },
             onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) },
-            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK) }
+            // 主界面「新回复」胶囊直跳历史列表（回复在历史会话中查看）
+            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK_HISTORY) }
         )
         "favorites" -> PlaceholderScreen(title = stringResource(R.string.nav_app_favorites), showBottomBar = false)
         "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })

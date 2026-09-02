@@ -8,6 +8,7 @@ import com.aiexile.animetrack.data.network.BangumiSearchRequest
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.BangumiSubjectDetail
 import com.aiexile.animetrack.data.network.CoverDownloader
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SubscribeRequest
 import com.aiexile.animetrack.data.network.RemoveSubscribeRequest
@@ -43,6 +44,9 @@ interface AnimeRepository {
     fun getAllAnimes(): Flow<List<Anime>>
 
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
+
+    /** 按状态分组统计数量，供个人页追番统计栏使用 */
+    fun getStatusCounts(): Flow<List<StatusCount>>
 
     suspend fun getAnimeById(id: Int): Anime?
 
@@ -113,6 +117,8 @@ interface AnimeRepository {
     suspend fun getAnimeByTmdbId(tmdbId: Int): Anime?
 
     fun getAiringAnimes(): Flow<List<Anime>>
+
+    suspend fun getAiringAnimesList(): List<Anime>
 
     suspend fun getAiringAnimesWithBangumiId(): List<Anime>
 
@@ -201,6 +207,10 @@ class AnimeRepositoryImpl(
 
     override fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>> {
         return animeDao.getAnimesByStatus(status)
+    }
+
+    override fun getStatusCounts(): Flow<List<StatusCount>> {
+        return animeDao.getStatusCounts()
     }
 
     override suspend fun getAnimeById(id: Int): Anime? {
@@ -470,6 +480,10 @@ class AnimeRepositoryImpl(
         return animeDao.getAiringAnimes()
     }
 
+    override suspend fun getAiringAnimesList(): List<Anime> {
+        return animeDao.getAiringAnimesList()
+    }
+
     override suspend fun getAiringAnimesWithBangumiId(): List<Anime> {
         return animeDao.getAiringAnimesWithBangumiId()
     }
@@ -528,7 +542,7 @@ class AnimeRepositoryImpl(
                         animeDao.updateCoverUrl(animeId, "")
                         Log.w(TAG, "Local cover file missing, cleared coverUrl: animeId=$animeId")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to clear missing cover: animeId=$animeId", e)
+                        AppLogManager.e(TAG, "Failed to clear missing cover: animeId=$animeId", e)
                     }
                 }
             }
@@ -560,7 +574,7 @@ class AnimeRepositoryImpl(
                         if (BuildConfig.DEBUG) Log.d(TAG, "Cover localized async: animeId=$animeId")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Async cover download failed: animeId=$animeId", e)
+                    AppLogManager.w(TAG, "封面下载失败: animeId=$animeId", e)
                 }
             }
         }
@@ -589,7 +603,7 @@ class AnimeRepositoryImpl(
                         batch.forEach { (id, url) -> animeDao.updateCoverUrl(id, url) }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Cover batch update failed", e)
+                    AppLogManager.e(TAG, "Cover batch update failed", e)
                 }
             }
         }

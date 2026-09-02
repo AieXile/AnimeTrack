@@ -4,6 +4,7 @@ import android.util.Log
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.CollectionStatusBody
 import com.aiexile.animetrack.data.network.EpisodeCollectionBody
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -169,7 +170,7 @@ class BangumiSyncManager(
 
             if (BuildConfig.DEBUG) Log.d(TAG, "syncRemoteToLocal completed")
         } catch (e: Exception) {
-            Log.e(TAG, "syncRemoteToLocal failed", e)
+            AppLogManager.e(TAG, "syncRemoteToLocal failed", e)
         }
     }
 
@@ -235,7 +236,7 @@ class BangumiSyncManager(
                 if (BuildConfig.DEBUG) Log.d(TAG, "syncLocalToRemote completed: pushed=$pushed")
                 Result.success(pushed)
             } catch (e: Exception) {
-                Log.e(TAG, "syncLocalToRemote failed", e)
+                AppLogManager.e(TAG, "syncLocalToRemote failed", e)
                 Result.failure(e)
             }
         }
@@ -357,15 +358,32 @@ class BangumiSyncManager(
         val remoteStatus = bangumiTypeToAnimeStatus(item.type)
         // 本地评分优先，本地为空时回退远程用户评分
         val mergedRating = localAnime.rating ?: remoteRating
+        // 合并首播日期：本地已有优先，缺失时回填远程，供完结判定与追番面板分组使用
+        val mergedAirDate = localAnime.airDate ?: subject?.date
+        // 重算完结状态：远程集数优先，回退本地总集数
+        val overrideActive = localAnime.airingStatusOverride != null
+        val recalculatedIsFinished = computeIsFinished(
+            mergedAirDate,
+            subject?.resolvedEps ?: localAnime.totalEpisodes,
+            remoteStatus,
+            localAnime.airEndDate,
+            localAnime.airingStatusOverride
+        )
         val needsUpdate = localAnime.watchedEpisodes != mergedWatched ||
                 localAnime.status != remoteStatus ||
-                (localAnime.rating == null && remoteRating != null)
+                (localAnime.rating == null && remoteRating != null) ||
+                (localAnime.airDate == null && subject?.date != null) ||
+                // 仅允许 false→true，避免把已完结的番剧又改回连载中
+                (!overrideActive && !localAnime.isFinished && recalculatedIsFinished)
 
         if (needsUpdate) {
             val updatedAnime = localAnime.copy(
                 watchedEpisodes = mergedWatched,
                 status = remoteStatus,
-                rating = mergedRating
+                rating = mergedRating,
+                airDate = mergedAirDate,
+                isFinished = if (overrideActive) localAnime.isFinished
+                else localAnime.isFinished || recalculatedIsFinished
             )
             return Pair(null, updatedAnime)
         }

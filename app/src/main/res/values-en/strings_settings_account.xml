@@ -37,15 +37,59 @@
     <string name="user_register_password">Password</string>
     <string name="user_register_password_hint">At least 6 characters</string>
     <string name="user_register_confirm_password">Confirm Password</string>
-    <string name="user_register_email_optional">Email (optional)</string>
+    <string name="user_register_email">Email</string>
+    <string name="user_register_email_hint">Used to receive verification code</string>
     <string name="user_register_button">Register</string>
     <string name="user_register_has_account_login">Already have an account? Log in</string>
     <string name="user_register_username_length_error">Username must be 3-20 characters</string>
     <string name="user_register_password_length_error">Password must be at least 6 characters</string>
     <string name="user_register_password_mismatch">Passwords do not match</string>
+    <string name="user_register_enter_email">Please enter an email address</string>
     <string name="user_register_success">Registration successful, please log in</string>
     <string name="user_register_failed">Registration failed</string>
     <string name="user_register_network_error">Network error, please check your connection</string>
+
+    <!-- Email verification code (shared) -->
+    <string name="verification_code_label">Verification code</string>
+    <string name="verification_code_send">Send code</string>
+    <string name="verification_code_resend_in">Resend in %1$d s</string>
+    <string name="verification_code_send_failed">Failed to send verification code</string>
+    <string name="verification_code_required">Please enter the verification code</string>
+
+    <!-- EmailBindScreen -->
+    <string name="email_bind_title">Bind Email</string>
+    <string name="email_bind_desc">For account security, please bind an email to continue</string>
+    <string name="email_bind_email">Email</string>
+    <string name="email_bind_button">Bind Email</string>
+    <string name="email_bind_success">Email bound successfully</string>
+    <string name="email_bind_failed">Failed to bind email</string>
+    <string name="email_bind_enter_email">Please enter an email address</string>
+    <string name="email_bind_token_expired">Session expired, please log in again</string>
+
+    <!-- Forgot password -->
+    <string name="forgot_password_title">Forgot Password</string>
+    <string name="forgot_password_email">Email</string>
+    <string name="forgot_password_new_password">New Password</string>
+    <string name="forgot_password_confirm_password">Confirm New Password</string>
+    <string name="forgot_password_button">Reset Password</string>
+    <string name="forgot_password_success">Password reset, please log in with the new password</string>
+    <string name="forgot_password_failed">Reset failed</string>
+    <string name="forgot_password_network_error">Network error, please check your connection</string>
+
+    <!-- UserLoginScreen extras -->
+    <string name="user_login_forgot_password">Forgot password?</string>
+    <string name="user_login_joined_date">Joined %1$s</string>
+    <string name="user_login_stat_total">Total</string>
+    <string name="user_login_stat_watching">Watching</string>
+    <string name="user_login_stat_planned">Planned</string>
+    <string name="user_login_stat_completed">Completed</string>
+    <string name="user_login_section_security">Account Security</string>
+    <string name="user_login_change_email">Change Email</string>
+    <string name="user_login_current_password">Current Password</string>
+    <string name="user_login_new_email">New Email</string>
+    <string name="user_login_change_email_success">Email changed successfully</string>
+    <string name="user_login_enter_new_email">Please enter a new email address</string>
+    <string name="user_login_enter_password">Please enter password</string>
 
     <!-- LoginScreen -->
     <string name="login_screen_title">Login</string>

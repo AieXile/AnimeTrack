@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,14 +34,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.network.BindEmailRequest
 import com.aiexile.animetrack.data.network.EmailCodePurpose
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
-import com.aiexile.animetrack.data.network.UserAuthRegisterRequest
 import com.aiexile.animetrack.data.network.serverMessage
+import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -50,17 +51,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 
+/**
+ * 绑定邮箱页（登录/注册流程触发）：登录时服务端返回 requireEmailBind + bindToken 后跳转此页。
+ * 已登录存量用户的强制绑定走 EmailBindDialog（全局检测触发），不经过此页。
+ * 绑定成功后服务端直接签发正式登录凭证，页面保存凭证并返回。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserRegisterScreen(
+fun EmailBindScreen(
+    bindToken: String,
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val userAuthManager = remember { AppContainer.getUserAuthManager() }
 
-    var inputUsername by remember { mutableStateOf("") }
-    var inputPassword by remember { mutableStateOf("") }
-    var inputConfirmPassword by remember { mutableStateOf("") }
     var inputEmail by remember { mutableStateOf("") }
     var inputCode by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -72,7 +77,7 @@ fun UserRegisterScreen(
     fun sendVerificationCode() {
         val email = inputEmail.trim()
         if (email.isEmpty()) {
-            message = context.getString(R.string.user_register_enter_email)
+            message = context.getString(R.string.email_bind_enter_email)
             isMessageError = true
             return
         }
@@ -82,7 +87,7 @@ fun UserRegisterScreen(
         scope.launch(Dispatchers.IO) {
             try {
                 val response = RetrofitClient.userAuthApi.sendCode(
-                    SendCodeRequest(email = email, purpose = EmailCodePurpose.REGISTER)
+                    SendCodeRequest(email = email, purpose = EmailCodePurpose.BIND)
                 )
                 withContext(Dispatchers.Main) {
                     message = response.message ?: context.getString(R.string.verification_code_send_failed)
@@ -97,7 +102,7 @@ fun UserRegisterScreen(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    message = context.getString(R.string.user_register_network_error)
+                    message = context.getString(R.string.user_login_network_error)
                     isMessageError = true
                 }
             } finally {
@@ -113,7 +118,7 @@ fun UserRegisterScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.user_register_title),
+                        text = stringResource(R.string.email_bind_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -134,43 +139,26 @@ fun UserRegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            OutlinedTextField(
-                value = inputUsername,
-                onValueChange = { inputUsername = it },
-                label = { Text(stringResource(R.string.user_register_username)) },
-                placeholder = { Text(stringResource(R.string.user_register_username_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            Icon(
+                imageVector = Icons.Rounded.Email,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = inputPassword,
-                onValueChange = { inputPassword = it },
-                label = { Text(stringResource(R.string.user_register_password)) },
-                placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.email_bind_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = inputConfirmPassword,
-                onValueChange = { inputConfirmPassword = it },
-                label = { Text(stringResource(R.string.user_register_confirm_password)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             OutlinedTextField(
                 value = inputEmail,
                 onValueChange = { inputEmail = it },
-                label = { Text(stringResource(R.string.user_register_email)) },
-                placeholder = { Text(stringResource(R.string.user_register_email_hint)) },
+                label = { Text(stringResource(R.string.email_bind_email)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -178,7 +166,8 @@ fun UserRegisterScreen(
                 code = inputCode,
                 onCodeChange = { inputCode = it },
                 onSendCode = { sendVerificationCode() },
-                isSending = isSendingCode
+                isSending = isSendingCode,
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(8.dp))
             message?.let { msg ->
@@ -193,26 +182,9 @@ fun UserRegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    // 本地验证
-                    val trimmedUsername = inputUsername.trim()
-                    val trimmedEmail = inputEmail.trim()
-                    if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
-                        message = context.getString(R.string.user_register_username_length_error)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (inputPassword.length < 6) {
-                        message = context.getString(R.string.user_register_password_length_error)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (inputPassword != inputConfirmPassword) {
-                        message = context.getString(R.string.user_register_password_mismatch)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (trimmedEmail.isEmpty()) {
-                        message = context.getString(R.string.user_register_enter_email)
+                    val email = inputEmail.trim()
+                    if (email.isEmpty()) {
+                        message = context.getString(R.string.email_bind_enter_email)
                         isMessageError = true
                         return@Button
                     }
@@ -227,50 +199,69 @@ fun UserRegisterScreen(
                     message = null
                     scope.launch(Dispatchers.IO) {
                         try {
-                            val response = RetrofitClient.userAuthApi.register(
-                                UserAuthRegisterRequest(
-                                    username = trimmedUsername,
-                                    password = inputPassword,
-                                    email = trimmedEmail,
-                                    code = inputCode.trim()
-                                )
+                            val response = RetrofitClient.userAuthApi.bindEmail(
+                                "Bearer $bindToken",
+                                BindEmailRequest(email = email, code = inputCode.trim())
                             )
-                            if (response.success) {
+                            if (response.success && response.accessToken != null
+                                && response.refreshToken != null && response.user != null
+                            ) {
+                                val user = response.user
+                                userAuthManager.saveLogin(
+                                    accessToken = response.accessToken,
+                                    refreshToken = response.refreshToken,
+                                    userId = user.id,
+                                    username = user.username,
+                                    email = user.email,
+                                    createdAt = user.createdAt,
+                                    avatar = user.avatar
+                                )
+                                // 与登录流程一致：上报推送 ID + 拉取云端订阅
+                                try {
+                                    PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
+                                } catch (_: Exception) { }
+                                try {
+                                    AppContainer.getAnimeRepository()
+                                        .triggerSyncSubscriptionsFromServer()
+                                } catch (e: Exception) {
+                                    android.util.Log.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
+                                }
                                 withContext(Dispatchers.Main) {
-                                    message = context.getString(R.string.user_register_success)
+                                    message = context.getString(R.string.email_bind_success)
                                     isMessageError = false
                                 }
-                                delay(1500)
+                                delay(1200)
                                 withContext(Dispatchers.Main) {
                                     onBack()
                                 }
                             } else {
                                 withContext(Dispatchers.Main) {
-                                    message = response.message ?: context.getString(R.string.user_register_failed)
+                                    message = response.message ?: context.getString(R.string.email_bind_failed)
                                     isMessageError = true
+                                    isLoading = false
                                 }
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: HttpException) {
                             withContext(Dispatchers.Main) {
-                                message = e.serverMessage() ?: context.getString(R.string.user_register_failed)
+                                message = when (e.code()) {
+                                    401, 403 -> context.getString(R.string.email_bind_token_expired)
+                                    else -> e.serverMessage() ?: context.getString(R.string.email_bind_failed)
+                                }
                                 isMessageError = true
+                                isLoading = false
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                message = context.getString(R.string.user_register_network_error)
+                                message = context.getString(R.string.user_login_network_error)
                                 isMessageError = true
-                            }
-                        } finally {
-                            withContext(Dispatchers.Main) {
                                 isLoading = false
                             }
                         }
                     }
                 },
-                enabled = !isLoading && inputUsername.isNotBlank() && inputPassword.isNotBlank()
-                    && inputConfirmPassword.isNotBlank() && inputEmail.isNotBlank() && inputCode.isNotBlank(),
+                enabled = !isLoading && inputEmail.isNotBlank() && inputCode.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isLoading) {
@@ -280,12 +271,8 @@ fun UserRegisterScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text(stringResource(R.string.user_register_button))
+                    Text(stringResource(R.string.email_bind_button))
                 }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.user_register_has_account_login))
             }
         }
     }

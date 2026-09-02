@@ -30,6 +30,8 @@ object Routes {
     const val BANGUMI_PROXY = "bangumiProxy"
     const val USER_LOGIN = "userLogin"
     const val USER_REGISTER = "userRegister"
+    const val EMAIL_BIND = "emailBind/{bindToken}"
+    const val FORGOT_PASSWORD = "forgotPassword"
     const val FONT_SETTINGS = "fontSettings"
     const val FEEDBACK = "feedback"
     const val FEEDBACK_HISTORY = "feedbackHistory"
@@ -41,6 +43,9 @@ object Routes {
 
     /** 反馈会话详情路由 */
     fun feedbackSession(sessionId: String) = "feedbackSession/$sessionId"
+
+    /** 绑定邮箱路由（bindToken 为服务端签发的短期 JWT） */
+    fun emailBind(bindToken: String) = "emailBind/$bindToken"
 
     /** 播放器路由 */
     fun player(animeId: Int) = "player/$animeId"
@@ -68,6 +73,11 @@ object Routes {
         navArgument("sessionId") { type = NavType.StringType }
     )
 
+    /** 绑定邮箱 navArguments */
+    val emailBindArguments = listOf(
+        navArgument("bindToken") { type = NavType.StringType }
+    )
+
     /** 播放器 navArguments */
     val playerArguments = listOf(
         navArgument("animeId") { type = NavType.IntType }
@@ -80,7 +90,7 @@ object Routes {
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION,
         PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
-        USER_LOGIN, USER_REGISTER, FONT_SETTINGS,
+        USER_LOGIN, USER_REGISTER, EMAIL_BIND, FORGOT_PASSWORD, FONT_SETTINGS,
         FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION
     )
 
@@ -98,7 +108,7 @@ object Routes {
         DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
-        USER_LOGIN, USER_REGISTER, FONT_SETTINGS,
+        USER_LOGIN, USER_REGISTER, EMAIL_BIND, FORGOT_PASSWORD, FONT_SETTINGS,
         FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION
     )
 
@@ -120,6 +130,8 @@ object Routes {
         BANGUMI_LOGIN to BANGUMI_ACCOUNT,
         LOGIN to USER_LOGIN,
         USER_LOGIN to USER_REGISTER,
+        USER_LOGIN to EMAIL_BIND,
+        USER_LOGIN to FORGOT_PASSWORD,
         ABOUT to DEVELOPER,
         DATA_MANAGE to WEBDAV_BROWSE,
         DEVELOPER to PLAYER_SETTINGS,

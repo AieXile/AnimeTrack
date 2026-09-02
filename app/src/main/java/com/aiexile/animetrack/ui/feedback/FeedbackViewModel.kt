@@ -67,17 +67,30 @@ class FeedbackViewModel(
     /** 已登录用户的用户名（未登录或无用户名为 null），用于问候语展示 */
     val username: StateFlow<String?> = _username.asStateFlow()
 
+    private val _hasNewReplies = MutableStateFlow(false)
+
+    /** 是否有未读的管理员回复（历史入口红点用；已读以进入历史界面为准，主页不清除） */
+    val hasNewReplies: StateFlow<Boolean> = _hasNewReplies.asStateFlow()
+
     init {
         viewModelScope.launch {
             userAuthManager.isLoggedIn.collect { loggedIn ->
                 _isLoggedIn.value = loggedIn
-                if (loggedIn) repository.markRead()
+                if (loggedIn) refreshNewReplies() else _hasNewReplies.value = false
             }
         }
         viewModelScope.launch {
             userAuthManager.username.collect { name ->
                 _username.value = name?.takeIf { it.isNotBlank() }
             }
+        }
+    }
+
+    /** 刷新未读回复状态（页面重新可见时调用，如从历史界面返回后红点应及时熄灭） */
+    fun refreshNewReplies() {
+        viewModelScope.launch {
+            // 主页不展示管理员回复，不在此处 markRead（红点由历史界面清除）
+            _hasNewReplies.value = repository.hasNewReplies()
         }
     }
 

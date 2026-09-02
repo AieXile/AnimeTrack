@@ -39,6 +39,8 @@ fun SideNavigationRail(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     ) {
+        // 顶部弹性占位：导航项在垂直方向居中
+        Spacer(modifier = Modifier.weight(1f))
         val visibleItems = bottomNavItems.filter { it.route in visiblePages }
         visibleItems.forEach { item ->
             val selected = currentRoute == item.route
@@ -74,9 +76,9 @@ fun SideNavigationRail(
                 )
             )
         }
-        // 底部槽位：导航项与槽位之间弹性撑开，槽位贴底
+        // 底部槽位：与导航项之间的弹性空间对称，导航项居中、槽位贴底
+        Spacer(modifier = Modifier.weight(1f))
         if (bottomContent != null) {
-            Spacer(modifier = Modifier.weight(1f))
             bottomContent()
         }
     }

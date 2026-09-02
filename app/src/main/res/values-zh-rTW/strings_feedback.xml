@@ -24,6 +24,7 @@
     <string name="feedback_status_open">進行中</string>
     <string name="feedback_status_pending">已回覆</string>
     <string name="feedback_status_closed">已結束</string>
+    <string name="feedback_new_reply">新回覆</string>
 
     <!-- 會話詳情 -->
     <string name="feedback_append">追加回報</string>

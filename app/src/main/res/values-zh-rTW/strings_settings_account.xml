@@ -37,15 +37,59 @@
     <string name="user_register_password">密碼</string>
     <string name="user_register_password_hint">至少6位</string>
     <string name="user_register_confirm_password">確認密碼</string>
-    <string name="user_register_email_optional">信箱（選填）</string>
+    <string name="user_register_email">信箱</string>
+    <string name="user_register_email_hint">用於接收驗證碼</string>
     <string name="user_register_button">註冊</string>
     <string name="user_register_has_account_login">已有帳號？去登入</string>
     <string name="user_register_username_length_error">使用者名稱長度需為3-20個字元</string>
     <string name="user_register_password_length_error">密碼長度至少6位</string>
     <string name="user_register_password_mismatch">兩次密碼不一致</string>
+    <string name="user_register_enter_email">請輸入信箱地址</string>
     <string name="user_register_success">註冊成功，請登入</string>
     <string name="user_register_failed">註冊失敗</string>
     <string name="user_register_network_error">網路錯誤，請檢查網路連線</string>
+
+    <!-- 郵箱驗證碼（通用） -->
+    <string name="verification_code_label">驗證碼</string>
+    <string name="verification_code_send">發送驗證碼</string>
+    <string name="verification_code_resend_in">%1$d 秒後重發</string>
+    <string name="verification_code_send_failed">驗證碼發送失敗</string>
+    <string name="verification_code_required">請輸入驗證碼</string>
+
+    <!-- EmailBindScreen（存量使用者強制綁定信箱） -->
+    <string name="email_bind_title">綁定信箱</string>
+    <string name="email_bind_desc">為保障帳號安全，請先綁定信箱後繼續使用</string>
+    <string name="email_bind_email">信箱</string>
+    <string name="email_bind_button">綁定信箱</string>
+    <string name="email_bind_success">綁定成功</string>
+    <string name="email_bind_failed">綁定失敗</string>
+    <string name="email_bind_enter_email">請輸入信箱地址</string>
+    <string name="email_bind_token_expired">綁定工作階段已過期，請重新登入</string>
+
+    <!-- 忘記密碼 -->
+    <string name="forgot_password_title">忘記密碼</string>
+    <string name="forgot_password_email">信箱</string>
+    <string name="forgot_password_new_password">新密碼</string>
+    <string name="forgot_password_confirm_password">確認新密碼</string>
+    <string name="forgot_password_button">重設密碼</string>
+    <string name="forgot_password_success">密碼重設成功，請使用新密碼登入</string>
+    <string name="forgot_password_failed">重設失敗</string>
+    <string name="forgot_password_network_error">網路錯誤，請檢查網路連線</string>
+
+    <!-- UserLoginScreen 補充 -->
+    <string name="user_login_forgot_password">忘記密碼？</string>
+    <string name="user_login_joined_date">%1$s 加入</string>
+    <string name="user_login_stat_total">總追番</string>
+    <string name="user_login_stat_watching">在看</string>
+    <string name="user_login_stat_planned">計畫</string>
+    <string name="user_login_stat_completed">已看完</string>
+    <string name="user_login_section_security">帳號安全</string>
+    <string name="user_login_change_email">更換信箱</string>
+    <string name="user_login_current_password">目前密碼</string>
+    <string name="user_login_new_email">新信箱</string>
+    <string name="user_login_change_email_success">信箱更換成功</string>
+    <string name="user_login_enter_new_email">請輸入新信箱地址</string>
+    <string name="user_login_enter_password">請輸入密碼</string>
 
     <!-- LoginScreen -->
     <string name="login_screen_title">登入</string>

@@ -42,6 +42,8 @@ object RetrofitClient {
             .dns(safeDns)
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(6, TimeUnit.SECONDS)
+            // 网络失败日志：所有派生客户端共享，失败请求进入反馈日志（见 NetworkLogInterceptor）
+            .addInterceptor(NetworkLogInterceptor())
 
         // 应用 HTTP 普通代理（修改后需重启 App 生效）
         try {
@@ -144,7 +146,8 @@ object RetrofitClient {
             AppContainer.getUserAuthManager()
         } catch (_: Exception) { null }
         val token = userAuthManager?.getCachedAccessToken()
-        if (token != null) {
+        // 请求已手动指定 Authorization（如 bind-email 的 bindToken）时不覆盖
+        if (token != null && chain.request().header("Authorization") == null) {
             requestBuilder.header("Authorization", "Bearer $token")
         }
         chain.proceed(requestBuilder.build())

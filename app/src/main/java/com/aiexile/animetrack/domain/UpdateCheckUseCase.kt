@@ -2,6 +2,7 @@ package com.aiexile.animetrack.domain
 
 import android.util.Log
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.util.computeIsFinished
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,9 @@ class UpdateCheckUseCase(
 
     suspend fun checkAiringAnimeUpdates(): List<UpdateResult> = withContext(Dispatchers.IO) {
         try {
+            // 先做纯本地兜底重算，修正历史上各写入路径遗留的 isFinished=false 脏数据
+            recalcFinishStatusLocally()
+
             val airingAnimes = repository.getAiringAnimesWithBangumiId()
             if (airingAnimes.isEmpty()) return@withContext emptyList()
 
@@ -97,7 +101,7 @@ class UpdateCheckUseCase(
                                 else -> null
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to check update for: ${anime.title}", e)
+                            AppLogManager.w(TAG, "更新检查失败: ${anime.title}", e)
                             null
                         }
                     }
@@ -118,8 +122,39 @@ class UpdateCheckUseCase(
             }
             results
         } catch (e: Exception) {
-            Log.e(TAG, "checkAiringAnimeUpdates failed", e)
+            AppLogManager.e(TAG, "checkAiringAnimeUpdates failed", e)
             emptyList()
+        }
+    }
+
+    /**
+     * 本地兜底重算完结状态（无网络请求）。
+     *
+     * 历史上多个写入路径可能把已完结番剧错误标记为连载中：
+     * DB v4 迁移新增 isFinished 列时默认 0、B 站同步新建时 airDate 传参为 null、
+     * Bangumi 同步更新已有条目时不重算 isFinished 等。
+     * 这里对全部「连载中」的在追番剧，用已有的 airDate / totalEpisodes / airEndDate
+     * 重新判定并写回，仅做 false→true，且尊重用户手动覆盖 airingStatusOverride。
+     */
+    private suspend fun recalcFinishStatusLocally() {
+        try {
+            val airing = repository.getAiringAnimesList()
+            val corrected = airing.mapNotNull { anime ->
+                val recalculated = computeIsFinished(
+                    anime.airDate,
+                    anime.totalEpisodes,
+                    anime.status,
+                    anime.airEndDate,
+                    anime.airingStatusOverride
+                )
+                if (recalculated && !anime.isFinished) anime.copy(isFinished = true) else null
+            }
+            if (corrected.isNotEmpty()) {
+                AppLogManager.i(TAG, "完结状态兜底重算: 修正 ${corrected.size} 部（此前被误标为连载中）")
+                repository.batchUpdateAnimesInternal(corrected)
+            }
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "recalcFinishStatusLocally failed", e)
         }
     }
 }

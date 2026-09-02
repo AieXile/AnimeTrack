@@ -27,9 +27,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -235,30 +237,41 @@ internal fun LiquidGlassNavBar(
         }
 
         // ===== 2. 镜像内容层（隐形：捕获 Tab 内容供浮块折射出强调色图标）=====
+        // 整层 alpha=0 不可见；仅按压中（浮块做 combined backdrop 采样）才需要玻璃渲染，
+        // 未按压时跳过 backdrop 采样与 vibrancy/blur/lens 全部 shader，消除静态浪费。
+        // derivedStateOf 仅在跨过阈值时重组一次；progress 在 lambda 内按绘制期读取，
+        // 按压动画期间逐帧只刷新绘制，不触发重组（与原实现的状态订阅语义一致）。
+        val mirrorGlassActive by remember(dampedDragAnimation) {
+            derivedStateOf { dampedDragAnimation.pressProgress > 0.01f }
+        }
+        val mirrorGlassModifier = if (mirrorGlassActive) {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { Capsule() },
+                effects = {
+                    val progress = dampedDragAnimation.pressProgress
+                    vibrancy()
+                    blur(8f.dp.toPx())
+                    lens(
+                        24f.dp.toPx() * progress,
+                        24f.dp.toPx() * progress
+                    )
+                },
+                highlight = {
+                    Highlight.Default.copy(alpha = dampedDragAnimation.pressProgress)
+                },
+                onDrawSurface = { drawRect(containerColor) }
+            )
+        } else {
+            Modifier
+        }
         Row(
             Modifier
                 .clearAndSetSemantics {}
                 .alpha(0f)
                 .layerBackdrop(tabsBackdrop)
                 .graphicsLayer { translationX = panelOffset }
-                .drawBackdrop(
-                    backdrop = backdrop,
-                    shape = { Capsule() },
-                    effects = {
-                        val progress = dampedDragAnimation.pressProgress
-                        vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(
-                            24f.dp.toPx() * progress,
-                            24f.dp.toPx() * progress
-                        )
-                    },
-                    highlight = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = progress)
-                    },
-                    onDrawSurface = { drawRect(containerColor) }
-                )
+                .then(mirrorGlassModifier)
                 .then(interactiveHighlight.modifier)
                 .height(46f.dp)
                 .fillMaxWidth()
@@ -290,6 +303,79 @@ internal fun LiquidGlassNavBar(
         }
 
         // ===== 3. 可拖拽玻璃浮块（选中指示器）=====
+        // 未按压时浮块视觉 = 胶囊形状底色（10% 黑/白）+ 果冻拉伸（pager 联动也有速度形变），
+        // 跳过 combined backdrop 采样与 lens/highlight/shadow/innerShadow 全部 shader
+        // （未按压时这些效果全为 0/alpha=0），消除静态帧的多 pass 成本。
+        // derivedStateOf 仅在跨过阈值时重组一次；progress/scale/velocity 在 lambda 内
+        // 按绘制期读取，动画期间逐帧只刷新绘制，不触发重组。
+        val knobGlassActive by remember(dampedDragAnimation) {
+            derivedStateOf { dampedDragAnimation.pressProgress > 0.01f }
+        }
+        val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
+        val knobShape = remember { Capsule() }
+        val knobBaseColor =
+            if (isLightTheme) Color.Black.copy(0.1f) else Color.White.copy(0.1f)
+        val knobGlassModifier = if (knobGlassActive) {
+            Modifier.drawBackdrop(
+                backdrop = combinedBackdrop,
+                shape = { Capsule() },
+                effects = {
+                    val progress = dampedDragAnimation.pressProgress
+                    lens(
+                        10f.dp.toPx() * progress,
+                        14f.dp.toPx() * progress,
+                        chromaticAberration = true
+                    )
+                },
+                highlight = {
+                    Highlight.Default.copy(alpha = dampedDragAnimation.pressProgress)
+                },
+                shadow = {
+                    Shadow(alpha = dampedDragAnimation.pressProgress)
+                },
+                innerShadow = {
+                    InnerShadow(
+                        radius = 8f.dp * dampedDragAnimation.pressProgress,
+                        alpha = dampedDragAnimation.pressProgress
+                    )
+                },
+                layerBlock = {
+                    scaleX = dampedDragAnimation.scaleX
+                    scaleY = dampedDragAnimation.scaleY
+                    // 拖拽速度带来的果冻拉伸形变
+                    val velocity = dampedDragAnimation.velocity / 10f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                },
+                onDrawSurface = {
+                    val progress = dampedDragAnimation.pressProgress
+                    drawRect(
+                        if (isLightTheme) Color.Black.copy(0.1f)
+                        else Color.White.copy(0.1f),
+                        alpha = 1f - progress
+                    )
+                    drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                }
+            )
+        } else {
+            Modifier
+                .graphicsLayer {
+                    // 果冻拉伸：pager 联动移动时未按压也有速度形变，需保留
+                    scaleX = dampedDragAnimation.scaleX
+                    scaleY = dampedDragAnimation.scaleY
+                    val velocity = dampedDragAnimation.velocity / 10f
+                    scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                }
+                .drawBehind {
+                    // 胶囊形状底色：progress=0 时 onDrawSurface 仅剩此底色
+                    //（drawBackdrop 的 shape 裁剪由 capsule outline 等价替代）
+                    drawOutline(
+                        knobShape.createOutline(size, layoutDirection, this),
+                        knobBaseColor
+                    )
+                }
+        }
         Box(
             Modifier
                 .padding(horizontal = 4f.dp)
@@ -300,50 +386,7 @@ internal fun LiquidGlassNavBar(
                 }
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
-                .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
-                    shape = { Capsule() },
-                    effects = {
-                        val progress = dampedDragAnimation.pressProgress
-                        lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
-                            chromaticAberration = true
-                        )
-                    },
-                    highlight = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = progress)
-                    },
-                    shadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Shadow(alpha = progress)
-                    },
-                    innerShadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(
-                            radius = 8f.dp * progress,
-                            alpha = progress
-                        )
-                    },
-                    layerBlock = {
-                        scaleX = dampedDragAnimation.scaleX
-                        scaleY = dampedDragAnimation.scaleY
-                        // 拖拽速度带来的果冻拉伸形变
-                        val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
-                    onDrawSurface = {
-                        val progress = dampedDragAnimation.pressProgress
-                        drawRect(
-                            if (isLightTheme) Color.Black.copy(0.1f)
-                            else Color.White.copy(0.1f),
-                            alpha = 1f - progress
-                        )
-                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
-                    }
-                )
+                .then(knobGlassModifier)
                 .height(46f.dp)
                 .fillMaxWidth(1f / itemCount)
         )

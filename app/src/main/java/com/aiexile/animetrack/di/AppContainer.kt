@@ -39,6 +39,11 @@ object AppContainer {
     // 由 WebDAVAutoSyncManager 等后台任务监听，延迟到首帧后再执行，避免与启动链路争抢资源。
     val firstFrameRendered: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
+    // 启动弹窗（更新/公告）整体活跃状态：初始 true（阻塞），
+    // 由 HomeViewModel 在启动检查流程中观察上报（检查中/弹窗显示中均视为活跃），
+    // 供 AnimeTrackApp 的强制邮箱绑定 Dialog 等待其结束后再显示，避免弹窗叠加。
+    val startupDialogsActive: MutableStateFlow<Boolean> = MutableStateFlow(true)
+
     fun markFirstFrameRendered() {
         firstFrameRendered.value = true
     }

@@ -5,6 +5,7 @@ import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -92,7 +93,7 @@ class BilibiliSyncManager(
                 )
 
                 if (response.code != 0 || response.data?.list == null) {
-                    Log.e(TAG, "获取追番列表失败: code=${response.code} msg=${response.message}")
+                    AppLogManager.e(TAG, "获取追番列表失败: code=${response.code} msg=${response.message}")
                     break
                 }
 
@@ -105,7 +106,7 @@ class BilibiliSyncManager(
             if (BuildConfig.DEBUG) Log.d(TAG, "fetchFollowList completed: ${allItems.size} items")
             Result.success(allItems)
         } catch (e: Exception) {
-            Log.e(TAG, "fetchFollowList failed", e)
+            AppLogManager.e(TAG, "fetchFollowList failed", e)
             Result.failure(e)
         }
     }
@@ -160,7 +161,7 @@ class BilibiliSyncManager(
             repository.triggerSyncSubscriptionsFromServerDebounced()
             Result.success(syncedCount)
         } catch (e: Exception) {
-            Log.e(TAG, "syncSelectedItems failed", e)
+            AppLogManager.e(TAG, "syncSelectedItems failed", e)
             Result.failure(e)
         }
     }
@@ -204,11 +205,12 @@ class BilibiliSyncManager(
 
             val syncResult = syncSelectedItems(filteredItems)
             if (syncResult.isSuccess) {
-                if (BuildConfig.DEBUG) Log.d(TAG, "fetchAndSyncFiltered: synced ${syncResult.getOrNull()} items (filtered from ${allItems.size})")
+                // 同步结果落文件日志（反馈排查依赖），不随 DEBUG 开关
+                AppLogManager.i(TAG, "B站自动同步: ${syncResult.getOrNull()} 条（拉取 ${allItems.size} 条）")
             }
             syncResult
         } catch (e: Exception) {
-            Log.e(TAG, "fetchAndSyncFiltered failed", e)
+            AppLogManager.e(TAG, "fetchAndSyncFiltered failed", e)
             Result.failure(e)
         }
     }
@@ -254,7 +256,7 @@ class BilibiliSyncManager(
                 bangumiId = null,
                 airDate = airDate,
                 airWeekday = airWeekday,
-                isFinished = isFinished || computeIsFinished(null, totalEps, status),
+                isFinished = isFinished || computeIsFinished(airDate, totalEps, status),
                 syncRemarks = progressRemarks
             )
             return Pair(newAnime, null)

@@ -233,10 +233,17 @@ fun FeedbackScreen(
             )
         }
 
-        // ===== 浮动圆形按钮：返回（左上）/ 历史（右上） =====
+        // ===== 浮动圆形按钮：返回（左上）/ 历史（右上，有未读回复时带红点） =====
+        val hasNewReplies by viewModel.hasNewReplies.collectAsState()
+        // 页面重新可见时刷新未读状态（从历史界面返回后红点及时熄灭）
+        androidx.lifecycle.compose.LifecycleResumeEffect(isLoggedIn) {
+            if (isLoggedIn) viewModel.refreshNewReplies()
+            onPauseOrDispose { }
+        }
         FeedbackFloatingHeader(
             onBack = onBack,
             onHistory = onNavigateHistory,
+            showHistoryBadge = hasNewReplies,
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -277,11 +284,12 @@ fun FeedbackScreen(
     }
 }
 
-/** 顶部浮动圆形按钮行：左侧返回、右侧历史入口 */
+/** 顶部浮动圆形按钮行：左侧返回、右侧历史入口（有未读回复时红点提示） */
 @Composable
 private fun FeedbackFloatingHeader(
     onBack: () -> Unit,
     onHistory: () -> Unit,
+    showHistoryBadge: Boolean,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -297,17 +305,19 @@ private fun FeedbackFloatingHeader(
         FeedbackCircleButton(
             icon = Icons.Rounded.History,
             contentDescription = stringResource(R.string.feedback_history_entry),
-            onClick = onHistory
+            onClick = onHistory,
+            showBadge = showHistoryBadge
         )
     }
 }
 
-/** 圆形浮动按钮（surfaceContainerLowest 底 + 微投影观感由底色区分） */
+/** 圆形浮动按钮（surfaceContainerLowest 底 + 微投影观感由底色区分），showBadge 时右上角红点 */
 @Composable
 private fun FeedbackCircleButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    showBadge: Boolean = false
 ) {
     Box(
         modifier = Modifier
@@ -323,6 +333,17 @@ private fun FeedbackCircleButton(
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp)
         )
+        if (showBadge) {
+            // 新回复红点：右上角小圆点
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 9.dp, end = 9.dp)
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.error)
+            )
+        }
     }
 }
 
@@ -454,7 +475,12 @@ fun FeedbackChatInput(
                             containerColor = innerButtonColor,
                             enabled = enabled && !isSending
                         ) { plusMenuOpen = true }
-                        DropdownMenu(expanded = plusMenuOpen, onDismissRequest = { plusMenuOpen = false }) {
+                        DropdownMenu(
+                            expanded = plusMenuOpen,
+                            onDismissRequest = { plusMenuOpen = false },
+                            shape = SquircleShape(16.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.feedback_attach_image)) },
                                 leadingIcon = { Icon(Icons.Rounded.Image, contentDescription = null) },

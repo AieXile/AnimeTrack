@@ -2,6 +2,7 @@ package com.aiexile.animetrack.data.log
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import com.aiexile.animetrack.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -82,7 +83,7 @@ object AppLogManager {
         installCrashHandler()
     }
 
-    // ===== 写入 API（未初始化时静默丢弃） =====
+    // ===== 写入 API（未初始化时静默丢弃；同时镜像到 logcat，调用点一处即可双通道输出） =====
 
     fun d(tag: String, message: String) = write("D", tag, message, null)
 
@@ -94,8 +95,25 @@ object AppLogManager {
 
     private fun write(level: String, tag: String, message: String, throwable: Throwable?) {
         if (!initialized) return
+        mirrorToLogcat(level, tag, message, throwable)
         val line = formatLine(level, tag, message, throwable)
         executor.execute { appendLocked(line) }
+    }
+
+    /** 同步镜像到 logcat，保持原本 Log.x 的实时调试能力 */
+    private fun mirrorToLogcat(level: String, tag: String, message: String, throwable: Throwable?) {
+        val priority = when (level) {
+            "D" -> Log.DEBUG
+            "I" -> Log.INFO
+            "W" -> Log.WARN
+            else -> Log.ERROR
+        }
+        val text = if (throwable != null) {
+            "$message\n${Log.getStackTraceString(throwable)}"
+        } else {
+            message
+        }
+        Log.println(priority, tag, text)
     }
 
     // ===== 导出（反馈日志附件） =====

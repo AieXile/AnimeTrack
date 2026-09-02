@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.LockReset
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,9 +38,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.EmailCodePurpose
+import com.aiexile.animetrack.data.network.ForgotPasswordRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
-import com.aiexile.animetrack.data.network.UserAuthRegisterRequest
 import com.aiexile.animetrack.data.network.serverMessage
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import kotlinx.coroutines.CancellationException
@@ -50,19 +50,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 
+/**
+ * 忘记密码页：通过绑定邮箱验证码重置密码
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserRegisterScreen(
+fun ForgotPasswordScreen(
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    var inputUsername by remember { mutableStateOf("") }
-    var inputPassword by remember { mutableStateOf("") }
-    var inputConfirmPassword by remember { mutableStateOf("") }
     var inputEmail by remember { mutableStateOf("") }
     var inputCode by remember { mutableStateOf("") }
+    var inputNewPassword by remember { mutableStateOf("") }
+    var inputConfirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var isSendingCode by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -82,7 +84,7 @@ fun UserRegisterScreen(
         scope.launch(Dispatchers.IO) {
             try {
                 val response = RetrofitClient.userAuthApi.sendCode(
-                    SendCodeRequest(email = email, purpose = EmailCodePurpose.REGISTER)
+                    SendCodeRequest(email = email, purpose = EmailCodePurpose.RESET_PASSWORD)
                 )
                 withContext(Dispatchers.Main) {
                     message = response.message ?: context.getString(R.string.verification_code_send_failed)
@@ -97,7 +99,7 @@ fun UserRegisterScreen(
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    message = context.getString(R.string.user_register_network_error)
+                    message = context.getString(R.string.forgot_password_network_error)
                     isMessageError = true
                 }
             } finally {
@@ -113,7 +115,7 @@ fun UserRegisterScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.user_register_title),
+                        text = stringResource(R.string.forgot_password_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -134,43 +136,20 @@ fun UserRegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            OutlinedTextField(
-                value = inputUsername,
-                onValueChange = { inputUsername = it },
-                label = { Text(stringResource(R.string.user_register_username)) },
-                placeholder = { Text(stringResource(R.string.user_register_username_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            Icon(
+                imageVector = Icons.Rounded.LockReset,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = inputPassword,
-                onValueChange = { inputPassword = it },
-                label = { Text(stringResource(R.string.user_register_password)) },
-                placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = inputConfirmPassword,
-                onValueChange = { inputConfirmPassword = it },
-                label = { Text(stringResource(R.string.user_register_confirm_password)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             OutlinedTextField(
                 value = inputEmail,
                 onValueChange = { inputEmail = it },
-                label = { Text(stringResource(R.string.user_register_email)) },
-                placeholder = { Text(stringResource(R.string.user_register_email_hint)) },
+                label = { Text(stringResource(R.string.forgot_password_email)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -178,7 +157,31 @@ fun UserRegisterScreen(
                 code = inputCode,
                 onCodeChange = { inputCode = it },
                 onSendCode = { sendVerificationCode() },
-                isSending = isSendingCode
+                isSending = isSendingCode,
+                enabled = !isLoading
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = inputNewPassword,
+                onValueChange = { inputNewPassword = it },
+                label = { Text(stringResource(R.string.forgot_password_new_password)) },
+                placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = inputConfirmPassword,
+                onValueChange = { inputConfirmPassword = it },
+                label = { Text(stringResource(R.string.forgot_password_confirm_password)) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             message?.let { msg ->
@@ -193,25 +196,8 @@ fun UserRegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    // 本地验证
-                    val trimmedUsername = inputUsername.trim()
-                    val trimmedEmail = inputEmail.trim()
-                    if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
-                        message = context.getString(R.string.user_register_username_length_error)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (inputPassword.length < 6) {
-                        message = context.getString(R.string.user_register_password_length_error)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (inputPassword != inputConfirmPassword) {
-                        message = context.getString(R.string.user_register_password_mismatch)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (trimmedEmail.isEmpty()) {
+                    val email = inputEmail.trim()
+                    if (email.isEmpty()) {
                         message = context.getString(R.string.user_register_enter_email)
                         isMessageError = true
                         return@Button
@@ -221,23 +207,32 @@ fun UserRegisterScreen(
                         isMessageError = true
                         return@Button
                     }
+                    if (inputNewPassword.length < 6) {
+                        message = context.getString(R.string.user_register_password_length_error)
+                        isMessageError = true
+                        return@Button
+                    }
+                    if (inputNewPassword != inputConfirmPassword) {
+                        message = context.getString(R.string.user_register_password_mismatch)
+                        isMessageError = true
+                        return@Button
+                    }
 
                     if (isLoading) return@Button
                     isLoading = true
                     message = null
                     scope.launch(Dispatchers.IO) {
                         try {
-                            val response = RetrofitClient.userAuthApi.register(
-                                UserAuthRegisterRequest(
-                                    username = trimmedUsername,
-                                    password = inputPassword,
-                                    email = trimmedEmail,
-                                    code = inputCode.trim()
+                            val response = RetrofitClient.userAuthApi.forgotPassword(
+                                ForgotPasswordRequest(
+                                    email = email,
+                                    code = inputCode.trim(),
+                                    newPassword = inputNewPassword
                                 )
                             )
                             if (response.success) {
                                 withContext(Dispatchers.Main) {
-                                    message = context.getString(R.string.user_register_success)
+                                    message = context.getString(R.string.forgot_password_success)
                                     isMessageError = false
                                 }
                                 delay(1500)
@@ -246,7 +241,7 @@ fun UserRegisterScreen(
                                 }
                             } else {
                                 withContext(Dispatchers.Main) {
-                                    message = response.message ?: context.getString(R.string.user_register_failed)
+                                    message = response.message ?: context.getString(R.string.forgot_password_failed)
                                     isMessageError = true
                                 }
                             }
@@ -254,12 +249,12 @@ fun UserRegisterScreen(
                             throw e
                         } catch (e: HttpException) {
                             withContext(Dispatchers.Main) {
-                                message = e.serverMessage() ?: context.getString(R.string.user_register_failed)
+                                message = e.serverMessage() ?: context.getString(R.string.forgot_password_failed)
                                 isMessageError = true
                             }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                message = context.getString(R.string.user_register_network_error)
+                                message = context.getString(R.string.forgot_password_network_error)
                                 isMessageError = true
                             }
                         } finally {
@@ -269,8 +264,8 @@ fun UserRegisterScreen(
                         }
                     }
                 },
-                enabled = !isLoading && inputUsername.isNotBlank() && inputPassword.isNotBlank()
-                    && inputConfirmPassword.isNotBlank() && inputEmail.isNotBlank() && inputCode.isNotBlank(),
+                enabled = !isLoading && inputEmail.isNotBlank() && inputCode.isNotBlank()
+                    && inputNewPassword.isNotBlank() && inputConfirmPassword.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isLoading) {
@@ -280,12 +275,8 @@ fun UserRegisterScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text(stringResource(R.string.user_register_button))
+                    Text(stringResource(R.string.forgot_password_button))
                 }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.user_register_has_account_login))
             }
         }
     }

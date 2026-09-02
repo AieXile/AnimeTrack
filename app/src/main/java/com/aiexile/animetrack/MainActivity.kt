@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
 import com.aiexile.animetrack.ui.theme.ThemePreset
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        AppLogManager.i("App", "进入前台")
         AppContainer.sessionStartTime = System.currentTimeMillis()
         appScope.launch {
             AppContainer.getUsageStatsRepository().incrementOpenCount()
@@ -81,6 +83,7 @@ class MainActivity : ComponentActivity() {
         if (startTime > 0) {
             val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
             AppContainer.sessionStartTime = 0L
+            AppLogManager.i("App", "切到后台（前台停留 ${elapsedSeconds} 秒）")
             if (elapsedSeconds >= 5) {
                 appScope.launch {
                     AppContainer.getUsageStatsRepository().addUsageSeconds(elapsedSeconds)

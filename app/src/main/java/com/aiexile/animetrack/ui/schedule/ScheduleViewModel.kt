@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
@@ -80,11 +81,16 @@ class ScheduleViewModel(
             try {
                 val animes = repository.getAiringAnimes().first()
 
+                // airWeekday 或 airDate 缺失的均需回填：
+                // airWeekday 缺失影响面板分组，airDate 缺失导致完结判定永久回退 false
                 val needsBackfill = animes.filter {
-                    it.bangumiId != null && it.airWeekday == null
+                    it.bangumiId != null && (it.airWeekday == null || it.airDate == null)
                 }
 
-                Log.d(TAG, "Backfill: found ${needsBackfill.size} animes missing airWeekday")
+                Log.d(TAG, "Backfill: found ${needsBackfill.size} animes missing airWeekday/airDate")
+                if (needsBackfill.isNotEmpty()) {
+                    AppLogManager.i(TAG, "追番信息回填: ${needsBackfill.size} 部缺少播出日期/星期")
+                }
 
                 for (anime in needsBackfill) {
                     try {
@@ -104,11 +110,11 @@ class ScheduleViewModel(
                         repository.updateAnimeInternal(updatedAnime)
                         Log.d(TAG, "Backfill: updated ${anime.title} airWeekday=${updatedAnime.airWeekday}")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Backfill: failed for ${anime.title}", e)
+                        AppLogManager.w(TAG, "追番信息回填失败: ${anime.title}", e)
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Backfill: failed to load animes", e)
+                AppLogManager.e(TAG, "Backfill: failed to load animes", e)
             }
         }
     }

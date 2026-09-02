@@ -9,6 +9,7 @@ import com.aiexile.animetrack.data.AnimeDao
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.backup.BackupManager
 import com.aiexile.animetrack.data.backup.WebDAVClient
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,8 @@ class WebDAVAutoSyncManager(
                 return false
             }
 
+            AppLogManager.i(TAG, "WebDAV 自动备份开始（触发原因：$reason）")
+
             val wifiOnly = settingsRepository.webdavAutoSyncWifiOnly.first()
             if (wifiOnly && !isWifiConnected()) {
                 if (BuildConfig.DEBUG) Log.d(TAG, "非 Wi-Fi 网络，跳过自动同步（触发原因：$reason）")
@@ -148,14 +151,14 @@ class WebDAVAutoSyncManager(
             val result = WebDAVClient.upload(url, username, password, backupFile, strategy)
             if (result.isSuccess) {
                 settingsRepository.setWebdavLastAutoSyncTime(System.currentTimeMillis())
-                if (BuildConfig.DEBUG) Log.d(TAG, "自动同步成功（触发原因：$reason）")
+                AppLogManager.i(TAG, "WebDAV 自动备份成功（触发原因：$reason）")
                 return true
             } else {
-                Log.e(TAG, "自动同步上传失败（触发原因：$reason）", result.exceptionOrNull())
+                AppLogManager.e(TAG, "WebDAV 自动备份上传失败（触发原因：$reason）", result.exceptionOrNull())
                 return false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "自动同步异常（触发原因：$reason）", e)
+            AppLogManager.e(TAG, "WebDAV 自动备份异常（触发原因：$reason）", e)
             return false
         } finally {
             isSyncing.set(false)

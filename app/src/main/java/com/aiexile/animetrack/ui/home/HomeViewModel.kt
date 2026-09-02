@@ -254,6 +254,24 @@ class HomeViewModel(
             delay(500)
             updateViewModel.checkForUpdate()
             announcementViewModel.fetchAnnouncements()
+            // 将启动弹窗（更新/公告）整体活跃状态上报全局，
+            // 供 AnimeTrackApp 强制邮箱绑定 Dialog 等待其结束后再显示，避免弹窗叠加。
+            // observedActive 防竞态：检查请求为异步发起，初值快照可能尚无 isChecking/isLoading，
+            // 在观察到首次活跃前保持阻塞（true），避免绑定弹窗抢先弹出后被更新弹窗叠加。
+            var observedActive = false
+            combine(
+                updateViewModel.uiState,
+                announcementViewModel.uiState
+            ) { updateState, announceState ->
+                val active = updateState.isChecking || updateState.updateInfo != null ||
+                    announceState.isLoading || announceState.showDialog || announceState.pendingShow
+                if (active) observedActive = true
+                !observedActive || active
+            }
+                .distinctUntilChanged()
+                .collect { active ->
+                    AppContainer.startupDialogsActive.value = active
+                }
         }
 
         // 协调公告与更新弹窗的显示顺序：仅当更新弹窗实际显示时阻塞公告，弹窗关闭后释放。

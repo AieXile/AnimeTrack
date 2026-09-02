@@ -123,6 +123,9 @@ data class FeedbackSession(
     val messageCount: Int = 0,
     /** open（可追加）/ closed（已关闭） */
     val status: String = "open",
+    /** 有未读的管理员回复（最新消息是 assistant 且晚于上次已读时间） */
+    @SerializedName(value = "hasNewReply", alternate = ["has_new_reply"])
+    val hasNewReply: Boolean = false,
     @SerializedName(value = "created_at", alternate = ["createdAt"])
     val createdAt: String? = null,
     @SerializedName(value = "updated_at", alternate = ["updatedAt"])

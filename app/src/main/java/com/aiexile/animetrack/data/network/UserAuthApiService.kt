@@ -3,6 +3,7 @@ package com.aiexile.animetrack.data.network
 import com.aiexile.animetrack.model.AnimeStatus
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
+import retrofit2.HttpException
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -14,7 +15,8 @@ import retrofit2.http.Path
 data class UserAuthRegisterRequest(
     val username: String,
     val password: String,
-    val email: String
+    val email: String,
+    val code: String
 )
 
 data class UserAuthLoginRequest(
@@ -31,6 +33,8 @@ data class UserAuthUser(
     val id: Int,
     val username: String,
     val email: String?,
+    @SerializedName("email_verified")
+    val emailVerified: Int? = null,
     val avatar: String? = null,
     @SerializedName("created_at")
     val createdAt: String?
@@ -41,7 +45,11 @@ data class UserAuthLoginResponse(
     val accessToken: String?,
     val refreshToken: String?,
     val user: UserAuthUser?,
-    val message: String?
+    val message: String?,
+    /** 存量用户未绑定邮箱时为 true，此时使用 bindToken 跳转绑定页 */
+    @SerializedName("requireEmailBind")
+    val requireEmailBind: Boolean? = null,
+    val bindToken: String? = null
 )
 
 data class UserAuthProfileResponse(
@@ -73,6 +81,66 @@ data class UserAuthLogoutResponse(
 
 data class ChangePasswordRequest(
     val oldPassword: String,
+    val newPassword: String,
+    /** 邮箱验证码 */
+    val code: String
+)
+
+// ========== 邮箱验证码 ==========
+
+/** 验证码用途常量（与服务端 verificationCodeService 保持一致） */
+object EmailCodePurpose {
+    const val REGISTER = "register"
+    const val BIND = "bind"
+    const val CHANGE_PASSWORD = "change_password"
+    const val CHANGE_EMAIL = "change_email"
+    const val RESET_PASSWORD = "reset_password"
+}
+
+data class SendCodeRequest(
+    val email: String?,
+    val purpose: String
+)
+
+data class SendCodeResponse(
+    val success: Boolean,
+    val message: String?
+)
+
+// ========== 绑定邮箱 ==========
+
+data class BindEmailRequest(
+    val email: String,
+    val code: String
+)
+
+data class BindEmailResponse(
+    val success: Boolean,
+    val message: String?,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+    val user: UserAuthUser? = null
+)
+
+// ========== 更换邮箱 ==========
+
+data class ChangeEmailRequest(
+    val password: String,
+    val newEmail: String,
+    val code: String
+)
+
+data class ChangeEmailResponse(
+    val success: Boolean,
+    val message: String?,
+    val email: String? = null
+)
+
+// ========== 忘记密码 ==========
+
+data class ForgotPasswordRequest(
+    val email: String,
+    val code: String,
     val newPassword: String
 )
 
@@ -186,6 +254,36 @@ interface UserAuthApiService {
         @Body request: UserAuthLogoutRequest
     ): UserAuthLogoutResponse
 
+    // ========== 邮箱验证码 ==========
+
+    /** 发送邮箱验证码（register/bind/reset_password 公开；change_password/change_email 需登录态） */
+    @POST("auth/send-code")
+    suspend fun sendCode(
+        @Body request: SendCodeRequest
+    ): SendCodeResponse
+
+    // ========== 绑定邮箱（bindToken 鉴权） ==========
+
+    @POST("user/bind-email")
+    suspend fun bindEmail(
+        @Header("Authorization") authorization: String,
+        @Body request: BindEmailRequest
+    ): BindEmailResponse
+
+    // ========== 更换邮箱 ==========
+
+    @POST("user/change-email")
+    suspend fun changeEmail(
+        @Body request: ChangeEmailRequest
+    ): ChangeEmailResponse
+
+    // ========== 忘记密码 ==========
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body request: ForgotPasswordRequest
+    ): UserAuthLogoutResponse
+
     @POST("user/change-password")
     suspend fun changePassword(
         @Body request: ChangePasswordRequest
@@ -276,6 +374,24 @@ fun parseAnimeStatus(status: String?): AnimeStatus = when (status?.lowercase()) 
 
 /** 空请求体，Gson 序列化为 {} */
 class EmptyRequestBody
+
+// ========== 服务器错误信息解析 ==========
+
+/**
+ * 从 HttpException 错误响应中解析服务端返回的 message 字段
+ * （如 send-code 的 429 "发送过于频繁，请 60 秒后再试"），失败时返回 null
+ */
+fun HttpException.serverMessage(): String? = try {
+    val body = response()?.errorBody()?.string()
+    body?.let {
+        runCatching {
+            val json = com.google.gson.JsonParser.parseString(it).asJsonObject
+            if (json.has("message")) json.get("message").asString else null
+        }.getOrNull()
+    }
+} catch (_: Exception) {
+    null
+}
 
 data class ActivityReportResponse(
     val success: Boolean

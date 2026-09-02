@@ -27,7 +27,11 @@ interface AnimeDao {
     
     @Query("SELECT * FROM anime WHERE status = :status ORDER BY id DESC")
     fun getAnimesByStatus(status: AnimeStatus): Flow<List<Anime>>
-    
+
+    /** 按状态分组统计数量，供个人页追番统计栏使用 */
+    @Query("SELECT status, COUNT(*) as count FROM anime GROUP BY status")
+    fun getStatusCounts(): Flow<List<StatusCount>>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAnime(anime: Anime): Long
     
@@ -55,6 +59,9 @@ interface AnimeDao {
     @Query("SELECT * FROM anime WHERE isFinished = 0 AND status IN ('WATCHING', 'PLANNED') ORDER BY airWeekday ASC, title ASC")
     fun getAiringAnimes(): Flow<List<Anime>>
 
+    @Query("SELECT * FROM anime WHERE isFinished = 0 AND status IN ('WATCHING', 'PLANNED') ORDER BY airWeekday ASC, title ASC")
+    suspend fun getAiringAnimesList(): List<Anime>
+
     @Query("SELECT * FROM anime WHERE totalEpisodes = 0 AND bangumiId IS NOT NULL")
     suspend fun getAiringAnimesWithBangumiId(): List<Anime>
 
@@ -73,3 +80,9 @@ interface AnimeDao {
     @Query("SELECT * FROM anime WHERE airWeekday = :weekday AND status IN ('WATCHING', 'PLANNED') AND isFinished = 0 ORDER BY title ASC")
     suspend fun getAiringAnimesByWeekday(weekday: Int): List<Anime>
 }
+
+/** 状态统计投影（[AnimeDao.getStatusCounts] 使用） */
+data class StatusCount(
+    val status: AnimeStatus,
+    val count: Int
+)

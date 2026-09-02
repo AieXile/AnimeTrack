@@ -102,6 +102,13 @@ class UserAuthManager(private val context: Context) {
         }
     }
 
+    /** 更新绑定邮箱（更换邮箱成功后调用） */
+    suspend fun updateEmail(email: String) {
+        context.userAuthDataStore.edit { preferences ->
+            preferences[EMAIL_KEY] = email
+        }
+    }
+
     suspend fun updateAccessToken(newToken: String) {
         context.userAuthDataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = newToken

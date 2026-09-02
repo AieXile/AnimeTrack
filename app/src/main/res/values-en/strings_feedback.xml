@@ -24,6 +24,7 @@
     <string name="feedback_status_open">Open</string>
     <string name="feedback_status_pending">Replied</string>
     <string name="feedback_status_closed">Closed</string>
+    <string name="feedback_new_reply">New reply</string>
 
     <!-- Session detail -->
     <string name="feedback_append">Add reply</string>
