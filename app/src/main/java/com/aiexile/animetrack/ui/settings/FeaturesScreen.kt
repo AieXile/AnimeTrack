@@ -16,8 +16,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -47,6 +45,7 @@ import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +94,7 @@ fun FeaturesScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }

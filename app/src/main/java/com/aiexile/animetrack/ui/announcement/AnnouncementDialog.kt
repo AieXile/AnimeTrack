@@ -22,10 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -56,6 +52,7 @@ import com.aiexile.animetrack.data.network.AnnouncementOption
 import com.aiexile.animetrack.ui.components.MarkdownText
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.ui.res.painterResource
 
 /** 格式化 ISO 时间为 "yyyy-MM-dd HH:mm"（24小时制，UTC 转本地时区） */
 private fun formatAnnouncementTime(iso: String?): String? {
@@ -126,7 +123,7 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                 if (uiState.announcements.size > 1 && !uiState.showHistoryList) {
                     TextButton(onClick = { viewModel.showHistoryList() }) {
                         Icon(
-                            imageVector = Icons.Rounded.History,
+                            painter = painterResource(R.drawable.sym_history),
                             contentDescription = null,
                             modifier = Modifier.padding(end = 4.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -455,7 +452,7 @@ private fun VotedOptionRow(
             )
             if (isSelected) {
                 Icon(
-                    imageVector = Icons.Rounded.Check,
+                    painter = painterResource(R.drawable.sym_check),
                     contentDescription = null,
                     modifier = Modifier
                         .size(16.dp)
@@ -511,7 +508,7 @@ private fun HistoryListContent(
             )
             TextButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    painter = painterResource(R.drawable.sym_arrow_back),
                     contentDescription = null,
                     modifier = Modifier.padding(end = 4.dp),
                     tint = MaterialTheme.colorScheme.primary

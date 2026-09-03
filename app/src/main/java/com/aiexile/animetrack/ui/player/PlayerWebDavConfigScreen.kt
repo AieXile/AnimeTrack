@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +41,7 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 /**
  * 播放器专属 WebDAV 配置页。
@@ -85,7 +84,7 @@ fun PlayerWebDavConfigScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }

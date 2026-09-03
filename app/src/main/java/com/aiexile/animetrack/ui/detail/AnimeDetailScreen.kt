@@ -53,15 +53,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -143,10 +134,6 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.rounded.PhotoCamera
-import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.ui.draw.alpha
@@ -173,6 +160,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.painterResource
 
 private val CoverAspectRatio = 2f / 3f
 private val CardCornerRadius = 16.dp
@@ -317,7 +305,7 @@ fun AnimeDetailScreen(
                             }
                         }) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                painter = painterResource(R.drawable.sym_arrow_back),
                                 contentDescription = stringResource(R.string.common_back),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
@@ -336,7 +324,7 @@ fun AnimeDetailScreen(
                             // 播放按钮暂时隐藏，以后复用
                             // IconButton(onClick = { onNavigateToPlayer(animeId) }) {
                             //     Icon(
-                            //         imageVector = Icons.Rounded.PlayArrow,
+                            //         painter = painterResource(R.drawable.sym_play_arrow),
                             //         contentDescription = stringResource(R.string.detail_play),
                             //         tint = MaterialTheme.colorScheme.primary
                             //     )
@@ -346,7 +334,7 @@ fun AnimeDetailScreen(
                             if (missingBangumi || missingTmdb) {
                                 IconButton(onClick = { viewModel.showMatchDialog() }) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Link,
+                                        painter = painterResource(R.drawable.sym_link),
                                         contentDescription = stringResource(R.string.detail_match_source),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
@@ -356,7 +344,7 @@ fun AnimeDetailScreen(
                             if (shareButtonEnabled) {
                                 IconButton(onClick = { showShareDialog = true }) {
                                     Icon(
-                                    imageVector = Icons.Outlined.Share,
+                                    painter = painterResource(R.drawable.sym_share),
                                     contentDescription = stringResource(R.string.common_share),
                                     modifier = Modifier.size(24.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
@@ -365,14 +353,14 @@ fun AnimeDetailScreen(
                             }
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Delete,
+                                    painter = painterResource(R.drawable.sym_delete),
                                     contentDescription = stringResource(R.string.common_delete),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
                             IconButton(onClick = { viewModel.enterEditMode() }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Edit,
+                                    painter = painterResource(R.drawable.sym_edit),
                                     contentDescription = stringResource(R.string.common_edit),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -592,7 +580,7 @@ private fun CoverSearchOverlay(
                     ),
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Rounded.Search,
+                            painter = painterResource(R.drawable.sym_search),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
@@ -619,7 +607,7 @@ private fun CoverSearchOverlay(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Icon(
-                                    imageVector = Icons.Rounded.ArrowDropDown,
+                                    painter = painterResource(R.drawable.sym_arrow_drop_down),
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -659,7 +647,7 @@ private fun CoverSearchOverlay(
 
                 IconButton(onClick = onSearch) {
                     Icon(
-                        imageVector = Icons.Rounded.Search,
+                        painter = painterResource(R.drawable.sym_search),
                         contentDescription = stringResource(R.string.common_search),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -667,7 +655,7 @@ private fun CoverSearchOverlay(
 
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
+                        painter = painterResource(R.drawable.sym_close),
                         contentDescription = stringResource(R.string.common_close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -781,7 +769,7 @@ private fun CoverSearchResultItem(
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Star,
+                                painter = painterResource(R.drawable.sym_star_shine),
                                 contentDescription = null,
                                 tint = LocalAnimeColors.current.starFilled,
                                 modifier = Modifier.size(12.dp)
@@ -954,7 +942,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Save,
+                                    painter = painterResource(R.drawable.sym_save),
                                     contentDescription = stringResource(R.string.detail_save_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -966,7 +954,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Search,
+                                    painter = painterResource(R.drawable.sym_search),
                                     contentDescription = stringResource(R.string.detail_search_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -978,7 +966,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.PhotoCamera,
+                                    painter = painterResource(R.drawable.sym_photo_camera),
                                     contentDescription = stringResource(R.string.detail_upload_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1040,7 +1028,7 @@ private fun AnimeDetailContent(
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Icon(
-                                    imageVector = Icons.Outlined.Edit,
+                                    painter = painterResource(R.drawable.sym_edit),
                                     contentDescription = stringResource(R.string.detail_edit_title),
                                     modifier = Modifier
                                         .size(16.dp)
@@ -1282,7 +1270,7 @@ private fun RatingBadge(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Rounded.Star,
+                painter = painterResource(R.drawable.sym_star_shine),
                 contentDescription = null,
                 tint = LocalAnimeColors.current.starFilled,
                 modifier = Modifier.size(14.dp)
@@ -1803,7 +1791,7 @@ private fun NotesCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Edit,
+                        painter = painterResource(R.drawable.sym_edit),
                         contentDescription = stringResource(R.string.detail_notes),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
@@ -2405,7 +2393,7 @@ private fun MatchDialog(
                     ),
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Rounded.Search,
+                            painter = painterResource(R.drawable.sym_search),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
@@ -2545,7 +2533,7 @@ private fun MatchResultItem(
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Star,
+                                painter = painterResource(R.drawable.sym_star_shine),
                                 contentDescription = null,
                                 tint = LocalAnimeColors.current.starFilled,
                                 modifier = Modifier.size(12.dp)

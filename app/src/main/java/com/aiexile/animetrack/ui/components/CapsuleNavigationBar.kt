@@ -56,6 +56,7 @@ import com.kyant.backdrop.Backdrop
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 @Composable
 fun CapsuleNavigationBar(
@@ -341,7 +342,7 @@ internal fun CapsuleNavItem(
     ) {
         if (labelMode != NavigationLabelMode.TEXT_ONLY) {
             Icon(
-                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                painter = painterResource(if (selected) item.selectedIconRes else item.iconRes),
                 contentDescription = stringResource(item.titleRes),
                 tint = iconColor,
                 modifier = Modifier.size(if (labelMode == NavigationLabelMode.ICON_ONLY) 24.dp else 20.dp)

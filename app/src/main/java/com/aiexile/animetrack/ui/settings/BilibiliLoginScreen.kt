@@ -26,13 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.CheckBox
-import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
-import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +73,7 @@ import com.aiexile.animetrack.util.QrCodeGenerator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 private const val MAX_QR_RETRY = 3
 
@@ -278,7 +272,7 @@ fun BilibiliLoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -315,7 +309,7 @@ fun BilibiliLoginScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
+                        painter = painterResource(R.drawable.sym_check_circle),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
@@ -390,7 +384,7 @@ fun BilibiliLoginScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.bilibili_login_fetching))
                     } else {
-                        Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(painterResource(R.drawable.sym_sync), contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (lastSyncTime > 0) stringResource(R.string.bilibili_login_resync) else stringResource(R.string.bilibili_login_sync_list))
                     }
@@ -502,7 +496,7 @@ fun BilibiliLoginScreen(
                         shape = SquircleShape(12.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.QrCodeScanner,
+                            painter = painterResource(R.drawable.sym_qr_code_scanner),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -595,7 +589,7 @@ private fun SyncSelectionDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = if (isSelected) Icons.Rounded.CheckBox else Icons.Rounded.CheckBoxOutlineBlank,
+                                painter = if (isSelected) painterResource(R.drawable.sym_check_box) else painterResource(R.drawable.sym_check_box_outline_blank),
                                 contentDescription = null,
                                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)

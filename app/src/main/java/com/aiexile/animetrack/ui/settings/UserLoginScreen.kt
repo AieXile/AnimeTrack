@@ -17,12 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Mail
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -84,6 +78,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import java.io.File
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -288,7 +283,7 @@ fun UserLoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -325,7 +320,7 @@ fun UserLoginScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Rounded.Person,
+                            painter = painterResource(R.drawable.sym_account_circle),
                             contentDescription = null,
                             modifier = Modifier.padding(16.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -416,7 +411,7 @@ fun UserLoginScreen(
                 ) {
                     Column {
                         SecurityRow(
-                            icon = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
+                            icon = { Icon(painterResource(R.drawable.sym_lock), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
                             label = stringResource(R.string.user_login_change_password),
                             onClick = {
                                 showChangePasswordDialog = true
@@ -433,7 +428,7 @@ fun UserLoginScreen(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                         SecurityRow(
-                            icon = { Icon(Icons.Rounded.Mail, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
+                            icon = { Icon(painterResource(R.drawable.sym_mail), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
                             label = stringResource(R.string.user_login_change_email),
                             onClick = {
                                 showChangeEmailDialog = true
@@ -494,7 +489,7 @@ fun UserLoginScreen(
                 // 未登录状态
                 Spacer(modifier = Modifier.height(40.dp))
                 Icon(
-                    imageVector = Icons.Rounded.Person,
+                    painter = painterResource(R.drawable.sym_account_circle),
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -992,7 +987,7 @@ private fun SecurityRow(
             modifier = Modifier.weight(1f)
         )
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            painter = painterResource(R.drawable.sym_keyboard_arrow_right),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )

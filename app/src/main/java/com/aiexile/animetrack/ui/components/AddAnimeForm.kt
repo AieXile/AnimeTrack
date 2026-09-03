@@ -19,11 +19,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -75,6 +70,7 @@ import com.gowtham.ratingbar.RatingBar
 import com.gowtham.ratingbar.RatingBarConfig
 import com.gowtham.ratingbar.RatingBarStyle
 import com.gowtham.ratingbar.StepSize
+import androidx.compose.ui.res.painterResource
 
 data class AddAnimeFormState(
     val title: String = "",
@@ -257,7 +253,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Remove,
+                    painter = painterResource(R.drawable.sym_remove),
                     contentDescription = stringResource(R.string.add_anime_decrease),
                     modifier = Modifier.size(20.dp)
                 )
@@ -328,7 +324,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Add,
+                    painter = painterResource(R.drawable.sym_add),
                     contentDescription = stringResource(R.string.add_anime_increase),
                     modifier = Modifier.size(20.dp)
                 )
@@ -475,7 +471,7 @@ private fun StatusDropdown(
                                     )
                                     if (isSelected) {
                                         Icon(
-                                            imageVector = Icons.Rounded.Check,
+                                            painter = painterResource(R.drawable.sym_check),
                                             contentDescription = null,
                                             tint = itemColor,
                                             modifier = Modifier.size(16.dp)
@@ -737,7 +733,7 @@ private fun DatePickerField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.CalendarMonth,
+                    painter = painterResource(R.drawable.sym_calendar_month),
                     contentDescription = null,
                     tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )

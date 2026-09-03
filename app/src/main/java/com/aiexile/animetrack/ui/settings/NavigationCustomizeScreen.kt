@@ -19,9 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +61,7 @@ import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,7 +126,7 @@ fun NavigationCustomizeScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -585,7 +583,7 @@ private fun FabLocationCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Add,
+                            painter = painterResource(R.drawable.sym_add),
                             contentDescription = null,
                             modifier = Modifier.size(11.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
@@ -607,7 +605,7 @@ private fun FabLocationCard(
                             .background(MaterialTheme.colorScheme.surfaceContainer)
                     )
                     Icon(
-                        imageVector = Icons.Rounded.Add,
+                        painter = painterResource(R.drawable.sym_add),
                         contentDescription = null,
                         modifier = Modifier
                             .align(Alignment.TopEnd)

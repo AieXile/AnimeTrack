@@ -27,13 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.VerticalAlignTop
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -63,6 +56,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,6 +76,7 @@ import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.res.painterResource
 
 private val CardCornerRadius = 16.dp
 private val CoverAspectRatio = 2f / 3f
@@ -276,11 +275,35 @@ fun AnimeCard(
                         )
                         
                         if (anime.rating != null) {
+                            // 星星以内联内容嵌入文本，与数字共用同一文本基线，保证垂直对齐
+                            val ratingText = buildAnnotatedString {
+                                appendInlineContent("star", "★")
+                                // 窄空格（约普通空格一半宽），星星与数字间距适中
+                                append(" " + String.format("%.1f", anime.rating))
+                            }
                             Text(
-                                text = "${String.format("%.1f", anime.rating)} ★",
+                                text = ratingText,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = LocalAnimeColors.current.starFilled
+                                color = LocalAnimeColors.current.starFilled,
+                                inlineContent = mapOf(
+                                    "star" to InlineTextContent(
+                                        Placeholder(
+                                            // 略高于数字大写高度，底部压在基线上保持底部对齐
+                                            width = 12.5.sp,
+                                            height = 12.5.sp,
+                                            placeholderVerticalAlign = PlaceholderVerticalAlign.AboveBaseline
+                                        )
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.sym_star_shine),
+                                            contentDescription = null,
+                                            tint = LocalAnimeColors.current.starFilled,
+                                            // 下移使星星相对数字上下对称超出（AboveBaseline 底部贴基线，超出量全在顶部会显偏高）
+                                            modifier = Modifier.fillMaxSize().offset(y = 2.dp)
+                                        )
+                                    }
+                                )
                             )
                         }
                     }
@@ -320,7 +343,7 @@ fun AnimeCard(
                             .clip(CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.VerticalAlignTop,
+                            painter = painterResource(R.drawable.sym_vertical_align_top),
                             contentDescription = stringResource(
                                 if (anime.isPinned) R.string.common_unpin else R.string.common_pin
                             ),
@@ -346,7 +369,7 @@ fun AnimeCard(
                                 .clip(CircleShape)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Edit,
+                                painter = painterResource(R.drawable.sym_edit),
                                 contentDescription = stringResource(R.string.anime_card_change_status),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
@@ -382,7 +405,7 @@ fun AnimeCard(
                                             ) {
                                                 if (isSelected) {
                                                     Icon(
-                                                        imageVector = Icons.Rounded.Check,
+                                                        painter = painterResource(R.drawable.sym_check),
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(16.dp)
@@ -423,7 +446,7 @@ fun AnimeCard(
                             .clip(CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Delete,
+                            painter = painterResource(R.drawable.sym_delete),
                             contentDescription = stringResource(R.string.common_delete),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
@@ -516,7 +539,7 @@ private fun AnimeCoverWithStatus(
                 color = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.VerticalAlignTop,
+                    painter = painterResource(R.drawable.sym_vertical_align_top),
                     contentDescription = stringResource(R.string.common_pin),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier

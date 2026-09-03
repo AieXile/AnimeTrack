@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.ui.login.LoginViewModel
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +75,7 @@ fun BangumiLoginScreen(
                         webView = null
                         onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )

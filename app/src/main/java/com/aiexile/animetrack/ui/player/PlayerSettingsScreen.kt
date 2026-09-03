@@ -14,17 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Bookmarks
-import androidx.compose.material.icons.rounded.CloudQueue
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,6 +43,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 /**
  * 视频播放聚合页：设置中「视频播放」入口的目标页面。
@@ -98,7 +88,7 @@ fun PlayerSettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -120,7 +110,7 @@ fun PlayerSettingsScreen(
 
             // 默认播放速度
             SettingRow(
-                icon = Icons.Rounded.Speed,
+                icon = painterResource(R.drawable.sym_speed),
                 title = stringResource(R.string.player_settings_default_speed),
                 subtitle = "${defaultSpeed}x",
                 onClick = { showSpeedDialog = true }
@@ -128,7 +118,7 @@ fun PlayerSettingsScreen(
 
             // 长按加速速度
             SettingRow(
-                icon = Icons.Rounded.FastForward,
+                icon = painterResource(R.drawable.sym_fast_forward),
                 title = stringResource(R.string.player_settings_long_press_speed),
                 subtitle = stringResource(R.string.player_settings_long_press_speed_hint, longPressSpeed),
                 onClick = { showLongPressSpeedDialog = true }
@@ -138,7 +128,7 @@ fun PlayerSettingsScreen(
 
             // 记忆播放位置
             SwitchRow(
-                icon = Icons.Rounded.Bookmarks,
+                icon = painterResource(R.drawable.sym_bookmarks),
                 title = stringResource(R.string.player_settings_remember_position),
                 subtitle = stringResource(R.string.player_settings_remember_position_hint),
                 checked = rememberPosition,
@@ -149,7 +139,7 @@ fun PlayerSettingsScreen(
 
             // 自动播放下一集
             SwitchRow(
-                icon = Icons.Rounded.SkipNext,
+                icon = painterResource(R.drawable.sym_skip_next),
                 title = stringResource(R.string.player_settings_auto_play_next),
                 subtitle = stringResource(R.string.player_settings_auto_play_next_hint),
                 checked = autoPlayNext,
@@ -160,7 +150,7 @@ fun PlayerSettingsScreen(
 
             // 硬件加速
             SwitchRow(
-                icon = Icons.Rounded.Memory,
+                icon = painterResource(R.drawable.sym_memory),
                 title = stringResource(R.string.player_settings_hardware_acceleration),
                 subtitle = stringResource(R.string.player_settings_hardware_acceleration_hint),
                 checked = hardwareAcceleration,
@@ -176,7 +166,7 @@ fun PlayerSettingsScreen(
 
             // WebDAV 媒体浏览
             SettingRow(
-                icon = Icons.Rounded.FolderOpen,
+                icon = painterResource(R.drawable.sym_folder_open),
                 title = stringResource(R.string.player_webdav_browse),
                 subtitle = if (webdavMediaPath.isBlank()) {
                     stringResource(R.string.common_not_set)
@@ -188,7 +178,7 @@ fun PlayerSettingsScreen(
 
             // 播放器专属 WebDAV 配置（与备份同步独立）
             SettingRow(
-                icon = Icons.Rounded.CloudQueue,
+                icon = painterResource(R.drawable.sym_cloud),
                 title = stringResource(R.string.player_webdav_server),
                 subtitle = if (playerWebdavUrl.isBlank()) {
                     stringResource(R.string.common_not_set)
@@ -211,7 +201,7 @@ fun PlayerSettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
+                    painter = painterResource(R.drawable.sym_play_arrow),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -274,7 +264,7 @@ private fun SettingDivider() {
 /** 点击进入型设置行（图标 + 标题 + 当前值摘要） */
 @Composable
 private fun SettingRow(
-    icon: ImageVector,
+    icon: Painter,
     title: String,
     subtitle: String,
     onClick: () -> Unit
@@ -287,7 +277,7 @@ private fun SettingRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(22.dp)
@@ -312,7 +302,7 @@ private fun SettingRow(
             )
         }
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            painter = painterResource(R.drawable.sym_keyboard_arrow_right),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
@@ -323,7 +313,7 @@ private fun SettingRow(
 /** 开关型设置行（图标 + 标题 + 描述 + 开关） */
 @Composable
 private fun SwitchRow(
-    icon: ImageVector,
+    icon: Painter,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -336,7 +326,7 @@ private fun SwitchRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(22.dp)

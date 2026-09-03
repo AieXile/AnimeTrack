@@ -37,14 +37,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -77,6 +69,7 @@ import com.aiexile.animetrack.data.network.FEEDBACK_ATTACHMENT_TYPE_LOG
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.PendingAttachment
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
+import androidx.compose.ui.res.painterResource
 
 /**
  * 聊天式反馈主页：浮动圆形返回/历史按钮 + 消息气泡列表 + 底部大圆角输入框。
@@ -297,13 +290,13 @@ private fun FeedbackFloatingHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         FeedbackCircleButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            icon = painterResource(R.drawable.sym_arrow_back),
             contentDescription = stringResource(R.string.feedback_back),
             onClick = onBack
         )
         Spacer(modifier = Modifier.weight(1f))
         FeedbackCircleButton(
-            icon = Icons.Rounded.History,
+            icon = painterResource(R.drawable.sym_history),
             contentDescription = stringResource(R.string.feedback_history_entry),
             onClick = onHistory,
             showBadge = showHistoryBadge
@@ -314,7 +307,7 @@ private fun FeedbackFloatingHeader(
 /** 圆形浮动按钮（surfaceContainerLowest 底 + 微投影观感由底色区分），showBadge 时右上角红点 */
 @Composable
 private fun FeedbackCircleButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     contentDescription: String,
     onClick: () -> Unit,
     showBadge: Boolean = false
@@ -328,7 +321,7 @@ private fun FeedbackCircleButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp)
@@ -470,7 +463,7 @@ fun FeedbackChatInput(
                     // [+] 附件按钮：菜单选择图片 / 文件
                     Box {
                         FeedbackCircleSmallButton(
-                            icon = Icons.Rounded.Add,
+                            icon = painterResource(R.drawable.sym_add),
                             contentDescription = stringResource(R.string.feedback_attach_image),
                             containerColor = innerButtonColor,
                             enabled = enabled && !isSending
@@ -483,7 +476,7 @@ fun FeedbackChatInput(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.feedback_attach_image)) },
-                                leadingIcon = { Icon(Icons.Rounded.Image, contentDescription = null) },
+                                leadingIcon = { Icon(painterResource(R.drawable.sym_image), contentDescription = null) },
                                 onClick = {
                                     plusMenuOpen = false
                                     imagePicker.launch(
@@ -493,7 +486,7 @@ fun FeedbackChatInput(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.feedback_attach_file)) },
-                                leadingIcon = { Icon(Icons.Rounded.Description, contentDescription = null) },
+                                leadingIcon = { Icon(painterResource(R.drawable.sym_description), contentDescription = null) },
                                 onClick = {
                                     plusMenuOpen = false
                                     filePicker.launch(arrayOf("*/*"))
@@ -568,7 +561,7 @@ fun FeedbackChatInput(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = if (logAttached) Icons.Rounded.Check else Icons.Rounded.Description,
+                            painter = if (logAttached) painterResource(R.drawable.sym_check) else painterResource(R.drawable.sym_description),
                             contentDescription = null,
                             tint = if (logAttached) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.onSurface,
@@ -614,10 +607,10 @@ private fun FeedbackAttachmentChips(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = if (attachment.kind == FEEDBACK_ATTACHMENT_TYPE_IMAGE) {
-                        Icons.Rounded.Image
+                    painter = if (attachment.kind == FEEDBACK_ATTACHMENT_TYPE_IMAGE) {
+                        painterResource(R.drawable.sym_image)
                     } else {
-                        Icons.Rounded.Description
+                        painterResource(R.drawable.sym_description)
                     },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -634,7 +627,7 @@ private fun FeedbackAttachmentChips(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    painter = painterResource(R.drawable.sym_close),
                     contentDescription = stringResource(R.string.common_cancel),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -649,7 +642,7 @@ private fun FeedbackAttachmentChips(
 /** 输入区内的小圆形按钮（[+]） */
 @Composable
 private fun FeedbackCircleSmallButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     contentDescription: String,
     containerColor: androidx.compose.ui.graphics.Color,
     enabled: Boolean,
@@ -664,7 +657,7 @@ private fun FeedbackCircleSmallButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = contentDescription,
             tint = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)

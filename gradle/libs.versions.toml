@@ -49,7 +49,6 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material3-windowsizeclass = { group = "androidx.compose.material3", name = "material3-window-size-class" }
-androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 compose-ratingbar = { group = "io.github.a914-gowtham", name = "compose-ratingbar", version.ref = "composeRatingbar" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleRuntimeKtx" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }

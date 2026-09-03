@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import com.aiexile.animetrack.R
 
 @Composable
 fun SettingsGroup(
@@ -137,7 +137,7 @@ fun ExpandableSettingsGroup(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            painter = painterResource(R.drawable.sym_keyboard_arrow_down),
                             contentDescription = null,
                             modifier = Modifier.rotate(arrowRotation),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant

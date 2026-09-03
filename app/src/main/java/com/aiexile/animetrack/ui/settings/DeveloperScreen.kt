@@ -17,13 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Campaign
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +59,7 @@ import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,7 +118,7 @@ fun DeveloperScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -328,7 +322,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount > 1) debugCardCount-- }
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Remove,
+                        painter = painterResource(R.drawable.sym_remove),
                         contentDescription = stringResource(R.string.developer_decrease),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -344,7 +338,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount < 50) debugCardCount++ }
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Add,
+                        painter = painterResource(R.drawable.sym_add),
                         contentDescription = stringResource(R.string.developer_increase),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -458,7 +452,7 @@ fun DeveloperScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Campaign,
+                    painter = painterResource(R.drawable.sym_campaign),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -493,7 +487,7 @@ fun DeveloperScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.RocketLaunch,
+                    painter = painterResource(R.drawable.sym_rocket_launch),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

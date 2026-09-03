@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.settings
+package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,10 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CloudDownload
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.util.formatDateTime
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +106,7 @@ fun WebDAVSyncScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -289,7 +286,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.CloudUpload,
+                                        painter = painterResource(R.drawable.sym_cloud_upload),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -302,7 +299,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.CloudDownload,
+                                        painter = painterResource(R.drawable.sym_cloud_download),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -323,7 +320,7 @@ fun WebDAVSyncScreen(
                                 )
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.CloudUpload,
+                                    painter = painterResource(R.drawable.sym_cloud_upload),
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )

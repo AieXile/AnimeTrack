@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.SquircleShape
+import androidx.compose.ui.res.painterResource
 
 /**
  * 设置页搜索模式顶栏：返回按钮 + 关键词输入框 + 清空按钮。
@@ -62,7 +59,7 @@ fun SettingsSearchBar(
     ) {
         IconButton(onClick = onClose) {
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                painter = painterResource(R.drawable.sym_arrow_back),
                 contentDescription = stringResource(R.string.common_back),
                 tint = MaterialTheme.colorScheme.onBackground
             )
@@ -76,7 +73,7 @@ fun SettingsSearchBar(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Search,
+                painter = painterResource(R.drawable.sym_search),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -117,7 +114,7 @@ fun SettingsSearchBar(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Close,
+                        painter = painterResource(R.drawable.sym_close),
                         contentDescription = stringResource(R.string.common_clear),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)

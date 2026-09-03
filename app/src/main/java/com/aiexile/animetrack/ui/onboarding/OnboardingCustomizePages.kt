@@ -18,14 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -55,6 +47,7 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.BottomNavItem
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 // ==========================================
 // 自定义页 1: 主题外观（选择即时生效，整个向导界面即实时预览）
@@ -300,7 +293,7 @@ private fun ThemePresetOption(
         ) {
             if (isSelected) {
                 Icon(
-                    imageVector = Icons.Rounded.Check,
+                    painter = painterResource(R.drawable.sym_check),
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
                     tint = Color.White
@@ -455,14 +448,14 @@ internal fun MiniPhonePreview(
             )
             Spacer(modifier = Modifier.weight(1f))
             Icon(
-                imageVector = Icons.Rounded.Search,
+                painter = painterResource(R.drawable.sym_search),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(10.dp))
             Icon(
-                imageVector = Icons.Rounded.Add,
+                painter = painterResource(R.drawable.sym_add),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -538,7 +531,7 @@ private fun MiniNavItem(
     when (labelMode) {
         NavigationLabelMode.ICON_ONLY -> {
             Icon(
-                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                painter = painterResource(if (isSelected) item.selectedIconRes else item.iconRes),
                 contentDescription = label,
                 modifier = Modifier.size(16.dp),
                 tint = tint
@@ -547,7 +540,7 @@ private fun MiniNavItem(
         NavigationLabelMode.ICON_AND_TEXT -> {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                    painter = painterResource(if (isSelected) item.selectedIconRes else item.iconRes),
                     contentDescription = label,
                     modifier = Modifier.size(14.dp),
                     tint = tint

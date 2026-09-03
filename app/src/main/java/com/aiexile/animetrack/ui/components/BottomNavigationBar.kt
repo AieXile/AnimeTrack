@@ -13,17 +13,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CollectionsBookmark
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Timeline
-import androidx.compose.material.icons.outlined.CollectionsBookmark
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
@@ -49,46 +38,49 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 sealed class BottomNavItem(
     val route: String,
     @param:StringRes val titleRes: Int,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    /** 未选中图标（FILL=0 描边风格） */
+    @param:DrawableRes val iconRes: Int,
+    /** 选中图标（FILL=1 填充风格） */
+    @param:DrawableRes val selectedIconRes: Int
 ) {
     object Home : BottomNavItem(
         route = "home",
         titleRes = R.string.nav_home,
-        selectedIcon = Icons.Rounded.Home,
-        unselectedIcon = Icons.Outlined.Home
+        iconRes = R.drawable.sym_home,
+        selectedIconRes = R.drawable.sym_fill_home
     )
 
     object Favorites : BottomNavItem(
         route = "favorites",
         titleRes = R.string.bottom_nav_favorites,
-        selectedIcon = Icons.Rounded.CollectionsBookmark,
-        unselectedIcon = Icons.Outlined.CollectionsBookmark
+        iconRes = R.drawable.sym_collections_bookmark,
+        selectedIconRes = R.drawable.sym_fill_collections_bookmark
     )
 
     object Timeline : BottomNavItem(
         route = "timeline",
         titleRes = R.string.nav_timeline,
-        selectedIcon = Icons.Rounded.Timeline,
-        unselectedIcon = Icons.Outlined.Timeline
+        iconRes = R.drawable.sym_calendar_clock,
+        selectedIconRes = R.drawable.sym_fill_calendar_clock
     )
 
     object Schedule : BottomNavItem(
         route = "schedule",
         titleRes = R.string.bottom_nav_schedule,
-        selectedIcon = Icons.Rounded.Schedule,
-        unselectedIcon = Icons.Outlined.Schedule
+        iconRes = R.drawable.sym_schedule,
+        selectedIconRes = R.drawable.sym_fill_schedule
     )
 
     object Settings : BottomNavItem(
         route = "settings",
         titleRes = R.string.nav_settings,
-        selectedIcon = Icons.Rounded.Settings,
-        unselectedIcon = Icons.Outlined.Settings
+        iconRes = R.drawable.sym_settings,
+        selectedIconRes = R.drawable.sym_fill_settings
     )
 }
 
@@ -165,7 +157,7 @@ fun BottomNavigationBar(
                     ) {
                         if (labelMode != NavigationLabelMode.TEXT_ONLY) {
                             Icon(
-                                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                painter = painterResource(if (selected) item.selectedIconRes else item.iconRes),
                                 contentDescription = stringResource(item.titleRes),
                                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)

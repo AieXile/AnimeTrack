@@ -19,11 +19,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +36,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.aiexile.animetrack.R
 
 // ==========================================
 // PAGE 1: 卡片墙 + 悬浮胶囊栏
@@ -64,8 +61,8 @@ internal fun MiniHomeScreen() {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.15f)))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
-                        Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
+                        Icon(painterResource(R.drawable.sym_add), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
+                        Icon(painterResource(R.drawable.sym_search), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -92,7 +89,7 @@ internal fun MiniHomeScreen() {
                 ) {
                     Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(54.dp, 32.dp).clip(SquircleShape(16.dp)).background(onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.Home, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(painterResource(R.drawable.sym_home), null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                         Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
                         Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
@@ -207,7 +204,7 @@ private fun MiniAccountRow(isConnected: Boolean) {
             }
             Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(if (isConnected) MaterialTheme.colorScheme.primary else onSurface.copy(alpha = 0.2f)))
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
+            Icon(painterResource(R.drawable.sym_keyboard_arrow_right), null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
         }
     }
 }

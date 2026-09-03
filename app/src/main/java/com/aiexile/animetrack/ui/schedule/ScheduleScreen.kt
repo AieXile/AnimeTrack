@@ -29,9 +29,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,6 +78,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.res.painterResource
 
 @Composable
 private fun weekdayLabels(): List<String> = listOf(
@@ -163,7 +161,7 @@ fun ScheduleScreen(
                     if (showCalendarButton) {
                         IconButton(onClick = { showScheduleSheet = true }) {
                             Icon(
-                                imageVector = Icons.Rounded.CalendarMonth,
+                                painter = painterResource(R.drawable.sym_calendar_month),
                                 contentDescription = stringResource(R.string.schedule_preview),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -538,7 +536,7 @@ private fun EmptyWeekdayContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.EventBusy,
+                painter = painterResource(R.drawable.sym_event_busy),
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)

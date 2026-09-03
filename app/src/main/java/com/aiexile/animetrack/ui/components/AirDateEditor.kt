@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -46,6 +43,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatAirDateDisplay
 import com.aiexile.animetrack.util.parseAirDateToLocalDate
+import androidx.compose.ui.res.painterResource
 
 /**
  * 放送日期编辑器（紧凑行式）：图标 + 当前值/未定 + 清空按钮，点击弹出选择 Dialog。
@@ -73,7 +71,7 @@ fun AirDateEditor(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Icon(
-            imageVector = Icons.Rounded.CalendarMonth,
+            painter = painterResource(R.drawable.sym_calendar_month),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(14.dp)
@@ -93,7 +91,7 @@ fun AirDateEditor(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    painter = painterResource(R.drawable.sym_close),
                     contentDescription = stringResource(R.string.common_clear),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(12.dp)

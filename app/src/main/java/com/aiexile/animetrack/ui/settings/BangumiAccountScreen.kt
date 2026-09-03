@@ -12,11 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.CloudDownload
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.aiexile.animetrack.R
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +64,7 @@ fun BangumiAccountScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -111,7 +107,7 @@ fun BangumiAccountScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
+                        painter = painterResource(R.drawable.sym_check_circle),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
@@ -149,7 +145,7 @@ fun BangumiAccountScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.bangumi_account_pulling))
                     } else {
-                        Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(painterResource(R.drawable.sym_cloud_download), contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.bangumi_account_pull))
                     }
@@ -172,7 +168,7 @@ fun BangumiAccountScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.bangumi_account_pushing))
                     } else {
-                        Icon(Icons.Rounded.CloudUpload, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(painterResource(R.drawable.sym_cloud_upload), contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.bangumi_account_push))
                     }

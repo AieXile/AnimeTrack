@@ -18,11 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.Login
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -268,7 +263,7 @@ fun AccountPanelDialog(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Rounded.Person,
+                            painter = painterResource(R.drawable.sym_account_circle),
                             contentDescription = stringResource(R.string.account_panel_default_avatar),
                             modifier = Modifier.size(32.dp),
                             tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
@@ -292,7 +287,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: connectedText) else stringResource(R.string.account_panel_login_to_sync),
-                    icon = Icons.Rounded.AccountCircle,
+                    icon = painterResource(R.drawable.sym_account_circle),
                     isConnected = userLoggedIn,
                     onClick = {
                         if (userLoggedIn) {
@@ -310,7 +305,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bilibili),
-                    icon = Icons.AutoMirrored.Rounded.Login,
+                    icon = painterResource(R.drawable.sym_identity_platform),
                     isConnected = bilibiliLoggedIn,
                     onClick = {
                         if (bilibiliLoggedIn) {
@@ -328,7 +323,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bangumi),
-                    icon = Icons.Rounded.Person,
+                    icon = painterResource(R.drawable.sym_account_circle),
                     isConnected = bangumiLoggedIn,
                     onClick = {
                         if (bangumiLoggedIn) {
@@ -364,7 +359,7 @@ fun AccountPanelDialog(
 private fun AccountServiceRow(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     isConnected: Boolean,
     onClick: () -> Unit
 ) {
@@ -383,7 +378,7 @@ private fun AccountServiceRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = icon,
+                painter = icon,
                 contentDescription = null,
                 tint = if (isConnected) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -423,7 +418,7 @@ private fun AccountServiceRow(
             Spacer(modifier = Modifier.width(8.dp))
 
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(20.dp)

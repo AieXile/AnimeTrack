@@ -26,9 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,6 +57,7 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 private val TopLeftTriangleShape = GenericShape { size, _ ->
     moveTo(0f, 0f)
@@ -122,7 +120,7 @@ fun AppearanceScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -529,7 +527,7 @@ private fun ColorSwatch(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Check,
+                        painter = painterResource(R.drawable.sym_check),
                         contentDescription = null,
                         tint = preset.seedColor,
                         modifier = Modifier.size(14.dp)

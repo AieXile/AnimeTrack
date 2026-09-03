@@ -15,11 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +69,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tanh
+import androidx.compose.ui.res.painterResource
 
 /** 迁移 FAB 与原顶栏按钮行同尺寸（IconButton 48dp），高度与 morph 收拢终点一致 */
 internal val TopBarActionsHeight = 48.dp
@@ -367,7 +363,7 @@ private fun FloatingSearchBar(
         )
     ) {
         Icon(
-            imageVector = Icons.Rounded.Search,
+            painter = painterResource(R.drawable.sym_search),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
@@ -409,7 +405,7 @@ private fun FloatingSearchBar(
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Close,
+                    painter = painterResource(R.drawable.sym_close),
                     contentDescription = stringResource(R.string.common_clear),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
@@ -418,7 +414,7 @@ private fun FloatingSearchBar(
         }
         IconButton(onClick = onClose) {
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                painter = painterResource(R.drawable.sym_arrow_back),
                 contentDescription = stringResource(R.string.home_close_search),
                 tint = MaterialTheme.colorScheme.onSurface
             )
@@ -511,7 +507,7 @@ private fun CombinedActionsFab(
         if (showSearch) {
             IconButton(onClick = onSearchClick) {
                 Icon(
-                    imageVector = Icons.Rounded.Search,
+                    painter = painterResource(R.drawable.sym_search),
                     contentDescription = stringResource(R.string.common_search),
                     tint = contentColor,
                     modifier = Modifier.size(22.dp)
@@ -530,7 +526,7 @@ private fun CombinedActionsFab(
         if (showAdd) {
             IconButton(onClick = onAddClick) {
                 Icon(
-                    imageVector = Icons.Rounded.Add,
+                    painter = painterResource(R.drawable.sym_add),
                     contentDescription = stringResource(R.string.home_add_anime),
                     tint = contentColor,
                     modifier = Modifier.size(26.dp)

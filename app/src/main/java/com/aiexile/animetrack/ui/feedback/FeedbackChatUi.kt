@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +42,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.compose.ui.res.painterResource
 
 /** 聊天界面消息 UI 模型：本地消息 id 为负数，服务端消息用服务端 id */
 data class FeedbackChatMessage(
@@ -221,7 +219,7 @@ private fun MessageAttachmentView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Rounded.Description,
+                painter = painterResource(R.drawable.sym_description),
                 contentDescription = null,
                 tint = chipTextColor,
                 modifier = Modifier.size(16.dp)
@@ -254,7 +252,7 @@ fun FeedbackSendButton(enabled: Boolean, modifier: Modifier = Modifier, onClick:
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.Send,
+            painter = painterResource(R.drawable.sym_send),
             contentDescription = stringResource(R.string.feedback_send),
             tint = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)

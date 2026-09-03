@@ -19,21 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.CloudQueue
-import androidx.compose.material.icons.rounded.Feedback
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Navigation
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.TextFields
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.automirrored.rounded.Login
-import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,6 +58,7 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,7 +182,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.weight(1f))
                         IconButton(onClick = { searchActive = true }) {
                             Icon(
-                                imageVector = Icons.Rounded.Search,
+                                painter = painterResource(R.drawable.sym_search),
                                 contentDescription = stringResource(R.string.common_search),
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
@@ -376,7 +362,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = loginTitle,
                             subtitle = loginSubtitle,
-                            icon = Icons.AutoMirrored.Rounded.Login,
+                            icon = painterResource(R.drawable.sym_identity_platform),
                             onClick = onNavigateLogin
                         )
                     }
@@ -384,7 +370,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = appearanceTitle,
                             subtitle = appearanceSubtitle,
-                            icon = Icons.Rounded.Palette,
+                            icon = painterResource(R.drawable.sym_palette),
                             onClick = onNavigateAppearance
                         )
                     }
@@ -392,7 +378,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = fontTitle,
                             subtitle = fontSubtitle,
-                            icon = Icons.Rounded.TextFields,
+                            icon = painterResource(R.drawable.sym_font_download),
                             onClick = onNavigateFontSettings
                         )
                     }
@@ -402,7 +388,7 @@ fun SettingsScreen(
                             SettingCard(
                                 title = playbackTitle,
                                 subtitle = playbackSubtitle,
-                                icon = Icons.Rounded.PlayCircle,
+                                icon = painterResource(R.drawable.sym_play_circle),
                                 onClick = onNavigatePlayback
                             )
                         }
@@ -410,14 +396,14 @@ fun SettingsScreen(
                     item(key = "customize_nav") {
                         SettingCard(
                             title = customizeNavTitle,
-                            icon = Icons.Rounded.Navigation,
+                            icon = painterResource(R.drawable.sym_bottom_navigation),
                             onClick = onNavigateCustomize
                         )
                     }
                     item(key = "features") {
                         SettingCard(
                             title = featuresTitle,
-                            icon = Icons.Rounded.Tune,
+                            icon = painterResource(R.drawable.sym_tune),
                             onClick = onNavigateFeatures
                         )
                     }
@@ -425,7 +411,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = proxyTitle,
                             subtitle = proxySubtitle,
-                            icon = Icons.Rounded.CloudQueue,
+                            icon = painterResource(R.drawable.sym_cloud),
                             onClick = onNavigateBangumiProxy
                         )
                     }
@@ -433,7 +419,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = dataManageTitle,
                             subtitle = dataManageSubtitle,
-                            icon = Icons.Rounded.Storage,
+                            icon = painterResource(R.drawable.sym_storage),
                             onClick = onNavigateDataManage
                         )
                     }
@@ -443,7 +429,7 @@ fun SettingsScreen(
                             SettingCard(
                                 title = updateNotificationTitle,
                                 subtitle = updateNotificationSubtitle,
-                                icon = Icons.Rounded.Notifications,
+                                icon = painterResource(R.drawable.sym_notifications),
                                 onClick = onNavigateUpdateNotification
                             )
                         }
@@ -452,7 +438,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = tmdbTitle,
                             subtitle = tmdbSubtitle,
-                            icon = Icons.Rounded.Key,
+                            icon = painterResource(R.drawable.sym_key),
                             onClick = {
                                 tmdbApiKeyInput = tmdbApiKey ?: ""
                                 showTmdbApiKeyDialog = true
@@ -463,7 +449,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = stringResource(R.string.settings_feedback),
                             subtitle = stringResource(R.string.settings_feedback_subtitle),
-                            icon = Icons.Rounded.Feedback,
+                            icon = painterResource(R.drawable.sym_feedback),
                             showBadge = feedbackUnread,
                             onClick = onNavigateFeedback
                         )
@@ -471,7 +457,7 @@ fun SettingsScreen(
                     item(key = "about") {
                         SettingCard(
                             title = aboutTitle,
-                            icon = Icons.Rounded.Info,
+                            icon = painterResource(R.drawable.sym_info),
                             onClick = onNavigateAbout
                         )
                     }
@@ -484,7 +470,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingCard(
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     subtitle: String? = null,
     showBadge: Boolean = false,
     onClick: () -> Unit
@@ -510,7 +496,7 @@ private fun SettingCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = icon,
+                painter = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
@@ -553,7 +539,7 @@ private fun SettingCard(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

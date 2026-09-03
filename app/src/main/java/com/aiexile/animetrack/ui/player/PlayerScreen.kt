@@ -35,27 +35,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
-import androidx.compose.material.icons.automirrored.rounded.VolumeDown
-import androidx.compose.material.icons.automirrored.rounded.VolumeOff
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Replay
-import androidx.compose.material.icons.rounded.BrightnessHigh
-import androidx.compose.material.icons.rounded.BrightnessLow
-import androidx.compose.material.icons.rounded.ClosedCaption
-import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.Fullscreen
-import androidx.compose.material.icons.rounded.FullscreenExit
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.ScreenRotation
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -120,6 +99,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import androidx.compose.ui.res.painterResource
 
 private val ControlsBarColor = Color.Black.copy(alpha = 0.5f)
 private val GestureOverlayColor = Color.Black.copy(alpha = 0.7f)
@@ -491,7 +471,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
+                            painter = painterResource(R.drawable.sym_play_arrow),
                             contentDescription = stringResource(R.string.player_paused),
                             tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp)
@@ -602,7 +582,7 @@ fun PlayerScreen(
                 onDismiss = { moreMenuExpanded = false }
             ) { requestClose ->
                 PlayerMenuItem(
-                    icon = Icons.Rounded.MusicNote,
+                    icon = painterResource(R.drawable.sym_music_note),
                     label = stringResource(R.string.player_audio_track),
                     onClick = {
                         requestClose()
@@ -610,7 +590,7 @@ fun PlayerScreen(
                     }
                 )
                 PlayerMenuItemToggle(
-                    icon = Icons.Rounded.ScreenRotation,
+                    icon = painterResource(R.drawable.sym_screen_rotation),
                     label = stringResource(R.string.player_auto_landscape),
                     checked = uiState.autoLandscape,
                     onCheckedChange = { viewModel.setAutoLandscape(it) }
@@ -659,7 +639,7 @@ private fun TopControlBar(
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    painter = painterResource(R.drawable.sym_arrow_back),
                     contentDescription = stringResource(R.string.common_back),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
@@ -682,7 +662,7 @@ private fun TopControlBar(
             IconButton(onClick = onSkipForward) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = Icons.Rounded.Replay,
+                        painter = painterResource(R.drawable.sym_replay),
                         contentDescription = stringResource(R.string.player_skip_forward),
                         tint = Color.White,
                         modifier = Modifier
@@ -703,7 +683,7 @@ private fun TopControlBar(
             // 不随控制条自动隐藏而消失
             IconButton(onClick = onOpenMoreMenu) {
                 Icon(
-                    imageVector = Icons.Rounded.MoreVert,
+                    painter = painterResource(R.drawable.sym_more_vert),
                     contentDescription = stringResource(R.string.common_more),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -753,7 +733,7 @@ private fun BottomControlBar(
         ) {
             // Play/Pause button
             Icon(
-                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                painter = if (isPlaying) painterResource(R.drawable.sym_pause) else painterResource(R.drawable.sym_play_arrow),
                 contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                 tint = Color.White,
                 modifier = Modifier
@@ -766,7 +746,7 @@ private fun BottomControlBar(
             // Next episode button (only if available)
             if (hasNextEpisode) {
                 Icon(
-                    imageVector = Icons.Rounded.SkipNext,
+                    painter = painterResource(R.drawable.sym_skip_next),
                     contentDescription = stringResource(R.string.player_next_episode),
                     tint = Color.White,
                     modifier = Modifier
@@ -829,7 +809,7 @@ private fun BottomControlBar(
             // 字幕轨选择（无字幕轨时面板显示空提示）
             IconButton(onClick = onSelectSubtitles) {
                 Icon(
-                    imageVector = Icons.Rounded.ClosedCaption,
+                    painter = painterResource(R.drawable.sym_closed_caption),
                     contentDescription = stringResource(R.string.player_subtitles),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -839,8 +819,8 @@ private fun BottomControlBar(
             // Fullscreen button
             IconButton(onClick = onToggleFullscreen) {
                 Icon(
-                    imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit
-                    else Icons.Rounded.Fullscreen,
+                    painter = if (isFullscreen) painterResource(R.drawable.sym_fullscreen_exit)
+                    else painterResource(R.drawable.sym_fullscreen),
                     contentDescription = if (isFullscreen) stringResource(R.string.player_exit_fullscreen) else stringResource(R.string.player_fullscreen),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -1007,7 +987,7 @@ private fun ErrorOverlay(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Rounded.ErrorOutline,
+            painter = painterResource(R.drawable.sym_error),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(48.dp)
@@ -1093,7 +1073,7 @@ private fun EmptyMediaState(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = Icons.Rounded.Cloud,
+                painter = painterResource(R.drawable.sym_cloud),
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -1113,7 +1093,7 @@ private fun EmptyMediaState(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.InsertDriveFile,
+                painter = painterResource(R.drawable.sym_insert_drive_file),
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -1185,8 +1165,8 @@ private fun GestureFeedbackOverlay(
                 when (feedback) {
                     is GestureFeedback.Brightness -> {
                         Icon(
-                            imageVector = if (feedback.value < 0.3f) Icons.Rounded.BrightnessLow
-                            else Icons.Rounded.BrightnessHigh,
+                            painter = if (feedback.value < 0.3f) painterResource(R.drawable.sym_brightness_low)
+                            else painterResource(R.drawable.sym_brightness_high),
                             contentDescription = stringResource(R.string.player_brightness),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
@@ -1201,10 +1181,10 @@ private fun GestureFeedbackOverlay(
 
                     is GestureFeedback.Volume -> {
                         Icon(
-                            imageVector = when {
-                                feedback.value <= 0f -> Icons.AutoMirrored.Rounded.VolumeOff
-                                feedback.value < 0.5f -> Icons.AutoMirrored.Rounded.VolumeDown
-                                else -> Icons.AutoMirrored.Rounded.VolumeUp
+                            painter = when {
+                                feedback.value <= 0f -> painterResource(R.drawable.sym_volume_off)
+                                feedback.value < 0.5f -> painterResource(R.drawable.sym_volume_down)
+                                else -> painterResource(R.drawable.sym_volume_up)
                             },
                             contentDescription = stringResource(R.string.player_volume),
                             tint = Color.White,
@@ -1243,7 +1223,7 @@ private fun LongPressSpeedIndicator(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Speed,
+                    painter = painterResource(R.drawable.sym_speed),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)

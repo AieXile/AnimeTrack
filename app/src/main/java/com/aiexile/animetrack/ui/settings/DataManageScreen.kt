@@ -19,11 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CloudUpload
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +58,7 @@ import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -201,7 +197,7 @@ fun DataManageScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -248,7 +244,7 @@ fun DataManageScreen(
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_import_markdown),
                                 subtitle = stringResource(R.string.data_manage_import_markdown_subtitle),
-                                icon = Icons.Rounded.FileOpen,
+                                icon = painterResource(R.drawable.sym_file_open),
                                 onClick = { showImportGuide = true },
                                 itemKey = "import",
                                 highlightKey = highlightKey
@@ -257,7 +253,7 @@ fun DataManageScreen(
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_export_data),
                                 subtitle = stringResource(R.string.data_manage_export_data_subtitle),
-                                icon = Icons.Rounded.FileDownload,
+                                icon = painterResource(R.drawable.sym_file_download),
                                 onClick = { viewModel.prepareExport() },
                                 itemKey = "export",
                                 highlightKey = highlightKey
@@ -271,7 +267,7 @@ fun DataManageScreen(
                         SettingActionItem(
                             title = stringResource(R.string.data_manage_webdav_sync),
                             subtitle = stringResource(R.string.data_manage_webdav_sync_subtitle),
-                            icon = Icons.Rounded.CloudUpload,
+                            icon = painterResource(R.drawable.sym_cloud_upload),
                             onClick = onNavigateWebDAV,
                             itemKey = "webdav",
                             highlightKey = highlightKey
@@ -310,7 +306,7 @@ fun DataManageScreen(
 private fun SettingActionItem(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     onClick: () -> Unit,
     itemKey: String? = null,
     highlightKey: String? = null
@@ -325,7 +321,7 @@ private fun SettingActionItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(24.dp)

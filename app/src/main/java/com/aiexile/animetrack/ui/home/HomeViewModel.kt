@@ -84,7 +84,7 @@ enum class AnimeFilter(val displayName: String) {
     COMPLETED("已看完"),
     PLANNED("计划观看"),
     DROPPED("已弃番"),
-    HIGH_RATED("高分推荐")
+    NOT_AIRED("未放送")
 }
 
 class HomeViewModel(
@@ -653,7 +653,7 @@ class HomeViewModel(
             AnimeFilter.COMPLETED -> animeList.filter { it.status == AnimeStatus.COMPLETED }
             AnimeFilter.PLANNED -> animeList.filter { it.status == AnimeStatus.PLANNED }
             AnimeFilter.DROPPED -> animeList.filter { it.status == AnimeStatus.DROPPED }
-            AnimeFilter.HIGH_RATED -> animeList.filter { (it.rating ?: 0f) >= 4.5f }
+            AnimeFilter.NOT_AIRED -> animeList.filter { isAirDateInFuture(it.airDate) }
         }
         
         val sorted = when (filter) {

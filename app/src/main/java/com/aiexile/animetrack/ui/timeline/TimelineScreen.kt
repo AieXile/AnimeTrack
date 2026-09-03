@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
@@ -24,10 +25,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.VerticalAlignTop
-import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +47,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -63,6 +65,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.res.painterResource
 
 
 @OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
@@ -186,7 +189,7 @@ private fun EmptyTimelinePlaceholder(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             androidx.compose.material3.Icon(
-                imageVector = Icons.Outlined.Timeline,
+                painter = painterResource(R.drawable.sym_calendar_clock),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.outline
@@ -294,7 +297,7 @@ private fun WatchingAnimeCard(
                 // 置顶标识：与主界面卡片角标一致的图钉样式
                 if (anime.isPinned) {
                     Icon(
-                        imageVector = Icons.Rounded.VerticalAlignTop,
+                        painter = painterResource(R.drawable.sym_vertical_align_top),
                         contentDescription = stringResource(R.string.common_pin),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp)
@@ -322,23 +325,55 @@ private fun WatchingAnimeCard(
                     )
 
                     if (anime.rating != null) {
-                        Text(
-                            text = "★ ${anime.rating}",
-                            fontSize = 12.sp,
-                            color = LocalAnimeColors.current.starFilled
-                        )
+                        RatingText(rating = anime.rating)
                     }
                 }
             } else if (anime.rating != null) {
-                Text(
-                    text = "★ ${anime.rating}",
-                    fontSize = 12.sp,
-                    color = LocalAnimeColors.current.starFilled,
+                RatingText(
+                    rating = anime.rating,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }
     }
+}
+
+/** 星星 + 评分文本：星星以内联内容嵌入，底部压在文字基线上（AboveBaseline），与数字上下严格平齐 */
+@Composable
+private fun RatingText(
+    rating: Float,
+    modifier: Modifier = Modifier
+) {
+    val starColor = LocalAnimeColors.current.starFilled
+    val ratingText = buildAnnotatedString {
+        appendInlineContent("star", "★")
+        // 窄空格（约普通空格一半宽），星星与数字间距适中
+        append(" " + rating.toString())
+    }
+    Text(
+        text = ratingText,
+        fontSize = 12.sp,
+        color = starColor,
+        modifier = modifier,
+        inlineContent = mapOf(
+            "star" to InlineTextContent(
+                Placeholder(
+                    // 略高于数字大写高度，底部压在基线上保持底部对齐
+                    width = 12.sp,
+                    height = 12.sp,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.AboveBaseline
+                )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.sym_star_shine),
+                    contentDescription = null,
+                    tint = starColor,
+                    // 下移使星星相对数字上下对称超出（AboveBaseline 底部贴基线，超出量全在顶部会显偏高）
+                    modifier = Modifier.fillMaxSize().offset(y = 1.5.dp)
+                )
+            }
+        )
+    )
 }
 
 @Composable
@@ -446,11 +481,7 @@ private fun TimelineAnimeCard(
                 )
 
                 if (anime.rating != null) {
-                    Text(
-                        text = "★ ${anime.rating}",
-                        fontSize = 12.sp,
-                        color = LocalAnimeColors.current.starFilled
-                    )
+                    RatingText(rating = anime.rating)
                 }
             }
         }

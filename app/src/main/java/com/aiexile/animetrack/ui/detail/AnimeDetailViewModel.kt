@@ -13,6 +13,7 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
+import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.ShareCardRenderer
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
@@ -283,7 +284,8 @@ class AnimeDetailViewModel(
                         ?: detail.summary?.cleanSummary()?.takeIf { it.isNotBlank() },
                     airDate = detail.date ?: anime.airDate,
                     airWeekday = detail.airWeekday ?: anime.airWeekday,
-                    rating = detail.score?.toFloat() ?: anime.rating,
+                    // 源评分（10 分制）转 5 分制；本地已有评分（含手动打分）时不覆盖
+                    rating = anime.rating ?: RatingUtils.sourceScoreToRating(detail.score),
                     totalEpisodes = finalTotalEpisodes,
                     currentEpisodes = finalCurrentEpisodes,
                     watchedEpisodes = newWatchedEpisodes,

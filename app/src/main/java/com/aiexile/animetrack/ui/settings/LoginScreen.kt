@@ -16,10 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +51,7 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +101,7 @@ fun LoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -130,7 +127,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
-                    icon = Icons.Rounded.Person,
+                    icon = painterResource(R.drawable.sym_account_circle),
                     avatarUrl = if (userLoggedIn) userAvatarUrl else null,
                     onClick = onNavigateUserLogin
                 )
@@ -139,7 +136,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bilibili_subtitle),
-                    icon = Icons.Rounded.Person,
+                    icon = painterResource(R.drawable.sym_account_circle),
                     avatarUrl = if (bilibiliLoggedIn) bilibiliAvatar else null,
                     onClick = onNavigateBilibiliLogin
                 )
@@ -148,7 +145,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
-                    icon = Icons.Rounded.Person,
+                    icon = painterResource(R.drawable.sym_account_circle),
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
                     onClick = if (bangumiLoggedIn) onNavigateBangumiAccount else onNavigateBangumiLogin
                 )
@@ -217,7 +214,7 @@ fun LoginScreen(
 private fun LoginServiceCard(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.painter.Painter,
     avatarUrl: String? = null,
     onClick: () -> Unit
 ) {
@@ -257,7 +254,7 @@ private fun LoginServiceCard(
                 )
             } else {
                 Icon(
-                    imageVector = icon,
+                    painter = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -288,7 +285,7 @@ private fun LoginServiceCard(
             }
 
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

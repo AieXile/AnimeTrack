@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
@@ -40,7 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -58,6 +56,7 @@ import com.aiexile.animetrack.ui.navigation.SIDE_PANEL_ANIM_DURATION
 import com.aiexile.animetrack.ui.navigation.sidePanelEnter
 import com.aiexile.animetrack.ui.navigation.sidePanelExit
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.painterResource
 
 /** 播放器浮层面板通用底色：半透明黑 */
 internal val PlayerPanelScrim = Color.Black.copy(alpha = 0.72f)
@@ -299,7 +298,7 @@ private fun TrackPanelItem(
         )
         if (selected) {
             Icon(
-                imageVector = Icons.Rounded.Check,
+                painter = painterResource(R.drawable.sym_check),
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(18.dp)
@@ -343,7 +342,7 @@ fun PlayerMenuPanel(
 /** 菜单面板的单个条目：图标 + 文字，风格对齐字幕抽屉条目 */
 @Composable
 fun PlayerMenuItem(
-    icon: ImageVector,
+    icon: Painter,
     label: String,
     onClick: () -> Unit
 ) {
@@ -356,7 +355,7 @@ fun PlayerMenuItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(20.dp)
@@ -378,7 +377,7 @@ fun PlayerMenuItem(
  */
 @Composable
 fun PlayerMenuItemToggle(
-    icon: ImageVector,
+    icon: Painter,
     label: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
@@ -392,7 +391,7 @@ fun PlayerMenuItemToggle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.85f),
             modifier = Modifier.size(20.dp)

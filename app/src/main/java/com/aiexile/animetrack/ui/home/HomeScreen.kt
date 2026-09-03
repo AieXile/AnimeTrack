@@ -73,19 +73,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.FilterList
-import androidx.compose.material.icons.rounded.LiveTv
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.VerticalAlignTop
-import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -130,7 +117,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -192,6 +179,7 @@ import kotlin.math.tanh
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 // 季数角标形状顶层化复用：位于滞动热路径（ExpandedSeriesCard 每卡渲染），
 // 提升为顶层 val 使 SquircleShape 内置 size 级缓存生效。
@@ -578,7 +566,7 @@ fun HomeTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.Search,
+                    painter = painterResource(R.drawable.sym_search),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
@@ -617,7 +605,7 @@ fun HomeTopBar(
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Close,
+                            painter = painterResource(R.drawable.sym_close),
                             contentDescription = stringResource(R.string.common_clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
@@ -630,7 +618,7 @@ fun HomeTopBar(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        painter = painterResource(R.drawable.sym_arrow_back),
                         contentDescription = stringResource(R.string.home_close_search),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -659,7 +647,7 @@ fun HomeTopBar(
                     if (showSearchIcon) {
                         IconButton(onClick = { viewModel.startLocalSearch() }) {
                             Icon(
-                                imageVector = Icons.Rounded.Search,
+                                painter = painterResource(R.drawable.sym_search),
                                 contentDescription = stringResource(R.string.common_search),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
@@ -679,7 +667,7 @@ fun HomeTopBar(
                         }
                         IconButton(onClick = onAddClick) {
                             Icon(
-                                imageVector = Icons.Rounded.Add,
+                                painter = painterResource(R.drawable.sym_add),
                                 contentDescription = stringResource(R.string.home_add_anime),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(26.dp)
@@ -757,7 +745,7 @@ fun HomeFloatingActions(
             ) {
                 if (liquidGlass) {
                     LiquidGlassFab(
-                        icon = Icons.Rounded.VerticalAlignTop,
+                        icon = painterResource(R.drawable.sym_vertical_align_top),
                         contentDescription = stringResource(R.string.home_scroll_to_top),
                         backdrop = backdrop!!,
                         onClick = onScrollToTop
@@ -768,7 +756,7 @@ fun HomeFloatingActions(
             }
             if (liquidGlass) {
                 LiquidGlassFab(
-                    icon = Icons.Rounded.Add,
+                    icon = painterResource(R.drawable.sym_add),
                     contentDescription = stringResource(R.string.home_add_anime),
                     backdrop = backdrop!!,
                     onClick = onAddClick
@@ -785,7 +773,7 @@ fun HomeFloatingActions(
                         .then(fabBlur)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.Add,
+                        painter = painterResource(R.drawable.sym_add),
                         contentDescription = stringResource(R.string.home_add_anime),
                         modifier = Modifier.size(24.dp)
                     )
@@ -814,7 +802,7 @@ fun HomeFloatingActions(
         ) {
             if (liquidGlass) {
                 LiquidGlassFab(
-                    icon = Icons.Rounded.VerticalAlignTop,
+                    icon = painterResource(R.drawable.sym_vertical_align_top),
                     contentDescription = stringResource(R.string.home_scroll_to_top),
                     backdrop = backdrop!!,
                     onClick = onScrollToTop
@@ -833,7 +821,7 @@ fun HomeFloatingActions(
  */
 @Composable
 private fun LiquidGlassFab(
-    icon: ImageVector,
+    icon: Painter,
     contentDescription: String,
     backdrop: Backdrop,
     onClick: () -> Unit,
@@ -896,7 +884,7 @@ private fun LiquidGlassFab(
             )
     ) {
         Icon(
-            imageVector = icon,
+            painter = icon,
             contentDescription = contentDescription,
             tint = contentColor,
             modifier = Modifier.size(24.dp)
@@ -984,7 +972,7 @@ private fun ScrollToTopFab(
             .then(blurModifier)
     ) {
         Icon(
-            imageVector = Icons.Rounded.VerticalAlignTop,
+            painter = painterResource(R.drawable.sym_vertical_align_top),
             contentDescription = stringResource(R.string.home_scroll_to_top),
             modifier = Modifier.size(24.dp)
         )
@@ -1101,7 +1089,7 @@ private fun AddAnimeBottomSheet(
                 ),
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Rounded.Search,
+                        painter = painterResource(R.drawable.sym_search),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1263,7 +1251,7 @@ private fun SearchSourceDropdown(
     ) {
         if (hasQuery) {
             Icon(
-                imageVector = Icons.Rounded.Search,
+                painter = painterResource(R.drawable.sym_search),
                 contentDescription = stringResource(R.string.common_search),
                 modifier = Modifier
                     .size(24.dp)
@@ -1272,7 +1260,7 @@ private fun SearchSourceDropdown(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
-                imageVector = Icons.Rounded.Close,
+                painter = painterResource(R.drawable.sym_close),
                 contentDescription = stringResource(R.string.common_clear),
                 modifier = Modifier
                     .size(24.dp)
@@ -1302,7 +1290,7 @@ private fun SearchSourceDropdown(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Icon(
-                    imageVector = Icons.Rounded.ArrowDropDown,
+                    painter = painterResource(R.drawable.sym_arrow_drop_down),
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -1405,7 +1393,7 @@ private fun SearchResultItem(
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Star,
+                            painter = painterResource(R.drawable.sym_star_shine),
                             contentDescription = null,
                             tint = LocalAnimeColors.current.starFilled,
                             modifier = Modifier.size(12.dp)
@@ -1651,7 +1639,7 @@ private fun FilterMenu(
     Box(modifier = modifier) {
         IconButton(onClick = { expanded = true }) {
             Icon(
-                imageVector = Icons.Rounded.FilterList,
+                painter = painterResource(R.drawable.sym_list_arrow),
                 contentDescription = stringResource(R.string.home_filter),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp)
@@ -1701,7 +1689,7 @@ private fun FilterMenu(
                         ) {
                             if (isSelected) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Check,
+                                    painter = painterResource(R.drawable.sym_check),
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
@@ -1735,7 +1723,7 @@ private fun EmptyAnimePlaceholder(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.Inbox,
+                painter = painterResource(R.drawable.sym_inbox),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(64.dp)
@@ -2400,7 +2388,7 @@ private fun UserAvatarButton(
             )
         } else {
             Icon(
-                imageVector = Icons.Rounded.Person,
+                painter = painterResource(R.drawable.sym_account_circle),
                 contentDescription = stringResource(R.string.home_login),
                 modifier = Modifier.size(18.dp),
                 tint = if (isLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer

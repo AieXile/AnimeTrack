@@ -1,4 +1,4 @@
-﻿package com.aiexile.animetrack.ui.player
+package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +66,7 @@ fun WebDAVBrowseScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            painter = painterResource(R.drawable.sym_arrow_back),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -202,7 +198,7 @@ private fun FileItemRow(
         when {
             item.name == ".." -> {
                 Icon(
-                    imageVector = Icons.Rounded.ArrowUpward,
+                    painter = painterResource(R.drawable.sym_arrow_upward),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -218,7 +214,7 @@ private fun FileItemRow(
 
             item.isDirectory -> {
                 Icon(
-                    imageVector = Icons.Rounded.Folder,
+                    painter = painterResource(R.drawable.sym_folder),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -237,7 +233,7 @@ private fun FileItemRow(
 
             else -> {
                 Icon(
-                    imageVector = Icons.Rounded.Movie,
+                    painter = painterResource(R.drawable.sym_movie),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
