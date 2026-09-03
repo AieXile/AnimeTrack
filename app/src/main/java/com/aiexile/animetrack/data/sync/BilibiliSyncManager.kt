@@ -239,7 +239,8 @@ class BilibiliSyncManager(
 
         val summary = item.summary.ifBlank { item.evaluate }.ifBlank { null }
         val coverUrl = item.cover.ifBlank { null }
-        val rating = item.rating?.let { if (it.score > 0f) it.score else null }
+        // B 站评分（10 分制）按 /2 转为本地 5 分制，并四舍五入到 0.5 步进
+        val rating = item.rating?.let { bilibiliScoreToRating(it.score) }
         val airDate = item.publish?.releaseDate?.ifBlank { null }
         val airWeekday = parseRenewalTimeToWeekday(item.renewalTime)
 
@@ -290,6 +291,21 @@ class BilibiliSyncManager(
             return Pair(null, updatedAnime)
         }
         return Pair(null, null)
+    }
+
+    /**
+     * 将 B 站评分（0-10 分，0 表示未评分）转为本地 5 分制 Float。
+     * 未评分返回 null；有分值时除以 2 并四舍五入到 0.5 步进。
+     */
+    private fun bilibiliScoreToRating(score: Float): Float? {
+        if (score <= 0f) return null
+        return roundToHalf(score / 2f)
+    }
+
+    /** 将浮点数四舍五入到最近的 0.5 步进值，并限制在 0-5 范围内 */
+    private fun roundToHalf(value: Float): Float {
+        val steps = kotlin.math.round(value * 2f)
+        return steps.coerceIn(0f, 10f) / 2f
     }
 
     private fun parseRenewalTimeToWeekday(renewalTime: String): Int? {

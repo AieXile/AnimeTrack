@@ -21,6 +21,7 @@ import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
 import com.aiexile.animetrack.ui.home.SeriesMatcher
+import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.formatDate
 import com.aiexile.animetrack.util.parseDateToTimestamp
@@ -667,7 +668,8 @@ class AnimeRepositoryImpl(
                         val updatedAnime = anime.copy(
                             title = cleanTitle,
                             coverUrl = bestMatch.coverUrl,
-                            rating = detail?.score?.toFloat() ?: bestMatch.score?.toFloat(),
+                            // 源评分（10 分制）转 5 分制；本地已有评分（含手动打分）时不覆盖
+                            rating = anime.rating ?: RatingUtils.sourceScoreToRating(detail?.score ?: bestMatch.score),
                             totalEpisodes = finalTotalEpisodes,
                             currentEpisodes = finalCurrentEpisodes,
                             watchedEpisodes = newWatchedEpisodes,
