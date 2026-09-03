@@ -77,3 +77,82 @@ jobs:
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert changelog to Telegram HTML
+        id: tg_changelog
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYEOF'
+          import html, os, re, subprocess
+
+          tag = os.environ['TAG']
+          # 与 Release changelog 步骤保持一致：优先读取更新日志文件，缺失则回退到最近 10 条 commit
+          path = f'update/更新日志_{tag}.md'
+          if os.path.exists(path):
+              text = open(path, encoding='utf-8').read()
+          else:
+              text = subprocess.run(
+                  ['git', 'log', '--pretty=format:- %s', '-n', '10'],
+                  capture_output=True, text=True).stdout
+
+          # 1. 先转义 HTML 特殊字符
+          text = html.escape(text)
+          # 2. 图片 ![alt](url) -> 链接（Telegram 文本消息不支持内嵌图片）
+          text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'📷 <a href="\2">\1</a>', text)
+          # 3. 普通链接 [text](url) -> <a>
+          text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+          # 4. **bold** -> <b>
+          text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+          # 5. 标题 ##/#### -> 加粗
+          text = re.sub(r'^#{1,6}\s*(.+)$', r'\n<b>\1</b>', text, flags=re.M)
+          # 6. 列表符号
+          text = re.sub(r'^- ', '• ', text, flags=re.M)
+          # 7. 去掉分隔线
+          text = re.sub(r'^-{3,}\s*$', '', text, flags=re.M)
+          text = re.sub(r'\n{3,}', '\n\n', text).strip()
+
+          # Telegram 单条消息上限 4096 字符，超出截断并附上 Release 链接
+          release_url = f"https://github.com/{os.environ['REPO']}/releases/tag/{tag}"
+          if len(text) > 3500:
+              text = text[:3500].rsplit('\n', 1)[0] \
+                  + f'\n\n… 内容过长已截断，<a href="{release_url}">查看完整更新日志</a>'
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as f:
+              f.write('tg_body<<TGEOF\n' + text + '\nTGEOF\n')
+          PYEOF
+
+      - name: Notify Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: html
+          message: |
+            📦 <b>AnimeTrack ${{ github.ref_name }} 发布</b>
+
+            ${{ steps.tg_changelog.outputs.tg_body }}
+
+            💾 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}">GitHub Release</a>
+
+      - name: Send APK to Telegram (v7a)
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v7a.apk
+
+      - name: Send APK to Telegram (v8a)
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v8a.apk
+
+      - name: Send APK to Telegram (universal)
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-universal.apk
