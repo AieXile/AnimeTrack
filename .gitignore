@@ -60,3 +60,6 @@ AGENTS.md
 .fleet/
 .animetrack/
 
+# Local dev tools
+tools/
+

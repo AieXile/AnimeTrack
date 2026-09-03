@@ -189,7 +189,7 @@ private fun EmptyTimelinePlaceholder(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             androidx.compose.material3.Icon(
-                painter = painterResource(R.drawable.sym_calendar_clock),
+                painter = painterResource(R.drawable.sym_calendar_view_day),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.outline

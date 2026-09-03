@@ -65,15 +65,15 @@ sealed class BottomNavItem(
     object Timeline : BottomNavItem(
         route = "timeline",
         titleRes = R.string.nav_timeline,
-        iconRes = R.drawable.sym_calendar_clock,
-        selectedIconRes = R.drawable.sym_fill_calendar_clock
+        iconRes = R.drawable.sym_calendar_view_day,
+        selectedIconRes = R.drawable.sym_fill_calendar_view_day
     )
 
     object Schedule : BottomNavItem(
         route = "schedule",
         titleRes = R.string.bottom_nav_schedule,
-        iconRes = R.drawable.sym_schedule,
-        selectedIconRes = R.drawable.sym_fill_schedule
+        iconRes = R.drawable.sym_calendar_clock,
+        selectedIconRes = R.drawable.sym_fill_calendar_clock
     )
 
     object Settings : BottomNavItem(
