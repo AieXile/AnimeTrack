@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,7 +60,6 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,7 +183,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.weight(1f))
                         IconButton(onClick = { searchActive = true }) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_search),
+                                painter = rememberAppIconPainter(AppIcon.SEARCH),
                                 contentDescription = stringResource(R.string.common_search),
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
@@ -362,7 +363,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = loginTitle,
                             subtitle = loginSubtitle,
-                            icon = painterResource(R.drawable.sym_identity_platform),
+                            icon = rememberAppIconPainter(AppIcon.IDENTITY_PLATFORM),
                             onClick = onNavigateLogin
                         )
                     }
@@ -370,7 +371,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = appearanceTitle,
                             subtitle = appearanceSubtitle,
-                            icon = painterResource(R.drawable.sym_palette),
+                            icon = rememberAppIconPainter(AppIcon.PALETTE),
                             onClick = onNavigateAppearance
                         )
                     }
@@ -378,7 +379,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = fontTitle,
                             subtitle = fontSubtitle,
-                            icon = painterResource(R.drawable.sym_font_download),
+                            icon = rememberAppIconPainter(AppIcon.FONT_DOWNLOAD),
                             onClick = onNavigateFontSettings
                         )
                     }
@@ -388,7 +389,7 @@ fun SettingsScreen(
                             SettingCard(
                                 title = playbackTitle,
                                 subtitle = playbackSubtitle,
-                                icon = painterResource(R.drawable.sym_play_circle),
+                                icon = rememberAppIconPainter(AppIcon.PLAY_CIRCLE),
                                 onClick = onNavigatePlayback
                             )
                         }
@@ -396,14 +397,14 @@ fun SettingsScreen(
                     item(key = "customize_nav") {
                         SettingCard(
                             title = customizeNavTitle,
-                            icon = painterResource(R.drawable.sym_bottom_navigation),
+                            icon = rememberAppIconPainter(AppIcon.BOTTOM_NAVIGATION),
                             onClick = onNavigateCustomize
                         )
                     }
                     item(key = "features") {
                         SettingCard(
                             title = featuresTitle,
-                            icon = painterResource(R.drawable.sym_tune),
+                            icon = rememberAppIconPainter(AppIcon.TUNE),
                             onClick = onNavigateFeatures
                         )
                     }
@@ -411,7 +412,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = proxyTitle,
                             subtitle = proxySubtitle,
-                            icon = painterResource(R.drawable.sym_cloud),
+                            icon = rememberAppIconPainter(AppIcon.CLOUD),
                             onClick = onNavigateBangumiProxy
                         )
                     }
@@ -419,7 +420,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = dataManageTitle,
                             subtitle = dataManageSubtitle,
-                            icon = painterResource(R.drawable.sym_storage),
+                            icon = rememberAppIconPainter(AppIcon.STORAGE),
                             onClick = onNavigateDataManage
                         )
                     }
@@ -429,7 +430,7 @@ fun SettingsScreen(
                             SettingCard(
                                 title = updateNotificationTitle,
                                 subtitle = updateNotificationSubtitle,
-                                icon = painterResource(R.drawable.sym_notifications),
+                                icon = rememberAppIconPainter(AppIcon.NOTIFICATIONS),
                                 onClick = onNavigateUpdateNotification
                             )
                         }
@@ -438,7 +439,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = tmdbTitle,
                             subtitle = tmdbSubtitle,
-                            icon = painterResource(R.drawable.sym_key),
+                            icon = rememberAppIconPainter(AppIcon.KEY),
                             onClick = {
                                 tmdbApiKeyInput = tmdbApiKey ?: ""
                                 showTmdbApiKeyDialog = true
@@ -449,7 +450,7 @@ fun SettingsScreen(
                         SettingCard(
                             title = stringResource(R.string.settings_feedback),
                             subtitle = stringResource(R.string.settings_feedback_subtitle),
-                            icon = painterResource(R.drawable.sym_feedback),
+                            icon = rememberAppIconPainter(AppIcon.FEEDBACK),
                             showBadge = feedbackUnread,
                             onClick = onNavigateFeedback
                         )
@@ -457,7 +458,7 @@ fun SettingsScreen(
                     item(key = "about") {
                         SettingCard(
                             title = aboutTitle,
-                            icon = painterResource(R.drawable.sym_info),
+                            icon = rememberAppIconPainter(AppIcon.INFO),
                             onClick = onNavigateAbout
                         )
                     }
@@ -539,7 +540,7 @@ private fun SettingCard(
             }
 
             Icon(
-                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
+                painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

@@ -788,6 +788,8 @@ class AnimeDetailViewModel(
             } else {
                 anime.finishDate
             },
+            // 与主页卡片状态切换一致：状态变更刷新最近进度时间，卡片重排到列表顶部
+            lastProgressAt = System.currentTimeMillis(),
             watchedEpisodes = when {
                 // 手动切换为已看完时，自动将观看进度设为总集数
                 newStatus == AnimeStatus.COMPLETED

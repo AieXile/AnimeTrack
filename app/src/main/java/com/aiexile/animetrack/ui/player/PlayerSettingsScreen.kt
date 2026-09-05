@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.player
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,7 +45,6 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 /**
  * 视频播放聚合页：设置中「视频播放」入口的目标页面。
@@ -88,7 +89,7 @@ fun PlayerSettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -110,7 +111,7 @@ fun PlayerSettingsScreen(
 
             // 默认播放速度
             SettingRow(
-                icon = painterResource(R.drawable.sym_speed),
+                icon = rememberAppIconPainter(AppIcon.SPEED),
                 title = stringResource(R.string.player_settings_default_speed),
                 subtitle = "${defaultSpeed}x",
                 onClick = { showSpeedDialog = true }
@@ -118,7 +119,7 @@ fun PlayerSettingsScreen(
 
             // 长按加速速度
             SettingRow(
-                icon = painterResource(R.drawable.sym_fast_forward),
+                icon = rememberAppIconPainter(AppIcon.FAST_FORWARD),
                 title = stringResource(R.string.player_settings_long_press_speed),
                 subtitle = stringResource(R.string.player_settings_long_press_speed_hint, longPressSpeed),
                 onClick = { showLongPressSpeedDialog = true }
@@ -128,7 +129,7 @@ fun PlayerSettingsScreen(
 
             // 记忆播放位置
             SwitchRow(
-                icon = painterResource(R.drawable.sym_bookmarks),
+                icon = rememberAppIconPainter(AppIcon.BOOKMARKS),
                 title = stringResource(R.string.player_settings_remember_position),
                 subtitle = stringResource(R.string.player_settings_remember_position_hint),
                 checked = rememberPosition,
@@ -139,7 +140,7 @@ fun PlayerSettingsScreen(
 
             // 自动播放下一集
             SwitchRow(
-                icon = painterResource(R.drawable.sym_skip_next),
+                icon = rememberAppIconPainter(AppIcon.SKIP_NEXT),
                 title = stringResource(R.string.player_settings_auto_play_next),
                 subtitle = stringResource(R.string.player_settings_auto_play_next_hint),
                 checked = autoPlayNext,
@@ -150,7 +151,7 @@ fun PlayerSettingsScreen(
 
             // 硬件加速
             SwitchRow(
-                icon = painterResource(R.drawable.sym_memory),
+                icon = rememberAppIconPainter(AppIcon.MEMORY),
                 title = stringResource(R.string.player_settings_hardware_acceleration),
                 subtitle = stringResource(R.string.player_settings_hardware_acceleration_hint),
                 checked = hardwareAcceleration,
@@ -166,7 +167,7 @@ fun PlayerSettingsScreen(
 
             // WebDAV 媒体浏览
             SettingRow(
-                icon = painterResource(R.drawable.sym_folder_open),
+                icon = rememberAppIconPainter(AppIcon.FOLDER_OPEN),
                 title = stringResource(R.string.player_webdav_browse),
                 subtitle = if (webdavMediaPath.isBlank()) {
                     stringResource(R.string.common_not_set)
@@ -178,7 +179,7 @@ fun PlayerSettingsScreen(
 
             // 播放器专属 WebDAV 配置（与备份同步独立）
             SettingRow(
-                icon = painterResource(R.drawable.sym_cloud),
+                icon = rememberAppIconPainter(AppIcon.CLOUD),
                 title = stringResource(R.string.player_webdav_server),
                 subtitle = if (playerWebdavUrl.isBlank()) {
                     stringResource(R.string.common_not_set)
@@ -201,7 +202,7 @@ fun PlayerSettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_play_arrow),
+                    painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -302,7 +303,7 @@ private fun SettingRow(
             )
         }
         Icon(
-            painter = painterResource(R.drawable.sym_keyboard_arrow_right),
+            painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)

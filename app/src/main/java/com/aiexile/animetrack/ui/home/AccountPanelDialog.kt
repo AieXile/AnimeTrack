@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.home
 
 import android.net.Uri
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -263,7 +265,7 @@ fun AccountPanelDialog(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(R.drawable.sym_account_circle),
+                            painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                             contentDescription = stringResource(R.string.account_panel_default_avatar),
                             modifier = Modifier.size(32.dp),
                             tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
@@ -287,7 +289,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: connectedText) else stringResource(R.string.account_panel_login_to_sync),
-                    icon = painterResource(R.drawable.sym_account_circle),
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     isConnected = userLoggedIn,
                     onClick = {
                         if (userLoggedIn) {
@@ -305,7 +307,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bilibili),
-                    icon = painterResource(R.drawable.sym_identity_platform),
+                    icon = rememberAppIconPainter(AppIcon.IDENTITY_PLATFORM),
                     isConnected = bilibiliLoggedIn,
                     onClick = {
                         if (bilibiliLoggedIn) {
@@ -323,7 +325,7 @@ fun AccountPanelDialog(
                 AccountServiceRow(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bangumi),
-                    icon = painterResource(R.drawable.sym_account_circle),
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     isConnected = bangumiLoggedIn,
                     onClick = {
                         if (bangumiLoggedIn) {
@@ -418,7 +420,7 @@ private fun AccountServiceRow(
             Spacer(modifier = Modifier.width(8.dp))
 
             Icon(
-                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
+                painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(20.dp)

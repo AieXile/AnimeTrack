@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.layout.Column
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,7 +43,6 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 /**
  * 播放器专属 WebDAV 配置页。
@@ -84,7 +85,7 @@ fun PlayerWebDavConfigScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }

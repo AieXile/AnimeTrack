@@ -57,6 +57,13 @@
     <string name="appearance_mode_auto">自动</string>
     <string name="appearance_color_title">主题配色</string>
     <string name="appearance_color_subtitle">选择你喜欢的配色方案</string>
+    <string name="appearance_icon_style_title">图标风格</string>
+    <string name="appearance_icon_style_subtitle">选择应用内图标的视觉风格</string>
+    <string name="appearance_icon_pack_material">Material Symbols</string>
+    <string name="appearance_icon_pack_lucide">Lucide</string>
+    <string name="appearance_glass_effect_title">玻璃效果</string>
+    <string name="appearance_glass_effect_subtitle">悬浮胶囊与悬浮按钮的玻璃质感效果</string>
+    <string name="appearance_glass_effect_standard">标准</string>
 
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">定制导航栏</string>

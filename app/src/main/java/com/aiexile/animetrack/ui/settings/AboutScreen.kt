@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
-import android.content.ClipData
+import android.content.ClipData
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
@@ -141,7 +143,7 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -366,28 +368,28 @@ private fun SocialLinksRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SocialLinkItem(
-            icon = { Icon(painter = painterResource(R.drawable.sym_code), contentDescription = "GitHub", modifier = Modifier.size(24.dp)) },
+            icon = { Icon(painter = rememberAppIconPainter(AppIcon.CODE), contentDescription = "GitHub", modifier = Modifier.size(24.dp)) },
             label = "GitHub",
             onClick = onGithubClick,
             onLongClick = onGithubLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(painter = painterResource(R.drawable.sym_forum), contentDescription = stringResource(R.string.about_qq_group), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(painter = rememberAppIconPainter(AppIcon.FORUM), contentDescription = stringResource(R.string.about_qq_group), modifier = Modifier.size(24.dp)) },
             label = stringResource(R.string.about_qq_group),
             onClick = onQqClick,
             onLongClick = onQqLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(painter = painterResource(R.drawable.sym_send), contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(painter = rememberAppIconPainter(AppIcon.SEND), contentDescription = stringResource(R.string.about_tg_group), modifier = Modifier.size(24.dp)) },
             label = "Telegram",
             onClick = onTgClick,
             onLongClick = onTgLongClick,
             modifier = Modifier.weight(1f)
         )
         SocialLinkItem(
-            icon = { Icon(painter = painterResource(R.drawable.sym_favorite), contentDescription = stringResource(R.string.about_sponsor_label), modifier = Modifier.size(24.dp)) },
+            icon = { Icon(painter = rememberAppIconPainter(AppIcon.FAVORITE), contentDescription = stringResource(R.string.about_sponsor_label), modifier = Modifier.size(24.dp)) },
             label = stringResource(R.string.about_sponsor_label),
             onClick = onSponsorClick,
             onLongClick = onSponsorClick,

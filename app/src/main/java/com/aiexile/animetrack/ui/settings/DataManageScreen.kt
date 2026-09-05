@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -58,7 +60,6 @@ import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,7 +198,7 @@ fun DataManageScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -244,7 +245,7 @@ fun DataManageScreen(
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_import_markdown),
                                 subtitle = stringResource(R.string.data_manage_import_markdown_subtitle),
-                                icon = painterResource(R.drawable.sym_file_open),
+                                icon = rememberAppIconPainter(AppIcon.FILE_OPEN),
                                 onClick = { showImportGuide = true },
                                 itemKey = "import",
                                 highlightKey = highlightKey
@@ -253,7 +254,7 @@ fun DataManageScreen(
                             SettingActionItem(
                                 title = stringResource(R.string.data_manage_export_data),
                                 subtitle = stringResource(R.string.data_manage_export_data_subtitle),
-                                icon = painterResource(R.drawable.sym_file_download),
+                                icon = rememberAppIconPainter(AppIcon.FILE_DOWNLOAD),
                                 onClick = { viewModel.prepareExport() },
                                 itemKey = "export",
                                 highlightKey = highlightKey
@@ -267,7 +268,7 @@ fun DataManageScreen(
                         SettingActionItem(
                             title = stringResource(R.string.data_manage_webdav_sync),
                             subtitle = stringResource(R.string.data_manage_webdav_sync_subtitle),
-                            icon = painterResource(R.drawable.sym_cloud_upload),
+                            icon = rememberAppIconPainter(AppIcon.CLOUD_UPLOAD),
                             onClick = onNavigateWebDAV,
                             itemKey = "webdav",
                             highlightKey = highlightKey

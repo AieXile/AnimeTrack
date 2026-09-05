@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.components
 
 import androidx.compose.animation.AnimatedVisibilityScope
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
@@ -76,7 +78,6 @@ import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
 import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.res.painterResource
 
 private val CardCornerRadius = 16.dp
 private val CoverAspectRatio = 2f / 3f
@@ -296,7 +297,7 @@ fun AnimeCard(
                                         )
                                     ) {
                                         Icon(
-                                            painter = painterResource(R.drawable.sym_star_shine),
+                                            painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                                             contentDescription = null,
                                             tint = LocalAnimeColors.current.starFilled,
                                             // 下移使星星相对数字上下对称超出（AboveBaseline 底部贴基线，超出量全在顶部会显偏高）
@@ -343,7 +344,7 @@ fun AnimeCard(
                             .clip(CircleShape)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_vertical_align_top),
+                            painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                             contentDescription = stringResource(
                                 if (anime.isPinned) R.string.common_unpin else R.string.common_pin
                             ),
@@ -369,7 +370,7 @@ fun AnimeCard(
                                 .clip(CircleShape)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_edit),
+                                painter = rememberAppIconPainter(AppIcon.EDIT),
                                 contentDescription = stringResource(R.string.anime_card_change_status),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
@@ -405,7 +406,7 @@ fun AnimeCard(
                                             ) {
                                                 if (isSelected) {
                                                     Icon(
-                                                        painter = painterResource(R.drawable.sym_check),
+                                                        painter = rememberAppIconPainter(AppIcon.CHECK),
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(16.dp)
@@ -446,7 +447,7 @@ fun AnimeCard(
                             .clip(CircleShape)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_delete),
+                            painter = rememberAppIconPainter(AppIcon.DELETE),
                             contentDescription = stringResource(R.string.common_delete),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
@@ -539,7 +540,7 @@ private fun AnimeCoverWithStatus(
                 color = MaterialTheme.colorScheme.primary
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_vertical_align_top),
+                    painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                     contentDescription = stringResource(R.string.common_pin),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier

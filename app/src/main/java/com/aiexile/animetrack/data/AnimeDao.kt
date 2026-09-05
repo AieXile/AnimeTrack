@@ -52,6 +52,12 @@ interface AnimeDao {
 
     @Query("SELECT * FROM anime WHERE tmdbId = :tmdbId LIMIT 1")
     suspend fun getAnimeByTmdbId(tmdbId: Int): Anime?
+
+    @Query("SELECT * FROM anime WHERE remoteSyncId = :remoteSyncId LIMIT 1")
+    suspend fun getAnimeByRemoteSyncId(remoteSyncId: String): Anime?
+
+    @Query("UPDATE anime SET remoteSyncId = :remoteSyncId WHERE id = :id")
+    suspend fun updateRemoteSyncId(id: Int, remoteSyncId: String)
     
     @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
     suspend fun getAnimesWithoutCover(): List<Anime>

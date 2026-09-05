@@ -109,6 +109,21 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         titleRes = R.string.appearance_color_title, descRes = R.string.appearance_color_subtitle,
         keywords = listOf("配色", "颜色", "主题色", "色彩", "color")
     ),
+    SearchableSetting(
+        route = Routes.APPEARANCE, key = "icon_pack",
+        titleRes = R.string.appearance_icon_style_title, descRes = R.string.appearance_icon_style_subtitle,
+        keywords = listOf("图标", "图标风格", "图标样式", "lucide", "icon", "icons")
+    ),
+    SearchableSetting(
+        route = Routes.APPEARANCE, key = "advanced_blur",
+        titleRes = R.string.nav_custom_advanced_blur, descRes = R.string.nav_custom_advanced_blur_desc,
+        keywords = listOf("毛玻璃", "模糊", "玻璃效果", "blur")
+    ),
+    SearchableSetting(
+        route = Routes.APPEARANCE, key = "liquid_glass",
+        titleRes = R.string.nav_custom_liquid_glass, descRes = R.string.nav_custom_liquid_glass_desc,
+        keywords = listOf("液态玻璃", "玻璃", "玻璃效果", "glass")
+    ),
 
     // ---- 字体 ----
     SearchableSetting(
@@ -132,16 +147,6 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "nav_style",
         titleRes = R.string.nav_custom_style_title,
         keywords = listOf("底部导航", "悬浮胶囊", "经典", "导航样式")
-    ),
-    SearchableSetting(
-        route = Routes.NAVIGATION_CUSTOMIZE, key = "advanced_blur",
-        titleRes = R.string.nav_custom_advanced_blur, descRes = R.string.nav_custom_advanced_blur_desc,
-        keywords = listOf("毛玻璃", "模糊", "blur")
-    ),
-    SearchableSetting(
-        route = Routes.NAVIGATION_CUSTOMIZE, key = "liquid_glass",
-        titleRes = R.string.nav_custom_liquid_glass, descRes = R.string.nav_custom_liquid_glass_desc,
-        keywords = listOf("液态玻璃", "玻璃", "glass")
     ),
     SearchableSetting(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "topbar",

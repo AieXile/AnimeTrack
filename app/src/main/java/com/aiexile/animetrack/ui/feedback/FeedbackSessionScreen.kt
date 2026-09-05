@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.feedback
 
 import androidx.compose.animation.AnimatedVisibility
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -63,7 +65,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 /** 会话详情状态 */
 data class FeedbackSessionUiState(
@@ -278,7 +279,7 @@ fun FeedbackSessionScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.feedback_back)
                         )
                     }

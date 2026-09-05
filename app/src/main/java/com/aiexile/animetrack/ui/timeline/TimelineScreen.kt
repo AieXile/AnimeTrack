@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.timeline
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,7 +67,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.res.painterResource
 
 
 @OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
@@ -189,7 +190,7 @@ private fun EmptyTimelinePlaceholder(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             androidx.compose.material3.Icon(
-                painter = painterResource(R.drawable.sym_calendar_view_day),
+                painter = rememberAppIconPainter(AppIcon.CALENDAR_VIEW_DAY),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.outline
@@ -297,7 +298,7 @@ private fun WatchingAnimeCard(
                 // 置顶标识：与主界面卡片角标一致的图钉样式
                 if (anime.isPinned) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_vertical_align_top),
+                        painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                         contentDescription = stringResource(R.string.common_pin),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp)
@@ -365,7 +366,7 @@ private fun RatingText(
                 )
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_star_shine),
+                    painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                     contentDescription = null,
                     tint = starColor,
                     // 下移使星星相对数字上下对称超出（AboveBaseline 底部贴基线，超出量全在顶部会显偏高）

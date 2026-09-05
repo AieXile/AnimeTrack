@@ -53,6 +53,13 @@
     <string name="appearance_mode_auto">Auto</string>
     <string name="appearance_color_title">Theme Color</string>
     <string name="appearance_color_subtitle">Choose your favorite color scheme</string>
+    <string name="appearance_icon_style_title">Icon Style</string>
+    <string name="appearance_icon_style_subtitle">Choose the visual style of app icons</string>
+    <string name="appearance_icon_pack_material">Material Symbols</string>
+    <string name="appearance_icon_pack_lucide">Lucide</string>
+    <string name="appearance_glass_effect_title">Glass Effect</string>
+    <string name="appearance_glass_effect_subtitle">Glass effect for the floating capsule and FAB</string>
+    <string name="appearance_glass_effect_standard">Standard</string>
 
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">Customize Navigation</string>

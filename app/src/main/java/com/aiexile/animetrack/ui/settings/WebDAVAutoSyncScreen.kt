@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.clickable
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +34,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +64,7 @@ fun WebDAVAutoSyncScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }

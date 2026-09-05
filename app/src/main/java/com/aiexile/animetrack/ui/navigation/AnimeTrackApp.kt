@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.navigation
 
 import android.util.Log
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -112,7 +114,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -845,7 +846,7 @@ private fun MainOverlay(
                                 homeViewModel.scrollToTop()
                             }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_vertical_align_top),
+                                    painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                                     contentDescription = stringResource(R.string.home_scroll_to_top),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -25,6 +25,8 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
+import com.aiexile.animetrack.ui.icons.IconPack
+import com.aiexile.animetrack.ui.icons.LocalIconPack
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
@@ -148,6 +150,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
             val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
+            val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
             val systemDarkTheme = isSystemInDarkTheme()
 
             val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
@@ -176,9 +179,13 @@ class MainActivity : ComponentActivity() {
                 themePreset = themePreset,
                 fontFamily = currentFontFamily
             ) {
-                // 大屏适配：计算窗口尺寸档位（Compact/Medium/Expanded）并全局下发
+                // 大屏适配：计算窗口尺寸档位（Compact/Medium/Expanded）并全局下发；
+                // 图标包同步全局下发，切换时整树重组刷新全部图标
                 val windowSizeClass = calculateWindowSizeClass(this)
-                CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+                CompositionLocalProvider(
+                    LocalWindowSizeClass provides windowSizeClass,
+                    LocalIconPack provides iconPack
+                ) {
                     AnimeTrackApp(settingsRepository = settingsRepository, isDataLoaded = isDataLoaded)
                 }
             }

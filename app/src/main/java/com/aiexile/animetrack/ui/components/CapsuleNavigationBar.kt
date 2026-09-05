@@ -56,7 +56,7 @@ import com.kyant.backdrop.Backdrop
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 
 @Composable
 fun CapsuleNavigationBar(
@@ -342,7 +342,7 @@ internal fun CapsuleNavItem(
     ) {
         if (labelMode != NavigationLabelMode.TEXT_ONLY) {
             Icon(
-                painter = painterResource(if (selected) item.selectedIconRes else item.iconRes),
+                painter = rememberAppIconPainter(if (selected) item.selectedIcon else item.icon),
                 contentDescription = stringResource(item.titleRes),
                 tint = iconColor,
                 modifier = Modifier.size(if (labelMode == NavigationLabelMode.ICON_ONLY) 24.dp else 20.dp)

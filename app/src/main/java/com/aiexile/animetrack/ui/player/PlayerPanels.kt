@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -56,7 +58,6 @@ import com.aiexile.animetrack.ui.navigation.SIDE_PANEL_ANIM_DURATION
 import com.aiexile.animetrack.ui.navigation.sidePanelEnter
 import com.aiexile.animetrack.ui.navigation.sidePanelExit
 import kotlinx.coroutines.delay
-import androidx.compose.ui.res.painterResource
 
 /** 播放器浮层面板通用底色：半透明黑 */
 internal val PlayerPanelScrim = Color.Black.copy(alpha = 0.72f)
@@ -298,7 +299,7 @@ private fun TrackPanelItem(
         )
         if (selected) {
             Icon(
-                painter = painterResource(R.drawable.sym_check),
+                painter = rememberAppIconPainter(AppIcon.CHECK),
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(18.dp)

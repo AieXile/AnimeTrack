@@ -53,6 +53,13 @@
     <string name="appearance_mode_auto">自動</string>
     <string name="appearance_color_title">主題配色</string>
     <string name="appearance_color_subtitle">選擇你喜歡的配色方案</string>
+    <string name="appearance_icon_style_title">圖標風格</string>
+    <string name="appearance_icon_style_subtitle">選擇應用內圖標的視覺風格</string>
+    <string name="appearance_icon_pack_material">Material Symbols</string>
+    <string name="appearance_icon_pack_lucide">Lucide</string>
+    <string name="appearance_glass_effect_title">玻璃效果</string>
+    <string name="appearance_glass_effect_subtitle">懸浮膠囊與懸浮按鈕的玻璃質感效果</string>
+    <string name="appearance_glass_effect_standard">標準</string>
 
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">自訂導航欄</string>

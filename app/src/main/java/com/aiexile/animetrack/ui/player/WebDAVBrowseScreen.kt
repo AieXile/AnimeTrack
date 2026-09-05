@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.player
 
 import androidx.compose.foundation.clickable
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +67,7 @@ fun WebDAVBrowseScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -198,7 +199,7 @@ private fun FileItemRow(
         when {
             item.name == ".." -> {
                 Icon(
-                    painter = painterResource(R.drawable.sym_arrow_upward),
+                    painter = rememberAppIconPainter(AppIcon.ARROW_UPWARD),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -214,7 +215,7 @@ private fun FileItemRow(
 
             item.isDirectory -> {
                 Icon(
-                    painter = painterResource(R.drawable.sym_folder),
+                    painter = rememberAppIconPainter(AppIcon.FOLDER),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -233,7 +234,7 @@ private fun FileItemRow(
 
             else -> {
                 Icon(
-                    painter = painterResource(R.drawable.sym_movie),
+                    painter = rememberAppIconPainter(AppIcon.MOVIE),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)

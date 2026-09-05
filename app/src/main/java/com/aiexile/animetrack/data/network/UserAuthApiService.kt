@@ -196,7 +196,12 @@ data class SubscribeRequest(
     val rating: Float? = null,
     val notes: String? = null,
     val startDate: String? = null,
-    val finishDate: String? = null
+    val finishDate: String? = null,
+    /**
+     * 旧版本客户端上传时使用的本地自增 id。服务端 upsert 成功后按
+     * (anime_id + anime_title) 双条件删除该旧记录，完成向稳定远程 ID 的迁移。
+     */
+    val legacyAnimeId: String? = null
 )
 
 data class RemoveSubscribeRequest(

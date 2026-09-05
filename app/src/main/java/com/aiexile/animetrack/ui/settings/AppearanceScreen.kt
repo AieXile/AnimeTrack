@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,8 +31,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -44,7 +43,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +55,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.icons.AppIcon
+import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
@@ -98,11 +101,20 @@ fun AppearanceScreen(
     val scope = rememberCoroutineScope()
     val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
     val currentThemeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
+    val currentIconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
+    // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
+    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
+    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
+        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
 
     // 搜索定位：高亮目标区块并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.APPEARANCE)
     val listState = rememberLazyListState()
-    val highlightAnchors = mapOf("mode" to 2, "color" to 4)
+    val highlightAnchors = mapOf(
+        "mode" to 2, "color" to 4, "icon_pack" to 6,
+        "advanced_blur" to 8, "liquid_glass" to 8
+    )
     LaunchedEffect(highlightKey) {
         highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
     }
@@ -120,7 +132,7 @@ fun AppearanceScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -205,6 +217,96 @@ fun AppearanceScreen(
                 }
             }
 
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.appearance_icon_style_title),
+                    subtitle = stringResource(R.string.appearance_icon_style_subtitle),
+                    modifier = rememberHighlightModifier("icon_pack", highlightKey)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        IconPackPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            pack = IconPack.MATERIAL_SYMBOLS,
+                            label = stringResource(R.string.appearance_icon_pack_material),
+                            selected = currentIconPack == IconPack.MATERIAL_SYMBOLS,
+                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.MATERIAL_SYMBOLS) } }
+                        )
+                        IconPackPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            pack = IconPack.LUCIDE,
+                            label = stringResource(R.string.appearance_icon_pack_lucide),
+                            selected = currentIconPack == IconPack.LUCIDE,
+                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.LUCIDE) } }
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.appearance_glass_effect_title),
+                    subtitle = stringResource(R.string.appearance_glass_effect_subtitle)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        GlassEffectPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.appearance_glass_effect_standard),
+                            selected = !capsuleAdvancedBlur && !capsuleLiquidGlass,
+                            onClick = {
+                                scope.launch {
+                                    settingsRepository.setCapsuleAdvancedBlurEnabled(false)
+                                    settingsRepository.setCapsuleLiquidGlassEnabled(false)
+                                }
+                            }
+                        ) {
+                            GlassEffectPreviewContent(advancedBlur = false, liquidGlass = false)
+                        }
+                        GlassEffectPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.nav_custom_advanced_blur),
+                            selected = capsuleAdvancedBlur,
+                            onClick = {
+                                scope.launch {
+                                    // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
+                                    settingsRepository.setCapsuleAdvancedBlurEnabled(true)
+                                    settingsRepository.setCapsuleLiquidGlassEnabled(false)
+                                }
+                            },
+                            itemKey = "advanced_blur",
+                            highlightKey = highlightKey
+                        ) {
+                            GlassEffectPreviewContent(advancedBlur = true, liquidGlass = false)
+                        }
+                        GlassEffectPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.nav_custom_liquid_glass),
+                            selected = capsuleLiquidGlass,
+                            onClick = {
+                                scope.launch {
+                                    // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
+                                    settingsRepository.setCapsuleLiquidGlassEnabled(true)
+                                    settingsRepository.setCapsuleAdvancedBlurEnabled(false)
+                                }
+                            },
+                            itemKey = "liquid_glass",
+                            highlightKey = highlightKey
+                        ) {
+                            GlassEffectPreviewContent(advancedBlur = false, liquidGlass = true)
+                        }
+                    }
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
@@ -218,10 +320,15 @@ private fun ThemeModePreviewCard(
     modifier: Modifier = Modifier,
     previewContent: @Composable () -> Unit
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -237,22 +344,233 @@ private fun ThemeModePreviewCard(
         ) {
             previewContent()
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        RadioButton(
-            selected = selected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        )
+    }
+}
+
+/** 图标风格预览卡：标签在上左对齐，下方以指定 pack 的示例图标展示该风格的视觉语言（不随全局 LocalIconPack 变化） */
+@Composable
+private fun IconPackPreviewCard(
+    pack: IconPack,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
         Text(
             text = label,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .clip(SquircleShape(16.dp))
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                    shape = SquircleShape(16.dp)
+                )
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(
+                    AppIcon.HOME,
+                    AppIcon.SEARCH,
+                    AppIcon.PLAY_ARROW,
+                    AppIcon.CHECK_CIRCLE,
+                    AppIcon.SETTINGS
+                ).forEach { icon ->
+                    Icon(
+                        painter = painterResource(pack.resolve(icon)),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 玻璃效果预览卡：标签在上，下方静态预览展示该效果下悬浮胶囊的观感，选中态仅以外框标识 */
+@Composable
+private fun GlassEffectPreviewCard(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    itemKey: String? = null,
+    highlightKey: String? = null,
+    previewContent: @Composable () -> Unit
+) {
+    Column(modifier = modifier.then(rememberHighlightModifier(itemKey, highlightKey))) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .clip(SquircleShape(16.dp))
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                    shape = SquircleShape(16.dp)
+                )
+                .clickable(onClick = onClick)
+        ) {
+            previewContent()
+        }
+    }
+}
+
+/**
+ * 玻璃效果静态预览：背景色条模拟被透出的页面内容并延伸至胶囊下方，
+ * 底部悬浮胶囊分别以实色 / 半透明磨砂 / 折射高光三种质感渲染，直观区分三种效果
+ */
+@Composable
+private fun GlassEffectPreviewContent(
+    advancedBlur: Boolean,
+    liquidGlass: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colorScheme.surfaceContainerHigh)
+    ) {
+        // 背景内容条：延伸至胶囊区域下方，用于体现透明质感
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(6.dp)
+                    .clip(SquircleShape(3.dp))
+                    .background(colorScheme.primary.copy(alpha = 0.5f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(6.dp)
+                    .clip(SquircleShape(3.dp))
+                    .background(colorScheme.primary.copy(alpha = 0.35f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .height(6.dp)
+                    .clip(SquircleShape(3.dp))
+                    .background(colorScheme.onSurface.copy(alpha = 0.18f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(6.dp)
+                    .clip(SquircleShape(3.dp))
+                    .background(colorScheme.onSurface.copy(alpha = 0.12f))
+            )
+        }
+        // 悬浮胶囊：标准为实色；高级模糊为半透明磨砂；液态玻璃为更透的折射质感（渐变 + 高光描边）
+        val capsuleBackground = when {
+            liquidGlass -> Brush.verticalGradient(
+                listOf(
+                    colorScheme.surfaceContainer.copy(alpha = 0.45f),
+                    colorScheme.surfaceContainer.copy(alpha = 0.12f)
+                )
+            )
+            advancedBlur -> SolidColor(colorScheme.surfaceContainer.copy(alpha = 0.62f))
+            else -> SolidColor(colorScheme.surfaceContainer)
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp)
+                .fillMaxWidth(0.86f)
+                .height(22.dp)
+                .clip(SquircleShape(100.dp))
+                .background(capsuleBackground)
+                .then(
+                    if (liquidGlass) {
+                        Modifier.border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    colorScheme.onSurface.copy(alpha = 0.5f),
+                                    colorScheme.onSurface.copy(alpha = 0.1f)
+                                )
+                            ),
+                            shape = SquircleShape(100.dp)
+                        )
+                    } else {
+                        Modifier.border(
+                            width = 0.5.dp,
+                            color = colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            shape = SquircleShape(100.dp)
+                        )
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            // 液态玻璃顶部横向光泽
+            if (liquidGlass) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth(0.55f)
+                        .height(3.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    colorScheme.onSurface.copy(alpha = 0.4f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(4) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (index == 0) colorScheme.primary
+                                else colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -527,7 +845,7 @@ private fun ColorSwatch(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_check),
+                        painter = rememberAppIconPainter(AppIcon.CHECK),
                         contentDescription = null,
                         tint = preset.seedColor,
                         modifier = Modifier.size(14.dp)

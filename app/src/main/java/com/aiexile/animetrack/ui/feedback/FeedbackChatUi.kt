@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.feedback
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +44,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import androidx.compose.ui.res.painterResource
 
 /** 聊天界面消息 UI 模型：本地消息 id 为负数，服务端消息用服务端 id */
 data class FeedbackChatMessage(
@@ -219,7 +220,7 @@ private fun MessageAttachmentView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_description),
+                painter = rememberAppIconPainter(AppIcon.DESCRIPTION),
                 contentDescription = null,
                 tint = chipTextColor,
                 modifier = Modifier.size(16.dp)
@@ -252,7 +253,7 @@ fun FeedbackSendButton(enabled: Boolean, modifier: Modifier = Modifier, onClick:
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            painter = painterResource(R.drawable.sym_send),
+            painter = rememberAppIconPainter(AppIcon.SEND),
             contentDescription = stringResource(R.string.feedback_send),
             tint = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)

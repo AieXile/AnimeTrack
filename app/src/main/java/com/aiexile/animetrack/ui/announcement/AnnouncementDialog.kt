@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.announcement
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContent
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -52,7 +54,6 @@ import com.aiexile.animetrack.data.network.AnnouncementOption
 import com.aiexile.animetrack.ui.components.MarkdownText
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.ui.res.painterResource
 
 /** 格式化 ISO 时间为 "yyyy-MM-dd HH:mm"（24小时制，UTC 转本地时区） */
 private fun formatAnnouncementTime(iso: String?): String? {
@@ -123,7 +124,7 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                 if (uiState.announcements.size > 1 && !uiState.showHistoryList) {
                     TextButton(onClick = { viewModel.showHistoryList() }) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_history),
+                            painter = rememberAppIconPainter(AppIcon.HISTORY),
                             contentDescription = null,
                             modifier = Modifier.padding(end = 4.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -452,7 +453,7 @@ private fun VotedOptionRow(
             )
             if (isSelected) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_check),
+                    painter = rememberAppIconPainter(AppIcon.CHECK),
                     contentDescription = null,
                     modifier = Modifier
                         .size(16.dp)
@@ -508,7 +509,7 @@ private fun HistoryListContent(
             )
             TextButton(onClick = onBack) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_arrow_back),
+                    painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                     contentDescription = null,
                     modifier = Modifier.padding(end = 4.dp),
                     tint = MaterialTheme.colorScheme.primary

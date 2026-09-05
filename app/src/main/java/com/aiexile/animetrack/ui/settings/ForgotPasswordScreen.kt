@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,7 +48,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
-import androidx.compose.ui.res.painterResource
 
 /**
  * 忘记密码页：通过绑定邮箱验证码重置密码
@@ -120,7 +121,7 @@ fun ForgotPasswordScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -135,7 +136,7 @@ fun ForgotPasswordScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_lock_reset),
+                painter = rememberAppIconPainter(AppIcon.LOCK_RESET),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary

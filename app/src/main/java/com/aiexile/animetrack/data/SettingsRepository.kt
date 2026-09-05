@@ -15,6 +15,7 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.ui.theme.ThemePreset
+import com.aiexile.animetrack.ui.icons.IconPack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,6 +53,7 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val THEME_PRESET_KEY = stringPreferencesKey("theme_preset")
+        private val ICON_PACK_KEY = stringPreferencesKey("icon_pack")
         private val SHOW_FAVORITES_KEY = booleanPreferencesKey("show_favorites")
         private val SHOW_TIMELINE_KEY = booleanPreferencesKey("show_timeline")
         private val SHOW_SCHEDULE_KEY = booleanPreferencesKey("show_schedule")
@@ -239,6 +241,20 @@ class SettingsRepository(private val context: Context) {
         }
 
     suspend fun setThemePreset(preset: ThemePreset) = setPreference(THEME_PRESET_KEY, preset.name)
+
+    /** 图标包：Material Symbols（默认）/ Lucide */
+    val iconPack: Flow<IconPack> = preferenceFlow(ICON_PACK_KEY, IconPack.MATERIAL_SYMBOLS.name)
+        .map { packString ->
+            try { IconPack.valueOf(packString) } catch (_: IllegalArgumentException) { IconPack.MATERIAL_SYMBOLS }
+        }
+
+    suspend fun setIconPack(pack: IconPack) = setPreference(ICON_PACK_KEY, pack.name)
+
+    /** 图标包的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedIconPack(): IconPack {
+        val cached = prefCache[ICON_PACK_KEY] as? String ?: return IconPack.MATERIAL_SYMBOLS
+        return try { IconPack.valueOf(cached) } catch (_: IllegalArgumentException) { IconPack.MATERIAL_SYMBOLS }
+    }
 
     val showFavorites: Flow<Boolean> = preferenceFlow(SHOW_FAVORITES_KEY, false)
 

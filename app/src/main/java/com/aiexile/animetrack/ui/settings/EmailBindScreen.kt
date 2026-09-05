@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +49,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
-import androidx.compose.ui.res.painterResource
 
 /**
  * 绑定邮箱页（登录/注册流程触发）：登录时服务端返回 requireEmailBind + bindToken 后跳转此页。
@@ -123,7 +124,7 @@ fun EmailBindScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -138,7 +139,7 @@ fun EmailBindScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_email),
+                painter = rememberAppIconPainter(AppIcon.EMAIL),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary

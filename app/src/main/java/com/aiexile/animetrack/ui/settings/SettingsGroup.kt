@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -40,8 +42,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.painterResource
-import com.aiexile.animetrack.R
 
 @Composable
 fun SettingsGroup(
@@ -137,7 +137,7 @@ fun ExpandableSettingsGroup(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_keyboard_arrow_down),
+                            painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_DOWN),
                             contentDescription = null,
                             modifier = Modifier.rotate(arrowRotation),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant

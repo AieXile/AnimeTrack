@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +45,6 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.formatAirDateDisplay
 import com.aiexile.animetrack.util.parseAirDateToLocalDate
-import androidx.compose.ui.res.painterResource
 
 /**
  * 放送日期编辑器（紧凑行式）：图标 + 当前值/未定 + 清空按钮，点击弹出选择 Dialog。
@@ -71,7 +72,7 @@ fun AirDateEditor(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Icon(
-            painter = painterResource(R.drawable.sym_calendar_month),
+            painter = rememberAppIconPainter(AppIcon.CALENDAR_MONTH),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(14.dp)
@@ -91,7 +92,7 @@ fun AirDateEditor(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_close),
+                    painter = rememberAppIconPainter(AppIcon.CLOSE),
                     contentDescription = stringResource(R.string.common_clear),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(12.dp)

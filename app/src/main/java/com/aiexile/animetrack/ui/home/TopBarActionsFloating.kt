@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.home
 
 import androidx.compose.animation.Crossfade
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -69,7 +71,6 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tanh
-import androidx.compose.ui.res.painterResource
 
 /** 迁移 FAB 与原顶栏按钮行同尺寸（IconButton 48dp），高度与 morph 收拢终点一致 */
 internal val TopBarActionsHeight = 48.dp
@@ -363,7 +364,7 @@ private fun FloatingSearchBar(
         )
     ) {
         Icon(
-            painter = painterResource(R.drawable.sym_search),
+            painter = rememberAppIconPainter(AppIcon.SEARCH),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
@@ -405,7 +406,7 @@ private fun FloatingSearchBar(
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_close),
+                    painter = rememberAppIconPainter(AppIcon.CLOSE),
                     contentDescription = stringResource(R.string.common_clear),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
@@ -414,7 +415,7 @@ private fun FloatingSearchBar(
         }
         IconButton(onClick = onClose) {
             Icon(
-                painter = painterResource(R.drawable.sym_arrow_back),
+                painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                 contentDescription = stringResource(R.string.home_close_search),
                 tint = MaterialTheme.colorScheme.onSurface
             )
@@ -507,7 +508,7 @@ private fun CombinedActionsFab(
         if (showSearch) {
             IconButton(onClick = onSearchClick) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_search),
+                    painter = rememberAppIconPainter(AppIcon.SEARCH),
                     contentDescription = stringResource(R.string.common_search),
                     tint = contentColor,
                     modifier = Modifier.size(22.dp)
@@ -526,7 +527,7 @@ private fun CombinedActionsFab(
         if (showAdd) {
             IconButton(onClick = onAddClick) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_add),
+                    painter = rememberAppIconPainter(AppIcon.ADD),
                     contentDescription = stringResource(R.string.home_add_anime),
                     tint = contentColor,
                     modifier = Modifier.size(26.dp)

@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.onboarding
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +49,6 @@ import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.BottomNavItem
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 // ==========================================
 // 自定义页 1: 主题外观（选择即时生效，整个向导界面即实时预览）
@@ -293,7 +294,7 @@ private fun ThemePresetOption(
         ) {
             if (isSelected) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_check),
+                    painter = rememberAppIconPainter(AppIcon.CHECK),
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
                     tint = Color.White
@@ -448,14 +449,14 @@ internal fun MiniPhonePreview(
             )
             Spacer(modifier = Modifier.weight(1f))
             Icon(
-                painter = painterResource(R.drawable.sym_search),
+                painter = rememberAppIconPainter(AppIcon.SEARCH),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(10.dp))
             Icon(
-                painter = painterResource(R.drawable.sym_add),
+                painter = rememberAppIconPainter(AppIcon.ADD),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -531,7 +532,7 @@ private fun MiniNavItem(
     when (labelMode) {
         NavigationLabelMode.ICON_ONLY -> {
             Icon(
-                painter = painterResource(if (isSelected) item.selectedIconRes else item.iconRes),
+                painter = rememberAppIconPainter(if (isSelected) item.selectedIcon else item.icon),
                 contentDescription = label,
                 modifier = Modifier.size(16.dp),
                 tint = tint
@@ -540,7 +541,7 @@ private fun MiniNavItem(
         NavigationLabelMode.ICON_AND_TEXT -> {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    painter = painterResource(if (isSelected) item.selectedIconRes else item.iconRes),
+                    painter = rememberAppIconPainter(if (isSelected) item.selectedIcon else item.icon),
                     contentDescription = label,
                     modifier = Modifier.size(14.dp),
                     tint = tint

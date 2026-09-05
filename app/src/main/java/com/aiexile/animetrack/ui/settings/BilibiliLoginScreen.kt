@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import android.graphics.Bitmap
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.Animatable
@@ -24,18 +26,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,7 +68,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -73,7 +77,6 @@ import com.aiexile.animetrack.util.QrCodeGenerator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 private const val MAX_QR_RETRY = 3
 
@@ -272,121 +275,128 @@ fun BilibiliLoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (isLoggedIn) {
-                if (!userAvatar.isNullOrBlank()) {
-                    Image(
-                        painter = rememberAsyncImagePainter(userAvatar),
-                        contentDescription = stringResource(R.string.bilibili_login_avatar),
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+        if (isLoggedIn) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(20.dp))
+                // 头像（带占位兜底）
+                AccountAvatar(
+                    avatarUrl = userAvatar,
+                    contentDescription = stringResource(R.string.bilibili_login_avatar)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = userNickname ?: stringResource(R.string.bilibili_login_logged_in),
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Spacer(modifier = Modifier.height(4.dp))
+                // 已登录标识
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_check_circle),
+                        painter = rememberAppIconPainter(AppIcon.CHECK_CIRCLE),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = stringResource(R.string.bilibili_login_logged_in),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.height(32.dp))
-
                 if (lastSyncTime > 0) {
                     val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.bilibili_login_last_sync, dateFormat.format(java.util.Date(lastSyncTime))),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                // 自动同步开关
-                if (autoSyncVisible) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.bilibili_login_auto_sync),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(R.string.bilibili_login_auto_sync_desc),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        AppSwitch(
-                            checked = autoSyncEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    bilibiliAuthManager.setBilibiliAutoSync(enabled)
-                                }
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                Button(
-                    onClick = {
-                        if (!isSyncing) {
-                            isSyncing = true
-                            syncResult = null
-                        }
-                    },
-                    enabled = !isSyncing,
+                Spacer(modifier = Modifier.height(24.dp))
+                // 数据同步卡片
+                Surface(
+                    shape = SquircleShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                    Column {
+                        AccountActionRow(
+                            icon = rememberAppIconPainter(AppIcon.SYNC),
+                            label = when {
+                                isSyncing -> stringResource(R.string.bilibili_login_fetching)
+                                lastSyncTime > 0 -> stringResource(R.string.bilibili_login_resync)
+                                else -> stringResource(R.string.bilibili_login_sync_list)
+                            },
+                            onClick = {
+                                if (!isSyncing) {
+                                    isSyncing = true
+                                    syncResult = null
+                                }
+                            },
+                            enabled = !isSyncing,
+                            busy = isSyncing
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.bilibili_login_fetching))
-                    } else {
-                        Icon(painterResource(R.drawable.sym_sync), contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (lastSyncTime > 0) stringResource(R.string.bilibili_login_resync) else stringResource(R.string.bilibili_login_sync_list))
+                        if (autoSyncVisible) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 52.dp),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            // 自动同步开关
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = rememberAppIconPainter(AppIcon.HISTORY),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.bilibili_login_auto_sync),
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.bilibili_login_auto_sync_desc),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                AppSwitch(
+                                    checked = autoSyncEnabled,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            bilibiliAuthManager.setBilibiliAutoSync(enabled)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -434,11 +444,12 @@ fun BilibiliLoginScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (isSyncSuccess)
                             MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedButton(
                     onClick = {
@@ -454,7 +465,17 @@ fun BilibiliLoginScreen(
                 ) {
                     Text(stringResource(R.string.bilibili_login_logout))
                 }
-            } else {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 if (isGeneratingQr) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
@@ -496,7 +517,7 @@ fun BilibiliLoginScreen(
                         shape = SquircleShape(12.dp)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_qr_code_scanner),
+                            painter = rememberAppIconPainter(AppIcon.QR_CODE_SCANNER),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -589,7 +610,7 @@ private fun SyncSelectionDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                painter = if (isSelected) painterResource(R.drawable.sym_check_box) else painterResource(R.drawable.sym_check_box_outline_blank),
+                                painter = if (isSelected) rememberAppIconPainter(AppIcon.CHECK_BOX) else rememberAppIconPainter(AppIcon.CHECK_BOX_OUTLINE_BLANK),
                                 contentDescription = null,
                                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)

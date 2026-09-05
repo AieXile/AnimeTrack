@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +53,6 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +102,7 @@ fun LoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -127,7 +128,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "AnimeTrack",
                     subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
-                    icon = painterResource(R.drawable.sym_account_circle),
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (userLoggedIn) userAvatarUrl else null,
                     onClick = onNavigateUserLogin
                 )
@@ -136,7 +137,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bilibili",
                     subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bilibili_subtitle),
-                    icon = painterResource(R.drawable.sym_account_circle),
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (bilibiliLoggedIn) bilibiliAvatar else null,
                     onClick = onNavigateBilibiliLogin
                 )
@@ -145,7 +146,7 @@ fun LoginScreen(
                 LoginServiceCard(
                     title = "Bangumi",
                     subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
-                    icon = painterResource(R.drawable.sym_account_circle),
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
                     onClick = if (bangumiLoggedIn) onNavigateBangumiAccount else onNavigateBangumiLogin
                 )
@@ -285,7 +286,7 @@ private fun LoginServiceCard(
             }
 
             Icon(
-                painter = painterResource(R.drawable.sym_keyboard_arrow_right),
+                painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)

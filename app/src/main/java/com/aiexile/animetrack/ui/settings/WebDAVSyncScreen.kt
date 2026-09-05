@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +51,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.util.formatDateTime
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,7 +107,7 @@ fun WebDAVSyncScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -286,7 +287,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.sym_cloud_upload),
+                                        painter = rememberAppIconPainter(AppIcon.CLOUD_UPLOAD),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -299,7 +300,7 @@ fun WebDAVSyncScreen(
                                     shape = SquircleShape(12.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.sym_cloud_download),
+                                        painter = rememberAppIconPainter(AppIcon.CLOUD_DOWNLOAD),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -320,7 +321,7 @@ fun WebDAVSyncScreen(
                                 )
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_cloud_upload),
+                                    painter = rememberAppIconPainter(AppIcon.CLOUD_UPLOAD),
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )

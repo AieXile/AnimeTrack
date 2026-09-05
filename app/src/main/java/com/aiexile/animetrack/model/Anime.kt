@@ -62,7 +62,13 @@ data class Anime(
     /** 最近一次更新观看进度的时间戳。用于主界面排序（最近更新进度的排前面）。null 表示从未更新过。 */
     val lastProgressAt: Long? = null,
     /** 用户手动置顶。置顶的卡片固定排在列表最前，不受筛选/排序影响。 */
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    /**
+     * 跨设备稳定的远程同步 ID（UUID）。bangumiId 为空的番剧（手动添加/B站同步）
+     * 上传订阅时用作服务端 animeId，替代仅本设备稳定的本地自增 id，避免多设备
+     * 拉取合并时因 ID 语义错位产生重复记录。bangumiId 非空的番剧不使用此字段。
+     */
+    val remoteSyncId: String? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

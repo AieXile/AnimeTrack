@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,7 +72,6 @@ import com.gowtham.ratingbar.RatingBar
 import com.gowtham.ratingbar.RatingBarConfig
 import com.gowtham.ratingbar.RatingBarStyle
 import com.gowtham.ratingbar.StepSize
-import androidx.compose.ui.res.painterResource
 
 data class AddAnimeFormState(
     val title: String = "",
@@ -253,7 +254,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_remove),
+                    painter = rememberAppIconPainter(AppIcon.REMOVE),
                     contentDescription = stringResource(R.string.add_anime_decrease),
                     modifier = Modifier.size(20.dp)
                 )
@@ -324,7 +325,7 @@ private fun NumberInputField(
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_add),
+                    painter = rememberAppIconPainter(AppIcon.ADD),
                     contentDescription = stringResource(R.string.add_anime_increase),
                     modifier = Modifier.size(20.dp)
                 )
@@ -471,7 +472,7 @@ private fun StatusDropdown(
                                     )
                                     if (isSelected) {
                                         Icon(
-                                            painter = painterResource(R.drawable.sym_check),
+                                            painter = rememberAppIconPainter(AppIcon.CHECK),
                                             contentDescription = null,
                                             tint = itemColor,
                                             modifier = Modifier.size(16.dp)
@@ -733,7 +734,7 @@ private fun DatePickerField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_calendar_month),
+                    painter = rememberAppIconPainter(AppIcon.CALENDAR_MONTH),
                     contentDescription = null,
                     tint = if (date != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )

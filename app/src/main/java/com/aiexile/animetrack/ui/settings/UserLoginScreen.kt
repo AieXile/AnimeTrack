@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,7 +80,6 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import java.io.File
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -283,7 +284,7 @@ fun UserLoginScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -320,7 +321,7 @@ fun UserLoginScreen(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(R.drawable.sym_account_circle),
+                            painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                             contentDescription = null,
                             modifier = Modifier.padding(16.dp),
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -411,7 +412,7 @@ fun UserLoginScreen(
                 ) {
                     Column {
                         SecurityRow(
-                            icon = { Icon(painterResource(R.drawable.sym_lock), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
+                            icon = { Icon(rememberAppIconPainter(AppIcon.LOCK), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
                             label = stringResource(R.string.user_login_change_password),
                             onClick = {
                                 showChangePasswordDialog = true
@@ -428,7 +429,7 @@ fun UserLoginScreen(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                         SecurityRow(
-                            icon = { Icon(painterResource(R.drawable.sym_mail), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
+                            icon = { Icon(rememberAppIconPainter(AppIcon.MAIL), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
                             label = stringResource(R.string.user_login_change_email),
                             onClick = {
                                 showChangeEmailDialog = true
@@ -489,7 +490,7 @@ fun UserLoginScreen(
                 // 未登录状态
                 Spacer(modifier = Modifier.height(40.dp))
                 Icon(
-                    painter = painterResource(R.drawable.sym_account_circle),
+                    painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -987,7 +988,7 @@ private fun SecurityRow(
             modifier = Modifier.weight(1f)
         )
         Icon(
-            painter = painterResource(R.drawable.sym_keyboard_arrow_right),
+            painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )

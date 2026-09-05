@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.BackHandler
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,8 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -61,7 +61,6 @@ import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,8 +77,6 @@ fun NavigationCustomizeScreen(
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
-    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled.collectAsState(false)
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
         .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
@@ -95,7 +92,7 @@ fun NavigationCustomizeScreen(
     val highlightAnchors = buildMap {
         var i = 1
         if (showCompactOnlySettings) {
-            put("nav_style", i); put("advanced_blur", i); put("liquid_glass", i); i++
+            put("nav_style", i); i++
         }
         put("topbar", i); put("hide_topbar", i); put("statusbar", i); i++
         put("label_mode", i); i++
@@ -109,8 +106,7 @@ fun NavigationCustomizeScreen(
         highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
     }
     // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
-    val expandNavStyleGroup = highlightKey == "nav_style" ||
-            highlightKey == "advanced_blur" || highlightKey == "liquid_glass"
+    val expandNavStyleGroup = highlightKey == "nav_style"
     val expandFabGroup = highlightKey == "fab"
 
     Scaffold(
@@ -126,7 +122,7 @@ fun NavigationCustomizeScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -150,67 +146,19 @@ fun NavigationCustomizeScreen(
                         title = stringResource(R.string.nav_custom_style_title),
                         expanded = expandNavStyleGroup
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             NavigationStyleCard(
+                                modifier = Modifier.weight(1f),
                                 style = NavigationStyle.BOTTOM,
                                 isSelected = navigationStyle == NavigationStyle.BOTTOM,
                                 onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.BOTTOM) } }
                             )
                             NavigationStyleCard(
+                                modifier = Modifier.weight(1f),
                                 style = NavigationStyle.CAPSULE,
                                 isSelected = navigationStyle == NavigationStyle.CAPSULE,
                                 onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
                             )
-                            // 选中胶囊时条件出现：动画展开/收起，避免高度瞬间跳变造成的闪动
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = navigationStyle == NavigationStyle.CAPSULE,
-                                enter = androidx.compose.animation.expandVertically(
-                                    animationSpec = androidx.compose.animation.core.spring(
-                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                                    )
-                                ) + androidx.compose.animation.fadeIn(
-                                    animationSpec = androidx.compose.animation.core.tween(300)
-                                ),
-                                exit = androidx.compose.animation.shrinkVertically(
-                                    animationSpec = androidx.compose.animation.core.tween(200)
-                                ) + androidx.compose.animation.fadeOut(
-                                    animationSpec = androidx.compose.animation.core.tween(200)
-                                )
-                            ) {
-                                // AnimatedVisibility 的多个直接子项会叠加在同一位置，需用 Column 包裹
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    SwitchItem(
-                                        title = stringResource(R.string.nav_custom_advanced_blur),
-                                        description = stringResource(R.string.nav_custom_advanced_blur_desc),
-                                        checked = capsuleAdvancedBlur,
-                                        onCheckedChange = { enabled ->
-                                            scope.launch {
-                                                settingsRepository.setCapsuleAdvancedBlurEnabled(enabled)
-                                                // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
-                                                if (enabled) settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                                            }
-                                        },
-                                        itemKey = "advanced_blur",
-                                        highlightKey = highlightKey
-                                    )
-                                    // 液态玻璃：开启后悬浮胶囊使用折射玻璃渲染，与高级模糊互斥
-                                    SwitchItem(
-                                        title = stringResource(R.string.nav_custom_liquid_glass),
-                                        description = stringResource(R.string.nav_custom_liquid_glass_desc),
-                                        checked = capsuleLiquidGlass,
-                                        onCheckedChange = { enabled ->
-                                            scope.launch {
-                                                settingsRepository.setCapsuleLiquidGlassEnabled(enabled)
-                                                // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
-                                                if (enabled) settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                                            }
-                                        },
-                                        itemKey = "liquid_glass",
-                                        highlightKey = highlightKey
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -317,13 +265,15 @@ fun NavigationCustomizeScreen(
                         title = stringResource(R.string.nav_custom_fab_title),
                         expanded = expandFabGroup
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             FabLocationCard(
+                                modifier = Modifier.weight(1f),
                                 location = FabLocation.BOTTOM_RIGHT,
                                 isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
                                 onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
                             )
                             FabLocationCard(
+                                modifier = Modifier.weight(1f),
                                 location = FabLocation.TOP_BAR,
                                 isSelected = fabLocation == FabLocation.TOP_BAR,
                                 onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
@@ -391,241 +341,259 @@ fun NavigationCustomizeScreen(
     }
 }
 
+/** 导航样式卡片：标签在上、预览居中、描述在下，选中态仅以外框标识（并排布局用竖版卡片） */
 @Composable
 private fun NavigationStyleCard(
     style: NavigationStyle,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
-    val borderWeight = if (isSelected) 2.dp else 1.dp
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(SquircleShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(
-                width = borderWeight,
-                color = borderColor,
-                shape = SquircleShape(12.dp)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = style.displayName,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = when (style) {
-                    NavigationStyle.BOTTOM -> stringResource(R.string.nav_custom_style_bottom_desc)
-                    NavigationStyle.CAPSULE -> stringResource(R.string.nav_custom_style_capsule_desc)
-                },
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+    Column(modifier = modifier) {
+        Text(
+            text = style.displayName,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(SquircleShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                    shape = SquircleShape(16.dp)
+                )
+                .clickable(onClick = onClick)
+        ) {
+            // 页面内容示意线条
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (style == NavigationStyle.BOTTOM) {
-                    Box(
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.75f)
+                        .height(5.dp)
+                        .clip(SquircleShape(2.5.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(5.dp)
+                        .clip(SquircleShape(2.5.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
+                )
+            }
+            if (style == NavigationStyle.BOTTOM) {
+                // 贴底导航条：贴满卡片底边
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
                         modifier = Modifier
-                            .width(100.dp)
-                            .height(28.dp)
-                            .clip(SquircleShape(4.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = SquircleShape(4.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                        ) {
-                            repeat(4) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(5.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                                )
-                            }
+                        repeat(4) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                            )
                         }
                     }
-                } else {
-                    Box(
+                }
+            } else {
+                // 悬浮胶囊：左右与底部留边，全圆角浮于内容之上
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clip(SquircleShape(100.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            shape = SquircleShape(100.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
                         modifier = Modifier
-                            .width(100.dp)
-                            .height(28.dp)
-                            .clip(SquircleShape(100.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = SquircleShape(100.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            repeat(4) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(5.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                                )
-                            }
+                        repeat(4) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                            )
                         }
                     }
                 }
             }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        RadioButton(
-            selected = isSelected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = when (style) {
+                NavigationStyle.BOTTOM -> stringResource(R.string.nav_custom_style_bottom_desc)
+                NavigationStyle.CAPSULE -> stringResource(R.string.nav_custom_style_capsule_desc)
+            },
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            modifier = Modifier.padding(start = 4.dp)
         )
     }
 }
 
+/** 添加按钮位置卡片：标签在上、预览居中、描述在下，选中态仅以外框标识（并排布局用竖版卡片） */
 @Composable
 private fun FabLocationCard(
     location: FabLocation,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
-    val borderWeight = if (isSelected) 2.dp else 1.dp
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(SquircleShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(
-                width = borderWeight,
-                color = borderColor,
-                shape = SquircleShape(12.dp)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = location.displayName,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = when (location) {
-                    FabLocation.BOTTOM_RIGHT -> stringResource(R.string.nav_custom_fab_bottom_right_desc)
-                    FabLocation.TOP_BAR -> stringResource(R.string.nav_custom_fab_top_bar_desc)
-                },
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Box(
+    Column(modifier = modifier) {
+        Text(
+            text = location.displayName,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(SquircleShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant,
+                    shape = SquircleShape(16.dp)
+                )
+                .clickable(onClick = onClick)
+        ) {
+            // 页面内容示意线条（顶栏模式时避开顶部条）
+            Column(
                 modifier = Modifier
-                    .width(100.dp)
-                    .height(48.dp)
-                    .clip(SquircleShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = SquircleShape(8.dp)
-                    )
+                    .fillMaxSize()
+                    .padding(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = if (location == FabLocation.TOP_BAR) 22.dp else 8.dp,
+                        bottom = 8.dp
+                    ),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                if (location == FabLocation.BOTTOM_RIGHT) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 8.dp, bottom = 12.dp)
-                            .size(16.dp)
-                            .clip(SquircleShape(4.dp))
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.sym_add),
-                            contentDescription = null,
-                            modifier = Modifier.size(11.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .fillMaxWidth()
-                            .height(12.dp)
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.75f)
+                        .height(5.dp)
+                        .clip(SquircleShape(2.5.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(5.dp)
+                        .clip(SquircleShape(2.5.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f))
+                )
+            }
+            if (location == FabLocation.BOTTOM_RIGHT) {
+                // 底部导航条 + 右下角悬浮按钮
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 14.dp)
+                        .size(22.dp)
+                        .clip(SquircleShape(6.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_add),
+                        painter = rememberAppIconPainter(AppIcon.ADD),
                         contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(end = 4.dp, top = 1.dp)
-                            .size(10.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
+            } else {
+                // 顶部标题栏（左侧标题块）+ 顶栏右侧添加按钮
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(14.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 10.dp)
+                            .width(24.dp)
+                            .height(4.dp)
+                            .clip(SquircleShape(2.dp))
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+                    )
+                }
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.ADD),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 5.dp, top = 1.5.dp)
+                        .size(11.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        RadioButton(
-            selected = isSelected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = when (location) {
+                FabLocation.BOTTOM_RIGHT -> stringResource(R.string.nav_custom_fab_bottom_right_desc)
+                FabLocation.TOP_BAR -> stringResource(R.string.nav_custom_fab_top_bar_desc)
+            },
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            modifier = Modifier.padding(start = 4.dp)
         )
     }
 }

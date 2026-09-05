@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.ui.res.painterResource
 
 /**
  * 设置页搜索模式顶栏：返回按钮 + 关键词输入框 + 清空按钮。
@@ -59,7 +60,7 @@ fun SettingsSearchBar(
     ) {
         IconButton(onClick = onClose) {
             Icon(
-                painter = painterResource(R.drawable.sym_arrow_back),
+                painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                 contentDescription = stringResource(R.string.common_back),
                 tint = MaterialTheme.colorScheme.onBackground
             )
@@ -73,7 +74,7 @@ fun SettingsSearchBar(
                 .background(MaterialTheme.colorScheme.surfaceContainer)
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_search),
+                painter = rememberAppIconPainter(AppIcon.SEARCH),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -114,7 +115,7 @@ fun SettingsSearchBar(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_close),
+                        painter = rememberAppIconPainter(AppIcon.CLOSE),
                         contentDescription = stringResource(R.string.common_clear),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)

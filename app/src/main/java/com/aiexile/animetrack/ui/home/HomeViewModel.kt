@@ -302,6 +302,10 @@ class HomeViewModel(
             delay(500) // 与 syncRemoteToLocal 错峰
             triggerAutoSync()
         }
+
+        // 观看状态/进度变更后卡片会重排到列表顶部：同步将网格滚回顶部，
+        // 保证变更后的卡片在可视区域内（详见 observeProgressChangesAndScrollToTop）
+        observeProgressChangesAndScrollToTop()
     }
 
     /**
@@ -638,6 +642,37 @@ class HomeViewModel(
      */
     fun scrollToTop() {
         _uiState.update { it.copy(shouldScrollToTop = true) }
+    }
+
+    /**
+     * 监听观看状态/进度变更（特征：已有番剧的 lastProgressAt 被刷新），把主界面网格滚回顶部。
+     *
+     * 变更后的卡片会按最近进度重排到列表顶部，若网格停留在原滚动位置：
+     * - 主页卡片菜单改状态：卡片直接从可视区域消失；
+     * - 详情页改进度/状态：返回时卡片不在可视区域，共享元素退出动画丢失。
+     * 因此检测到变更立即滚回顶部。详情页打开期间 HomeScreen 虽未组合，
+     * 但 gridState 存活于本 ViewModel，scrollToItem 在脱离组合时记录目标位置，
+     * 返回主页时网格自顶部开始组合，卡片位于首屏，退出动画正常匹配。
+     *
+     * 仅比对已有条目的 lastProgressAt（同步流程只改 status/进度不写此字段），
+     * 避免自动同步引起的列表变动误触发跳顶。
+     */
+    private fun observeProgressChangesAndScrollToTop() {
+        viewModelScope.launch {
+            var previousById: Map<Int, Anime>? = null
+            animeList.collect { current ->
+                val previous = previousById
+                previousById = current.associateBy { it.id }
+                if (previous == null) return@collect
+                val progressChanged = current.any { new ->
+                    val old = previous[new.id]
+                    old != null && old.lastProgressAt != new.lastProgressAt
+                }
+                if (progressChanged) {
+                    gridState.scrollToItem(index = 0)
+                }
+            }
+        }
     }
     
     fun onHighlightCompleted() {

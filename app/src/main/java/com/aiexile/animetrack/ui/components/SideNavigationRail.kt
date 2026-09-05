@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.data.NavigationLabelMode
-import androidx.compose.ui.res.painterResource
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 
 /**
  * 大屏侧边导航栏（标准 M3 NavigationRail 样式）。
@@ -51,7 +51,7 @@ fun SideNavigationRail(
                 icon = {
                     if (labelMode != NavigationLabelMode.TEXT_ONLY) {
                         Icon(
-                            painter = painterResource(if (selected) item.selectedIconRes else item.iconRes),
+                            painter = rememberAppIconPainter(if (selected) item.selectedIcon else item.icon),
                             contentDescription = stringResource(item.titleRes),
                             modifier = Modifier.size(24.dp)
                         )

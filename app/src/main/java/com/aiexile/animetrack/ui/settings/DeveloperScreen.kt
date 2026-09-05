@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
-import android.content.Context
+import android.content.Context
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,7 +61,6 @@ import com.aiexile.animetrack.ui.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +119,7 @@ fun DeveloperScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_arrow_back),
+                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
@@ -322,7 +323,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount > 1) debugCardCount-- }
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_remove),
+                        painter = rememberAppIconPainter(AppIcon.REMOVE),
                         contentDescription = stringResource(R.string.developer_decrease),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -338,7 +339,7 @@ fun DeveloperScreen(
                     onClick = { if (debugCardCount < 50) debugCardCount++ }
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_add),
+                        painter = rememberAppIconPainter(AppIcon.ADD),
                         contentDescription = stringResource(R.string.developer_increase),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -452,7 +453,7 @@ fun DeveloperScreen(
                 )
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_campaign),
+                    painter = rememberAppIconPainter(AppIcon.CAMPAIGN),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -487,7 +488,7 @@ fun DeveloperScreen(
                 )
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_rocket_launch),
+                    painter = rememberAppIconPainter(AppIcon.ROCKET_LAUNCH),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.feedback
 
 import android.widget.Toast
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,7 +71,6 @@ import com.aiexile.animetrack.data.network.FEEDBACK_ATTACHMENT_TYPE_LOG
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.PendingAttachment
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
-import androidx.compose.ui.res.painterResource
 
 /**
  * 聊天式反馈主页：浮动圆形返回/历史按钮 + 消息气泡列表 + 底部大圆角输入框。
@@ -290,13 +291,13 @@ private fun FeedbackFloatingHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         FeedbackCircleButton(
-            icon = painterResource(R.drawable.sym_arrow_back),
+            icon = rememberAppIconPainter(AppIcon.ARROW_BACK),
             contentDescription = stringResource(R.string.feedback_back),
             onClick = onBack
         )
         Spacer(modifier = Modifier.weight(1f))
         FeedbackCircleButton(
-            icon = painterResource(R.drawable.sym_history),
+            icon = rememberAppIconPainter(AppIcon.HISTORY),
             contentDescription = stringResource(R.string.feedback_history_entry),
             onClick = onHistory,
             showBadge = showHistoryBadge
@@ -463,7 +464,7 @@ fun FeedbackChatInput(
                     // [+] 附件按钮：菜单选择图片 / 文件
                     Box {
                         FeedbackCircleSmallButton(
-                            icon = painterResource(R.drawable.sym_add),
+                            icon = rememberAppIconPainter(AppIcon.ADD),
                             contentDescription = stringResource(R.string.feedback_attach_image),
                             containerColor = innerButtonColor,
                             enabled = enabled && !isSending
@@ -476,7 +477,7 @@ fun FeedbackChatInput(
                         ) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.feedback_attach_image)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.sym_image), contentDescription = null) },
+                                leadingIcon = { Icon(rememberAppIconPainter(AppIcon.IMAGE), contentDescription = null) },
                                 onClick = {
                                     plusMenuOpen = false
                                     imagePicker.launch(
@@ -486,7 +487,7 @@ fun FeedbackChatInput(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.feedback_attach_file)) },
-                                leadingIcon = { Icon(painterResource(R.drawable.sym_description), contentDescription = null) },
+                                leadingIcon = { Icon(rememberAppIconPainter(AppIcon.DESCRIPTION), contentDescription = null) },
                                 onClick = {
                                     plusMenuOpen = false
                                     filePicker.launch(arrayOf("*/*"))
@@ -561,7 +562,7 @@ fun FeedbackChatInput(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            painter = if (logAttached) painterResource(R.drawable.sym_check) else painterResource(R.drawable.sym_description),
+                            painter = if (logAttached) rememberAppIconPainter(AppIcon.CHECK) else rememberAppIconPainter(AppIcon.DESCRIPTION),
                             contentDescription = null,
                             tint = if (logAttached) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.onSurface,
@@ -608,9 +609,9 @@ private fun FeedbackAttachmentChips(
             ) {
                 Icon(
                     painter = if (attachment.kind == FEEDBACK_ATTACHMENT_TYPE_IMAGE) {
-                        painterResource(R.drawable.sym_image)
+                        rememberAppIconPainter(AppIcon.IMAGE)
                     } else {
-                        painterResource(R.drawable.sym_description)
+                        rememberAppIconPainter(AppIcon.DESCRIPTION)
                     },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -627,7 +628,7 @@ private fun FeedbackAttachmentChips(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    painter = painterResource(R.drawable.sym_close),
+                    painter = rememberAppIconPainter(AppIcon.CLOSE),
                     contentDescription = stringResource(R.string.common_cancel),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier

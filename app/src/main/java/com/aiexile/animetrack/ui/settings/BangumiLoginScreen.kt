@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -39,7 +41,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.ui.login.LoginViewModel
-import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +76,7 @@ fun BangumiLoginScreen(
                         webView = null
                         onBack()
                     }) {
-                        Icon(painterResource(R.drawable.sym_arrow_back), contentDescription = stringResource(R.string.common_back))
+                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )

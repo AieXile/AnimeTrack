@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.detail
 
 import android.util.Log
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -160,7 +162,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.ui.res.painterResource
 
 private val CoverAspectRatio = 2f / 3f
 private val CardCornerRadius = 16.dp
@@ -305,7 +306,7 @@ fun AnimeDetailScreen(
                             }
                         }) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_arrow_back),
+                                painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                                 contentDescription = stringResource(R.string.common_back),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
@@ -324,7 +325,7 @@ fun AnimeDetailScreen(
                             // 播放按钮暂时隐藏，以后复用
                             // IconButton(onClick = { onNavigateToPlayer(animeId) }) {
                             //     Icon(
-                            //         painter = painterResource(R.drawable.sym_play_arrow),
+                            //         painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
                             //         contentDescription = stringResource(R.string.detail_play),
                             //         tint = MaterialTheme.colorScheme.primary
                             //     )
@@ -334,7 +335,7 @@ fun AnimeDetailScreen(
                             if (missingBangumi || missingTmdb) {
                                 IconButton(onClick = { viewModel.showMatchDialog() }) {
                                     Icon(
-                                        painter = painterResource(R.drawable.sym_link),
+                                        painter = rememberAppIconPainter(AppIcon.LINK),
                                         contentDescription = stringResource(R.string.detail_match_source),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
@@ -344,7 +345,7 @@ fun AnimeDetailScreen(
                             if (shareButtonEnabled) {
                                 IconButton(onClick = { showShareDialog = true }) {
                                     Icon(
-                                    painter = painterResource(R.drawable.sym_share),
+                                    painter = rememberAppIconPainter(AppIcon.SHARE),
                                     contentDescription = stringResource(R.string.common_share),
                                     modifier = Modifier.size(24.dp),
                                     tint = MaterialTheme.colorScheme.onSurface
@@ -353,14 +354,14 @@ fun AnimeDetailScreen(
                             }
                             IconButton(onClick = { showDeleteDialog = true }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_delete),
+                                    painter = rememberAppIconPainter(AppIcon.DELETE),
                                     contentDescription = stringResource(R.string.common_delete),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
                             IconButton(onClick = { viewModel.enterEditMode() }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_edit),
+                                    painter = rememberAppIconPainter(AppIcon.EDIT),
                                     contentDescription = stringResource(R.string.common_edit),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -580,7 +581,7 @@ private fun CoverSearchOverlay(
                     ),
                     leadingIcon = {
                         Icon(
-                            painter = painterResource(R.drawable.sym_search),
+                            painter = rememberAppIconPainter(AppIcon.SEARCH),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
@@ -607,7 +608,7 @@ private fun CoverSearchOverlay(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_arrow_drop_down),
+                                    painter = rememberAppIconPainter(AppIcon.ARROW_DROP_DOWN),
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -647,7 +648,7 @@ private fun CoverSearchOverlay(
 
                 IconButton(onClick = onSearch) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_search),
+                        painter = rememberAppIconPainter(AppIcon.SEARCH),
                         contentDescription = stringResource(R.string.common_search),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -655,7 +656,7 @@ private fun CoverSearchOverlay(
 
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_close),
+                        painter = rememberAppIconPainter(AppIcon.CLOSE),
                         contentDescription = stringResource(R.string.common_close),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -769,7 +770,7 @@ private fun CoverSearchResultItem(
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_star_shine),
+                                painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                                 contentDescription = null,
                                 tint = LocalAnimeColors.current.starFilled,
                                 modifier = Modifier.size(12.dp)
@@ -942,7 +943,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_save),
+                                    painter = rememberAppIconPainter(AppIcon.SAVE),
                                     contentDescription = stringResource(R.string.detail_save_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -954,7 +955,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_search),
+                                    painter = rememberAppIconPainter(AppIcon.SEARCH),
                                     contentDescription = stringResource(R.string.detail_search_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -966,7 +967,7 @@ private fun AnimeDetailContent(
                                 modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_photo_camera),
+                                    painter = rememberAppIconPainter(AppIcon.PHOTO_CAMERA),
                                     contentDescription = stringResource(R.string.detail_upload_cover),
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1028,7 +1029,7 @@ private fun AnimeDetailContent(
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Icon(
-                                    painter = painterResource(R.drawable.sym_edit),
+                                    painter = rememberAppIconPainter(AppIcon.EDIT),
                                     contentDescription = stringResource(R.string.detail_edit_title),
                                     modifier = Modifier
                                         .size(16.dp)
@@ -1270,7 +1271,7 @@ private fun RatingBadge(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_star_shine),
+                painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                 contentDescription = null,
                 tint = LocalAnimeColors.current.starFilled,
                 modifier = Modifier.size(14.dp)
@@ -1791,7 +1792,7 @@ private fun NotesCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_edit),
+                        painter = rememberAppIconPainter(AppIcon.EDIT),
                         contentDescription = stringResource(R.string.detail_notes),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
@@ -2393,7 +2394,7 @@ private fun MatchDialog(
                     ),
                     leadingIcon = {
                         Icon(
-                            painter = painterResource(R.drawable.sym_search),
+                            painter = rememberAppIconPainter(AppIcon.SEARCH),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(20.dp)
@@ -2533,7 +2534,7 @@ private fun MatchResultItem(
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_star_shine),
+                                painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                                 contentDescription = null,
                                 tint = LocalAnimeColors.current.starFilled,
                                 modifier = Modifier.size(12.dp)

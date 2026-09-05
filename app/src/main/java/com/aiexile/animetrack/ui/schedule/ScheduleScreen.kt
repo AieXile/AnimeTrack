@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.schedule
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,7 +80,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.res.painterResource
 
 @Composable
 private fun weekdayLabels(): List<String> = listOf(
@@ -161,7 +162,7 @@ fun ScheduleScreen(
                     if (showCalendarButton) {
                         IconButton(onClick = { showScheduleSheet = true }) {
                             Icon(
-                                painter = painterResource(R.drawable.sym_calendar_month),
+                                painter = rememberAppIconPainter(AppIcon.CALENDAR_DAYS),
                                 contentDescription = stringResource(R.string.schedule_preview),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -536,7 +537,7 @@ private fun EmptyWeekdayContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_event_busy),
+                painter = rememberAppIconPainter(AppIcon.EVENT_BUSY),
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)

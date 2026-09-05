@@ -30,57 +30,57 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.aiexile.animetrack.ui.icons.AppIcon
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 sealed class BottomNavItem(
     val route: String,
     @param:StringRes val titleRes: Int,
     /** 未选中图标（FILL=0 描边风格） */
-    @param:DrawableRes val iconRes: Int,
-    /** 选中图标（FILL=1 填充风格） */
-    @param:DrawableRes val selectedIconRes: Int
+    val icon: AppIcon,
+    /** 选中图标（FILL=1 填充风格，Lucide 包下复用基础图标） */
+    val selectedIcon: AppIcon
 ) {
     object Home : BottomNavItem(
         route = "home",
         titleRes = R.string.nav_home,
-        iconRes = R.drawable.sym_home,
-        selectedIconRes = R.drawable.sym_fill_home
+        icon = AppIcon.HOME,
+        selectedIcon = AppIcon.HOME_FILLED
     )
 
     object Favorites : BottomNavItem(
         route = "favorites",
         titleRes = R.string.bottom_nav_favorites,
-        iconRes = R.drawable.sym_collections_bookmark,
-        selectedIconRes = R.drawable.sym_fill_collections_bookmark
+        icon = AppIcon.COLLECTIONS_BOOKMARK,
+        selectedIcon = AppIcon.COLLECTIONS_BOOKMARK_FILLED
     )
 
     object Timeline : BottomNavItem(
         route = "timeline",
         titleRes = R.string.nav_timeline,
-        iconRes = R.drawable.sym_calendar_view_day,
-        selectedIconRes = R.drawable.sym_fill_calendar_view_day
+        icon = AppIcon.CALENDAR_VIEW_DAY,
+        selectedIcon = AppIcon.CALENDAR_VIEW_DAY_FILLED
     )
 
     object Schedule : BottomNavItem(
         route = "schedule",
         titleRes = R.string.bottom_nav_schedule,
-        iconRes = R.drawable.sym_calendar_clock,
-        selectedIconRes = R.drawable.sym_fill_calendar_clock
+        icon = AppIcon.CALENDAR_CLOCK,
+        selectedIcon = AppIcon.CALENDAR_CLOCK_FILLED
     )
 
     object Settings : BottomNavItem(
         route = "settings",
         titleRes = R.string.nav_settings,
-        iconRes = R.drawable.sym_settings,
-        selectedIconRes = R.drawable.sym_fill_settings
+        icon = AppIcon.SETTINGS,
+        selectedIcon = AppIcon.SETTINGS_FILLED
     )
 }
 
@@ -157,7 +157,7 @@ fun BottomNavigationBar(
                     ) {
                         if (labelMode != NavigationLabelMode.TEXT_ONLY) {
                             Icon(
-                                painter = painterResource(if (selected) item.selectedIconRes else item.iconRes),
+                                painter = rememberAppIconPainter(if (selected) item.selectedIcon else item.icon),
                                 contentDescription = stringResource(item.titleRes),
                                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)

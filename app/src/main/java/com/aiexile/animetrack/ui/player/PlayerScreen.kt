@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.player
 
-import android.app.Activity
+import android.app.Activity
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import android.content.Context
 import android.media.AudioManager
 import android.net.Uri
@@ -99,7 +101,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import androidx.compose.ui.res.painterResource
 
 private val ControlsBarColor = Color.Black.copy(alpha = 0.5f)
 private val GestureOverlayColor = Color.Black.copy(alpha = 0.7f)
@@ -471,7 +472,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.sym_play_arrow),
+                            painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
                             contentDescription = stringResource(R.string.player_paused),
                             tint = Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp)
@@ -582,7 +583,7 @@ fun PlayerScreen(
                 onDismiss = { moreMenuExpanded = false }
             ) { requestClose ->
                 PlayerMenuItem(
-                    icon = painterResource(R.drawable.sym_music_note),
+                    icon = rememberAppIconPainter(AppIcon.MUSIC_NOTE),
                     label = stringResource(R.string.player_audio_track),
                     onClick = {
                         requestClose()
@@ -590,7 +591,7 @@ fun PlayerScreen(
                     }
                 )
                 PlayerMenuItemToggle(
-                    icon = painterResource(R.drawable.sym_screen_rotation),
+                    icon = rememberAppIconPainter(AppIcon.SCREEN_ROTATION),
                     label = stringResource(R.string.player_auto_landscape),
                     checked = uiState.autoLandscape,
                     onCheckedChange = { viewModel.setAutoLandscape(it) }
@@ -639,7 +640,7 @@ private fun TopControlBar(
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_arrow_back),
+                    painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                     contentDescription = stringResource(R.string.common_back),
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
@@ -662,7 +663,7 @@ private fun TopControlBar(
             IconButton(onClick = onSkipForward) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        painter = painterResource(R.drawable.sym_replay),
+                        painter = rememberAppIconPainter(AppIcon.REPLAY),
                         contentDescription = stringResource(R.string.player_skip_forward),
                         tint = Color.White,
                         modifier = Modifier
@@ -683,7 +684,7 @@ private fun TopControlBar(
             // 不随控制条自动隐藏而消失
             IconButton(onClick = onOpenMoreMenu) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_more_vert),
+                    painter = rememberAppIconPainter(AppIcon.MORE_VERT),
                     contentDescription = stringResource(R.string.common_more),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -733,7 +734,7 @@ private fun BottomControlBar(
         ) {
             // Play/Pause button
             Icon(
-                painter = if (isPlaying) painterResource(R.drawable.sym_pause) else painterResource(R.drawable.sym_play_arrow),
+                painter = if (isPlaying) rememberAppIconPainter(AppIcon.PAUSE) else rememberAppIconPainter(AppIcon.PLAY_ARROW),
                 contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
                 tint = Color.White,
                 modifier = Modifier
@@ -746,7 +747,7 @@ private fun BottomControlBar(
             // Next episode button (only if available)
             if (hasNextEpisode) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_skip_next),
+                    painter = rememberAppIconPainter(AppIcon.SKIP_NEXT),
                     contentDescription = stringResource(R.string.player_next_episode),
                     tint = Color.White,
                     modifier = Modifier
@@ -809,7 +810,7 @@ private fun BottomControlBar(
             // 字幕轨选择（无字幕轨时面板显示空提示）
             IconButton(onClick = onSelectSubtitles) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_closed_caption),
+                    painter = rememberAppIconPainter(AppIcon.CLOSED_CAPTION),
                     contentDescription = stringResource(R.string.player_subtitles),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -819,8 +820,8 @@ private fun BottomControlBar(
             // Fullscreen button
             IconButton(onClick = onToggleFullscreen) {
                 Icon(
-                    painter = if (isFullscreen) painterResource(R.drawable.sym_fullscreen_exit)
-                    else painterResource(R.drawable.sym_fullscreen),
+                    painter = if (isFullscreen) rememberAppIconPainter(AppIcon.FULLSCREEN_EXIT)
+                    else rememberAppIconPainter(AppIcon.FULLSCREEN),
                     contentDescription = if (isFullscreen) stringResource(R.string.player_exit_fullscreen) else stringResource(R.string.player_fullscreen),
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
@@ -987,7 +988,7 @@ private fun ErrorOverlay(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            painter = painterResource(R.drawable.sym_error),
+            painter = rememberAppIconPainter(AppIcon.ERROR),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(48.dp)
@@ -1073,7 +1074,7 @@ private fun EmptyMediaState(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_cloud),
+                painter = rememberAppIconPainter(AppIcon.CLOUD),
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -1093,7 +1094,7 @@ private fun EmptyMediaState(
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
-                painter = painterResource(R.drawable.sym_insert_drive_file),
+                painter = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
                 contentDescription = null,
                 modifier = Modifier.size(20.dp)
             )
@@ -1165,8 +1166,8 @@ private fun GestureFeedbackOverlay(
                 when (feedback) {
                     is GestureFeedback.Brightness -> {
                         Icon(
-                            painter = if (feedback.value < 0.3f) painterResource(R.drawable.sym_brightness_low)
-                            else painterResource(R.drawable.sym_brightness_high),
+                            painter = if (feedback.value < 0.3f) rememberAppIconPainter(AppIcon.BRIGHTNESS_LOW)
+                            else rememberAppIconPainter(AppIcon.BRIGHTNESS_HIGH),
                             contentDescription = stringResource(R.string.player_brightness),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
@@ -1182,9 +1183,9 @@ private fun GestureFeedbackOverlay(
                     is GestureFeedback.Volume -> {
                         Icon(
                             painter = when {
-                                feedback.value <= 0f -> painterResource(R.drawable.sym_volume_off)
-                                feedback.value < 0.5f -> painterResource(R.drawable.sym_volume_down)
-                                else -> painterResource(R.drawable.sym_volume_up)
+                                feedback.value <= 0f -> rememberAppIconPainter(AppIcon.VOLUME_OFF)
+                                feedback.value < 0.5f -> rememberAppIconPainter(AppIcon.VOLUME_DOWN)
+                                else -> rememberAppIconPainter(AppIcon.VOLUME_UP)
                             },
                             contentDescription = stringResource(R.string.player_volume),
                             tint = Color.White,
@@ -1223,7 +1224,7 @@ private fun LongPressSpeedIndicator(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.sym_speed),
+                    painter = rememberAppIconPainter(AppIcon.SPEED),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)

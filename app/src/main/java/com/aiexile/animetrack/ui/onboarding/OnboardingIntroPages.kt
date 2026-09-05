@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.onboarding
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.background
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,8 +38,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
-import com.aiexile.animetrack.R
 
 // ==========================================
 // PAGE 1: 卡片墙 + 悬浮胶囊栏
@@ -61,8 +61,8 @@ internal fun MiniHomeScreen() {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.15f)))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(painterResource(R.drawable.sym_add), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
-                        Icon(painterResource(R.drawable.sym_search), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
+                        Icon(rememberAppIconPainter(AppIcon.ADD), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
+                        Icon(rememberAppIconPainter(AppIcon.SEARCH), contentDescription = null, modifier = Modifier.size(24.dp), tint = onSurface)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -89,7 +89,7 @@ internal fun MiniHomeScreen() {
                 ) {
                     Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(54.dp, 32.dp).clip(SquircleShape(16.dp)).background(onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                            Icon(painterResource(R.drawable.sym_home), null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(rememberAppIconPainter(AppIcon.HOME), null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                         Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
                         Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(onSurface.copy(alpha = 0.2f)))
@@ -204,7 +204,7 @@ private fun MiniAccountRow(isConnected: Boolean) {
             }
             Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(if (isConnected) MaterialTheme.colorScheme.primary else onSurface.copy(alpha = 0.2f)))
             Spacer(modifier = Modifier.width(4.dp))
-            Icon(painterResource(R.drawable.sym_keyboard_arrow_right), null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
+            Icon(rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT), null, modifier = Modifier.size(14.dp), tint = onSurface.copy(alpha = 0.3f))
         }
     }
 }
