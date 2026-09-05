@@ -132,7 +132,7 @@ jobs:
           TG_BODY: ${{ steps.tg_changelog.outputs.tg_body }}
         run: |
           python3 - <<'PYEOF'
-          import json, os, urllib.request, uuid
+          import json, os, urllib.request, urllib.error, uuid
 
           token = os.environ['TELEGRAM_TOKEN']
           chat_id = os.environ['TELEGRAM_CHAT_ID']
@@ -185,7 +185,10 @@ jobs:
           req = urllib.request.Request(
               f'{api}/sendMediaGroup', data=b''.join(parts),
               headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
-          resp = json.load(urllib.request.urlopen(req))
+          try:
+              resp = json.load(urllib.request.urlopen(req))
+          except urllib.error.HTTPError as e:
+              raise SystemExit(f'sendMediaGroup failed: HTTP {e.code} {e.read().decode(errors="replace")}')
           if not resp.get('ok'):
               raise SystemExit(f'sendMediaGroup failed: {resp}')
           print('Telegram 通知发送成功')
