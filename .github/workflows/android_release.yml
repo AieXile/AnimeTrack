@@ -146,7 +146,7 @@ jobs:
           universal_url = f'https://github.com/{repo}/releases/download/{tag}/AnimeTrack-{tag}-universal.apk'
           text = (
               f'📦 <b>AnimeTrack {tag} 发布</b>\n\n'
-              f'<expandableblockquote>{body}</expandableblockquote>\n'
+              f'<blockquote expandable>{body}</blockquote>\n'
               f'💾 <a href="{universal_url}">universal 完整包</a> | <a href="{release_url}">GitHub Release</a>\n'
               f'\n#AnimeTrack'
           )
