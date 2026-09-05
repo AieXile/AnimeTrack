@@ -124,35 +124,69 @@ jobs:
           PYEOF
 
       - name: Notify Telegram
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: html
-          message: |
-            📦 <b>AnimeTrack ${{ github.ref_name }} 发布</b>
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          TG_BODY: ${{ steps.tg_changelog.outputs.tg_body }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request, uuid
 
-            ${{ steps.tg_changelog.outputs.tg_body }}
+          token = os.environ['TELEGRAM_TOKEN']
+          chat_id = os.environ['TELEGRAM_CHAT_ID']
+          tag = os.environ['TAG']
+          repo = os.environ['REPO']
+          body = os.environ['TG_BODY'].strip()
+          api = f'https://api.telegram.org/bot{token}'
 
-            💾 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}">GitHub Release</a>
+          # 1) 更新日志消息：折叠引用 + Release 链接（universal 超 50MB 改发直链）+ #AnimeTrack
+          release_url = f'https://github.com/{repo}/releases/tag/{tag}'
+          universal_url = f'https://github.com/{repo}/releases/download/{tag}/AnimeTrack-{tag}-universal.apk'
+          text = (
+              f'📦 <b>AnimeTrack {tag} 发布</b>\n\n'
+              f'<expandableblockquote>{body}</expandableblockquote>\n'
+              f'💾 <a href="{universal_url}">universal 完整包</a> | <a href="{release_url}">GitHub Release</a>\n'
+              f'\n#AnimeTrack'
+          )
+          req = urllib.request.Request(
+              f'{api}/sendMessage',
+              data=json.dumps({'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}).encode(),
+              headers={'Content-Type': 'application/json'})
+          resp = json.load(urllib.request.urlopen(req))
+          if not resp.get('ok'):
+              raise SystemExit(f'sendMessage failed: {resp}')
 
-      - name: Send APK to Telegram (v7a)
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v7a.apk
+          # 2) v7a + v8a 合并为一条媒体组消息（两个包并排显示）
+          boundary = uuid.uuid4().hex
+          parts = []
+          media = [
+              {'type': 'document', 'media': 'attach://v7a'},
+              {'type': 'document', 'media': 'attach://v8a'},
+          ]
 
-      - name: Send APK to Telegram (v8a)
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v8a.apk
+          def add_field(name, value):
+              parts.append(
+                  f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
 
-      - name: Send APK to Telegram (universal)
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          document: app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-universal.apk
+          def add_file(field, path):
+              with open(path, 'rb') as f:
+                  parts.append(
+                      f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; filename="{os.path.basename(path)}"\r\n'
+                      f'Content-Type: application/vnd.android.package-archive\r\n\r\n'.encode()
+                      + f.read() + b'\r\n')
+
+          add_field('chat_id', chat_id)
+          add_field('media', json.dumps(media))
+          add_file('v7a', f'app/build/outputs/apk/release/AnimeTrack-{tag}-v7a.apk')
+          add_file('v8a', f'app/build/outputs/apk/release/AnimeTrack-{tag}-v8a.apk')
+          parts.append(f'--{boundary}--\r\n'.encode())
+          req = urllib.request.Request(
+              f'{api}/sendMediaGroup', data=b''.join(parts),
+              headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
+          resp = json.load(urllib.request.urlopen(req))
+          if not resp.get('ok'):
+              raise SystemExit(f'sendMediaGroup failed: {resp}')
+          print('Telegram 通知发送成功')
+          PYEOF
