@@ -158,38 +158,53 @@ jobs:
           if not resp.get('ok'):
               raise SystemExit(f'sendMessage failed: {resp}')
 
-          # 2) v7a + v8a 合并为一条媒体组消息（两个包并排显示）
-          boundary = uuid.uuid4().hex
-          parts = []
-          media = [
-              {'type': 'document', 'media': 'attach://v7a'},
-              {'type': 'document', 'media': 'attach://v8a'},
-          ]
-
-          def add_field(name, value):
-              parts.append(
-                  f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
-
-          def add_file(field, path):
+          # 2) 分包上传 v7a / v8a（Telegram 单请求总量上限 50MB，两个包合并上传会 413），
+          #    拿到 file_id 后再组合成一条媒体组消息，最后删除两条过渡消息
+          def upload_document(path):
+              b = uuid.uuid4().hex
+              p = [f'--{b}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'.encode()]
               with open(path, 'rb') as f:
-                  parts.append(
-                      f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; filename="{os.path.basename(path)}"\r\n'
+                  p.append(
+                      f'--{b}\r\nContent-Disposition: form-data; name="document"; filename="{os.path.basename(path)}"\r\n'
                       f'Content-Type: application/vnd.android.package-archive\r\n\r\n'.encode()
                       + f.read() + b'\r\n')
+              p.append(f'--{b}--\r\n'.encode())
+              req = urllib.request.Request(
+                  f'{api}/sendDocument', data=b''.join(p),
+                  headers={'Content-Type': f'multipart/form-data; boundary={b}'})
+              try:
+                  resp = json.load(urllib.request.urlopen(req))
+              except urllib.error.HTTPError as e:
+                  raise SystemExit(f'sendDocument failed: HTTP {e.code} {e.read().decode(errors="replace")}')
+              if not resp.get('ok'):
+                  raise SystemExit(f'sendDocument failed: {resp}')
+              msg = resp['result']
+              return msg['message_id'], msg['document']['file_id']
 
-          add_field('chat_id', chat_id)
-          add_field('media', json.dumps(media))
-          add_file('v7a', f'app/build/outputs/apk/release/AnimeTrack-{tag}-v7a.apk')
-          add_file('v8a', f'app/build/outputs/apk/release/AnimeTrack-{tag}-v8a.apk')
-          parts.append(f'--{boundary}--\r\n'.encode())
+          scratch = [
+              upload_document(f'app/build/outputs/apk/release/AnimeTrack-{tag}-v7a.apk'),
+              upload_document(f'app/build/outputs/apk/release/AnimeTrack-{tag}-v8a.apk'),
+          ]
+
+          # 3) 用 file_id 发媒体组（纯 JSON 请求不受体积限制），两个包并排显示为一条消息
+          media = [{'type': 'document', 'media': fid} for _, fid in scratch]
           req = urllib.request.Request(
-              f'{api}/sendMediaGroup', data=b''.join(parts),
-              headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
+              f'{api}/sendMediaGroup',
+              data=json.dumps({'chat_id': chat_id, 'media': media}).encode(),
+              headers={'Content-Type': 'application/json'})
           try:
               resp = json.load(urllib.request.urlopen(req))
           except urllib.error.HTTPError as e:
               raise SystemExit(f'sendMediaGroup failed: HTTP {e.code} {e.read().decode(errors="replace")}')
           if not resp.get('ok'):
               raise SystemExit(f'sendMediaGroup failed: {resp}')
+
+          # 4) 删除两条过渡消息（若上一步失败则保留，作为分包发送的兜底）
+          for mid, _ in scratch:
+              req = urllib.request.Request(
+                  f'{api}/deleteMessage',
+                  data=json.dumps({'chat_id': chat_id, 'message_id': mid}).encode(),
+                  headers={'Content-Type': 'application/json'})
+              urllib.request.urlopen(req)
           print('Telegram 通知发送成功')
           PYEOF
