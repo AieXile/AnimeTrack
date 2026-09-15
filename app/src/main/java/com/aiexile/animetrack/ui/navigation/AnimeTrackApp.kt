@@ -33,12 +33,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -84,6 +86,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.SideNavigationRail
+import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
@@ -267,6 +270,41 @@ fun AnimeTrackApp(
                 appScope.launch { userAuthManager.logout() }
             },
             onBound = { forceBindToken = null }
+        )
+    }
+
+    // ===== 设备被下线全局提示 =====
+    // 其他设备将本设备下线时（token 刷新收到服务端 kicked 标记），登录状态已被清除；
+    // 弹出明确提示，避免用户无感知地发现同步失效
+    var kickedMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        userAuthManager.kickedEvent.collect { message ->
+            kickedMessage = message
+        }
+    }
+    if (kickedMessage != null && !startupDialogsActive) {
+        AlertDialog(
+            onDismissRequest = { kickedMessage = null },
+            shape = SquircleShape(24.dp),
+            title = {
+                Text(
+                    text = stringResource(R.string.device_kicked_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.device_kicked_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { kickedMessage = null }) {
+                    Text(stringResource(R.string.common_ok))
+                }
+            }
         )
     }
 
@@ -496,6 +534,7 @@ private fun MainScreen(
             isPagerScrollEnabled = isPagerScrollEnabled,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            hazeState = hazeState,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -572,10 +611,15 @@ private fun BottomNavLayout(
     isPagerScrollEnabled: Boolean,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    hazeState: HazeState,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
+    // 与 CapsuleNavLayout 一致：高级模糊开启时为内容挂 hazeSource，
+    // 否则 MainOverlay 中 FAB/顶栏的 hazeEffect 无采样源，毛玻璃渲染异常
+    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
     Scaffold(
         bottomBar = {
             // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
@@ -592,6 +636,7 @@ private fun BottomNavLayout(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = paddingValues.calculateBottomPadding())
+                .then(if (capsuleAdvancedBlurEnabled) Modifier.hazeSource(state = hazeState) else Modifier)
         ) {
             HorizontalPager(
                 state = pagerState,

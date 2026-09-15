@@ -21,7 +21,15 @@ data class UserAuthRegisterRequest(
 
 data class UserAuthLoginRequest(
     val username: String,
-    val password: String
+    val password: String,
+    /** 设备唯一标识（多端登录会话管理，同一设备重登时替换旧会话） */
+    val deviceId: String? = null,
+    /** 设备名称（如 "Google Pixel 7"） */
+    val deviceName: String? = null,
+    /** 登录平台：android / ios / web */
+    val platform: String? = null,
+    /** 登录超限后用户选择下线的会话 ID 列表（重试登录时携带） */
+    val kickDeviceIds: List<String>? = null
 )
 
 data class UserAuthRegisterResponse(
@@ -49,7 +57,12 @@ data class UserAuthLoginResponse(
     /** 存量用户未绑定邮箱时为 true，此时使用 bindToken 跳转绑定页 */
     @SerializedName("requireEmailBind")
     val requireEmailBind: Boolean? = null,
-    val bindToken: String? = null
+    val bindToken: String? = null,
+    /** 登录设备已达上限时为 true，devices 为需选择下线的设备列表 */
+    @SerializedName("deviceLimitReached")
+    val deviceLimitReached: Boolean? = null,
+    val devices: List<DeviceSession>? = null,
+    val limits: DeviceLimits? = null
 )
 
 data class UserAuthProfileResponse(
@@ -59,13 +72,19 @@ data class UserAuthProfileResponse(
 )
 
 data class UserAuthRefreshRequest(
-    val refreshToken: String
+    val refreshToken: String,
+    /** 设备信息（可选）：存量会话刷新时由服务端补齐，用于多端登录设备展示 */
+    val deviceId: String? = null,
+    val deviceName: String? = null,
+    val platform: String? = null
 )
 
 data class UserAuthRefreshResponse(
     val success: Boolean,
     val accessToken: String?,
-    val message: String?
+    val message: String?,
+    /** true = 会话被主动撤销（该设备已下线），客户端需给出明确被踢提示 */
+    val kicked: Boolean? = null
 )
 
 data class UserAuthLogoutRequest(
@@ -111,7 +130,12 @@ data class SendCodeResponse(
 
 data class BindEmailRequest(
     val email: String,
-    val code: String
+    val code: String,
+    /** 设备信息（多端登录会话管理，与服务端 login 一致） */
+    val deviceId: String? = null,
+    val deviceName: String? = null,
+    val platform: String? = null,
+    val kickDeviceIds: List<String>? = null
 )
 
 data class BindEmailResponse(
@@ -119,7 +143,52 @@ data class BindEmailResponse(
     val message: String?,
     val accessToken: String? = null,
     val refreshToken: String? = null,
-    val user: UserAuthUser? = null
+    val user: UserAuthUser? = null,
+    /** 登录设备已达上限时为 true，devices 为需选择下线的设备列表 */
+    @SerializedName("deviceLimitReached")
+    val deviceLimitReached: Boolean? = null,
+    val devices: List<DeviceSession>? = null,
+    val limits: DeviceLimits? = null
+)
+
+// ========== 多端登录设备管理 ==========
+
+/** 登录设备会话（服务端 refresh_tokens 行） */
+data class DeviceSession(
+    val sessionId: String,
+    val deviceName: String? = null,
+    /** android / ios / web */
+    val platform: String? = null,
+    val createdAt: String? = null,
+    @SerializedName("lastUsedAt")
+    val lastUsedAt: String? = null,
+    /** 是否为当前设备 */
+    @SerializedName("isCurrent")
+    val isCurrent: Boolean = false
+)
+
+/** 各平台同时登录上限（手机端 / 网页端） */
+data class DeviceLimits(
+    val mobile: Int = 3,
+    val web: Int = 1
+)
+
+/** 各平台当前登录设备数 */
+data class DeviceCounts(
+    val mobile: Int = 0,
+    val web: Int = 0
+)
+
+data class DevicesResponse(
+    val success: Boolean,
+    val devices: List<DeviceSession> = emptyList(),
+    val counts: DeviceCounts? = null,
+    val limits: DeviceLimits? = null,
+    val message: String? = null
+)
+
+data class RevokeDeviceRequest(
+    val sessionId: String
 )
 
 // ========== 更换邮箱 ==========
@@ -311,10 +380,21 @@ interface UserAuthApiService {
     ): UserAuthLogoutResponse
 
     // ========== 极光推送设备ID ==========
-
     @POST("user/registration-id")
     suspend fun reportRegistrationId(
         @Body request: RegistrationIdRequest
+    ): UserAuthLogoutResponse
+
+    // ========== 多端登录设备管理 ==========
+
+    /** 查询当前登录设备列表（含各平台计数与上限） */
+    @GET("user/devices")
+    suspend fun getDevices(): DevicesResponse
+
+    /** 下线指定登录设备（撤销其会话，即时生效） */
+    @POST("user/devices/revoke")
+    suspend fun revokeDevice(
+        @Body request: RevokeDeviceRequest
     ): UserAuthLogoutResponse
 
     // ========== 番剧订阅 ==========

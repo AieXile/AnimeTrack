@@ -352,6 +352,17 @@ object RetrofitClient {
             .build()
     }
 
+    // 公开（无鉴权）用户体系客户端：用于设备活跃上报等不要求登录的接口
+    // 共享 URL 重写，但不注入 Authorization Bearer token
+    private val publicUserAuthOkHttpClient: OkHttpClient by lazy {
+        baseOkHttpClient.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .addInterceptor(headerInterceptor)
+            .addInterceptor(userAuthUrlRewriteInterceptor)
+            .build()
+    }
+
     // ===== Retrofit 实例 =====
 
     private val retrofit: Retrofit by lazy {
@@ -418,6 +429,15 @@ object RetrofitClient {
             .build()
     }
 
+    // 公开（无鉴权）用户体系 Retrofit：同 baseUrl，无 Bearer token 注入
+    private val publicUserAuthRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(USER_AUTH_DEFAULT_BASE_URL)
+            .client(publicUserAuthOkHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
     // ===== API 服务 =====
 
     val bangumiApi: BangumiApiService by lazy {
@@ -452,6 +472,11 @@ object RetrofitClient {
 
     val userAuthApi: UserAuthApiService by lazy {
         userAuthRetrofit.create(UserAuthApiService::class.java)
+    }
+
+    /** 公开（无鉴权）用户体系 API：用于设备活跃上报等不要求登录的接口 */
+    val publicUserAuthApi: PublicUserAuthApiService by lazy {
+        publicUserAuthRetrofit.create(PublicUserAuthApiService::class.java)
     }
 
     /** 反馈 API：与用户体系同源同鉴权（Bearer + 401 自动刷新 + URL 重写） */

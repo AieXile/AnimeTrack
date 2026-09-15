@@ -12,6 +12,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -33,6 +36,15 @@ class UserAuthManager(private val context: Context) {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 设备被下线（其他设备将其踢下线）事件，UI 层监听后给出全局提示 */
+    private val _kickedEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val kickedEvent: SharedFlow<String> = _kickedEvent.asSharedFlow()
+
+    /** 发出被踢下线事件（由 token 刷新链路检测到服务端 kicked 标记时调用） */
+    fun notifyKicked(message: String) {
+        _kickedEvent.tryEmit(message)
+    }
 
     @Volatile
     private var cachedAccessToken: String? = null
@@ -72,6 +84,13 @@ class UserAuthManager(private val context: Context) {
 
     val createdAt: Flow<String?> = context.userAuthDataStore.data
         .map { preferences -> preferences[CREATED_AT_KEY] }
+
+    /** 当前登录用户 ID，未登录返回 null */
+    val userId: Flow<Int?> = context.userAuthDataStore.data
+        .map { preferences -> preferences[USER_ID_KEY] }
+
+    /** 同步获取当前用户 ID（用于非 UI 场景，未登录返回 null） */
+    suspend fun getUserId(): Long? = userId.first()?.toLong()
 
     suspend fun saveLogin(
         accessToken: String,

@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.auth
 
 import com.aiexile.animetrack.data.network.UserAuthRefreshRequest
+import com.aiexile.animetrack.data.network.UserAuthRefreshResponse
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.network.RetrofitClient
 import kotlinx.coroutines.runBlocking
@@ -53,7 +54,13 @@ class UserAuthInterceptor : Interceptor {
                         } else {
                             try {
                                 val refreshResponse = RetrofitClient.userAuthApi.refreshToken(
-                                    UserAuthRefreshRequest(refreshToken = refreshToken)
+                                    UserAuthRefreshRequest(
+                                        refreshToken = refreshToken,
+                                        // 携带设备信息：存量会话（改造前登录）由服务端补齐设备名
+                                        deviceId = DeviceInfo.getDeviceId(),
+                                        deviceName = DeviceInfo.deviceName,
+                                        platform = DeviceInfo.PLATFORM
+                                    )
                                 )
                                 if (refreshResponse.success && refreshResponse.accessToken != null) {
                                     userAuthManager.updateAccessToken(refreshResponse.accessToken)
@@ -65,8 +72,19 @@ class UserAuthInterceptor : Interceptor {
                                 }
                             } catch (e: HttpException) {
                                 if (e.code() == 401) {
-                                    // 服务端明确判定 Refresh Token 无效（已过期/被新登录吊销），
+                                    // 服务端明确判定 Refresh Token 无效（已过期/被下线），
                                     // 属确定性失效而非瞬时网络错误：清除登录状态，引导用户重新登录
+                                    val kicked = runCatching {
+                                        e.response()?.errorBody()?.string()?.let { body ->
+                                            com.google.gson.Gson()
+                                                .fromJson(body, UserAuthRefreshResponse::class.java)
+                                                .kicked == true
+                                        } ?: false
+                                    }.getOrDefault(false)
+                                    if (kicked) {
+                                        // 会话被主动撤销（设备下线）：发出全局被踢提示后清除登录状态
+                                        userAuthManager.notifyKicked("该设备已下线")
+                                    }
                                     userAuthManager.logout()
                                 }
                                 null

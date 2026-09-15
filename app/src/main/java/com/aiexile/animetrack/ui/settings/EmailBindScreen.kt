@@ -35,7 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.auth.DeviceInfo
 import com.aiexile.animetrack.data.network.BindEmailRequest
+import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.data.network.EmailCodePurpose
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
@@ -71,6 +73,111 @@ fun EmailBindScreen(
     var isSendingCode by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isMessageError by remember { mutableStateOf(true) }
+
+    // 多端登录：登录超限时选择要下线的设备
+    var showDevicePicker by remember { mutableStateOf(false) }
+    var pickerDevices by remember { mutableStateOf<List<DeviceSession>>(emptyList()) }
+
+    /**
+     * 执行绑定：携带设备信息创建多端登录会话；
+     * 设备超限时服务端返回 deviceLimitReached + 设备列表，选择后携带 kickDeviceIds 重试。
+     */
+    fun performBind(kickDeviceIds: List<String>? = null) {
+        val email = inputEmail.trim()
+        if (email.isEmpty()) {
+            message = context.getString(R.string.email_bind_enter_email)
+            isMessageError = true
+            return
+        }
+        if (inputCode.isBlank()) {
+            message = context.getString(R.string.verification_code_required)
+            isMessageError = true
+            return
+        }
+
+        if (isLoading) return
+        isLoading = true
+        message = null
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.userAuthApi.bindEmail(
+                    "Bearer $bindToken",
+                    BindEmailRequest(
+                        email = email,
+                        code = inputCode.trim(),
+                        deviceId = DeviceInfo.getDeviceId(),
+                        deviceName = DeviceInfo.deviceName,
+                        platform = DeviceInfo.PLATFORM,
+                        kickDeviceIds = kickDeviceIds
+                    )
+                )
+                // 登录设备超限：弹出设备选择框，用户选择后重试
+                if (response.deviceLimitReached == true && !response.devices.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        pickerDevices = response.devices
+                        showDevicePicker = true
+                        isLoading = false
+                    }
+                    return@launch
+                }
+                if (response.success && response.accessToken != null
+                    && response.refreshToken != null && response.user != null
+                ) {
+                    val user = response.user
+                    userAuthManager.saveLogin(
+                        accessToken = response.accessToken,
+                        refreshToken = response.refreshToken,
+                        userId = user.id,
+                        username = user.username,
+                        email = user.email,
+                        createdAt = user.createdAt,
+                        avatar = user.avatar
+                    )
+                    // 与登录流程一致：上报推送 ID + 拉取云端订阅
+                    try {
+                        PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
+                    } catch (_: Exception) { }
+                    try {
+                        AppContainer.getAnimeRepository()
+                            .triggerSyncSubscriptionsFromServer()
+                    } catch (e: Exception) {
+                        android.util.Log.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
+                    }
+                    withContext(Dispatchers.Main) {
+                        message = context.getString(R.string.email_bind_success)
+                        isMessageError = false
+                    }
+                    delay(1200)
+                    withContext(Dispatchers.Main) {
+                        onBack()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        message = response.message ?: context.getString(R.string.email_bind_failed)
+                        isMessageError = true
+                        isLoading = false
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: HttpException) {
+                withContext(Dispatchers.Main) {
+                    message = when (e.code()) {
+                        401, 403 -> context.getString(R.string.email_bind_token_expired)
+                        else -> e.serverMessage() ?: context.getString(R.string.email_bind_failed)
+                    }
+                    isMessageError = true
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    message = context.getString(R.string.user_login_network_error)
+                    isMessageError = true
+                    isLoading = false
+                }
+            }
+        }
+    }
 
     /** 发送验证码（60 秒倒计时由 VerificationCodeField 管理） */
     fun sendVerificationCode() {
@@ -180,86 +287,7 @@ fun EmailBindScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = {
-                    val email = inputEmail.trim()
-                    if (email.isEmpty()) {
-                        message = context.getString(R.string.email_bind_enter_email)
-                        isMessageError = true
-                        return@Button
-                    }
-                    if (inputCode.isBlank()) {
-                        message = context.getString(R.string.verification_code_required)
-                        isMessageError = true
-                        return@Button
-                    }
-
-                    if (isLoading) return@Button
-                    isLoading = true
-                    message = null
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            val response = RetrofitClient.userAuthApi.bindEmail(
-                                "Bearer $bindToken",
-                                BindEmailRequest(email = email, code = inputCode.trim())
-                            )
-                            if (response.success && response.accessToken != null
-                                && response.refreshToken != null && response.user != null
-                            ) {
-                                val user = response.user
-                                userAuthManager.saveLogin(
-                                    accessToken = response.accessToken,
-                                    refreshToken = response.refreshToken,
-                                    userId = user.id,
-                                    username = user.username,
-                                    email = user.email,
-                                    createdAt = user.createdAt,
-                                    avatar = user.avatar
-                                )
-                                // 与登录流程一致：上报推送 ID + 拉取云端订阅
-                                try {
-                                    PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-                                } catch (_: Exception) { }
-                                try {
-                                    AppContainer.getAnimeRepository()
-                                        .triggerSyncSubscriptionsFromServer()
-                                } catch (e: Exception) {
-                                    android.util.Log.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
-                                }
-                                withContext(Dispatchers.Main) {
-                                    message = context.getString(R.string.email_bind_success)
-                                    isMessageError = false
-                                }
-                                delay(1200)
-                                withContext(Dispatchers.Main) {
-                                    onBack()
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    message = response.message ?: context.getString(R.string.email_bind_failed)
-                                    isMessageError = true
-                                    isLoading = false
-                                }
-                            }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: HttpException) {
-                            withContext(Dispatchers.Main) {
-                                message = when (e.code()) {
-                                    401, 403 -> context.getString(R.string.email_bind_token_expired)
-                                    else -> e.serverMessage() ?: context.getString(R.string.email_bind_failed)
-                                }
-                                isMessageError = true
-                                isLoading = false
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                message = context.getString(R.string.user_login_network_error)
-                                isMessageError = true
-                                isLoading = false
-                            }
-                        }
-                    }
-                },
+                onClick = { performBind() },
                 enabled = !isLoading && inputEmail.isNotBlank() && inputCode.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -274,5 +302,19 @@ fun EmailBindScreen(
                 }
             }
         }
+    }
+
+    // 登录超限：选择要下线的设备后重试绑定
+    if (showDevicePicker) {
+        DevicePickerDialog(
+            devices = pickerDevices,
+            onConfirm = { kickDeviceIds ->
+                showDevicePicker = false
+                if (kickDeviceIds.isNotEmpty()) {
+                    performBind(kickDeviceIds)
+                }
+            },
+            onDismiss = { showDevicePicker = false }
+        )
     }
 }

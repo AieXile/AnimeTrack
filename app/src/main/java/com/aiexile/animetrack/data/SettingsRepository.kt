@@ -74,6 +74,7 @@ class SettingsRepository(private val context: Context) {
         private val HIDE_BANGUMI_AVATAR_KEY = booleanPreferencesKey("hide_bangumi_avatar")
         private val GREETING_TYPING_EFFECT_KEY = booleanPreferencesKey("greeting_typing_effect")
         private val SHOW_UPDATE_BANNER_KEY = booleanPreferencesKey("show_update_banner")
+        private val FEEDBACK_REPLY_PILL_ENABLED_KEY = booleanPreferencesKey("feedback_reply_pill_enabled")
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
@@ -150,6 +151,8 @@ class SettingsRepository(private val context: Context) {
         private const val APP_LANGUAGE_PREF = "app_language"
         private val LAST_ACTIVITY_DATE_KEY = stringPreferencesKey("last_activity_date")
         private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
+        // 设备唯一标识（首次生成后持久化，卸载重装会变，作为活跃统计主键）
+        private val DEVICE_ID_KEY = stringPreferencesKey("device_id")
     }
 
     // 偏好内存缓存：DataStore 首次读取是异步的，collectAsState(默认值) 会先渲染默认值
@@ -376,6 +379,11 @@ class SettingsRepository(private val context: Context) {
     val showUpdateBanner: Flow<Boolean> = preferenceFlow(SHOW_UPDATE_BANNER_KEY, true)
 
     suspend fun setShowUpdateBanner(show: Boolean) = setPreference(SHOW_UPDATE_BANNER_KEY, show)
+
+    /** 主页头像旁「反馈有新回复」胶囊提示，默认开启 */
+    val feedbackReplyPillEnabled: Flow<Boolean> = preferenceFlow(FEEDBACK_REPLY_PILL_ENABLED_KEY, true)
+
+    suspend fun setFeedbackReplyPillEnabled(enabled: Boolean) = setPreference(FEEDBACK_REPLY_PILL_ENABLED_KEY, enabled)
 
     val showCalendarButton: Flow<Boolean> = preferenceFlow(SHOW_CALENDAR_BUTTON_KEY, true)
 
@@ -632,6 +640,23 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLastActivityDate(date: String) = setPreference(LAST_ACTIVITY_DATE_KEY, date)
 
     suspend fun getLastActivityDate(): String = lastActivityDateFlow.first()
+
+    // ========== 设备 ID（用于未登录用户的活跃统计） ==========
+
+    /** 当前设备唯一标识（UUID），首次访问时生成并持久化；后续保持稳定 */
+    val deviceIdFlow: Flow<String> = preferenceFlow(DEVICE_ID_KEY, "")
+
+    /**
+     * 获取设备 ID，若不存在则生成 UUID 并持久化。
+     * 使用内存缓存避免重复生成，调用方可在任意协程上下文使用。
+     */
+    suspend fun getOrCreateDeviceId(): String {
+        val current = deviceIdFlow.first()
+        if (current.isNotBlank()) return current
+        val newId = java.util.UUID.randomUUID().toString()
+        setPreference(DEVICE_ID_KEY, newId)
+        return newId
+    }
 
     // ========== 公告已读记录 ==========
 

@@ -194,6 +194,8 @@
     <string name="features_update_reminder">Update Reminders</string>
     <string name="features_today_update_reminder">Today\'s Update Reminder</string>
     <string name="features_today_update_reminder_desc">Show today\'s anime update reminder card at top of home screen</string>
+    <string name="features_feedback_reply_reminder">Feedback Reply Reminder</string>
+    <string name="features_feedback_reply_reminder_desc">Show new feedback reply hint at top of home screen</string>
     <string name="features_calendar_preview_button">Schedule Preview Button</string>
     <string name="features_calendar_preview_button_desc">Show calendar button in watching board to view today/tomorrow updates</string>
     <string name="features_anime_display">Anime Display</string>
@@ -225,4 +227,22 @@
     <string name="update_notif_morning_9">Morning 9:00</string>
     <string name="update_notif_noon_12">Noon 12:00</string>
     <string name="update_notif_evening_7">Evening 7:00</string>
+
+    <!-- Device management (multi-device login) -->
+    <string name="device_manage_title">Signed-in Devices</string>
+    <string name="device_manage_count_format">%1$d devices</string>
+    <string name="device_manage_limit_desc">Up to 3 mobile devices and 1 web session can stay signed in at the same time</string>
+    <string name="device_manage_current_device">This device</string>
+    <string name="device_manage_last_active">Last login %1$s</string>
+    <string name="device_manage_revoke">Sign out</string>
+    <string name="device_manage_revoke_success">"%1$s" has been signed out</string>
+    <string name="device_manage_revoke_failed">Failed to sign out, please retry</string>
+    <string name="device_platform_mobile">Mobile</string>
+    <string name="device_platform_web">Web</string>
+    <string name="device_kicked_title">This device has been signed out</string>
+    <string name="device_kicked_desc">Your account sign-in was managed on another device, and this device has been signed out. Please sign in again to continue.</string>
+    <string name="device_manage_unknown_device">Unknown device</string>
+    <string name="device_picker_title">Device limit reached</string>
+    <string name="device_picker_desc">Select devices to sign out</string>
+    <string name="device_picker_confirm">Sign out &amp; log in</string>
 </resources>

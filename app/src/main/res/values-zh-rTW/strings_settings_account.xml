@@ -194,6 +194,8 @@
     <string name="features_update_reminder">更新提醒</string>
     <string name="features_today_update_reminder">今日更新提醒</string>
     <string name="features_today_update_reminder_desc">在主介面頂部顯示今日番劇更新提醒卡片</string>
+    <string name="features_feedback_reply_reminder">回饋新回覆提醒</string>
+    <string name="features_feedback_reply_reminder_desc">在主介面頂部顯示「回饋有新回覆」提示</string>
     <string name="features_calendar_preview_button">日程預覽按鈕</string>
     <string name="features_calendar_preview_button_desc">在看板右上角顯示日曆按鈕，查看今明日更新</string>
     <string name="features_anime_display">番劇顯示</string>
@@ -225,4 +227,22 @@
     <string name="update_notif_morning_9">早上 9:00</string>
     <string name="update_notif_noon_12">中午 12:00</string>
     <string name="update_notif_evening_7">晚上 7:00</string>
+
+    <!-- 多端登入裝置管理 -->
+    <string name="device_manage_title">登入裝置</string>
+    <string name="device_manage_count_format">%1$d 台裝置</string>
+    <string name="device_manage_limit_desc">手機端最多同時登入 3 台裝置，網頁端 1 台</string>
+    <string name="device_manage_current_device">本機</string>
+    <string name="device_manage_last_active">最近登入 %1$s</string>
+    <string name="device_manage_revoke">下線</string>
+    <string name="device_manage_revoke_success">已將「%1$s」下線</string>
+    <string name="device_manage_revoke_failed">下線失敗，請重試</string>
+    <string name="device_platform_mobile">手機端</string>
+    <string name="device_platform_web">網頁端</string>
+    <string name="device_kicked_title">該裝置已下線</string>
+    <string name="device_kicked_desc">你的帳號已在其他裝置上管理登入，本裝置已登出。如需繼續使用，請重新登入。</string>
+    <string name="device_manage_unknown_device">未知裝置</string>
+    <string name="device_picker_title">登入裝置已達上限</string>
+    <string name="device_picker_desc">請選擇要下線的裝置</string>
+    <string name="device_picker_confirm">下線並登入</string>
 </resources>

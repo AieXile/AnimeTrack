@@ -57,10 +57,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.StatusCount
+import com.aiexile.animetrack.data.auth.DeviceInfo
 import com.aiexile.animetrack.data.network.ChangeEmailRequest
 import com.aiexile.animetrack.data.network.ChangePasswordRequest
+import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.data.network.EmailCodePurpose
 import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.network.RevokeDeviceRequest
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.UserAuthLoginRequest
 import com.aiexile.animetrack.data.network.UserAuthLogoutRequest
@@ -70,6 +73,7 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -123,6 +127,42 @@ fun UserLoginScreen(
     var isSendingChangeEmailCode by remember { mutableStateOf(false) }
     var isChangingEmail by remember { mutableStateOf(false) }
     var changeEmailError by remember { mutableStateOf<String?>(null) }
+
+    // 多端登录：登录超限时选择要下线的设备
+    var showDevicePicker by remember { mutableStateOf(false) }
+    var pickerDevices by remember { mutableStateOf<List<DeviceSession>>(emptyList()) }
+
+    // 多端登录：当前登录设备列表与数量（个人界面展示 + 管理弹窗）
+    var deviceCount by remember { mutableStateOf<Int?>(null) }
+    var manageDevices by remember { mutableStateOf<List<DeviceSession>>(emptyList()) }
+    var showDeviceManageDialog by remember { mutableStateOf(false) }
+    var revokingSessionId by remember { mutableStateOf<String?>(null) }
+
+    /** 拉取当前登录设备列表（登录后 / 下线设备后刷新） */
+    fun refreshDevices() {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.userAuthApi.getDevices()
+                if (response.success) {
+                    withContext(Dispatchers.Main) {
+                        manageDevices = response.devices
+                        deviceCount = response.devices.size
+                    }
+                }
+            } catch (_: Exception) {
+                // 静默失败，个人界面数量显示保持上次结果
+            }
+        }
+    }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            refreshDevices()
+        } else {
+            deviceCount = null
+            manageDevices = emptyList()
+        }
+    }
 
     /** 修改密码：向当前绑定邮箱发送验证码 */
     fun sendChangePasswordCode() {
@@ -272,6 +312,107 @@ fun UserLoginScreen(
         }
     }
 
+    /**
+     * 执行登录：携带设备信息创建多端登录会话；
+     * 设备超限时服务端返回 deviceLimitReached + 设备列表，弹出选择框后
+     * 携带所选 kickDeviceIds 重试。
+     */
+    fun performLogin(kickDeviceIds: List<String>? = null) {
+        if (isLoading) return
+        isLoading = true
+        errorMessage = null
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.userAuthApi.login(
+                    UserAuthLoginRequest(
+                        username = inputUsername.trim(),
+                        password = inputPassword,
+                        deviceId = DeviceInfo.getDeviceId(),
+                        deviceName = DeviceInfo.deviceName,
+                        platform = DeviceInfo.PLATFORM,
+                        kickDeviceIds = kickDeviceIds
+                    )
+                )
+                // 存量用户未绑定邮箱：跳转绑定邮箱页（bindToken 15 分钟有效）
+                if (response.requireEmailBind == true && response.bindToken != null) {
+                    val bindToken = response.bindToken
+                    withContext(Dispatchers.Main) {
+                        isLoading = false
+                        onNavigateEmailBind(bindToken)
+                    }
+                    return@launch
+                }
+                // 登录设备超限：弹出设备选择框，用户选择后重试
+                if (response.deviceLimitReached == true && !response.devices.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        pickerDevices = response.devices
+                        showDevicePicker = true
+                        isLoading = false
+                    }
+                    return@launch
+                }
+                if (response.success && response.accessToken != null && response.refreshToken != null && response.user != null) {
+                    val accessToken = response.accessToken
+                    val refreshToken = response.refreshToken
+                    val user = response.user
+                    userAuthManager.saveLogin(
+                        accessToken = accessToken,
+                        refreshToken = refreshToken,
+                        userId = user.id,
+                        username = user.username,
+                        email = user.email,
+                        createdAt = user.createdAt,
+                        avatar = user.avatar
+                    )
+                    // 获取完整用户信息（含 created_at）
+                    try {
+                        val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $accessToken")
+                        if (profileResponse.success && profileResponse.user != null) {
+                            val profileUser = profileResponse.user
+                            userAuthManager.saveLogin(
+                                accessToken = accessToken,
+                                refreshToken = refreshToken,
+                                userId = profileUser.id,
+                                username = profileUser.username,
+                                email = profileUser.email,
+                                createdAt = profileUser.createdAt,
+                                avatar = profileUser.avatar
+                            )
+                        }
+                    } catch (_: Exception) {
+                        // 获取 profile 失败不影响登录
+                    }
+                    // 登录成功后上报极光推送 registrationId
+                    try {
+                        PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
+                    } catch (_: Exception) { }
+                    // 登录成功后拉取后端订阅列表，同步到本地数据库
+                    // 使用应用级协程，避免登录后 UI 切换导致同步被取消
+                    try {
+                        com.aiexile.animetrack.di.AppContainer.getAnimeRepository()
+                            .triggerSyncSubscriptionsFromServer()
+                    } catch (e: Exception) {
+                        android.util.Log.w("UserLogin", "Trigger sync subscriptions failed (non-fatal)", e)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        errorMessage = response.message ?: context.getString(R.string.user_login_login_failed)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    errorMessage = context.getString(R.string.user_login_network_error)
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -412,6 +553,20 @@ fun UserLoginScreen(
                 ) {
                     Column {
                         SecurityRow(
+                            icon = { Icon(rememberAppIconPainter(AppIcon.DEVICES), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
+                            label = stringResource(R.string.device_manage_title),
+                            trailing = deviceCount?.let { stringResource(R.string.device_manage_count_format, it) },
+                            onClick = {
+                                showDeviceManageDialog = true
+                                refreshDevices()
+                            }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 52.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        SecurityRow(
                             icon = { Icon(rememberAppIconPainter(AppIcon.LOCK), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
                             label = stringResource(R.string.user_login_change_password),
                             onClick = {
@@ -524,88 +679,7 @@ fun UserLoginScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = {
-                        if (isLoading) return@Button
-                        isLoading = true
-                        errorMessage = null
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val response = RetrofitClient.userAuthApi.login(
-                                    UserAuthLoginRequest(
-                                        username = inputUsername.trim(),
-                                        password = inputPassword
-                                    )
-                                )
-                                // 存量用户未绑定邮箱：跳转绑定邮箱页（bindToken 15 分钟有效）
-                                if (response.requireEmailBind == true && response.bindToken != null) {
-                                    val bindToken = response.bindToken
-                                    withContext(Dispatchers.Main) {
-                                        isLoading = false
-                                        onNavigateEmailBind(bindToken)
-                                    }
-                                    return@launch
-                                }
-                                if (response.success && response.accessToken != null && response.refreshToken != null && response.user != null) {
-                                    val accessToken = response.accessToken
-                                    val refreshToken = response.refreshToken
-                                    val user = response.user
-                                    userAuthManager.saveLogin(
-                                        accessToken = accessToken,
-                                        refreshToken = refreshToken,
-                                        userId = user.id,
-                                        username = user.username,
-                                        email = user.email,
-                                        createdAt = user.createdAt,
-                                        avatar = user.avatar
-                                    )
-                                    // 获取完整用户信息（含 created_at）
-                                    try {
-                                        val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $accessToken")
-                                        if (profileResponse.success && profileResponse.user != null) {
-                                            val profileUser = profileResponse.user
-                                            userAuthManager.saveLogin(
-                                                accessToken = accessToken,
-                                                refreshToken = refreshToken,
-                                                userId = profileUser.id,
-                                                username = profileUser.username,
-                                                email = profileUser.email,
-                                                createdAt = profileUser.createdAt,
-                                                avatar = profileUser.avatar
-                                            )
-                                        }
-                                    } catch (_: Exception) {
-                                        // 获取 profile 失败不影响登录
-                                    }
-                                    // 登录成功后上报极光推送 registrationId
-                                    try {
-                                        PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-                                    } catch (_: Exception) { }
-                                    // 登录成功后拉取后端订阅列表，同步到本地数据库
-                                    // 使用应用级协程，避免登录后 UI 切换导致同步被取消
-                                    try {
-                                        com.aiexile.animetrack.di.AppContainer.getAnimeRepository()
-                                            .triggerSyncSubscriptionsFromServer()
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("UserLogin", "Trigger sync subscriptions failed (non-fatal)", e)
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        errorMessage = response.message ?: context.getString(R.string.user_login_login_failed)
-                                    }
-                                }
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                withContext(Dispatchers.Main) {
-                                    errorMessage = context.getString(R.string.user_login_network_error)
-                                }
-                            } finally {
-                                withContext(Dispatchers.Main) {
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    },
+                    onClick = { performLogin() },
                     enabled = !isLoading && inputUsername.isNotBlank() && inputPassword.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -926,6 +1000,64 @@ fun UserLoginScreen(
             }
         )
     }
+
+    // 登录超限：选择要下线的设备后重试登录
+    if (showDevicePicker) {
+        DevicePickerDialog(
+            devices = pickerDevices,
+            onConfirm = { kickDeviceIds ->
+                showDevicePicker = false
+                if (kickDeviceIds.isNotEmpty()) {
+                    performLogin(kickDeviceIds)
+                }
+            },
+            onDismiss = { showDevicePicker = false }
+        )
+    }
+
+    // 已登录：登录设备管理（查看当前设备并下线）
+    if (showDeviceManageDialog) {
+        DeviceManageDialog(
+            devices = manageDevices,
+            revokingSessionId = revokingSessionId,
+            onRevoke = { device ->
+                if (revokingSessionId != null) return@DeviceManageDialog
+                revokingSessionId = device.sessionId
+                scope.launch(Dispatchers.IO) {
+                    var toastMessage: String? = null
+                    try {
+                        val response = RetrofitClient.userAuthApi.revokeDevice(
+                            RevokeDeviceRequest(sessionId = device.sessionId)
+                        )
+                        if (response.success) {
+                            // 明确的成功反馈：被下线设备名 + 已下线提示
+                            toastMessage = context.getString(
+                                R.string.device_manage_revoke_success,
+                                device.deviceName
+                                    ?: context.getString(R.string.device_manage_unknown_device)
+                            )
+                            refreshDevices()
+                        } else {
+                            toastMessage = response.message
+                                ?: context.getString(R.string.device_manage_revoke_failed)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        toastMessage = context.getString(R.string.device_manage_revoke_failed)
+                    } finally {
+                        withContext(Dispatchers.Main) {
+                            revokingSessionId = null
+                            toastMessage?.let {
+                                android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            },
+            onDismiss = { showDeviceManageDialog = false }
+        )
+    }
 }
 
 /** 追番统计栏的单项（数字 + 标签，在看项用主题色强调） */
@@ -965,12 +1097,13 @@ private fun StatDivider() {
     )
 }
 
-/** 账号安全列表行（图标 + 标题 + 右箭头） */
+/** 账号安全列表行（图标 + 标题 + 可选右侧文本 + 右箭头） */
 @Composable
 private fun SecurityRow(
     icon: @Composable () -> Unit,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailing: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -987,6 +1120,14 @@ private fun SecurityRow(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        }
         Icon(
             painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
             contentDescription = null,
