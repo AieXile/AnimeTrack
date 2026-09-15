@@ -43,9 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,12 +53,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
+import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
+import com.aiexile.animetrack.ui.components.IconPackPreviewCard
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 
 private val TopLeftTriangleShape = GenericShape { size, _ ->
     moveTo(0f, 0f)
@@ -272,7 +272,9 @@ fun AppearanceScreen(
                             GlassEffectPreviewContent(advancedBlur = false, liquidGlass = false)
                         }
                         GlassEffectPreviewCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(rememberHighlightModifier("advanced_blur", highlightKey)),
                             label = stringResource(R.string.nav_custom_advanced_blur),
                             selected = capsuleAdvancedBlur,
                             onClick = {
@@ -281,14 +283,14 @@ fun AppearanceScreen(
                                     settingsRepository.setCapsuleAdvancedBlurEnabled(true)
                                     settingsRepository.setCapsuleLiquidGlassEnabled(false)
                                 }
-                            },
-                            itemKey = "advanced_blur",
-                            highlightKey = highlightKey
+                            }
                         ) {
                             GlassEffectPreviewContent(advancedBlur = true, liquidGlass = false)
                         }
                         GlassEffectPreviewCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(rememberHighlightModifier("liquid_glass", highlightKey)),
                             label = stringResource(R.string.nav_custom_liquid_glass),
                             selected = capsuleLiquidGlass,
                             onClick = {
@@ -297,9 +299,7 @@ fun AppearanceScreen(
                                     settingsRepository.setCapsuleLiquidGlassEnabled(true)
                                     settingsRepository.setCapsuleAdvancedBlurEnabled(false)
                                 }
-                            },
-                            itemKey = "liquid_glass",
-                            highlightKey = highlightKey
+                            }
                         ) {
                             GlassEffectPreviewContent(advancedBlur = false, liquidGlass = true)
                         }
@@ -343,233 +343,6 @@ private fun ThemeModePreviewCard(
                 .clickable(onClick = onClick)
         ) {
             previewContent()
-        }
-    }
-}
-
-/** 图标风格预览卡：标签在上左对齐，下方以指定 pack 的示例图标展示该风格的视觉语言（不随全局 LocalIconPack 变化） */
-@Composable
-private fun IconPackPreviewCard(
-    pack: IconPack,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(76.dp)
-                .clip(SquircleShape(16.dp))
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outlineVariant,
-                    shape = SquircleShape(16.dp)
-                )
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf(
-                    AppIcon.HOME,
-                    AppIcon.SEARCH,
-                    AppIcon.PLAY_ARROW,
-                    AppIcon.CHECK_CIRCLE,
-                    AppIcon.SETTINGS
-                ).forEach { icon ->
-                    Icon(
-                        painter = painterResource(pack.resolve(icon)),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** 玻璃效果预览卡：标签在上，下方静态预览展示该效果下悬浮胶囊的观感，选中态仅以外框标识 */
-@Composable
-private fun GlassEffectPreviewCard(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    itemKey: String? = null,
-    highlightKey: String? = null,
-    previewContent: @Composable () -> Unit
-) {
-    Column(modifier = modifier.then(rememberHighlightModifier(itemKey, highlightKey))) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(76.dp)
-                .clip(SquircleShape(16.dp))
-                .border(
-                    width = if (selected) 2.dp else 1.dp,
-                    color = if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outlineVariant,
-                    shape = SquircleShape(16.dp)
-                )
-                .clickable(onClick = onClick)
-        ) {
-            previewContent()
-        }
-    }
-}
-
-/**
- * 玻璃效果静态预览：背景色条模拟被透出的页面内容并延伸至胶囊下方，
- * 底部悬浮胶囊分别以实色 / 半透明磨砂 / 折射高光三种质感渲染，直观区分三种效果
- */
-@Composable
-private fun GlassEffectPreviewContent(
-    advancedBlur: Boolean,
-    liquidGlass: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colorScheme.surfaceContainerHigh)
-    ) {
-        // 背景内容条：延伸至胶囊区域下方，用于体现透明质感
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(6.dp)
-                    .clip(SquircleShape(3.dp))
-                    .background(colorScheme.primary.copy(alpha = 0.5f))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(6.dp)
-                    .clip(SquircleShape(3.dp))
-                    .background(colorScheme.primary.copy(alpha = 0.35f))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .height(6.dp)
-                    .clip(SquircleShape(3.dp))
-                    .background(colorScheme.onSurface.copy(alpha = 0.18f))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .height(6.dp)
-                    .clip(SquircleShape(3.dp))
-                    .background(colorScheme.onSurface.copy(alpha = 0.12f))
-            )
-        }
-        // 悬浮胶囊：标准为实色；高级模糊为半透明磨砂；液态玻璃为更透的折射质感（渐变 + 高光描边）
-        val capsuleBackground = when {
-            liquidGlass -> Brush.verticalGradient(
-                listOf(
-                    colorScheme.surfaceContainer.copy(alpha = 0.45f),
-                    colorScheme.surfaceContainer.copy(alpha = 0.12f)
-                )
-            )
-            advancedBlur -> SolidColor(colorScheme.surfaceContainer.copy(alpha = 0.62f))
-            else -> SolidColor(colorScheme.surfaceContainer)
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp)
-                .fillMaxWidth(0.86f)
-                .height(22.dp)
-                .clip(SquircleShape(100.dp))
-                .background(capsuleBackground)
-                .then(
-                    if (liquidGlass) {
-                        Modifier.border(
-                            width = 1.dp,
-                            brush = Brush.verticalGradient(
-                                listOf(
-                                    colorScheme.onSurface.copy(alpha = 0.5f),
-                                    colorScheme.onSurface.copy(alpha = 0.1f)
-                                )
-                            ),
-                            shape = SquircleShape(100.dp)
-                        )
-                    } else {
-                        Modifier.border(
-                            width = 0.5.dp,
-                            color = colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            shape = SquircleShape(100.dp)
-                        )
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            // 液态玻璃顶部横向光泽
-            if (liquidGlass) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth(0.55f)
-                        .height(3.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color.Transparent,
-                                    colorScheme.onSurface.copy(alpha = 0.4f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(4) { index ->
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (index == 0) colorScheme.primary
-                                else colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                    )
-                }
-            }
         }
     }
 }

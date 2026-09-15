@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -67,8 +68,7 @@ import kotlin.math.sign
  *
  * 渲染与交互完全参照 Kyant0/AndroidLiquidGlass 示例 LiquidBottomTabs 的三层结构：
  * 1. 胶囊容器：液态模糊（vibrancy + blur + lens 折射）+ 可见 Tab 内容，可点击切换；
- * 2. 镜像内容层（不可见）：捕获 Tab 内容到 [tabsBackdrop]，供浮块折射出强调色图标，
- *    按压时内容随浮块放大 1.2 倍（折射放大效果）；
+ * 2. 镜像内容层（不可见）：捕获 Tab 内容到 [tabsBackdrop]，供浮块折射出强调色图标；
  * 3. 玻璃浮块（选中指示器）：拖拽移动、松手弹性吸附最近 Tab，按压时放大 +
  *    高光/阴影/内阴影渐显 + 色差折射；拖拽时整条胶囊有轻微弹性位移（panelOffset）。
  *
@@ -237,10 +237,13 @@ internal fun LiquidGlassNavBar(
         }
 
         // ===== 2. 镜像内容层（隐形：捕获 Tab 内容供浮块折射出强调色图标）=====
-        // 整层 alpha=0 不可见；仅按压中（浮块做 combined backdrop 采样）才需要玻璃渲染，
-        // 未按压时跳过 backdrop 采样与 vibrancy/blur/lens 全部 shader，消除静态浪费。
-        // derivedStateOf 仅在跨过阈值时重组一次；progress 在 lambda 内按绘制期读取，
-        // 按压动画期间逐帧只刷新绘制，不触发重组（与原实现的状态订阅语义一致）。
+        // 整层 alpha=0 不可见。按压时按 demo（LiquidBottomTabs）结构叠加玻璃，
+        // 使浮块折射采样到"磨砂内容 + 锐利图标"——模糊只作用于内容，图标绘制
+        // 在其后保持清晰。
+        // 与 demo 的差异：demo 镜像玻璃为 vibrancy+blur+lens 完整链，实测在本项目
+        // 设备上与浮块 drawBackdrop 触发 GPU 伪影（按压时胶囊上出现水平细线，
+        // 且与是否采样该输出无关），故仅保留 blur 规避；Decal 边缘使模糊裁剪
+        // 干净（demo 靠 vibrancy 先行扩出的 padding 达到同样效果）。
         val mirrorGlassActive by remember(dampedDragAnimation) {
             derivedStateOf { dampedDragAnimation.pressProgress > 0.01f }
         }
@@ -249,16 +252,7 @@ internal fun LiquidGlassNavBar(
                 backdrop = backdrop,
                 shape = { Capsule() },
                 effects = {
-                    val progress = dampedDragAnimation.pressProgress
-                    vibrancy()
-                    blur(8f.dp.toPx())
-                    lens(
-                        24f.dp.toPx() * progress,
-                        24f.dp.toPx() * progress
-                    )
-                },
-                highlight = {
-                    Highlight.Default.copy(alpha = dampedDragAnimation.pressProgress)
+                    blur(8f.dp.toPx(), TileMode.Decal)
                 },
                 onDrawSurface = { drawRect(containerColor) }
             )

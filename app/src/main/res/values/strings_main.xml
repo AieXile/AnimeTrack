@@ -139,12 +139,16 @@
     <string name="onboarding_page3_description">WebDAV 云端备份守护数据\n时间表与更新提醒不再错过追番</string>
     <string name="onboarding_theme_title">主题外观</string>
     <string name="onboarding_theme_description">选择喜欢的主题配色与深浅模式\n当前界面会实时预览效果</string>
+    <string name="onboarding_icon_effect_title">图标与效果</string>
+    <string name="onboarding_icon_effect_description">选择应用内图标的视觉风格\n以及悬浮胶囊的玻璃质感</string>
     <string name="onboarding_nav_title">导航定制</string>
     <string name="onboarding_nav_description">选择底部导航栏样式与显示内容\n预览框实时展示效果</string>
     <string name="onboarding_ready_title">一切就绪</string>
     <string name="onboarding_ready_description">你的专属配置已保存\n随时可在设置中调整</string>
     <string name="onboarding_theme_preset_label">主题配色</string>
     <string name="onboarding_theme_mode_label">深浅模式</string>
+    <string name="onboarding_icon_style_label">图标风格</string>
+    <string name="onboarding_glass_effect_label">玻璃效果</string>
     <string name="onboarding_nav_style_label">导航样式</string>
     <string name="onboarding_nav_content_label">导航内容</string>
     <string name="onboarding_skip">跳过</string>

@@ -139,12 +139,16 @@
     <string name="onboarding_page3_description">WebDAV cloud backup protects your data\nSchedule and update alerts keep you on track</string>
     <string name="onboarding_theme_title">Appearance</string>
     <string name="onboarding_theme_description">Pick a theme color and light/dark mode\nThis screen previews changes in real time</string>
+    <string name="onboarding_icon_effect_title">Icons &amp; Effects</string>
+    <string name="onboarding_icon_effect_description">Choose the app icon style\nand the glass effect of the floating capsule</string>
     <string name="onboarding_nav_title">Navigation</string>
     <string name="onboarding_nav_description">Choose the bottom bar style and content\nThe preview updates instantly</string>
     <string name="onboarding_ready_title">All Set</string>
     <string name="onboarding_ready_description">Your preferences have been saved\nYou can change them anytime in Settings</string>
     <string name="onboarding_theme_preset_label">Theme color</string>
     <string name="onboarding_theme_mode_label">Light / Dark</string>
+    <string name="onboarding_icon_style_label">Icon style</string>
+    <string name="onboarding_glass_effect_label">Glass effect</string>
     <string name="onboarding_nav_style_label">Bar style</string>
     <string name="onboarding_nav_content_label">Bar content</string>
     <string name="onboarding_skip">Skip</string>

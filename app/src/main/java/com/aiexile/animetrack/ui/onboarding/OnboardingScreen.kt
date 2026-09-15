@@ -66,8 +66,8 @@ private fun onboardingPages(): List<OnboardingPage> = listOf(
     )
 )
 
-/** 向导总页数：3 页功能介绍 + 主题页 + 导航页 + 完成页 */
-private const val ONBOARDING_PAGE_COUNT = 6
+/** 向导总页数：3 页功能介绍 + 主题页 + 图标效果页 + 导航页 + 完成页 */
+private const val ONBOARDING_PAGE_COUNT = 7
 
 /** 第一个可交互自定义页（主题页）索引：跳过按钮跳过功能介绍直达此处 */
 private const val CUSTOMIZE_PAGE_INDEX = 3
@@ -123,7 +123,8 @@ fun OnboardingScreen(
                 when (page) {
                     in pages.indices -> OnboardingIntroPageContent(page = page, pages = pages)
                     CUSTOMIZE_PAGE_INDEX -> OnboardingThemePage(settingsRepository = settingsRepository)
-                    CUSTOMIZE_PAGE_INDEX + 1 -> OnboardingNavPage(settingsRepository = settingsRepository)
+                    CUSTOMIZE_PAGE_INDEX + 1 -> OnboardingIconEffectPage(settingsRepository = settingsRepository)
+                    CUSTOMIZE_PAGE_INDEX + 2 -> OnboardingNavPage(settingsRepository = settingsRepository)
                     else -> OnboardingReadyPage(settingsRepository = settingsRepository)
                 }
             }

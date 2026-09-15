@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
@@ -159,9 +160,9 @@ class MainActivity : ComponentActivity() {
             val currentFontFamily = remember(fontFamily, customFontLoaded) {
                 when (fontFamily) {
                     "MISANS" -> FontFamily(
-                        Font(R.font.misans_regular),
-                        Font(R.font.misans_bold),
-                        Font(R.font.misans_medium)
+                        Font(R.font.misans_regular, FontWeight.Normal),
+                        Font(R.font.misans_medium, FontWeight.Medium),
+                        Font(R.font.misans_bold, FontWeight.Bold)
                     )
                     "CUSTOM" -> customFontLoaded ?: FontFamily.Default
                     else -> FontFamily.Default
