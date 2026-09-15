@@ -99,15 +99,17 @@ fun HomeScreen(
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val autoSyncState by viewModel.autoSyncState.collectAsState()
 
-    // 反馈有新回复（显示胶囊提示，无红点）：登录状态下主页可见时检查
+    // 反馈有新回复（显示胶囊提示，无红点）：登录状态下主页可见时检查；
+    // 设置中关闭「反馈新回复提醒」后不再请求接口，胶囊隐藏（今日更新横幅可正常显示）
     var hasFeedbackReply by remember { mutableStateOf(false) }
+    val feedbackReplyPillEnabled by (settingsRepository?.feedbackReplyPillEnabled?.collectAsState(true) ?: remember { mutableStateOf(true) })
     val feedbackScope = rememberCoroutineScope()
-    LifecycleResumeEffect(isCurrentPage) {
-        if (isCurrentPage && userLoggedIn) {
+    LifecycleResumeEffect(isCurrentPage, feedbackReplyPillEnabled) {
+        if (isCurrentPage && userLoggedIn && feedbackReplyPillEnabled) {
             feedbackScope.launch {
                 hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
             }
-        } else if (!userLoggedIn) {
+        } else {
             hasFeedbackReply = false
         }
         onPauseOrDispose { }

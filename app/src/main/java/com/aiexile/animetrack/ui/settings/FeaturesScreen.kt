@@ -62,6 +62,7 @@ fun FeaturesScreen(
     val completedToastEnabled by settingsRepository.completedToastEnabled.collectAsState(true)
     val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
     val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
+    val feedbackReplyPillEnabled by settingsRepository.feedbackReplyPillEnabled.collectAsState(true)
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
     val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
@@ -72,6 +73,7 @@ fun FeaturesScreen(
     val highlightAnchors = mapOf(
         "search_button" to 1,
         "update_reminder" to 2,
+        "feedback_reply_reminder" to 2,
         "calendar_button" to 2,
         "series_stack" to 3,
         "auto_complete" to 4,
@@ -137,6 +139,14 @@ fun FeaturesScreen(
                             checked = showUpdateBanner,
                             onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } },
                             itemKey = "update_reminder",
+                            highlightKey = highlightKey
+                        )
+                        SwitchItem(
+                            title = stringResource(R.string.features_feedback_reply_reminder),
+                            description = stringResource(R.string.features_feedback_reply_reminder_desc),
+                            checked = feedbackReplyPillEnabled,
+                            onCheckedChange = { scope.launch { settingsRepository.setFeedbackReplyPillEnabled(it) } },
+                            itemKey = "feedback_reply_reminder",
                             highlightKey = highlightKey
                         )
                         SwitchItem(

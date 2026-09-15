@@ -201,6 +201,11 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("今日更新", "横幅", "提醒")
     ),
     SearchableSetting(
+        route = Routes.FEATURES, key = "feedback_reply_reminder",
+        titleRes = R.string.features_feedback_reply_reminder, descRes = R.string.features_feedback_reply_reminder_desc,
+        keywords = listOf("反馈", "新回复", "提醒")
+    ),
+    SearchableSetting(
         route = Routes.FEATURES, key = "calendar_button",
         titleRes = R.string.features_calendar_preview_button, descRes = R.string.features_calendar_preview_button_desc,
         keywords = listOf("日历", "预览")

@@ -53,6 +53,7 @@ app/release/
 
 # Editor / AI assistant working dirs
 AGENTS.md
+CLAUDE.md
 .trae/
 .zcode/
 .docs/
