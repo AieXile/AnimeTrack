@@ -75,15 +75,18 @@ fun AccountPanelDialog(
     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
     val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
     val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
+    val bangumiExpired by authManager.tokenExpired.collectAsState(initial = false)
     val customAvatarUri by authManager.customAvatarUri.collectAsState(initial = null)
 
     val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
     val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
     val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
+    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
 
     val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
     val userUsername by userAuthManager.username.collectAsState(initial = null)
     val userAvatarPath by userAuthManager.avatar.collectAsState(initial = null)
+    val userExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
     // 服务器头像存储的是相对路径，需拼接为完整 URL
     val userAvatar = userAvatarPath?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 
@@ -288,13 +291,19 @@ fun AccountPanelDialog(
                 // AnimeTrack 服务器账号条目（排第一）
                 AccountServiceRow(
                     title = "AnimeTrack",
-                    subtitle = if (userLoggedIn) (userUsername ?: connectedText) else stringResource(R.string.account_panel_login_to_sync),
+                    subtitle = when {
+                        userLoggedIn && userExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        userLoggedIn -> userUsername ?: connectedText
+                        else -> stringResource(R.string.account_panel_login_to_sync)
+                    },
                     icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     isConnected = userLoggedIn,
+                    expired = userLoggedIn && userExpired,
                     onClick = {
-                        if (userLoggedIn) {
+                        if (userLoggedIn && !userExpired) {
                             showUserActions = true
                         } else {
+                            // 未登录或已失效：直达登录页强制重新登录
                             onDismiss()
                             onNavigateUserLogin()
                         }
@@ -306,13 +315,19 @@ fun AccountPanelDialog(
                 // Bilibili 条目
                 AccountServiceRow(
                     title = "Bilibili",
-                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bilibili),
-                    icon = rememberAppIconPainter(AppIcon.IDENTITY_PLATFORM),
+                    subtitle = when {
+                        bilibiliLoggedIn && bilibiliExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        bilibiliLoggedIn -> bilibiliNickname ?: connectedText
+                        else -> stringResource(R.string.account_panel_bind_bilibili)
+                    },
+                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     isConnected = bilibiliLoggedIn,
+                    expired = bilibiliLoggedIn && bilibiliExpired,
                     onClick = {
-                        if (bilibiliLoggedIn) {
+                        if (bilibiliLoggedIn && !bilibiliExpired) {
                             showBilibiliActions = true
                         } else {
+                            // 未登录或已失效：直达登录页强制重新登录
                             onDismiss()
                             onNavigateBilibiliLogin()
                         }
@@ -324,13 +339,19 @@ fun AccountPanelDialog(
                 // Bangumi 条目
                 AccountServiceRow(
                     title = "Bangumi",
-                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: connectedText) else stringResource(R.string.account_panel_bind_bangumi),
+                    subtitle = when {
+                        bangumiLoggedIn && bangumiExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        bangumiLoggedIn -> bangumiNickname ?: connectedText
+                        else -> stringResource(R.string.account_panel_bind_bangumi)
+                    },
                     icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     isConnected = bangumiLoggedIn,
+                    expired = bangumiLoggedIn && bangumiExpired,
                     onClick = {
-                        if (bangumiLoggedIn) {
+                        if (bangumiLoggedIn && !bangumiExpired) {
                             showBangumiActions = true
                         } else {
+                            // 未登录或已失效：直达登录页强制重新登录
                             onDismiss()
                             onNavigateBangumiLogin()
                         }
@@ -363,6 +384,7 @@ private fun AccountServiceRow(
     subtitle: String,
     icon: androidx.compose.ui.graphics.painter.Painter,
     isConnected: Boolean,
+    expired: Boolean = false,
     onClick: () -> Unit
 ) {
     Box(
@@ -382,8 +404,11 @@ private fun AccountServiceRow(
             Icon(
                 painter = icon,
                 contentDescription = null,
-                tint = if (isConnected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = when {
+                    expired -> MaterialTheme.colorScheme.outline
+                    isConnected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 modifier = Modifier.size(22.dp)
             )
 
@@ -396,7 +421,8 @@ private fun AccountServiceRow(
                     text = title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (expired) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
@@ -406,13 +432,13 @@ private fun AccountServiceRow(
                 )
             }
 
-            // 状态小点
+            // 状态小点：已连接绿色 / 失效或未连接灰色
             Box(
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
                     .background(
-                        color = if (isConnected) Color(0xFF4CAF50)
+                        color = if (isConnected && !expired) Color(0xFF4CAF50)
                         else MaterialTheme.colorScheme.outlineVariant
                     )
             )
@@ -422,7 +448,8 @@ private fun AccountServiceRow(
             Icon(
                 painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
+                tint = if (expired) MaterialTheme.colorScheme.outlineVariant
+                else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(20.dp)
             )
         }

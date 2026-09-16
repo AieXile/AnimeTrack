@@ -110,12 +110,12 @@ enum class AppIcon(
     VOLUME_DOWN(R.drawable.sym_volume_down, R.drawable.lucide_volume_1),
     VOLUME_OFF(R.drawable.sym_volume_off, R.drawable.lucide_volume_x),
     VOLUME_UP(R.drawable.sym_volume_up, R.drawable.lucide_volume_2),
-    // 导航选中态填充变体：Lucide 包下复用基础图标（颜色区分选中态）
-    HOME_FILLED(R.drawable.sym_fill_home, R.drawable.lucide_house),
-    COLLECTIONS_BOOKMARK_FILLED(R.drawable.sym_fill_collections_bookmark, R.drawable.lucide_library_big),
-    CALENDAR_VIEW_DAY_FILLED(R.drawable.sym_fill_calendar_view_day, R.drawable.lucide_timeline),
-    CALENDAR_CLOCK_FILLED(R.drawable.sym_fill_calendar_clock, R.drawable.lucide_calendar_clock),
-    SETTINGS_FILLED(R.drawable.sym_fill_settings, R.drawable.lucide_settings)
+    // 导航选中态变体：Material 用填充图标，Lucide 用加粗描边（strokeWidth 2.75，弥补无实心变体）
+    HOME_FILLED(R.drawable.sym_fill_home, R.drawable.lucide_house_bold),
+    COLLECTIONS_BOOKMARK_FILLED(R.drawable.sym_fill_collections_bookmark, R.drawable.lucide_library_big_bold),
+    CALENDAR_VIEW_DAY_FILLED(R.drawable.sym_fill_calendar_view_day, R.drawable.lucide_timeline_bold),
+    CALENDAR_CLOCK_FILLED(R.drawable.sym_fill_calendar_clock, R.drawable.lucide_calendar_clock_bold),
+    SETTINGS_FILLED(R.drawable.sym_fill_settings, R.drawable.lucide_settings_bold)
 }
 
 /**

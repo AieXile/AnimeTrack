@@ -12,9 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -32,19 +29,12 @@ class UserAuthManager(private val context: Context) {
         private val AVATAR_KEY = stringPreferencesKey("avatar")
         private val CREATED_AT_KEY = stringPreferencesKey("created_at")
         private val IS_LOGGED_IN_KEY = booleanPreferencesKey("is_logged_in")
+        private val TOKEN_EXPIRED_KEY = booleanPreferencesKey("token_expired")
+        private val TOKEN_KICKED_KEY = booleanPreferencesKey("token_kicked")
         private val REGISTRATION_ID_REPORTED_KEY = stringPreferencesKey("registration_id_reported")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    /** 设备被下线（其他设备将其踢下线）事件，UI 层监听后给出全局提示 */
-    private val _kickedEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val kickedEvent: SharedFlow<String> = _kickedEvent.asSharedFlow()
-
-    /** 发出被踢下线事件（由 token 刷新链路检测到服务端 kicked 标记时调用） */
-    fun notifyKicked(message: String) {
-        _kickedEvent.tryEmit(message)
-    }
 
     @Volatile
     private var cachedAccessToken: String? = null
@@ -72,6 +62,14 @@ class UserAuthManager(private val context: Context) {
 
     val isLoggedIn: Flow<Boolean> = context.userAuthDataStore.data
         .map { preferences -> preferences[IS_LOGGED_IN_KEY] ?: false }
+
+    /** token 是否已失效（refresh 链路确认无法恢复时标记）；失效后条目变灰并引导强制重新登录 */
+    val tokenExpired: Flow<Boolean> = context.userAuthDataStore.data
+        .map { preferences -> preferences[TOKEN_EXPIRED_KEY] ?: false }
+
+    /** 失效是否因设备被下线（服务端 kicked 标记）；用于横幅区分文案 */
+    val tokenKicked: Flow<Boolean> = context.userAuthDataStore.data
+        .map { preferences -> preferences[TOKEN_KICKED_KEY] ?: false }
 
     val username: Flow<String?> = context.userAuthDataStore.data
         .map { preferences -> preferences[USERNAME_KEY] }
@@ -110,6 +108,26 @@ class UserAuthManager(private val context: Context) {
             if (avatar != null) preferences[AVATAR_KEY] = avatar
             if (createdAt != null) preferences[CREATED_AT_KEY] = createdAt
             preferences[IS_LOGGED_IN_KEY] = true
+            // 重新登录成功，清除失效与被踢标记
+            preferences.remove(TOKEN_EXPIRED_KEY)
+            preferences.remove(TOKEN_KICKED_KEY)
+            // 新会话需重新上报 registrationId 绑定（服务端按会话级存储，用于被踢实时通知）
+            preferences.remove(REGISTRATION_ID_REPORTED_KEY)
+        }
+    }
+
+    /**
+     * 标记 token 已失效（refresh 链路确认无法恢复时调用）。
+     * 保留 token 与用户资料，仅置失效标记：UI 层据此变灰并引导强制重新登录。
+     * [kicked] 为 true 表示设备被其他端下线（服务端 kicked 标记），横幅将展示被踢文案。
+     * 幂等：已处于失效态时不重复写入。
+     */
+    suspend fun markTokenExpired(kicked: Boolean = false) {
+        context.userAuthDataStore.edit { preferences ->
+            if (preferences[TOKEN_EXPIRED_KEY] != true || (kicked && preferences[TOKEN_KICKED_KEY] != true)) {
+                preferences[TOKEN_EXPIRED_KEY] = true
+                if (kicked) preferences[TOKEN_KICKED_KEY] = true
+            }
         }
     }
 
@@ -146,6 +164,9 @@ class UserAuthManager(private val context: Context) {
             preferences.remove(AVATAR_KEY)
             preferences.remove(CREATED_AT_KEY)
             preferences[IS_LOGGED_IN_KEY] = false
+            // 主动登出后失效与被踢标记无意义，一并清除
+            preferences.remove(TOKEN_EXPIRED_KEY)
+            preferences.remove(TOKEN_KICKED_KEY)
             preferences.remove(REGISTRATION_ID_REPORTED_KEY)
         }
     }

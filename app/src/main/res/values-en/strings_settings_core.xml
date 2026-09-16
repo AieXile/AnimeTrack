@@ -51,6 +51,8 @@
     <string name="appearance_mode_light">Light</string>
     <string name="appearance_mode_dark">Dark</string>
     <string name="appearance_mode_auto">Auto</string>
+    <string name="appearance_dark_style_title">Dark Style</string>
+    <string name="appearance_dark_style_subtitle">Adjust dark background depth and component layers</string>
     <string name="appearance_color_title">Theme Color</string>
     <string name="appearance_color_subtitle">Choose your favorite color scheme</string>
     <string name="appearance_icon_style_title">Icon Style</string>

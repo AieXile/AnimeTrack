@@ -27,6 +27,8 @@ class DampedDragAnimation(
     val pressedScale: Float,
     val onDragStarted: DampedDragAnimation.(position: Offset) -> Unit,
     val onDragStopped: DampedDragAnimation.() -> Unit,
+    /** 手势被取消（事件被其他手势消费/系统打断）时的回弹回调；缺省复用 [onDragStopped] */
+    val onDragCancelled: (DampedDragAnimation.() -> Unit)? = null,
     val onDrag: DampedDragAnimation.(size: IntSize, dragAmount: Offset, change: PointerInputChange) -> Unit,
 ) {
 
@@ -56,6 +58,9 @@ class DampedDragAnimation(
 
     private val velocityTracker = VelocityTracker()
 
+    /** 本次手势累计拖拽位移（px）：区分真实拖拽与浮块上的纯点按，供 onDragStopped 判断是否导航 */
+    private var accumulatedDragDistance = 0f
+
     val value: Float get() = valueAnimation.value
     val progress: Float get() = (value - valueRange.start) / (valueRange.endInclusive - valueRange.start)
     val targetValue: Float get() = valueAnimation.targetValue
@@ -63,10 +68,12 @@ class DampedDragAnimation(
     val scaleX: Float get() = scaleXAnimation.value
     val scaleY: Float get() = scaleYAnimation.value
     val velocity: Float get() = velocityAnimation.value
+    val draggedDistance: Float get() = accumulatedDragDistance
 
     val modifier: Modifier = Modifier.pointerInput(Unit) {
         inspectDragGestures(
             onDragStart = { down ->
+                accumulatedDragDistance = 0f
                 onDragStarted(down.position)
                 press()
             },
@@ -75,10 +82,11 @@ class DampedDragAnimation(
                 release()
             },
             onDragCancel = {
-                onDragStopped()
+                (onDragCancelled ?: onDragStopped)()
                 release()
             }
         ) { change, dragAmount ->
+            accumulatedDragDistance += abs(dragAmount.x) + abs(dragAmount.y)
             onDrag(size, dragAmount, change)
         }
     }

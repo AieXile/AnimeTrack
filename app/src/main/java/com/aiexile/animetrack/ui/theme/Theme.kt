@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
+import com.aiexile.animetrack.model.DarkStyle
 
 /**
  * 当前应用是否处于暗色主题（跟随 app 内主题选择，而非系统设置）。
@@ -29,7 +30,8 @@ fun isAppDarkTheme(): Boolean = MaterialTheme.colorScheme.background.luminance()
 @Composable
 fun AnimeTrackTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    themePreset: ThemePreset = ThemePreset.VIBRANT_BLUE,
+    themePreset: ThemePreset = ThemePreset.MONO_BLACK,
+    darkStyle: DarkStyle = DarkStyle.BOOST,
     useDynamicColor: Boolean = false,
     fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit
@@ -39,14 +41,14 @@ fun AnimeTrackTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        themePreset.paletteStyle == PaletteStyle.NEUTRAL -> remember(darkTheme) {
-            if (darkTheme) monoBlackDarkScheme() else monoBlackLightScheme()
+        themePreset == ThemePreset.MONO_BLACK -> remember(darkTheme, darkStyle) {
+            if (darkTheme) monoDarkScheme(darkStyle) else monoBlackLightScheme()
         }
-        else -> remember(themePreset, darkTheme) {
+        else -> remember(themePreset, darkTheme, darkStyle) {
             seedColorScheme(
                 seedColor = themePreset.seedColor,
                 isDark = darkTheme,
-                style = themePreset.paletteStyle,
+                darkStyle = darkStyle,
             )
         }
     }
@@ -141,7 +143,10 @@ internal fun monoBlackLightScheme(): ColorScheme = ColorScheme(
     onTertiaryFixedVariant = Color(0xFF474747),
 )
 
-private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
+/** 黑白简洁深色方案：彩色角色保持灰阶，表面分层与彩色主题共享同一套 DarkTones 档位。 */
+private fun monoDarkScheme(darkStyle: DarkStyle): ColorScheme {
+    val t = darkTones(darkStyle)
+    return ColorScheme(
     primary = Color(0xFFE0E0E0),
     onPrimary = Color(0xFF000000),
     primaryContainer = Color(0xFF333333),
@@ -155,11 +160,11 @@ private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
     onTertiary = Color(0xFF000000),
     tertiaryContainer = Color(0xFF2A2A2A),
     onTertiaryContainer = Color(0xFFE0E0E0),
-    background = Color(0xFF000000),
+    background = neutralToneColor(t.bg),
     onBackground = Color(0xFFE8E8E8),
-    surface = Color(0xFF000000),
+    surface = neutralToneColor(t.bg),
     onSurface = Color(0xFFE8E8E8),
-    surfaceVariant = Color(0xFF1E1E1E),
+    surfaceVariant = neutralToneColor(t.variant),
     onSurfaceVariant = Color(0xFFBDBDBD),
     surfaceTint = Color(0xFFE0E0E0),
     inverseSurface = Color(0xFFE8E8E8),
@@ -171,13 +176,13 @@ private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
     outline = Color(0xFF424242),
     outlineVariant = Color(0xFF2C2C2C),
     scrim = Color(0xFF000000),
-    surfaceBright = Color(0xFF2C2C2C),
-    surfaceDim = Color(0xFF000000),
-    surfaceContainer = Color(0xFF1A1A1A),
-    surfaceContainerHigh = Color(0xFF222222),
-    surfaceContainerHighest = Color(0xFF2C2C2C),
-    surfaceContainerLow = Color(0xFF141414),
-    surfaceContainerLowest = Color(0xFF1A1A1A),
+    surfaceBright = neutralToneColor(t.bright),
+    surfaceDim = neutralToneColor(t.dim),
+    surfaceContainer = neutralToneColor(t.container),
+    surfaceContainerHigh = neutralToneColor(t.high),
+    surfaceContainerHighest = neutralToneColor(t.highest),
+    surfaceContainerLow = neutralToneColor(t.low),
+    surfaceContainerLowest = neutralToneColor(t.lowest),
     // fixed 角色不随明暗模式变化，与浅色方案保持一致
     primaryFixed = Color(0xFFE0E0E0),
     primaryFixedDim = Color(0xFFBDBDBD),
@@ -191,4 +196,5 @@ private fun monoBlackDarkScheme(): ColorScheme = ColorScheme(
     tertiaryFixedDim = Color(0xFFCCCCCC),
     onTertiaryFixed = Color(0xFF212121),
     onTertiaryFixedVariant = Color(0xFF474747),
-)
+    )
+}

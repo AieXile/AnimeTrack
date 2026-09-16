@@ -53,7 +53,7 @@ fun SettingsGroup(
     Surface(
         modifier = modifier,
         shape = SquircleShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -110,7 +110,7 @@ fun ExpandableSettingsGroup(
     Surface(
         modifier = modifier,
         shape = SquircleShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest
+        color = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Column(

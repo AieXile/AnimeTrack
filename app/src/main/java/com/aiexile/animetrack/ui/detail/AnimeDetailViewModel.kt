@@ -17,9 +17,9 @@ import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.ShareCardRenderer
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
+import com.aiexile.animetrack.util.NetworkErrorUtils
 import com.aiexile.animetrack.util.formatAirDate
 import com.aiexile.animetrack.util.parseAirDateToLocalDate
-import com.aiexile.animetrack.util.resolveSearchError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,6 +73,7 @@ data class AnimeDetailUiState(
     val anime: Anime? = null,
     val isLoading: Boolean = true,
     val isFetchingDetail: Boolean = false,
+    val detailFetchError: String? = null,
     val error: String? = null,
     val notesText: String = "",
     val isEditingNotes: Boolean = false,
@@ -102,11 +103,17 @@ class AnimeDetailViewModel(
             initialValue = null
         )
 
-    private val _isFetchingDetail = MutableStateFlow(false)
-
     private val _notesText = MutableStateFlow<String?>(null)
 
     private val _isEditingNotes = MutableStateFlow(false)
+
+    /** 简介同步状态：正在拉取标记 + 失败原因（成功时为 null） */
+    private data class DetailSyncState(
+        val isFetching: Boolean = false,
+        val error: String? = null
+    )
+
+    private val _detailSync = MutableStateFlow(DetailSyncState())
 
     private val _coverSearch = MutableStateFlow(CoverSearchState())
 
@@ -136,7 +143,7 @@ class AnimeDetailViewModel(
         }
 
     private data class UiExtras(
-        val isFetchingDetail: Boolean = false,
+        val detailSync: DetailSyncState = DetailSyncState(),
         val notesText: String = "",
         val isEditingNotes: Boolean = false,
         val coverSearch: CoverSearchState = CoverSearchState(),
@@ -146,16 +153,16 @@ class AnimeDetailViewModel(
     )
 
     private val uiExtras: StateFlow<UiExtras> = combine(
-        combine(_isFetchingDetail, _notesText, _isEditingNotes) { fetching, notes, editing ->
-            Triple(fetching, notes, editing)
+        combine(_detailSync, _notesText, _isEditingNotes) { sync, notes, editing ->
+            Triple(sync, notes, editing)
         },
         combine(_coverSearch, _showCompletedToast, _editState) { search, toast, edit ->
             Triple(search, toast, edit)
         },
         _showDuplicateToast
-    ) { (fetching, notes, editing), (search, toast, edit), duplicate ->
+    ) { (sync, notes, editing), (search, toast, edit), duplicate ->
         UiExtras(
-            isFetchingDetail = fetching,
+            detailSync = sync,
             notesText = notes ?: "",
             isEditingNotes = editing,
             coverSearch = search,
@@ -177,9 +184,10 @@ class AnimeDetailViewModel(
         val resolvedNotes = if (notesValue != null) notesValue else anime?.notes ?: ""
         AnimeDetailUiState(
             anime = anime,
-            isLoading = anime == null && !extras.isFetchingDetail,
-            isFetchingDetail = extras.isFetchingDetail,
-            error = if (anime == null && !extras.isFetchingDetail) "未找到该番剧" else null,
+            isLoading = anime == null && !extras.detailSync.isFetching,
+            isFetchingDetail = extras.detailSync.isFetching,
+            detailFetchError = extras.detailSync.error,
+            error = if (anime == null && !extras.detailSync.isFetching) "未找到该番剧" else null,
             notesText = resolvedNotes,
             isEditingNotes = extras.isEditingNotes,
             coverSearch = extras.coverSearch,
@@ -214,18 +222,30 @@ class AnimeDetailViewModel(
         viewModelScope.launch {
             animeFlow.collect { anime ->
                 if (anime != null && !hasFetchedDetail) {
-                    if (anime.bangumiId != null) {
-                        // 仅在尚未获取过简介时才触发获取，避免无网时反复加载
-                        // airEndDate == null 也触发：升级用户首次进入详情页时需拉取 infobox「播放结束」
-                        val needsDetail = anime.summaryFetched != true
-                            || anime.airDate == null
-                            || anime.airWeekday == null
-                            || anime.airEndDate == null
-                        if (needsDetail) {
-                            hasFetchedDetail = true
-                            fetchDetailFromApi(anime)
-                        } else {
-                            refreshFinishStatus(anime)
+                    when {
+                        anime.bangumiId != null -> {
+                            // 仅在尚未获取过简介时才触发获取，避免无网时反复加载
+                            // airEndDate == null 也触发：升级用户首次进入详情页时需拉取 infobox「播放结束」
+                            val needsDetail = anime.summaryFetched != true
+                                || anime.airDate == null
+                                || anime.airWeekday == null
+                                || anime.airEndDate == null
+                            if (needsDetail) {
+                                hasFetchedDetail = true
+                                fetchDetailFromApi(anime)
+                            } else {
+                                refreshFinishStatus(anime)
+                            }
+                        }
+                        anime.tmdbId != null -> {
+                            // 仅绑定 TMDB 的番剧：通过 TMDB 拉取简介等详情
+                            val needsDetail = anime.summaryFetched != true || anime.airDate == null
+                            if (needsDetail) {
+                                hasFetchedDetail = true
+                                fetchDetailFromTmdb(anime)
+                            } else {
+                                refreshFinishStatus(anime)
+                            }
                         }
                     }
                 }
@@ -235,17 +255,13 @@ class AnimeDetailViewModel(
 
     private fun fetchDetailFromApi(anime: Anime) {
         viewModelScope.launch {
-            _isFetchingDetail.value = true
+            _detailSync.value = _detailSync.value.copy(isFetching = true, error = null)
 
             try {
                 val bangumiId = anime.bangumiId ?: return@launch
                 Log.d(TAG, "Fetching detail from API for bangumiId: $bangumiId")
 
-                val detail = repository.fetchBangumiDetail(bangumiId)
-                if (detail == null) {
-                    // 获取失败（网络错误等），不标记 summaryFetched，下次有网时可重试
-                    return@launch
-                }
+                val detail = repository.getBangumiSubjectDetail(bangumiId)
 
                 val apiEps = detail.eps
                 val apiTotalEps = detail.totalEpisodes
@@ -303,11 +319,72 @@ class AnimeDetailViewModel(
                 Log.d(TAG, "Detail fetched and updated: summary=${detail.summary?.take(50)}...")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch detail", e)
+                // 获取失败不标记 summaryFetched，下次进入详情页（或恢复网络后）可重试
+                _detailSync.value = _detailSync.value.copy(
+                    error = resolveDetailError(e, NetworkErrorUtils.HOST_BANGUMI)
+                )
             } finally {
-                _isFetchingDetail.value = false
+                _detailSync.value = _detailSync.value.copy(isFetching = false)
             }
         }
     }
+
+    private fun fetchDetailFromTmdb(anime: Anime) {
+        viewModelScope.launch {
+            _detailSync.value = _detailSync.value.copy(isFetching = true, error = null)
+
+            try {
+                val tmdbId = anime.tmdbId ?: return@launch
+                Log.d(TAG, "Fetching detail from TMDB for tmdbId: $tmdbId")
+
+                val detail = repository.getTmdbTvDetail(tmdbId)
+
+                val eps = detail.numberOfEpisodes
+                val finalTotalEpisodes = if (eps != null && eps > 0) eps else anime.totalEpisodes
+                val clampedWatched = if (finalTotalEpisodes > 0) {
+                    anime.watchedEpisodes.coerceAtMost(finalTotalEpisodes)
+                } else {
+                    anime.watchedEpisodes
+                }
+
+                val airDate = detail.firstAirDate ?: anime.airDate
+
+                val isFinished = computeIsFinished(
+                    airDate = airDate,
+                    totalEpisodes = finalTotalEpisodes,
+                    localStatus = anime.status,
+                    airingStatusOverride = anime.airingStatusOverride
+                )
+
+                val updatedAnime = anime.copy(
+                    // 本地已有简介（含用户自定义）时保留，仅在为空时才用远程补齐
+                    summary = anime.summary?.takeIf { it.isNotBlank() }
+                        ?: detail.overview?.cleanSummary()?.takeIf { it.isNotBlank() },
+                    airDate = airDate,
+                    totalEpisodes = finalTotalEpisodes,
+                    watchedEpisodes = clampedWatched,
+                    isFinished = isFinished,
+                    // 标记已获取过简介，避免无网时反复触发加载
+                    summaryFetched = true
+                )
+
+                repository.updateAnime(updatedAnime)
+
+                Log.d(TAG, "TMDB detail fetched and updated: overview=${detail.overview?.take(50)}...")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch TMDB detail", e)
+                _detailSync.value = _detailSync.value.copy(
+                    error = resolveDetailError(e, NetworkErrorUtils.HOST_TMDB)
+                )
+            } finally {
+                _detailSync.value = _detailSync.value.copy(isFetching = false)
+            }
+        }
+    }
+
+    /** 详情拉取失败原因解析：按目标源走统一的 [NetworkErrorUtils] */
+    private fun resolveDetailError(e: Exception, host: String): String =
+        NetworkErrorUtils.resolveNetworkError(e, host, settingsRepository)
 
     private fun refreshFinishStatus(anime: Anime) {
         val isFinished = computeIsFinished(
@@ -878,7 +955,11 @@ class AnimeDetailViewModel(
             } catch (e: Exception) {
                 _coverSearch.value = _coverSearch.value.copy(
                     isSearching = false,
-                    error = "搜索失败: ${resolveSearchError(e)}",
+                    error = "搜索失败: ${
+                        NetworkErrorUtils.resolveNetworkError(
+                            e, NetworkErrorUtils.hostOfSource(source), settingsRepository
+                        )
+                    }",
                     results = emptyList()
                 )
             }

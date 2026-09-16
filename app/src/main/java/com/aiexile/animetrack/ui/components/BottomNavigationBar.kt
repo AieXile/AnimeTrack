@@ -45,7 +45,7 @@ sealed class BottomNavItem(
     @param:StringRes val titleRes: Int,
     /** 未选中图标（FILL=0 描边风格） */
     val icon: AppIcon,
-    /** 选中图标（FILL=1 填充风格，Lucide 包下复用基础图标） */
+    /** 选中图标（Material 填充风格 / Lucide 加粗描边变体） */
     val selectedIcon: AppIcon
 ) {
     object Home : BottomNavItem(

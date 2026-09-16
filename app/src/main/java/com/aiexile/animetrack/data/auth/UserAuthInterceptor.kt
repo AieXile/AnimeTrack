@@ -49,7 +49,7 @@ class UserAuthInterceptor : Interceptor {
                         // 执行刷新
                         val refreshToken = userAuthManager.getCachedRefreshToken()
                         if (refreshToken == null) {
-                            userAuthManager.logout()
+                            userAuthManager.markTokenExpired()
                             null
                         } else {
                             try {
@@ -66,14 +66,14 @@ class UserAuthInterceptor : Interceptor {
                                     userAuthManager.updateAccessToken(refreshResponse.accessToken)
                                     refreshResponse.accessToken
                                 } else {
-                                    // 刷新失败，清除登录状态
-                                    userAuthManager.logout()
+                                    // 刷新失败，标记失效（保留资料，引导重新登录）
+                                    userAuthManager.markTokenExpired()
                                     null
                                 }
                             } catch (e: HttpException) {
                                 if (e.code() == 401) {
                                     // 服务端明确判定 Refresh Token 无效（已过期/被下线），
-                                    // 属确定性失效而非瞬时网络错误：清除登录状态，引导用户重新登录
+                                    // 属确定性失效而非瞬时网络错误：标记失效，引导用户重新登录
                                     val kicked = runCatching {
                                         e.response()?.errorBody()?.string()?.let { body ->
                                             com.google.gson.Gson()
@@ -81,11 +81,8 @@ class UserAuthInterceptor : Interceptor {
                                                 .kicked == true
                                         } ?: false
                                     }.getOrDefault(false)
-                                    if (kicked) {
-                                        // 会话被主动撤销（设备下线）：发出全局被踢提示后清除登录状态
-                                        userAuthManager.notifyKicked("该设备已下线")
-                                    }
-                                    userAuthManager.logout()
+                                    // kicked=true 表示会话被其他设备主动撤销，横幅将展示被踢文案
+                                    userAuthManager.markTokenExpired(kicked = kicked)
                                 }
                                 null
                             } catch (_: Exception) {

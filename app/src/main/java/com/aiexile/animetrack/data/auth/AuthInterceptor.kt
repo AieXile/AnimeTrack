@@ -92,11 +92,11 @@ class AuthInterceptor : Interceptor {
                 } else {
                     val refreshToken = authManager.getCachedRefreshToken()
                     if (refreshToken.isNullOrBlank()) {
-                        // 无 refresh_token，无法刷新，清除登录状态
+                        // 无 refresh_token，无法刷新，标记失效（保留资料，引导重新登录）
                         try {
-                            authManager.logout()
+                            authManager.markTokenExpired()
                         } catch (e: Exception) {
-                            Log.e(TAG, "logout after refresh-failure failed", e)
+                            Log.e(TAG, "markTokenExpired after no-refresh-token failed", e)
                         }
                         null
                     } else {
@@ -117,13 +117,16 @@ class AuthInterceptor : Interceptor {
                                 newAccess
                             } else {
                                 Log.e(TAG, "Refresh returned empty access_token")
+                                try {
+                                    authManager.markTokenExpired()
+                                } catch (_: Exception) { }
                                 null
                             }
                         } catch (e: Exception) {
-                            // 刷新失败：refresh_token 可能已失效，清除登录状态避免持续 401
-                            Log.e(TAG, "Refresh bangumi token failed, logout", e)
+                            // 刷新失败：refresh_token 可能已失效，标记失效避免持续 401
+                            Log.e(TAG, "Refresh bangumi token failed, mark expired", e)
                             try {
-                                authManager.logout()
+                                authManager.markTokenExpired()
                             } catch (_: Exception) { }
                             null
                         }

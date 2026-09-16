@@ -122,6 +122,8 @@
     <string name="about_sponsor_label">Sponsor</string>
     <string name="about_dev_mode_enabled">Developer mode enabled</string>
     <string name="about_dev_mode_hint">Tap 2 more times to enable developer mode</string>
+    <string name="about_app_icon">App icon</string>
+    <string name="about_easter_egg_hint">Keep tapping to find the easter egg…</string>
     <string name="about_copied_github">GitHub link copied</string>
     <string name="about_copied_qq">QQ group number copied</string>
     <string name="about_copied_tg">Telegram link copied</string>
@@ -239,8 +241,12 @@
     <string name="device_manage_revoke_failed">Failed to sign out, please retry</string>
     <string name="device_platform_mobile">Mobile</string>
     <string name="device_platform_web">Web</string>
-    <string name="device_kicked_title">This device has been signed out</string>
-    <string name="device_kicked_desc">Your account sign-in was managed on another device, and this device has been signed out. Please sign in again to continue.</string>
+    <!-- Token expired reminders (global banner + login entries + login forms) -->
+    <string name="token_expired_banner_single">%1$s session expired, tap to sign in again</string>
+    <string name="token_expired_banner_multi">%1$d accounts signed out, tap to sign in</string>
+    <string name="token_expired_banner_kicked">This device was signed out, please sign in again</string>
+    <string name="token_expired_card_subtitle">Session expired, tap to sign in again</string>
+    <string name="token_expired_form_hint">Your session has expired, please sign in again</string>
     <string name="device_manage_unknown_device">Unknown device</string>
     <string name="device_picker_title">Device limit reached</string>
     <string name="device_picker_desc">Select devices to sign out</string>

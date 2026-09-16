@@ -7,11 +7,13 @@ import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthInterceptor
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.remote.GitHubUpdateApi
+import com.aiexile.animetrack.data.remote.HitokotoApi
 import com.aiexile.animetrack.data.remote.UpdateApi
 import com.aiexile.animetrack.di.AppContainer
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -32,14 +34,12 @@ object RetrofitClient {
     private const val TMDB_BASE_URL = "https://api.themoviedb.org/3/"
     private const val USER_AUTH_DEFAULT_BASE_URL = "https://www.aiexile.top/api/"
     private const val UPDATE_SERVER_URL = "https://www.aiexile.top/"
+    private const val HITOKOTO_URL = "https://v1.hitokoto.cn/"
 
-    private val safeDns = SafeDns()
-
-    // ===== 共享基础 OkHttpClient（连接池、线程池、DNS、超时） =====
+    // ===== 共享基础 OkHttpClient（连接池、线程池、超时） =====
 
     internal val baseOkHttpClient: OkHttpClient by lazy {
         val builder = OkHttpClient.Builder()
-            .dns(safeDns)
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(6, TimeUnit.SECONDS)
             // 网络失败日志：所有派生客户端共享，失败请求进入反馈日志（见 NetworkLogInterceptor）
@@ -59,6 +59,24 @@ object RetrofitClient {
     }
 
     // ===== Interceptors =====
+
+    /**
+     * 归一化用户配置的代理 host：支持完整 URL（提取 host）与裸 host（可带端口）。
+     * 格式非法时返回 null，由调用方忽略重写，避免 HttpUrl.Builder.host() 抛异常。
+     */
+    private fun normalizeHost(input: String): String? {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) return null
+        return try {
+            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+                trimmed.toHttpUrlOrNull()?.host
+            } else {
+                HttpUrl.Builder().scheme("https").host(trimmed).build().host
+            }
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
 
     private val headerInterceptor = Interceptor { chain ->
         val request = chain.request().newBuilder()
@@ -120,18 +138,26 @@ object RetrofitClient {
     private val bangumiProxyInterceptor = Interceptor { chain ->
         val settings = AppContainer.getSettingsRepository()
         if (settings.bangumiProxyEnabled && settings.bangumiProxyHost.isNotBlank()) {
-            val proxyHost = settings.bangumiProxyHost
-            val originalUrl = chain.request().url
-            val originalHost = originalUrl.host
-            // 仅重写 Bangumi 相关域名
-            if (originalHost == "api.bgm.tv" || originalHost == "bgm.tv") {
-                val newUrl = originalUrl.newBuilder()
-                    .host(proxyHost)
-                    .build()
-                val newRequest = chain.request().newBuilder()
-                    .url(newUrl)
-                    .build()
-                return@Interceptor chain.proceed(newRequest)
+            // 支持完整 URL（提取 host）与裸 host 两种配置；非法配置忽略重写并记录，避免 host() 抛异常
+            val proxyHost = normalizeHost(settings.bangumiProxyHost)
+            if (proxyHost != null) {
+                val originalUrl = chain.request().url
+                val originalHost = originalUrl.host
+                // 仅重写 Bangumi 相关域名
+                if (originalHost == "api.bgm.tv" || originalHost == "bgm.tv") {
+                    val newUrl = originalUrl.newBuilder()
+                        .host(proxyHost)
+                        .build()
+                    val newRequest = chain.request().newBuilder()
+                        .url(newUrl)
+                        .build()
+                    return@Interceptor chain.proceed(newRequest)
+                }
+            } else {
+                com.aiexile.animetrack.data.log.AppLogManager.w(
+                    "BangumiProxy",
+                    "Invalid bangumi proxy host ignored: ${settings.bangumiProxyHost}"
+                )
             }
         }
         chain.proceed(chain.request())
@@ -165,26 +191,32 @@ object RetrofitClient {
             return@Interceptor chain.proceed(chain.request())
         }
 
-        // 解析配置的 URL
-        val isHttps = configuredUrl.startsWith("https://")
-        val urlWithoutScheme = configuredUrl
-            .removePrefix("http://")
-            .removePrefix("https://")
-            .trimEnd('/')
-        val slashIndex = urlWithoutScheme.indexOf('/')
-        val newHost = if (slashIndex >= 0) urlWithoutScheme.substring(0, slashIndex) else urlWithoutScheme
-        val newPathPrefix = if (slashIndex >= 0) urlWithoutScheme.substring(slashIndex) else ""
+        // 用 HttpUrl 解析配置（替代手工字符串拆分）：支持带端口/路径，
+        // 无 scheme 或格式非法时忽略重写并记录，避免 host() 抛异常
+        val parsed = try {
+            configuredUrl.toHttpUrlOrNull()
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (parsed == null) {
+            com.aiexile.animetrack.data.log.AppLogManager.w(
+                "UserAuthUrl",
+                "Invalid user auth base url ignored: $configuredUrl"
+            )
+            return@Interceptor chain.proceed(chain.request())
+        }
 
         val originalUrl = chain.request().url
-        // 移除默认 /api 前缀，再拼接新路径前缀
+        // 移除默认 /api 前缀，再拼接新基础路径
         val originalPath = originalUrl.encodedPath
         val pathWithoutDefaultPrefix = originalPath.removePrefix("/api")
-        val finalPath = newPathPrefix + pathWithoutDefaultPrefix
+        val newPath = parsed.encodedPath.trimEnd('/') + pathWithoutDefaultPrefix
 
         val newUrl = originalUrl.newBuilder()
-            .scheme(if (isHttps) "https" else "http")
-            .host(newHost)
-            .encodedPath(finalPath)
+            .scheme(parsed.scheme)
+            .host(parsed.host)
+            .port(parsed.port)
+            .encodedPath(newPath)
             .build()
 
         chain.proceed(chain.request().newBuilder().url(newUrl).build())
@@ -363,6 +395,22 @@ object RetrofitClient {
             .build()
     }
 
+    // SSE 实时事件客户端（长连接）：鉴权与 URL 重写与用户体系一致，
+    // 读超时 90 秒 > 服务端 30 秒心跳间隔，心跳丢失即断开重连
+    val sseOkHttpClient: OkHttpClient by lazy {
+        baseOkHttpClient.newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
+            .addInterceptor(userAuthHeaderInterceptor)
+            .addInterceptor(UserAuthInterceptor())
+            .addInterceptor(userAuthUrlRewriteInterceptor)
+            .build()
+    }
+
+    /** SSE 事件通道地址（默认域名，自定义基础 URL 由重写拦截器替换） */
+    val sseEventsUrl: String
+        get() = USER_AUTH_DEFAULT_BASE_URL + "events"
+
     // ===== Retrofit 实例 =====
 
     private val retrofit: Retrofit by lazy {
@@ -401,6 +449,15 @@ object RetrofitClient {
         Retrofit.Builder()
             .baseUrl(TMDB_BASE_URL)
             .client(tmdbOkHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    // 一言 API 客户端（复用更新服务器客户端：仅需 UA + Accept JSON，无需鉴权）
+    private val hitokotoRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(HITOKOTO_URL)
+            .client(updateServerOkHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -460,6 +517,11 @@ object RetrofitClient {
 
     val tmdbApi: TmdbApiService by lazy {
         tmdbRetrofit.create(TmdbApiService::class.java)
+    }
+
+    /** 一言 API：关于页彩蛋随机动漫语录 */
+    val hitokotoApi: HitokotoApi by lazy {
+        hitokotoRetrofit.create(HitokotoApi::class.java)
     }
 
     val bilibiliApi: BilibiliApiService by lazy {

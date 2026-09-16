@@ -122,6 +122,8 @@
     <string name="about_sponsor_label">讚助</string>
     <string name="about_dev_mode_enabled">已開啟開發者模式</string>
     <string name="about_dev_mode_hint">再點擊 2 次開啟開發者模式</string>
+    <string name="about_app_icon">應用圖標</string>
+    <string name="about_easter_egg_hint">繼續點擊發現彩蛋…</string>
     <string name="about_copied_github">已複製 GitHub 連結</string>
     <string name="about_copied_qq">已複製 QQ 群號</string>
     <string name="about_copied_tg">已複製 Telegram 連結</string>
@@ -239,8 +241,12 @@
     <string name="device_manage_revoke_failed">下線失敗，請重試</string>
     <string name="device_platform_mobile">手機端</string>
     <string name="device_platform_web">網頁端</string>
-    <string name="device_kicked_title">該裝置已下線</string>
-    <string name="device_kicked_desc">你的帳號已在其他裝置上管理登入，本裝置已登出。如需繼續使用，請重新登入。</string>
+    <!-- Token 失效提醒（全域橫幅 + 登入條目 + 登入表單） -->
+    <string name="token_expired_banner_single">%1$s 登入已失效，點擊重新登入</string>
+    <string name="token_expired_banner_multi">%1$d 個帳號登入已失效，點擊重新登入</string>
+    <string name="token_expired_banner_kicked">該裝置已下線，請重新登入</string>
+    <string name="token_expired_card_subtitle">登入已失效，點擊重新登入</string>
+    <string name="token_expired_form_hint">登入已失效，請重新登入</string>
     <string name="device_manage_unknown_device">未知裝置</string>
     <string name="device_picker_title">登入裝置已達上限</string>
     <string name="device_picker_desc">請選擇要下線的裝置</string>

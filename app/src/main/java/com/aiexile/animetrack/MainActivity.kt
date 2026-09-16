@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
 import com.aiexile.animetrack.ui.icons.IconPack
@@ -71,6 +72,8 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         AppLogManager.i("App", "进入前台")
         AppContainer.sessionStartTime = System.currentTimeMillis()
+        // SSE 实时事件：前台保持连接（切后台在 onStop 断开）
+        AppContainer.getSseClient().start()
         appScope.launch {
             AppContainer.getUsageStatsRepository().incrementOpenCount()
             // 冷启动 / 从后台切回前台时，拉取服务器订阅列表到本地（只下载不上传）
@@ -82,6 +85,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        // SSE 实时事件：切后台断开，回前台（onStart）重连
+        AppContainer.getSseClient().stop()
         val startTime = AppContainer.sessionStartTime
         if (startTime > 0) {
             val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
@@ -151,6 +156,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
             val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
+            val darkStyle by settingsRepository.darkStyle.collectAsState(DarkStyle.BOOST)
             val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
             val systemDarkTheme = isSystemInDarkTheme()
 
@@ -178,6 +184,7 @@ class MainActivity : ComponentActivity() {
             AnimeTrackTheme(
                 darkTheme = darkTheme,
                 themePreset = themePreset,
+                darkStyle = darkStyle,
                 fontFamily = currentFontFamily
             ) {
                 // 大屏适配：计算窗口尺寸档位（Compact/Medium/Expanded）并全局下发；

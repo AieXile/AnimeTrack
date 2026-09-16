@@ -3,19 +3,21 @@ package com.aiexile.animetrack.ui.theme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-enum class PaletteStyle {
-    TONAL_SPOT,
-    VIBRANT,
-    CONTENT,
-    NEUTRAL,
-}
-
-enum class ThemePreset(val displayName: String, val seedColor: Color, val paletteStyle: PaletteStyle = PaletteStyle.TONAL_SPOT) {
-    VIBRANT_BLUE("清透蓝", Color(0xFF4285F4), PaletteStyle.TONAL_SPOT),
-    OCEAN_CYAN("海洋青", Color(0xFF00ACC1), PaletteStyle.TONAL_SPOT),
-    COOL_MINT("薄荷绿", Color(0xFF26A69A), PaletteStyle.CONTENT),
-    SLATE_INDIGO("石板靛", Color(0xFF5C7CFA), PaletteStyle.VIBRANT),
-    MONO_BLACK("黑白简洁", Color(0xFF000000), PaletteStyle.NEUTRAL),
+/**
+ * 主题预设：中性底座 + 彩色点缀（duotone 模型，参考 Apple HIG）。
+ *
+ * 彩色主题的背景/表面为近纯中性（不带 seed 色调），主题色只作用于
+ * primary/secondary/tertiary 等强调角色，与「黑白简洁」观感一致。
+ * seed 色为柔和中间调（chroma 38~56），避免高饱和荧光感，保证优雅观感。
+ */
+enum class ThemePreset(val displayName: String, val seedColor: Color) {
+    BLUE("晨雾蓝", Color(0xFF4D7FE8)),
+    CYAN("湖水青", Color(0xFF2C9BB5)),
+    GREEN("苔原绿", Color(0xFF45A374)),
+    ORANGE("落日橘", Color(0xFFE07E45)),
+    PURPLE("雾霭紫", Color(0xFF8066C9)),
+    PINK("蔷薇粉", Color(0xFFD96A85)),
+    MONO_BLACK("黑白简洁", Color(0xFF000000)),
 }
 
 data class AnimeColors(

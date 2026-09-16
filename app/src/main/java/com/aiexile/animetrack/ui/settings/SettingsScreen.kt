@@ -208,6 +208,10 @@ fun SettingsScreen(
         val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
         val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
         val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+        val bilibiliTokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
+        val bangumiTokenExpired by authManager.tokenExpired.collectAsState(initial = false)
+        val userTokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+        val anyTokenExpired = bilibiliTokenExpired || bangumiTokenExpired || userTokenExpired
 
         // ---- 各设置项的标题 / 副标题 ----
         val loginTitle = stringResource(R.string.settings_login)
@@ -216,15 +220,17 @@ fun SettingsScreen(
         val bangumiConnectedText = stringResource(R.string.settings_bangumi_connected)
         val connectedSuffix = stringResource(R.string.settings_connected_suffix)
         val loginDefaultSubtitle = stringResource(R.string.settings_login_subtitle)
+        val tokenExpiredHint = stringResource(R.string.token_expired_card_subtitle)
         val loginStatusParts = buildList {
             if (animetrackConnectedText.isNotEmpty() && userLoggedIn) add(animetrackConnectedText)
             if (bilibiliLoggedIn) add(bilibiliConnectedText)
             if (bangumiLoggedIn) add(bangumiConnectedText)
         }
-        val loginSubtitle = if (loginStatusParts.isEmpty()) {
-            loginDefaultSubtitle
-        } else {
-            "${loginStatusParts.joinToString(" · ")} $connectedSuffix"
+        val loginSubtitle = when {
+            // 任一数据源 token 失效：优先提示重新登录
+            anyTokenExpired -> tokenExpiredHint
+            loginStatusParts.isEmpty() -> loginDefaultSubtitle
+            else -> "${loginStatusParts.joinToString(" · ")} $connectedSuffix"
         }
 
         val currentPreset = settingsRepository?.themePreset?.collectAsState(ThemePreset.MONO_BLACK)?.value
@@ -486,7 +492,7 @@ private fun SettingCard(
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             )
             .clip(SquircleShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable { onClick() }
     ) {
         Row(
@@ -567,7 +573,7 @@ private fun SearchSettingResultItem(
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             )
             .clip(SquircleShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {

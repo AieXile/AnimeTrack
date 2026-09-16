@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aiexile.animetrack.AnimeTrackApp
+import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
@@ -53,6 +54,7 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val THEME_PRESET_KEY = stringPreferencesKey("theme_preset")
+        private val DARK_STYLE_KEY = stringPreferencesKey("dark_style")
         private val ICON_PACK_KEY = stringPreferencesKey("icon_pack")
         private val SHOW_FAVORITES_KEY = booleanPreferencesKey("show_favorites")
         private val SHOW_TIMELINE_KEY = booleanPreferencesKey("show_timeline")
@@ -244,6 +246,26 @@ class SettingsRepository(private val context: Context) {
         }
 
     suspend fun setThemePreset(preset: ThemePreset) = setPreference(THEME_PRESET_KEY, preset.name)
+
+    /** 深色风格：增强（纯黑）/ 标准（适中）/ 柔和（偏灰）/ 高对比 */
+    val darkStyle: Flow<DarkStyle> = preferenceFlow(DARK_STYLE_KEY, DarkStyle.BOOST.name)
+        .map { styleString ->
+            try { DarkStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { DarkStyle.BOOST }
+        }
+
+    suspend fun setDarkStyle(style: DarkStyle) = setPreference(DARK_STYLE_KEY, style.name)
+
+    /** 主题模式的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedThemeMode(): ThemeMode {
+        val cached = prefCache[THEME_MODE_KEY] as? String ?: return ThemeMode.SYSTEM
+        return try { ThemeMode.valueOf(cached) } catch (_: IllegalArgumentException) { ThemeMode.SYSTEM }
+    }
+
+    /** 深色风格的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedDarkStyle(): DarkStyle {
+        val cached = prefCache[DARK_STYLE_KEY] as? String ?: return DarkStyle.BOOST
+        return try { DarkStyle.valueOf(cached) } catch (_: IllegalArgumentException) { DarkStyle.BOOST }
+    }
 
     /** 图标包：Material Symbols（默认）/ Lucide */
     val iconPack: Flow<IconPack> = preferenceFlow(ICON_PACK_KEY, IconPack.MATERIAL_SYMBOLS.name)

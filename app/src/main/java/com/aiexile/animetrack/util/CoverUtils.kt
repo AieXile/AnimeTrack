@@ -5,13 +5,9 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.aiexile.animetrack.model.AnimeStatus
 import java.io.File
-import java.net.ConnectException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import javax.net.ssl.SSLHandshakeException
 
 /**
  * 将 coverUrl 转换为 Coil 可加载的模型号。
@@ -117,32 +113,5 @@ fun computeIsFinished(
         diffWeeks > (totalEpisodes + 1)
     } catch (e: Exception) {
         false
-    }
-}
-
-/**
- * 根据异常类型生成友好的搜索错误提示。
- *
- * 优先判断 Bangumi 被墙：当请求目标是 Bangumi 域名且异常属于底层网络异常
- * （超时/连接失败/SSL握手失败/DNS解析失败）时，提示被墙。
- * 正常的 HTTP 错误（404/500 等 HttpException）不会被误判。
- */
-fun resolveSearchError(e: Exception): String {
-    val isBangumiHost = e.message?.let {
-        it.contains("api.bgm.tv") || it.contains("bgm.tv")
-    } ?: false
-
-    // Bangumi 域名 + 底层网络异常 → 被墙
-    if (isBangumiHost && (e is SocketTimeoutException || e is ConnectException
-        || e is SSLHandshakeException || e is UnknownHostException)
-    ) {
-        return "Bangumi被墙，请挂代理后搜索"
-    }
-
-    // 非Bangumi域名的通用提示
-    return when (e) {
-        is UnknownHostException -> "网络未连接"
-        is SocketTimeoutException -> "连接超时"
-        else -> e.message?.takeIf { it.isNotBlank() } ?: "未知错误"
     }
 }

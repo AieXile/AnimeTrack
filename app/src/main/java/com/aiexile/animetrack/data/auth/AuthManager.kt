@@ -29,6 +29,7 @@ class AuthManager(private val context: Context) {
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val EXPIRES_AT_KEY = longPreferencesKey("access_token_expires_at")
         private val IS_LOGGED_IN_KEY = booleanPreferencesKey("is_logged_in")
+        private val TOKEN_EXPIRED_KEY = booleanPreferencesKey("token_expired")
         private val USER_AVATAR_KEY = stringPreferencesKey("user_avatar")
         private val USER_NICKNAME_KEY = stringPreferencesKey("user_nickname")
         private val USER_BANGUMI_ID_KEY = intPreferencesKey("user_bangumi_id")
@@ -98,6 +99,10 @@ class AuthManager(private val context: Context) {
     val isLoggedIn: Flow<Boolean> = context.authDataStore.data
         .map { preferences -> preferences[IS_LOGGED_IN_KEY] ?: false }
 
+    /** token 是否已失效（refresh 链路确认无法恢复）；失效后条目变灰并引导强制重新登录 */
+    val tokenExpired: Flow<Boolean> = context.authDataStore.data
+        .map { preferences -> preferences[TOKEN_EXPIRED_KEY] ?: false }
+
     val accessToken: Flow<String?> = context.authDataStore.data
         .map { preferences -> preferences[ACCESS_TOKEN_KEY] }
 
@@ -130,6 +135,21 @@ class AuthManager(private val context: Context) {
             preferences[REFRESH_TOKEN_KEY] = refresh
             if (expiresAt > 0L) preferences[EXPIRES_AT_KEY] = expiresAt
             preferences[IS_LOGGED_IN_KEY] = true
+            // 重新登录成功，清除失效标记
+            preferences.remove(TOKEN_EXPIRED_KEY)
+        }
+    }
+
+    /**
+     * 标记 token 已失效（refresh 链路确认无法恢复时调用）。
+     * 保留 token 与用户资料，仅置失效标记：UI 层据此变灰并引导强制重新登录。
+     * 幂等：已处于失效态时不重复写入。
+     */
+    suspend fun markTokenExpired() {
+        context.authDataStore.edit { preferences ->
+            if (preferences[TOKEN_EXPIRED_KEY] != true) {
+                preferences[TOKEN_EXPIRED_KEY] = true
+            }
         }
     }
 
@@ -207,6 +227,8 @@ class AuthManager(private val context: Context) {
             preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(EXPIRES_AT_KEY)
             preferences[IS_LOGGED_IN_KEY] = false
+            // 主动登出后失效标记无意义，一并清除
+            preferences.remove(TOKEN_EXPIRED_KEY)
             preferences.remove(USER_AVATAR_KEY)
             preferences.remove(USER_NICKNAME_KEY)
             preferences.remove(USER_BANGUMI_ID_KEY)

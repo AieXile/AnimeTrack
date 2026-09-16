@@ -115,6 +115,9 @@ interface AnimeRepository {
 
     suspend fun fetchBangumiDetail(bangumiId: Int): BangumiSubjectDetail?
 
+    /** 获取 Bangumi 条目详情（不捕获异常，供调用方区分失败原因） */
+    suspend fun getBangumiSubjectDetail(bangumiId: Int): BangumiSubjectDetail
+
     suspend fun getAnimeByTmdbId(tmdbId: Int): Anime?
 
     fun getAiringAnimes(): Flow<List<Anime>>
@@ -471,6 +474,10 @@ class AnimeRepositoryImpl(
             Log.e(TAG, "Failed to fetch Bangumi detail for bangumiId: $bangumiId", e)
             null
         }
+    }
+
+    override suspend fun getBangumiSubjectDetail(bangumiId: Int): BangumiSubjectDetail {
+        return RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
     }
 
     override suspend fun getAnimeByTmdbId(tmdbId: Int): Anime? {

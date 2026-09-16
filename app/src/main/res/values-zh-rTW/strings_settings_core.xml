@@ -51,6 +51,8 @@
     <string name="appearance_mode_light">淺色</string>
     <string name="appearance_mode_dark">深色</string>
     <string name="appearance_mode_auto">自動</string>
+    <string name="appearance_dark_style_title">深色風格</string>
+    <string name="appearance_dark_style_subtitle">調整深色模式的背景深淺與組件層次</string>
     <string name="appearance_color_title">主題配色</string>
     <string name="appearance_color_subtitle">選擇你喜歡的配色方案</string>
     <string name="appearance_icon_style_title">圖標風格</string>

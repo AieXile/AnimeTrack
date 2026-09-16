@@ -14,6 +14,7 @@ import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.TmdbTvDetail
 import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.domain.SearchUseCase
@@ -26,7 +27,7 @@ import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
 import com.aiexile.animetrack.util.getCurrentWeekday
 import com.aiexile.animetrack.util.isAirDateInFuture
-import com.aiexile.animetrack.util.resolveSearchError
+import com.aiexile.animetrack.util.NetworkErrorUtils
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
@@ -301,6 +302,14 @@ class HomeViewModel(
             AppContainer.firstFrameRendered.first { it }
             delay(500) // 与 syncRemoteToLocal 错峰
             triggerAutoSync()
+        }
+
+        // SSE 版本发布广播：立即重新检查更新（force 覆盖已有结果，
+        // 让已打开 App 的用户第一时间收到新版本弹窗）
+        viewModelScope.launch {
+            AppContainer.getSseClient().events
+                .filter { it.type == SseEventTypes.APP_UPDATE }
+                .collect { updateViewModel.checkForUpdate(force = true) }
         }
 
         // 观看状态/进度变更后卡片会重排到列表顶部：同步将网格滚回顶部，
@@ -767,7 +776,11 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchError = "搜索失败: ${resolveSearchError(e)}",
+                        searchError = "搜索失败: ${
+                            NetworkErrorUtils.resolveNetworkError(
+                                e, NetworkErrorUtils.hostOfSource(source), settingsRepository
+                            )
+                        }",
                         searchResults = emptyList()
                     )
                 }

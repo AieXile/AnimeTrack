@@ -10,7 +10,9 @@ import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.FeedbackRepository
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
@@ -30,6 +32,7 @@ object AppContainer {
     private var playerRepository: PlayerRepository? = null
     private var usageStatsRepository: UsageStatsRepository? = null
     private var feedbackRepository: FeedbackRepository? = null
+    private var sseClient: SseClient? = null
 
     // 当前会话开始时间（由 MainActivity.onStart 设置）
     @Volatile
@@ -39,10 +42,14 @@ object AppContainer {
     // 由 WebDAVAutoSyncManager 等后台任务监听，延迟到首帧后再执行，避免与启动链路争抢资源。
     val firstFrameRendered: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
-    // 启动弹窗（更新/公告）整体活跃状态：初始 true（阻塞），
-    // 由 HomeViewModel 在启动检查流程中观察上报（检查中/弹窗显示中均视为活跃），
-    // 供 AnimeTrackApp 的强制邮箱绑定 Dialog 等待其结束后再显示，避免弹窗叠加。
+    // 启动弹窗(更新/公告)整体活跃状态:初始 true(阻塞),
+    // 由 HomeViewModel 在启动检查流程中观察上报(检查中/弹窗显示中均视为活跃),
+    // 供 AnimeTrackApp 的强制邮箱绑定 Dialog 等待其结束后再显示,避免弹窗叠加。
     val startupDialogsActive: MutableStateFlow<Boolean> = MutableStateFlow(true)
+
+    // 彩蛋语录横幅当前内容:由 AboutScreen 触发彩蛋时写入,
+    // AnimeTrackApp 顶层收集并渲染横幅(4 秒自动消失),切换界面不丢失。
+    val easterEggQuote: MutableStateFlow<AnimeQuote?> = MutableStateFlow(null)
 
     fun markFirstFrameRendered() {
         firstFrameRendered.value = true
@@ -64,6 +71,7 @@ object AppContainer {
         playerRepository = PlayerRepository(this.context!!)
         usageStatsRepository = UsageStatsRepository(this.context!!)
         feedbackRepository = FeedbackRepository(this.context!!)
+        sseClient = SseClient(userAuthManager!!)
         WebDAVAutoSyncManager.initialize(this.context!!, settingsRepository!!, database!!.animeDao())
     }
     
@@ -124,6 +132,11 @@ object AppContainer {
 
     fun getFeedbackRepository(): FeedbackRepository {
         return feedbackRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getSseClient(): SseClient {
+        return sseClient
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 }

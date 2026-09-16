@@ -21,6 +21,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,14 +34,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,13 +79,19 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.model.AuthSource
+import com.aiexile.animetrack.push.PushRegistrationHelper
+import androidx.compose.ui.platform.LocalContext
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.SideNavigationRail
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.TokenExpiredBanner
+import com.aiexile.animetrack.ui.components.TopNoticeBanner
 import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
@@ -114,6 +119,7 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.vibrancy
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
@@ -175,7 +181,10 @@ fun AnimeTrackApp(
     val appScope = rememberCoroutineScope()
     val onTabNavigate: (String) -> Unit = { route ->
         val targetIndex = mainPages.indexOfFirst { it.route == route }
-        if (targetIndex >= 0 && targetIndex != pagerState.currentPage) {
+        // 守卫同时对比 currentPage 与 targetPage：跳转动画进行中 targetPage 即最终
+        // 目标，相同目标的重复点击不再重启动画（中途重启会造成卡顿，且与其它导航
+        // 来源竞态时可能取消原跳转）；不同目标仍可即时重定向
+        if (targetIndex >= 0 && targetIndex != pagerState.currentPage && targetIndex != pagerState.targetPage) {
             navJumpTarget = targetIndex
             appScope.launch {
                 pagerState.animateScrollToPage(targetIndex)
@@ -240,6 +249,16 @@ fun AnimeTrackApp(
     val startupDialogsActive by AppContainer.startupDialogsActive.collectAsState()
     var forceBindToken by remember { mutableStateOf<String?>(null) }
 
+    // 登录成功（新会话）后立即上报 registrationId 绑定到该会话：
+    // 服务端按会话级存储 registration_id，用于被踢下线的实时透传通知。
+    // saveLogin 已清除本地已上报标记，此处触发必然重新上报
+    val appContext = LocalContext.current
+    LaunchedEffect(userLoggedIn) {
+        if (userLoggedIn) {
+            PushRegistrationHelper.reportRegistrationIdIfNeeded(appContext)
+        }
+    }
+
     LaunchedEffect(userLoggedIn, userEmail) {
         if (userLoggedIn && userEmail == null) {
             val token = userAuthManager.getCachedAccessToken() ?: return@LaunchedEffect
@@ -273,40 +292,33 @@ fun AnimeTrackApp(
         )
     }
 
-    // ===== 设备被下线全局提示 =====
-    // 其他设备将本设备下线时（token 刷新收到服务端 kicked 标记），登录状态已被清除；
-    // 弹出明确提示，避免用户无感知地发现同步失效
-    var kickedMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) {
-        userAuthManager.kickedEvent.collect { message ->
-            kickedMessage = message
-        }
+    // ===== Token 失效全局横幅 =====
+    // 任一数据源（Bangumi/Bilibili/自有服务器）token 失效时顶部横幅提醒；
+    // 由持久化失效状态驱动（非一次性事件），冷启动、后台失效恢复前台后均可见。
+    // 设备被下线（服务端 kicked 标记）与普通过期共用此横幅，文案区分。
+    val bangumiAuthManager = remember { AppContainer.getAuthManager() }
+    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
+    val userTokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+    val userTokenKicked by userAuthManager.tokenKicked.collectAsState(initial = false)
+    val bangumiTokenExpired by bangumiAuthManager.tokenExpired.collectAsState(initial = false)
+    val bilibiliTokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
+
+    val expiredSources = buildSet {
+        if (userTokenExpired) add(AuthSource.USER)
+        if (bilibiliTokenExpired) add(AuthSource.BILIBILI)
+        if (bangumiTokenExpired) add(AuthSource.BANGUMI)
     }
-    if (kickedMessage != null && !startupDialogsActive) {
-        AlertDialog(
-            onDismissRequest = { kickedMessage = null },
-            shape = SquircleShape(24.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.device_kicked_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.device_kicked_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { kickedMessage = null }) {
-                    Text(stringResource(R.string.common_ok))
-                }
-            }
-        )
+
+    // 会话内已手动关闭的源；某源失效恢复（重新登录成功/登出）时移出，
+    // 下次再失效时横幅重新出现
+    var dismissedSources by remember { mutableStateOf(setOf<AuthSource>()) }
+    LaunchedEffect(userTokenExpired, bilibiliTokenExpired, bangumiTokenExpired) {
+        if (!userTokenExpired) dismissedSources = dismissedSources - AuthSource.USER
+        if (!bilibiliTokenExpired) dismissedSources = dismissedSources - AuthSource.BILIBILI
+        if (!bangumiTokenExpired) dismissedSources = dismissedSources - AuthSource.BANGUMI
     }
+
+    val bannerVisibleSources = expiredSources - dismissedSources
 
     // 等待初始路由确定
     val currentStartRoute = startRoute
@@ -454,6 +466,70 @@ fun AnimeTrackApp(
                 navJumpTarget = navJumpTarget,
                 onAddAnimeClick = { homeViewModel.showBottomSheet() },
                 navBackdrop = navBackdrop
+            )
+        }
+
+        // Token 失效横幅：置顶悬浮；避开沉浸式页面（播放器/WebDAV 浏览）
+        // 与启动更新/公告弹窗期间，避免视觉冲突
+        val bannerText = when {
+            bannerVisibleSources == setOf(AuthSource.USER) && userTokenKicked ->
+                stringResource(R.string.token_expired_banner_kicked)
+            bannerVisibleSources.size == 1 ->
+                stringResource(R.string.token_expired_banner_single, bannerVisibleSources.first().displayName)
+            else ->
+                stringResource(R.string.token_expired_banner_multi, bannerVisibleSources.size)
+        }
+        val bannerActuallyVisible = bannerVisibleSources.isNotEmpty() &&
+                !startupDialogsActive &&
+                !isImmersiveRoute(currentNavRoute?.destination?.route)
+        // toast 式提醒：实际显示 3 秒后自动消失；
+        // 期间新源失效会重置计时；下次失效仍会重新出现（dismissed 机制见上）
+        LaunchedEffect(bannerVisibleSources, bannerActuallyVisible) {
+            if (bannerActuallyVisible) {
+                delay(3000)
+                dismissedSources = dismissedSources + bannerVisibleSources
+            }
+        }
+
+        // 彩蛋语录横幅：全局状态驱动（AboutScreen 触发），展示 4 秒后自动消失，
+        // 层级在顶层，切换界面不丢失
+        val easterEggQuote by AppContainer.easterEggQuote.collectAsState()
+        // 缓存最近一条语录，退出动画期间内容不闪空
+        var lastEasterEggQuote by remember { mutableStateOf<AnimeQuote?>(null) }
+        LaunchedEffect(easterEggQuote) {
+            if (easterEggQuote != null) {
+                lastEasterEggQuote = easterEggQuote
+                delay(4000)
+                AppContainer.easterEggQuote.value = null
+            }
+        }
+        val quoteForDisplay = easterEggQuote ?: lastEasterEggQuote
+
+        // 顶部横幅纵向堆叠（Token 失效与彩蛋同时出现概率极低）
+        Column {
+            TokenExpiredBanner(
+                visible = bannerActuallyVisible,
+                text = bannerText,
+                onClick = {
+                    // 单源失效直达该源登录页；多源失效进入登录管理页由用户自选
+                    val targetRoute = if (bannerVisibleSources.size == 1) {
+                        bannerVisibleSources.first().loginRoute
+                    } else {
+                        Routes.LOGIN
+                    }
+                    onNavigateToScreen(targetRoute)
+                },
+                onDismiss = { dismissedSources = dismissedSources + bannerVisibleSources }
+            )
+            TopNoticeBanner(
+                visible = easterEggQuote != null,
+                icon = AppIcon.STAR_SHINE,
+                iconTint = MaterialTheme.colorScheme.primary,
+                text = quoteForDisplay?.text.orEmpty(),
+                secondaryText = quoteForDisplay?.from
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "—— $it" },
+                onDismiss = { AppContainer.easterEggQuote.value = null }
             )
         }
 
@@ -946,6 +1022,9 @@ private fun MainOverlay(
             // 顶栏按钮构成决定收拢终点宽度：单按钮 48dp，搜索+添加组合 97dp
             val topBarShowSearch = showSearchButton && hasAnime && hasFilteredItems
             val topBarShowAdd = fabLocation == FabLocation.TOP_BAR || useSideNavigation
+            // 右上角无任何按钮时无 morph 终点（迁移 FAB 也不会出现），
+            // 顶栏不再收缩成按钮形状，改为整体淡出隐藏
+            val hasTopBarActions = topBarShowSearch || topBarShowAdd
             val morphTargetWidth = if (topBarShowSearch && topBarShowAdd) {
                 TopBarActionsCombinedWidth
             } else {
@@ -986,8 +1065,15 @@ private fun MainOverlay(
                             if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
                         )
                         .padding(end = paneWidth)
-                        // 真 morph：几何连续变形为按钮行位置的 Squircle（问候语早期淡出在 TopBar 内处理）
-                        .topBarCollapseMorph(topBarCollapse, morphTargetWidth)
+                        .then(
+                            if (hasTopBarActions) {
+                                // 真 morph：几何连续变形为按钮行位置的 Squircle（问候语早期淡出在 TopBar 内处理）
+                                Modifier.topBarCollapseMorph(topBarCollapse, morphTargetWidth)
+                            } else {
+                                // 无按钮无 morph 终点：整体随收拢进度淡出（问候语已在 TopBar 内先行淡出）
+                                Modifier.graphicsLayer { alpha = 1f - topBarCollapse }
+                            }
+                        )
                 )
             }
 

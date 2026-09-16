@@ -13,6 +13,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -40,7 +41,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -69,9 +69,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -82,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.remote.HitokotoRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.MarkdownText
@@ -111,7 +114,9 @@ fun AboutScreen(
 
     var avatarTapCount by remember { mutableStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
+    var iconFlipped by remember { mutableStateOf(false) }
     var showSponsorDialog by remember { mutableStateOf(false) }
+    val hitokotoRepository = remember { HitokotoRepository() }
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -130,7 +135,8 @@ fun AboutScreen(
         SponsorDialog(onDismiss = { showSponsorDialog = false })
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -164,61 +170,60 @@ fun AboutScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .shadow(
-                            elevation = 12.dp,
-                            shape = CircleShape,
-                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                        )
-                        .clip(CircleShape)
-                        .border(
-                            width = 3.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape
-                        )
-                        .combinedClickable(
-                            onClick = {
-                                val now = System.currentTimeMillis()
-                                if (now - lastTapTime > 2000) {
-                                    avatarTapCount = 1
-                                } else {
-                                    avatarTapCount++
-                                }
-                                lastTapTime = now
+                FlipAppIconCard(
+                    flipped = iconFlipped,
+                    onIconTap = {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime > 2000) {
+                            avatarTapCount = 1
+                        } else {
+                            avatarTapCount++
+                        }
+                        lastTapTime = now
 
-                                if (!developerMode && avatarTapCount >= 5) {
-                                    avatarTapCount = 0
-                                    scope.launch {
-                                        settingsRepository.setDeveloperMode(true)
-                                        Toast.makeText(context, context.getString(R.string.about_dev_mode_enabled), Toast.LENGTH_SHORT).show()
-                                    }
-                                } else if (!developerMode && avatarTapCount == 3) {
-                                    Toast.makeText(context, context.getString(R.string.about_dev_mode_hint), Toast.LENGTH_SHORT).show()
+                        when {
+                            // 第一层彩蛋：翻转应用图标，露出开发者头像，并展示随机动漫语录横幅
+                            !iconFlipped && avatarTapCount >= 5 -> {
+                                avatarTapCount = 0
+                                iconFlipped = true
+                                scope.launch {
+                                    // 写入全局状态，由 AnimeTrackApp 顶层渲染横幅，切换界面不丢失
+                                    AppContainer.easterEggQuote.value = hitokotoRepository.getRandomAnimeQuote()
                                 }
                             }
-                        )
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.my_avatar),
-                        contentDescription = stringResource(R.string.about_avatar),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                            // 第二层彩蛋：翻到头像面后再连点，开启开发者模式
+                            iconFlipped && !developerMode && avatarTapCount >= 5 -> {
+                                avatarTapCount = 0
+                                scope.launch {
+                                    settingsRepository.setDeveloperMode(true)
+                                    Toast.makeText(context, context.getString(R.string.about_dev_mode_enabled), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            avatarTapCount == 3 && !developerMode -> {
+                                val hintRes = if (!iconFlipped) R.string.about_easter_egg_hint else R.string.about_dev_mode_hint
+                                Toast.makeText(context, context.getString(hintRes), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
 
                 Spacer(modifier = Modifier.size(20.dp))
 
-                Text(
-                    text = "AieXile",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                // 开发者署名：翻转出头像后才显示
+                AnimatedVisibility(visible = iconFlipped) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "AieXile",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
 
-                Spacer(modifier = Modifier.size(6.dp))
+                        Spacer(modifier = Modifier.size(6.dp))
+                    }
+                }
 
                 Text(
                     text = stringResource(R.string.about_app_slogan),
@@ -345,6 +350,70 @@ fun AboutScreen(
 
                 Spacer(modifier = Modifier.size(32.dp))
             }
+        }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FlipAppIconCard(
+    flipped: Boolean,
+    onIconTap: () -> Unit
+) {
+    val iconShape = SquircleShape(20.dp)
+    val rotation by animateFloatAsState(
+        targetValue = if (flipped) 180f else 0f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 300f),
+        label = "iconFlipRotation"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(88.dp)
+            .shadow(
+                elevation = 12.dp,
+                shape = iconShape,
+                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            )
+            .graphicsLayer {
+                rotationY = rotation
+                cameraDistance = 12f * density
+            }
+            .clip(iconShape)
+            .border(
+                width = 3.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = iconShape
+            )
+            .combinedClickable(onClick = onIconTap)
+    ) {
+        if (rotation <= 90f) {
+            // 正面：应用图标（adaptive icon 不支持 painterResource，手动组合背景色 + 前景矢量）
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(colorResource(R.color.ic_launcher_background)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    contentDescription = stringResource(R.string.about_app_icon),
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        } else {
+            // 背面：开发者头像（预置 180° 抵消外层翻转，避免镜像）
+            Image(
+                painter = painterResource(id = R.drawable.my_avatar),
+                contentDescription = stringResource(R.string.about_avatar),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { rotationY = 180f },
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }

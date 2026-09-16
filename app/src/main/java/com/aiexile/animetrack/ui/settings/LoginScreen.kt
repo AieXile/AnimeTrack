@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
@@ -68,11 +69,13 @@ fun LoginScreen(
     val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
     val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
     val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
+    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
 
     val authManager = remember { AppContainer.getAuthManager() }
     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
     val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
     val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
+    val bangumiExpired by authManager.tokenExpired.collectAsState(initial = false)
 
     val scope = rememberCoroutineScope()
     val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
@@ -122,33 +125,50 @@ fun LoginScreen(
                 val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
                 val userUsername by userAuthManager.username.collectAsState(initial = null)
                 val userAvatar by userAuthManager.avatar.collectAsState(initial = null)
+                val userExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
                 // 服务器头像存储的是相对路径，需拼接为完整 URL
                 val userAvatarUrl = userAvatar?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 
                 LoginServiceCard(
                     title = "AnimeTrack",
-                    subtitle = if (userLoggedIn) (userUsername ?: stringResource(R.string.login_screen_connected)) else stringResource(R.string.login_screen_sync_data),
+                    subtitle = when {
+                        userLoggedIn && userExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        userLoggedIn -> userUsername ?: stringResource(R.string.login_screen_connected)
+                        else -> stringResource(R.string.login_screen_sync_data)
+                    },
                     icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (userLoggedIn) userAvatarUrl else null,
+                    expired = userLoggedIn && userExpired,
                     onClick = onNavigateUserLogin
                 )
             }
             item {
                 LoginServiceCard(
                     title = "Bilibili",
-                    subtitle = if (bilibiliLoggedIn) (bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bilibili_subtitle),
+                    subtitle = when {
+                        bilibiliLoggedIn && bilibiliExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        bilibiliLoggedIn -> bilibiliNickname ?: stringResource(R.string.login_screen_logged_in)
+                        else -> stringResource(R.string.login_screen_bilibili_subtitle)
+                    },
                     icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (bilibiliLoggedIn) bilibiliAvatar else null,
+                    expired = bilibiliLoggedIn && bilibiliExpired,
                     onClick = onNavigateBilibiliLogin
                 )
             }
             item {
                 LoginServiceCard(
                     title = "Bangumi",
-                    subtitle = if (bangumiLoggedIn) (bangumiNickname ?: stringResource(R.string.login_screen_logged_in)) else stringResource(R.string.login_screen_bangumi_subtitle),
+                    subtitle = when {
+                        bangumiLoggedIn && bangumiExpired -> stringResource(R.string.token_expired_card_subtitle)
+                        bangumiLoggedIn -> bangumiNickname ?: stringResource(R.string.login_screen_logged_in)
+                        else -> stringResource(R.string.login_screen_bangumi_subtitle)
+                    },
                     icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
                     avatarUrl = if (bangumiLoggedIn) bangumiAvatar else null,
-                    onClick = if (bangumiLoggedIn) onNavigateBangumiAccount else onNavigateBangumiLogin
+                    expired = bangumiLoggedIn && bangumiExpired,
+                    // 失效后强制进入重新登录，不再进入账号管理页
+                    onClick = if (bangumiLoggedIn && !bangumiExpired) onNavigateBangumiAccount else onNavigateBangumiLogin
                 )
             }
             item {
@@ -217,6 +237,7 @@ private fun LoginServiceCard(
     subtitle: String,
     icon: androidx.compose.ui.graphics.painter.Painter,
     avatarUrl: String? = null,
+    expired: Boolean = false,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -231,7 +252,7 @@ private fun LoginServiceCard(
                 spotColor = MaterialTheme.colorScheme.outlineVariant
             )
             .clip(SquircleShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable { onClick() }
     ) {
         Row(
@@ -250,14 +271,17 @@ private fun LoginServiceCard(
                     contentDescription = null,
                     modifier = Modifier
                         .size(28.dp)
-                        .clip(CircleShape),
+                        .clip(CircleShape)
+                        // 失效后头像保留但整体变灰
+                        .alpha(if (expired) 0.4f else 1f),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
                     painter = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (expired) MaterialTheme.colorScheme.outline
+                    else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -271,7 +295,8 @@ private fun LoginServiceCard(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (expired) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -288,7 +313,8 @@ private fun LoginServiceCard(
             Icon(
                 painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
+                tint = if (expired) MaterialTheme.colorScheme.outlineVariant
+                else MaterialTheme.colorScheme.outline,
                 modifier = Modifier.size(24.dp)
             )
         }

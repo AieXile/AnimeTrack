@@ -229,7 +229,7 @@ fun AnimeCard(
                 hoveredElevation = 0.dp
             ),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Column(

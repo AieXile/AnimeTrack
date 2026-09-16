@@ -39,12 +39,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -113,6 +115,15 @@ fun HomeScreen(
             hasFeedbackReply = false
         }
         onPauseOrDispose { }
+    }
+    // SSE 管理员回复事件：主页可见期间实时刷新反馈新回复胶囊（不再依赖切页/重启）
+    LaunchedEffect(isCurrentPage, userLoggedIn, feedbackReplyPillEnabled) {
+        if (!isCurrentPage || !userLoggedIn || !feedbackReplyPillEnabled) return@LaunchedEffect
+        AppContainer.getSseClient().events
+            .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+            .collect {
+                hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
+            }
     }
     // customGreeting / greetingTypingEffect / showSearchButton / focusRequester
     // 已移至 MainOverlay（SharedTransitionLayout 外层）的 HomeTopBar 中维护

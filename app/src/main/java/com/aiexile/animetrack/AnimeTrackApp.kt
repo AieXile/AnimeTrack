@@ -7,6 +7,7 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +60,15 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
         appScope.launch {
             JPushInterface.init(this@AnimeTrackApp)
+        }
+        // SSE 踢下线事件：立即标记 token 失效（横幅由 AnimeTrackApp UI 层
+        // 收集 tokenExpired/tokenKicked 显示，与被动检测链路共用同一状态）
+        appScope.launch {
+            AppContainer.getSseClient().events.collect { event ->
+                if (event.type == SseEventTypes.SESSION_KICKED) {
+                    AppContainer.getUserAuthManager().markTokenExpired(kicked = true)
+                }
+            }
         }
     }
 

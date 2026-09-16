@@ -105,6 +105,11 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("深色", "暗色", "夜间", "浅色", "跟随系统", "自动", "dark", "light", "auto")
     ),
     SearchableSetting(
+        route = Routes.APPEARANCE, key = "dark_style",
+        titleRes = R.string.appearance_dark_style_title, descRes = R.string.appearance_dark_style_subtitle,
+        keywords = listOf("深色风格", "暗色风格", "纯黑", "深灰", "柔和", "增强", "dark style", "amoled")
+    ),
+    SearchableSetting(
         route = Routes.APPEARANCE, key = "color",
         titleRes = R.string.appearance_color_title, descRes = R.string.appearance_color_subtitle,
         keywords = listOf("配色", "颜色", "主题色", "色彩", "color")

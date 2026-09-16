@@ -8,7 +8,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * - MATERIAL_SYMBOLS：填充式 Material Symbols Rounded（sym_*），默认包
  * - LUCIDE：描边式 Lucide（lucide_*）
  *
- * Lucide 无实心变体，导航选中态以 primary 颜色区分。
+ * Lucide 无实心变体，导航选中态使用加粗描边变体（lucide_*_bold）+ primary 颜色区分。
  */
 enum class IconPack {
     MATERIAL_SYMBOLS,

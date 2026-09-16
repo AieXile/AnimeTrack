@@ -60,7 +60,8 @@
     <string name="detail_summary">簡介</string>
     <string name="detail_add_summary_hint">新增簡介...</string>
     <string name="detail_click_to_expand">點擊展開</string>
-    <string name="detail_fetching_detail">正在取得詳情...</string>
+    <string name="detail_syncing_summary">正在透過 %1$s 同步簡介中...</string>
+    <string name="detail_sync_failed">簡介同步失敗：%1$s</string>
     <string name="detail_no_summary">暫無簡介</string>
     <string name="detail_total_episodes">總集數</string>
     <string name="detail_watch_progress">觀看進度</string>

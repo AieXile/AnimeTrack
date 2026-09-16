@@ -122,6 +122,8 @@
     <string name="about_sponsor_label">赞助</string>
     <string name="about_dev_mode_enabled">已开启开发者模式</string>
     <string name="about_dev_mode_hint">再点击 2 次开启开发者模式</string>
+    <string name="about_app_icon">应用图标</string>
+    <string name="about_easter_egg_hint">继续点击发现彩蛋…</string>
     <string name="about_copied_github">已复制 GitHub 链接</string>
     <string name="about_copied_qq">已复制 QQ 群号</string>
     <string name="about_copied_tg">已复制 Telegram 链接</string>
@@ -239,8 +241,12 @@
     <string name="device_manage_revoke_failed">下线失败，请重试</string>
     <string name="device_platform_mobile">手机端</string>
     <string name="device_platform_web">网页端</string>
-    <string name="device_kicked_title">该设备已下线</string>
-    <string name="device_kicked_desc">你的账号已在其他设备上管理登录，本设备已退出登录。如需继续使用，请重新登录。</string>
+    <!-- Token 失效提醒（全局横幅 + 登录条目 + 登录表单） -->
+    <string name="token_expired_banner_single">%1$s 登录已失效，点击重新登录</string>
+    <string name="token_expired_banner_multi">%1$d 个账号登录已失效，点击重新登录</string>
+    <string name="token_expired_banner_kicked">该设备已下线，请重新登录</string>
+    <string name="token_expired_card_subtitle">登录已失效，点击重新登录</string>
+    <string name="token_expired_form_hint">登录已失效，请重新登录</string>
     <string name="device_manage_unknown_device">未知设备</string>
     <string name="device_picker_title">登录设备已达上限</string>
     <string name="device_picker_desc">请选择要下线的设备</string>

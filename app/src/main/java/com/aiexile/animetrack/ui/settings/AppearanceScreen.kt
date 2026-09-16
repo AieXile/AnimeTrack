@@ -2,11 +2,17 @@ package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,6 +20,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -43,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
@@ -52,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
@@ -100,7 +110,14 @@ fun AppearanceScreen(
 
     val scope = rememberCoroutineScope()
     val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
-    val currentThemeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
+    // 用同步缓存值作初始值，避免首帧渲染默认值、随后跳变为持久化值
+    // （否则 showDarkStyleSelector 会经历一次 false→true，深色风格选择器的展开动画被误触发）
+    val currentThemeMode by settingsRepository.themeMode.collectAsState(settingsRepository.cachedThemeMode())
+    val currentDarkStyle by settingsRepository.darkStyle.collectAsState(settingsRepository.cachedDarkStyle())
+    val systemDarkTheme = isSystemInDarkTheme()
+    // 深色风格选择器：深色模式、或自动模式且系统当前处于深色时才有意义
+    val showDarkStyleSelector = currentThemeMode == ThemeMode.DARK ||
+            (currentThemeMode == ThemeMode.SYSTEM && systemDarkTheme)
     val currentIconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
     val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
@@ -112,7 +129,7 @@ fun AppearanceScreen(
     val highlightKey = rememberSettingsHighlight(Routes.APPEARANCE)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf(
-        "mode" to 2, "color" to 4, "icon_pack" to 6,
+        "mode" to 2, "dark_style" to 2, "color" to 4, "icon_pack" to 6,
         "advanced_blur" to 8, "liquid_glass" to 8
     )
     LaunchedEffect(highlightKey) {
@@ -161,35 +178,66 @@ fun AppearanceScreen(
             }
 
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(rememberHighlightModifier("mode", highlightKey)),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .then(rememberHighlightModifier("mode", highlightKey))
                 ) {
-                    ThemeModePreviewCard(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(R.string.appearance_mode_light),
-                        selected = currentThemeMode == ThemeMode.LIGHT,
-                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.LIGHT) } }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        LightPreviewContent()
+                        ThemeModePreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.appearance_mode_light),
+                            selected = currentThemeMode == ThemeMode.LIGHT,
+                            onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.LIGHT) } }
+                        ) {
+                            LightPreviewContent()
+                        }
+                        ThemeModePreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.appearance_mode_dark),
+                            selected = currentThemeMode == ThemeMode.DARK,
+                            onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.DARK) } }
+                        ) {
+                            DarkPreviewContent()
+                        }
+                        ThemeModePreviewCard(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.appearance_mode_auto),
+                            selected = currentThemeMode == ThemeMode.SYSTEM,
+                            onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.SYSTEM) } }
+                        ) {
+                            AutoPreviewContent()
+                        }
                     }
-                    ThemeModePreviewCard(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(R.string.appearance_mode_dark),
-                        selected = currentThemeMode == ThemeMode.DARK,
-                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.DARK) } }
+                    // 深色风格：仅深色模式、或自动模式且系统当前处于深色时显示，
+                    // 从上方弹性弹出/平滑收回（负偏移 = 起始/目标位置在上方）；
+                    // clipToBounds 裁掉越界部分，避免滑入/滑出时飘到模式预览卡上方
+                    AnimatedVisibility(
+                        visible = showDarkStyleSelector,
+                        modifier = Modifier.clipToBounds(),
+                        enter = slideInVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) { -it } + fadeIn(),
+                        exit = slideOutVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) { -it } + fadeOut()
                     ) {
-                        DarkPreviewContent()
-                    }
-                    ThemeModePreviewCard(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(R.string.appearance_mode_auto),
-                        selected = currentThemeMode == ThemeMode.SYSTEM,
-                        onClick = { scope.launch { settingsRepository.setThemeMode(ThemeMode.SYSTEM) } }
-                    ) {
-                        AutoPreviewContent()
+                        Column {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            DarkStyleSelectorRow(
+                                current = currentDarkStyle,
+                                onSelect = { style -> scope.launch { settingsRepository.setDarkStyle(style) } }
+                            )
+                        }
                     }
                 }
             }
@@ -202,9 +250,13 @@ fun AppearanceScreen(
                     subtitle = stringResource(R.string.appearance_color_subtitle),
                     modifier = rememberHighlightModifier("color", highlightKey)
                 ) {
-                    Row(
+                    // 7 个预设色块（4 + 3 两行居中），行数随主题色增减自适应
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        maxItemsInEachRow = 4
                     ) {
                         ThemePreset.entries.forEach { preset ->
                             ColorSwatch(
@@ -563,6 +615,18 @@ private fun ColorSwatch(
         animationSpec = SpringSpec(stiffness = Spring.StiffnessMedium),
         label = "swatchScale"
     )
+    // 选中色环透明度过渡，避免选中态切换生硬
+    val ringAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = SpringSpec(stiffness = Spring.StiffnessMedium),
+        label = "swatchRingAlpha"
+    )
+    // 选中勾选的缩放/透明过渡
+    val checkScale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = SpringSpec(stiffness = Spring.StiffnessMedium),
+        label = "swatchCheckScale"
+    )
 
     Column(
         modifier = Modifier
@@ -579,49 +643,41 @@ private fun ColorSwatch(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Canvas(
+            // 选中态色环：常驻 52dp 占位（仅透明度过渡），避免选中/取消时容器尺寸变化引起布局跳动
+            Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(52.dp)
                     .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = preset.seedColor.copy(alpha = ringAlpha),
+                        shape = CircleShape
+                    )
+            )
+            // 色块本体：单色圆 + 细描边（保证黑白简洁等深色色块在任何背景下可见）
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(preset.seedColor)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                val seedColor = preset.seedColor
-                drawArc(
-                    color = seedColor.copy(alpha = 0.25f),
-                    startAngle = 0f,
-                    sweepAngle = 90f,
-                    useCenter = true
-                )
-                drawArc(
-                    color = seedColor.copy(alpha = 0.5f),
-                    startAngle = 90f,
-                    sweepAngle = 90f,
-                    useCenter = true
-                )
-                drawArc(
-                    color = seedColor.copy(alpha = 0.75f),
-                    startAngle = 180f,
-                    sweepAngle = 90f,
-                    useCenter = true
-                )
-                drawArc(
-                    color = seedColor,
-                    startAngle = 270f,
-                    sweepAngle = 90f,
-                    useCenter = true
-                )
-            }
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .background(Color.White.copy(alpha = 0.9f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
+                if (checkScale > 0.01f) {
                     Icon(
                         painter = rememberAppIconPainter(AppIcon.CHECK),
                         contentDescription = null,
-                        tint = preset.seedColor,
-                        modifier = Modifier.size(14.dp)
+                        tint = Color.White.copy(alpha = checkScale),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer {
+                                scaleX = checkScale
+                                scaleY = checkScale
+                            }
                     )
                 }
             }
@@ -633,5 +689,49 @@ private fun ColorSwatch(
             color = if (isSelected) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/** 深色风格紧凑选择行：标签 + 四个胶囊选项，窄屏自动换行。 */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DarkStyleSelectorRow(
+    current: DarkStyle,
+    onSelect: (DarkStyle) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.appearance_dark_style_title),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.CenterVertically)
+        )
+        DarkStyle.entries.forEach { style ->
+            val selected = style == current
+            Box(
+                modifier = Modifier
+                    .clip(SquircleShape(10.dp))
+                    .background(
+                        if (selected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    .clickable { onSelect(style) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                    .align(Alignment.CenterVertically)
+            ) {
+                Text(
+                    text = style.displayName,
+                    fontSize = 12.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (selected) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }

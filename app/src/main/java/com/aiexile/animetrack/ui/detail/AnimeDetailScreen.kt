@@ -23,6 +23,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
@@ -69,8 +71,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -158,6 +158,7 @@ import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDateDisplay
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -345,10 +346,10 @@ fun AnimeDetailScreen(
                             if (shareButtonEnabled) {
                                 IconButton(onClick = { showShareDialog = true }) {
                                     Icon(
-                                    painter = rememberAppIconPainter(AppIcon.SHARE),
-                                    contentDescription = stringResource(R.string.common_share),
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.onSurface
+                                        painter = rememberAppIconPainter(AppIcon.SHARE),
+                                        contentDescription = stringResource(R.string.common_share),
+                                        modifier = Modifier.size(24.dp),
+                                        tint = MaterialTheme.colorScheme.primary
                                 )
                                 }
                             }
@@ -402,6 +403,7 @@ fun AnimeDetailScreen(
                         AnimeDetailContent(
                             anime = uiState.anime!!,
                             isFetchingDetail = uiState.isFetchingDetail,
+                            detailFetchError = uiState.detailFetchError,
                             notesText = uiState.notesText,
                             isEditingNotes = uiState.isEditingNotes,
                             airStatusText = uiState.airStatusText,
@@ -802,6 +804,7 @@ private fun CoverSearchResultItem(
 private fun AnimeDetailContent(
     anime: Anime,
     isFetchingDetail: Boolean,
+    detailFetchError: String? = null,
     notesText: String,
     isEditingNotes: Boolean,
     airStatusText: String?,
@@ -1169,6 +1172,9 @@ private fun AnimeDetailContent(
         SummaryCard(
             summary = if (editState.isEditing) editState.summary else anime.summary,
             isFetchingDetail = isFetchingDetail,
+            // 数据源按绑定 id 判断：Bangumi 优先，其次 TMDB
+            syncSource = if (anime.bangumiId != null) "Bangumi" else "TMDB",
+            fetchError = detailFetchError,
             isEditing = editState.isEditing,
             onSummaryChange = onEditSummaryChange
         )
@@ -1311,6 +1317,8 @@ private fun DetailCard(
 private fun SummaryCard(
     summary: String?,
     isFetchingDetail: Boolean,
+    syncSource: String? = null,
+    fetchError: String? = null,
     isEditing: Boolean = false,
     onSummaryChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -1389,23 +1397,27 @@ private fun SummaryCard(
                 }
             }
         } else if (isFetchingDetail) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
+            // 简介为空且正在同步：灰色小字提示数据源
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = stringResource(R.string.detail_fetching_detail),
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = stringResource(R.string.detail_syncing_summary, syncSource ?: ""),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
+        } else if (fetchError != null) {
+            // 同步失败：标注失败原因，下次进入详情页可重试
+            Text(
+                text = stringResource(R.string.detail_sync_failed, fetchError),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+            )
         } else {
             Text(
                 text = stringResource(R.string.detail_no_summary),
@@ -1568,101 +1580,125 @@ private fun ProgressCard(
             if (!isEditMode) {
                 val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                 val progressColor = MaterialTheme.colorScheme.primary
-                val tickColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                val thumbBaseColor = MaterialTheme.colorScheme.surface
+                val tickColor = MaterialTheme.colorScheme.surface
+                val maxEps = anime.effectiveMaxEpisodes
+                val valueRange = if (maxEps > 0) maxEps else 100
 
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val maxEps = anime.effectiveMaxEpisodes
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp)
-                    ) {
-                            val barHeight = 6.dp.toPx()
-                            val barY = (size.height - barHeight) / 2f
-                            val cornerRadius = barHeight / 2f
-                            val progress = if (maxEps > 0)
-                                displayValue.toFloat() / maxEps else 0f
-                            val progressWidth = size.width * progress.coerceIn(0f, 1f)
+                val thumbSize by animateFloatAsState(
+                    targetValue = if (isDragging) 20f else 16f,
+                    animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
+                    label = "thumb_size"
+                )
 
-                            drawRoundRect(
-                                color = trackColor,
-                                topLeft = Offset(0f, barY),
-                                size = Size(size.width, barHeight),
-                                cornerRadius = CornerRadius(cornerRadius)
-                            )
+                // 手势位置 → 集数（与绘制的 thumb 几何一致：中心活动区间 [thumbPx/2, W-thumbPx/2]）
+                fun positionToValue(x: Float, width: Float, thumbPx: Float): Float {
+                    val usable = (width - thumbPx).coerceAtLeast(1f)
+                    val fraction = ((x - thumbPx / 2f) / usable).coerceIn(0f, 1f)
+                    return fraction * valueRange
+                }
 
-                            if (progressWidth > 0) {
-                                drawRoundRect(
-                                    color = progressColor,
-                                    topLeft = Offset(0f, barY),
-                                    size = Size(progressWidth, barHeight),
-                                    cornerRadius = CornerRadius(cornerRadius)
-                                )
-                            }
-
-                            val tickCount = minOf(maxEps, 20)
-                            if (tickCount > 1) {
-                                val tickSpacing = size.width / tickCount
-                                for (i in 1 until tickCount) {
-                                    val x = i * tickSpacing
-                                    drawLine(
-                                        color = tickColor,
-                                        start = Offset(x, barY - 1.dp.toPx()),
-                                        end = Offset(x, barY + barHeight + 1.dp.toPx()),
-                                        strokeWidth = 0.5.dp.toPx()
-                                    )
+                Canvas(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(24.dp)
+                        .pointerInput(valueRange) {
+                            detectTapGestures(
+                                // 点按也要 thumb 放大反馈：按下时抬起球，松开回落
+                                onPress = {
+                                    isDragging = true
+                                    tryAwaitRelease()
+                                    isDragging = false
+                                },
+                                onTap = { offset ->
+                                    val thumbPx = 16.dp.toPx()
+                                    sliderValue = positionToValue(offset.x, size.width.toFloat(), thumbPx)
+                                        .roundToInt().toFloat()
+                                    onUpdateWatchedEpisodes(sliderValue.toInt())
                                 }
+                            )
+                        }
+                        .pointerInput(valueRange) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    val thumbPx = 16.dp.toPx()
+                                    sliderValue = positionToValue(offset.x, size.width.toFloat(), thumbPx)
+                                        .roundToInt().toFloat()
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    onUpdateWatchedEpisodes(sliderValue.toInt())
+                                },
+                                onDragCancel = { isDragging = false }
+                            ) { change, _ ->
+                                val thumbPx = 16.dp.toPx()
+                                sliderValue = positionToValue(change.position.x, size.width.toFloat(), thumbPx)
+                                    .roundToInt().toFloat()
+                                change.consume()
                             }
                         }
+                ) {
+                    val barHeight = 6.dp.toPx()
+                    val barY = (size.height - barHeight) / 2f
+                    val cornerRadius = barHeight / 2f
+                    val progress = (sliderValue / valueRange).coerceIn(0f, 1f)
+                    val thumbPx = thumbSize.dp.toPx()
+                    // thumb 中心与填充末端共用同一坐标：填充永远止于球心，进度色与球零间隙
+                    val thumbCenter = thumbPx / 2f + (size.width - thumbPx) * progress
 
-                        val thumbSize by animateFloatAsState(
-                            targetValue = if (isDragging) 20f else 16f,
-                            animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
-                            label = "thumb_size"
-                        )
-                        Slider(
-                            value = sliderValue,
-                            onValueChange = {
-                                sliderValue = it
-                                isDragging = true
-                            },
-                            onValueChangeFinished = {
-                                isDragging = false
-                                onUpdateWatchedEpisodes(sliderValue.toInt())
-                            },
-                            valueRange = if (maxEps > 0) 0f..maxEps.toFloat() else 0f..100f,
-                            steps = if (maxEps > 1) maxEps - 1 else 0,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(24.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = Color.Transparent,
-                                inactiveTrackColor = Color.Transparent
-                            ),
-                            thumb = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(thumbSize.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.surface,
-                                            shape = CircleShape
-                                        )
-                                        .padding(2.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = CircleShape
-                                        )
-                                )
-                            }
+                    drawRoundRect(
+                        color = trackColor,
+                        topLeft = Offset(0f, barY),
+                        size = Size(size.width, barHeight),
+                        cornerRadius = CornerRadius(cornerRadius)
+                    )
+
+                    if (thumbCenter > 0f) {
+                        drawRoundRect(
+                            color = progressColor,
+                            topLeft = Offset(0f, barY),
+                            size = Size(thumbCenter, barHeight),
+                            cornerRadius = CornerRadius(cornerRadius)
                         )
                     }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
+
+                    // 集数刻度：轨道中线上的小圆点（章节节点风格），
+                    // 位置与球心共用同一映射（[thumbPx/2, W-thumbPx/2]）——球到第 i 集时球心与第 i 个圆点重合；
+                    // 集数超过 20 时按步长抽稀，圆点始终落在真实集数比例位置上
+                    if (maxEps > 1) {
+                        val step = if (maxEps > 20) (maxEps + 19) / 20 else 1
+                        val baseThumbPx = 16.dp.toPx()
+                        val usable = size.width - baseThumbPx
+                        val dotCenterY = barY + barHeight / 2f
+                        var ep = step
+                        while (ep < maxEps) {
+                            val x = baseThumbPx / 2f + usable * (ep.toFloat() / maxEps)
+                            drawCircle(
+                                color = tickColor,
+                                radius = 1.dp.toPx(),
+                                center = Offset(x, dotCenterY)
+                            )
+                            ep += step
+                        }
+                    }
+
+                    // 进度球：surface 底圆 + primary 内圆（双层样式与原 thumb 一致）
+                    val centerY = size.height / 2f
+                    drawCircle(
+                        color = thumbBaseColor,
+                        radius = thumbPx / 2f,
+                        center = Offset(thumbCenter, centerY)
+                    )
+                    drawCircle(
+                        color = progressColor,
+                        radius = thumbPx / 2f - 2.dp.toPx(),
+                        center = Offset(thumbCenter, centerY)
+                    )
                 }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
 
             AcceleratedButton(
                 text = "+",

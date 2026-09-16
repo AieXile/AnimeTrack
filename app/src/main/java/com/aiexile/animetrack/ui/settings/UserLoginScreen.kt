@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
@@ -98,6 +99,7 @@ fun UserLoginScreen(
     val context = LocalContext.current
 
     val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+    val tokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
     val username by userAuthManager.username.collectAsState(initial = null)
     val email by userAuthManager.email.collectAsState(initial = null)
     val createdAt by userAuthManager.createdAt.collectAsState(initial = null)
@@ -439,7 +441,7 @@ fun UserLoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isLoggedIn) {
+            if (isLoggedIn && !tokenExpired) {
                 Spacer(modifier = Modifier.height(20.dp))
                 // 已登录状态 - 头像区域（可点击上传）
                 Box(
@@ -642,7 +644,32 @@ fun UserLoginScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             } else {
-                // 未登录状态
+                // 未登录 / token 已失效（强制重新登录）
+                if (tokenExpired) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(SquircleShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.ERROR),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.token_expired_form_hint),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
                 Spacer(modifier = Modifier.height(40.dp))
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),

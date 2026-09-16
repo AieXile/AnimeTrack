@@ -43,6 +43,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -179,7 +180,8 @@ fun CapsuleNavigationBar(
                 // ===== 指示器拖拽动画（与液态玻璃浮块同一套物理交互）=====
                 // 拖动色块移动，松手弹性吸附最近 Tab 并滚动 Pager 过去；
                 // 按压放大 + 拖拽速度带来的果冻拉伸形变
-                val dragAnim = remember(scope, itemCount, density) {
+                val touchSlopPx = LocalViewConfiguration.current.touchSlop
+                val dragAnim = remember(scope, itemCount, density, touchSlopPx) {
                     DampedDragAnimation(
                         animationScope = scope,
                         initialValue = selectedIndex.toFloat(),
@@ -191,9 +193,20 @@ fun CapsuleNavigationBar(
                         onDragStopped = {
                             val target = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
                             animateToValue(target.toFloat())
-                            pagerState?.let { pager ->
-                                scope.launch { pager.animateScrollToPage(target) }
+                            // 仅真实拖拽（累计位移超过 touchSlop）才滚动 Pager：
+                            // 指示器上的纯点按由下层 Tab 的 clickable 处理；飞行途中
+                            // 指示器跟随 Pager 处于分数位置，若点按也滚动，会以中途
+                            // 四舍五入的索引重启动画，取消进行中的跳转导致误跳相邻页
+                            if (draggedDistance > touchSlopPx) {
+                                pagerState?.let { pager ->
+                                    scope.launch { pager.animateScrollToPage(target) }
+                                }
                             }
+                        },
+                        // 手势被取消（事件被其他手势消费/系统打断）：仅视觉回弹，不滚动
+                        onDragCancelled = {
+                            val target = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
+                            animateToValue(target.toFloat())
                         },
                         onDrag = { _, dragAmount, change ->
                             // 消费事件：避免同时触发整栏水平拖拽手势（双重滚动）

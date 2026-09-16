@@ -60,7 +60,8 @@
     <string name="detail_summary">简介</string>
     <string name="detail_add_summary_hint">添加简介...</string>
     <string name="detail_click_to_expand">点击展开</string>
-    <string name="detail_fetching_detail">正在获取详情...</string>
+    <string name="detail_syncing_summary">正在通过 %1$s 同步简介中...</string>
+    <string name="detail_sync_failed">简介同步失败：%1$s</string>
     <string name="detail_no_summary">暂无简介</string>
     <string name="detail_total_episodes">总集数</string>
     <string name="detail_watch_progress">观看进度</string>

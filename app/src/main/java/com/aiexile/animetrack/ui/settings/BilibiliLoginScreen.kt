@@ -92,6 +92,7 @@ fun BilibiliLoginScreen(
     val context = LocalContext.current
 
     val isLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
+    val tokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
     val userAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
     val userNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
     val lastSyncTime by bilibiliAuthManager.lastSyncTime.collectAsState(initial = 0L)
@@ -119,7 +120,7 @@ fun BilibiliLoginScreen(
     // 生成二维码
     LaunchedEffect(generateTrigger) {
         if (generateTrigger <= 0) return@LaunchedEffect
-        if (isLoggedIn) return@LaunchedEffect
+        if (isLoggedIn && !tokenExpired) return@LaunchedEffect
         if (retryCount >= MAX_QR_RETRY) return@LaunchedEffect
 
         isGeneratingQr = true
@@ -146,8 +147,9 @@ fun BilibiliLoginScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (!isLoggedIn) {
+    LaunchedEffect(isLoggedIn, tokenExpired) {
+        // 未登录或 token 已失效时展示二维码登录
+        if (!isLoggedIn || tokenExpired) {
             generateTrigger = 1
         }
     }
@@ -197,6 +199,9 @@ fun BilibiliLoginScreen(
                             nickname = navResp.data.uname,
                             mid = navResp.data.mid
                         )
+                    } else if (navResp.code == -101 || navResp.code == -111) {
+                        // 新登录的会话立即失效：标记失效（保留资料，引导重新登录）
+                        bilibiliAuthManager.markTokenExpired()
                     }
                     loginMessage = context.getString(R.string.bilibili_login_success)
                     isLoginMessageInfo = true
@@ -281,7 +286,7 @@ fun BilibiliLoginScreen(
             )
         }
     ) { paddingValues ->
-        if (isLoggedIn) {
+        if (isLoggedIn && !tokenExpired) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -476,6 +481,31 @@ fun BilibiliLoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                // token 已失效：顶部提示，引导重新扫码登录
+                if (tokenExpired) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(SquircleShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.ERROR),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.token_expired_form_hint),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
                 if (isGeneratingQr) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))

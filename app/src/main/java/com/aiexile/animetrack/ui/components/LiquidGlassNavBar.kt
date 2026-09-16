@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -71,6 +72,9 @@ import kotlin.math.sign
  * 2. 镜像内容层（不可见）：捕获 Tab 内容到 [tabsBackdrop]，供浮块折射出强调色图标；
  * 3. 玻璃浮块（选中指示器）：拖拽移动、松手弹性吸附最近 Tab，按压时放大 +
  *    高光/阴影/内阴影渐显 + 色差折射；拖拽时整条胶囊有轻微弹性位移（panelOffset）。
+ *    按压/拖拽/飞行期间，图标选中态与接近度实时跟随浮块连续位置（Apple
+ *    液态玻璃 TabBar 行为）：浮块底下是哪个图标，哪个就渲染选中态，
+ *    相邻图标按接近度渐变亮起。
  *
  * 尺寸与 [CapsuleNavigationBar] 普通模式一致：胶囊高 54dp、内部 4dp 边距、
  * 浮块高 46dp；水平 32dp / 底部 24dp 边距由 [CapsuleNavigationBar] 统一应用。
@@ -115,6 +119,7 @@ internal fun LiquidGlassNavBar(
         }
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
+        val touchSlopPx = LocalViewConfiguration.current.touchSlop
 
         // 注意 remember 不带 key：currentRoute 变化统一由下方 route sync effect
         // 处理（更新索引 + 浮块动画），避免重置绕过动画导致浮块不动
@@ -122,7 +127,7 @@ internal fun LiquidGlassNavBar(
 
         // key 包含 tabWidth/itemCount/isLtr：布局或可见 Tab 变化时重建，
         // 避免拖拽回调闭包捕获过期的尺寸与索引范围（旋转/改设置后拖拽失准）
-        val dampedDragAnimation = remember(animationScope, tabWidth, itemCount, isLtr) {
+        val dampedDragAnimation = remember(animationScope, tabWidth, itemCount, isLtr, touchSlopPx) {
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = selectedIndex.toFloat(),
@@ -136,9 +141,22 @@ internal fun LiquidGlassNavBar(
                     val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
-                    if (targetIndex in visibleItems.indices) {
+                    animationScope.launch {
+                        offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                    }
+                    // 仅真实拖拽（累计位移超过 touchSlop）才导航：浮块上的纯点按
+                    // 由下层 Tab 的 clickable 处理，此处若也导航，飞行途中的补点/
+                    // 双击会二次触发 onNavigate，取消进行中的 animateScrollToPage
+                    // 导致误跳相邻页（概率性无法复现的根因）
+                    if (draggedDistance > touchSlopPx && targetIndex in visibleItems.indices) {
                         onNavigate(visibleItems[targetIndex].route)
                     }
+                },
+                // 手势被取消（事件被其他手势消费/系统打断）：仅视觉回弹，不导航
+                onDragCancelled = {
+                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
+                    currentIndex = targetIndex
+                    animateToValue(targetIndex.toFloat())
                     animationScope.launch {
                         offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                     }
@@ -193,6 +211,16 @@ internal fun LiquidGlassNavBar(
             )
         }
 
+        // 图标选中态实时跟随浮块连续位置（Apple 液态玻璃 TabBar 行为）：
+        // round 量化后仅在浮块跨过图标边界时重组一次，颜色/缩放过渡由
+        // CapsuleNavItem 内的 spring 动画平滑，不逐帧重组。
+        // 逻辑（导航回调）仍用 currentIndex，视觉用 activeIndex，二者解耦
+        val activeIndex by remember(dampedDragAnimation, itemCount) {
+            derivedStateOf {
+                dampedDragAnimation.value.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
+            }
+        }
+
         // ===== 1. 胶囊容器（54dp 液态玻璃 + 可见可点击的 Tab）=====
         Row(
             Modifier
@@ -223,7 +251,8 @@ internal fun LiquidGlassNavBar(
             visibleItems.forEachIndexed { index, item ->
                 GlassNavTab(
                     item = item,
-                    selected = index == currentIndex,
+                    selected = index == activeIndex,
+                    proximity = rememberTabProximity(dampedDragAnimation, index),
                     labelMode = labelMode,
                     onClick = {
                         if (index != currentIndex) {
@@ -288,8 +317,8 @@ internal fun LiquidGlassNavBar(
                 ) {
                     CapsuleNavItem(
                         item = item,
-                        selected = index == currentIndex,
-                        proximity = if (index == currentIndex) 1f else 0f,
+                        selected = index == activeIndex,
+                        proximity = rememberTabProximity(dampedDragAnimation, index),
                         labelMode = labelMode
                     )
                 }
@@ -387,11 +416,12 @@ internal fun LiquidGlassNavBar(
     }
 }
 
-/** 液态玻璃胶囊内的可见 Tab：点击切换，选中态与普通胶囊一致 */
+/** 液态玻璃胶囊内的可见 Tab：点击切换，选中态实时跟随浮块位置 */
 @Composable
 private fun RowScope.GlassNavTab(
     item: BottomNavItem,
     selected: Boolean,
+    proximity: Float,
     labelMode: NavigationLabelMode,
     onClick: () -> Unit
 ) {
@@ -408,8 +438,24 @@ private fun RowScope.GlassNavTab(
         CapsuleNavItem(
             item = item,
             selected = selected,
-            proximity = if (selected) 1f else 0f,
+            proximity = proximity,
             labelMode = labelMode
         )
     }
 }
+
+/**
+ * Tab 图标与浮块连续位置的接近度（0..1），按 0.25 步长量化：
+ * 拖拽/飞行期间仅跨步长时重组（每次拖拽约 4×Tab数 次），平滑渐变
+ * 交给 CapsuleNavItem 内已有的 spring 动画，保持"逐帧只刷新绘制"的约定
+ */
+@Composable
+private fun rememberTabProximity(
+    dampedDragAnimation: DampedDragAnimation,
+    index: Int
+): Float = remember(dampedDragAnimation, index) {
+    derivedStateOf {
+        val raw = 1f - abs(dampedDragAnimation.value - index)
+        (raw.fastCoerceIn(0f, 1f) * 4f).fastRoundToInt() / 4f
+    }
+}.value

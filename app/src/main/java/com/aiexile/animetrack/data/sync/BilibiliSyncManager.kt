@@ -61,6 +61,10 @@ class BilibiliSyncManager(
             if (!isLoggedIn) {
                 return@withContext Result.failure(Exception("未登录Bilibili"))
             }
+            // 已标记失效的会话不再发起同步，避免无效请求
+            if (bilibiliAuthManager.tokenExpired.first()) {
+                return@withContext Result.failure(Exception("Bilibili 登录已失效"))
+            }
 
             var mid = bilibiliAuthManager.mid.first()
             if (mid == null || mid <= 0) {
@@ -74,6 +78,11 @@ class BilibiliSyncManager(
                         avatar = navResp.data.face,
                         nickname = navResp.data.uname
                     )
+                } else if (navResp.code == -101 || navResp.code == -111) {
+                    // -101 未登录（SESSDATA 失效）/ -111 csrf 失效：标记失效，引导重新登录
+                    AppLogManager.i(TAG, "Bilibili 会话失效: nav code=${navResp.code}")
+                    bilibiliAuthManager.markTokenExpired()
+                    return@withContext Result.failure(Exception("Bilibili 登录已失效"))
                 } else {
                     return@withContext Result.failure(Exception("无法获取用户mid"))
                 }
@@ -91,6 +100,13 @@ class BilibiliSyncManager(
                     pn = pn,
                     ps = ps
                 )
+
+                if (response.code == -101 || response.code == -111) {
+                    // 会话失效：标记并终止，引导重新登录
+                    AppLogManager.i(TAG, "Bilibili 会话失效: followList code=${response.code}")
+                    bilibiliAuthManager.markTokenExpired()
+                    return@withContext Result.failure(Exception("Bilibili 登录已失效"))
+                }
 
                 if (response.code != 0 || response.data?.list == null) {
                     AppLogManager.e(TAG, "获取追番列表失败: code=${response.code} msg=${response.message}")

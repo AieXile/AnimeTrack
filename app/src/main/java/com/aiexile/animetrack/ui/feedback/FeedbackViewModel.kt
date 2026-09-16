@@ -12,10 +12,12 @@ import com.aiexile.animetrack.data.network.FEEDBACK_ROLE_USER
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 /** 反馈聊天主页状态 */
@@ -83,6 +85,12 @@ class FeedbackViewModel(
             userAuthManager.username.collect { name ->
                 _username.value = name?.takeIf { it.isNotBlank() }
             }
+        }
+        // SSE 管理员回复事件：前台在线时红点即时刷新（替代进界面/重启才刷新的被动链路）
+        viewModelScope.launch {
+            AppContainer.getSseClient().events
+                .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+                .collect { refreshNewReplies() }
         }
     }
 

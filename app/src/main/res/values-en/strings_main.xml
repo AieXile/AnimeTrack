@@ -60,7 +60,8 @@
     <string name="detail_summary">Summary</string>
     <string name="detail_add_summary_hint">Add summary...</string>
     <string name="detail_click_to_expand">Tap to expand</string>
-    <string name="detail_fetching_detail">Fetching details...</string>
+    <string name="detail_syncing_summary">Syncing summary from %1$s...</string>
+    <string name="detail_sync_failed">Failed to sync summary: %1$s</string>
     <string name="detail_no_summary">No summary</string>
     <string name="detail_total_episodes">Total episodes</string>
     <string name="detail_watch_progress">Watch progress</string>
