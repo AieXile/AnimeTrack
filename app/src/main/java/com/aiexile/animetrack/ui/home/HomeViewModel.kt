@@ -27,6 +27,7 @@ import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.computeIsFinished
 import com.aiexile.animetrack.util.getCurrentWeekday
 import com.aiexile.animetrack.util.isAirDateInFuture
+import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.NetworkErrorUtils
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
@@ -145,7 +146,8 @@ class HomeViewModel(
 
     val todayUpdateCount: StateFlow<Int> = animeList.map { animes ->
         val todayWeekday = getCurrentWeekday()
-        animes.count { it.airWeekday == todayWeekday && !it.isFinished }
+        // 排除未放送的番剧：仅有 airWeekday 匹配但尚未开播（airDate 在未来）的不计入今日更新
+        animes.count { it.airWeekday == todayWeekday && !it.isFinished && !isUnaired(it.airDate) }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
