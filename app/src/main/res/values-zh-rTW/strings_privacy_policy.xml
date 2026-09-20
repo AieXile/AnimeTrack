@@ -1,72 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- PrivacyPolicyScreen -->
+    <!-- PrivacyPolicyScreen：正文存於 res/raw-zh-rTW/privacy_policy.md（XML string 換行會被 AAPT2 折疊，Markdown 語法失效） -->
     <string name="privacy_policy_title">隱私政策</string>
-    <string name="privacy_policy_content">生效日期：2026-09-20
+    <string name="privacy_policy_effective_date">生效日期 2026-09-20</string>
 
-我們非常重視你的隱私。本政策說明 AnimeTrack 收集哪些資料、如何使用與保護這些資料。使用本應用即表示你同意本政策的全部內容。
-
-# 一、我們收集的資訊
-
-**本機資料（預設不離開你的裝置）**
-
-- 追番記錄、觀看進度、評分與備註
-- 外觀、功能等偏好設定
-- 本機日誌（僅記錄應用行為與異常資訊，保留 3 天，不含敏感個人資料）
-
-以上資料儲存在本機，除非你主動開啟同步或匯出，不會上傳。
-
-**帳號資料（僅註冊登入後）**
-
-- 使用者名稱、電子郵件信箱（用於登入、驗證碼與找回密碼）
-- 密碼（伺服器端加密儲存，我們無法查看明文）
-- 裝置資訊（裝置標識、名稱、平台），用於多端登入管理與帳號安全
-
-**雲端資料（僅登入並同步後）**
-
-- 雲端追番記錄，用於多裝置間同步
-- 意見回饋記錄（回饋內容與回覆）
-
-# 二、資料的使用
-
-- 提供追番記錄的雲端同步與多裝置登入
-- 在你提交回饋時用於處理問題與回覆
-- 本機日誌會在你主動提交回饋時作為附件上傳，用於排查問題
-
-# 三、第三方服務
-
-本應用會與以下第三方服務通訊，各自受其隱私政策約束：
-
-- **Bangumi / TMDB**：查詢番劇元資料與評分
-- **Bilibili**：在你主動登入後同步追番清單
-- **GitHub**：檢查應用更新
-- **一言（Hitokoto）**：取得隨機語錄
-- **WebDAV**：由你自行設定的同步伺服器，資料不經過我們
-
-# 四、權限使用
-
-- **通知權限**：僅用於番劇更新提醒，可選擇關閉
-
-# 五、資料的儲存與安全
-
-- 帳號資料透過 HTTPS 傳輸，密碼加密儲存
-- 本機日誌保留 3 天後自動清理
-- 我們不會出售或向無關第三方提供你的個人資料
-
-# 六、資料的刪除
-
-- 登出後，雲端追番記錄仍會保留，可隨時重新登入恢復
-- 註銷帳號：提交後有 7 天冷靜期，期間重新登入可撤銷；到期後帳號資訊、雲端追番記錄、回饋記錄等將被永久刪除
-
-# 七、政策更新
-
-我們可能不定期修訂本政策，修訂後會在應用內提示。繼續使用即視為接受修訂後的政策。
-
-# 八、聯絡我們
-
-如有任何疑問，可透過以下管道回饋：
-
-- GitHub：https://github.com/AieXile/AnimeTrack
-- Telegram：https://t.me/AnimeTrackovo
-- 應用內「意見回饋」</string>
+    <!-- PrivacyConsentDialog（首啟隱私政策同意彈窗） -->
+    <string name="privacy_consent_title">歡迎使用 AnimeTrack</string>
+    <string name="privacy_consent_message_prefix">感謝你的使用。在開始前，請閱讀並同意《</string>
+    <string name="privacy_consent_message_suffix">》。未同意前，應用不會收集你的任何個人資料：</string>
+    <string name="privacy_consent_point_local">追番記錄與設定預設僅保存在本機</string>
+    <string name="privacy_consent_point_account">僅註冊登入後收集帳號資料</string>
+    <string name="privacy_consent_point_upload">本機資料不經你允許不會上傳</string>
+    <string name="privacy_consent_view_full">查看完整政策</string>
+    <string name="privacy_consent_accept">同意並繼續</string>
+    <string name="privacy_consent_decline">不同意並退出</string>
+    <string name="privacy_consent_decline_title">確定退出應用？</string>
+    <string name="privacy_consent_decline_message">未同意隱私政策將無法使用 AnimeTrack</string>
+    <string name="privacy_consent_decline_confirm">退出</string>
+    <string name="privacy_consent_decline_cancel">再想想</string>
 </resources>

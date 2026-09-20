@@ -93,6 +93,7 @@ class SettingsRepository(private val context: Context) {
         private val LAST_COVER_BACKFILL_TIME_KEY = longPreferencesKey("last_cover_backfill_time")
         private val WEBDAV_MEDIA_PATH_KEY = stringPreferencesKey("webdav_media_path")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
+        private val PRIVACY_POLICY_ACCEPTED_KEY = booleanPreferencesKey("privacy_policy_accepted")
         private val DEVELOPER_MODE_KEY = booleanPreferencesKey("developer_mode")
         private val SHARE_BUTTON_ENABLED_KEY = booleanPreferencesKey("share_button_enabled")
         private val AUTO_SYNC_VISIBLE_KEY = booleanPreferencesKey("auto_sync_visible")
@@ -153,6 +154,7 @@ class SettingsRepository(private val context: Context) {
         private val APP_LANGUAGE_KEY = stringPreferencesKey("app_language")
         // SharedPreferences 同步镜像 key（供 attachBaseContext 冷启动时同步读取）
         private const val APP_LANGUAGE_PREF = "app_language"
+        private const val PRIVACY_ACCEPTED_PREF = "privacy_policy_accepted"
         private val LAST_ACTIVITY_DATE_KEY = stringPreferencesKey("last_activity_date")
         private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
         // 设备唯一标识（首次生成后持久化，卸载重装会变，作为活跃统计主键）
@@ -210,6 +212,10 @@ class SettingsRepository(private val context: Context) {
     // 语言设置：使用 SharedPreferences 做同步镜像，供 attachBaseContext 冷启动时立即读取
     // （DataStore 首次读取是异步的，冷启动早期 appLanguageCache 尚未填充，会导致语言设置丢失）
     private val localePrefs = context.getSharedPreferences("locale_prefs", Context.MODE_PRIVATE)
+
+    // 隐私政策同意状态同步镜像：Application/MainActivity 冷启动需同步判断是否同意，
+    // 决定 JPush、崩溃上报等个人信息收集组件是否初始化（DataStore 首读是异步的，来不及）
+    private val privacyPrefs = context.getSharedPreferences("privacy_prefs", Context.MODE_PRIVATE)
 
     init {
         // 复用 Application 级协程作用域（替代 GlobalScope）加载缓存；
@@ -500,6 +506,27 @@ class SettingsRepository(private val context: Context) {
     val isFirstLaunch: Flow<Boolean> = preferenceFlow(IS_FIRST_LAUNCH_KEY, true)
 
     suspend fun setFirstLaunchCompleted() = setPreference(IS_FIRST_LAUNCH_KEY, false)
+
+    // ========== 隐私政策同意状态（合规：未同意前不得初始化个人信息收集组件） ==========
+
+    /** 隐私政策是否已同意（UI 观察） */
+    val privacyPolicyAccepted: Flow<Boolean> = preferenceFlow(PRIVACY_POLICY_ACCEPTED_KEY, false)
+
+    suspend fun setPrivacyPolicyAccepted(accepted: Boolean) {
+        // 同步写 SharedPreferences 镜像：保证同意后立即杀进程，下次冷启动同步读取也生效
+        privacyPrefs.edit().putBoolean(PRIVACY_ACCEPTED_PREF, accepted).apply()
+        setPreference(PRIVACY_POLICY_ACCEPTED_KEY, accepted)
+    }
+
+    /**
+     * 隐私政策同意状态的同步读取：供 Application/MainActivity 冷启动判断
+     * （此时 DataStore 首读可能尚未完成）。优先读 prefCache（DataStore 加载后已填充），
+     * 未填充时退化为 SharedPreferences 镜像。
+     */
+    fun isPrivacyPolicyAcceptedBlocking(): Boolean {
+        (prefCache[PRIVACY_POLICY_ACCEPTED_KEY] as? Boolean)?.let { return it }
+        return privacyPrefs.getBoolean(PRIVACY_ACCEPTED_PREF, false)
+    }
 
     val developerMode: Flow<Boolean> = preferenceFlow(DEVELOPER_MODE_KEY, false)
 

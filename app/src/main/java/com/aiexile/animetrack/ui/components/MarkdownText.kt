@@ -23,6 +23,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -44,6 +46,25 @@ sealed class MdBlock {
     data object HorizontalRule : MdBlock()
     data object BlankLine : MdBlock()
 }
+
+/**
+ * Markdown 渲染排版参数：默认值为紧凑样式（更新日志/公告等场景），
+ * 长文档阅读场景（隐私政策等）可传入更大字号与间距。
+ * 颜色不在其中定义，由组件按主题色（onSurface/onSurfaceVariant）渲染。
+ */
+data class MarkdownTextStyle(
+    val h1: TextStyle = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, lineHeight = 22.sp),
+    val h2: TextStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, lineHeight = 22.sp),
+    val h3: TextStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp),
+    val paragraph: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 20.sp),
+    val listItem: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 20.sp),
+    /** 段落/引用/空行等块之后的间距 */
+    val blockSpacing: Dp = 4.dp,
+    /** 相邻列表项之间的间距（默认紧凑无间距） */
+    val listItemSpacing: Dp = 0.dp,
+    /** 标题之后的间距 */
+    val headingSpacing: Dp = 4.dp
+)
 
 fun parseMarkdown(markdown: String): List<MdBlock> {
     val blocks = mutableListOf<MdBlock>()
@@ -204,7 +225,11 @@ fun AnnotatedString.Builder.appendInlineMarkdown(text: String, colorScheme: andr
 }
 
 @Composable
-fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
+fun MarkdownText(
+    markdown: String,
+    modifier: Modifier = Modifier,
+    style: MarkdownTextStyle = MarkdownTextStyle()
+) {
     val colorScheme = MaterialTheme.colorScheme
     val blocks = rememberMarkdownBlocks(markdown)
 
@@ -212,20 +237,17 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
         blocks.forEach { block ->
             when (block) {
                 is MdBlock.Heading -> {
-                    val fontSize = when (block.level) {
-                        1 -> 18.sp
-                        2 -> 16.sp
-                        else -> 14.sp
+                    val headingStyle = when (block.level) {
+                        1 -> style.h1
+                        2 -> style.h2
+                        else -> style.h3
                     }
-                    val weight = if (block.level <= 2) FontWeight.Bold else FontWeight.SemiBold
                     Text(
                         text = block.text,
-                        fontSize = fontSize,
-                        fontWeight = weight,
-                        lineHeight = 22.sp,
+                        style = headingStyle,
                         color = colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.headingSpacing))
                 }
                 is MdBlock.CodeBlock -> {
                     Surface(
@@ -242,7 +264,7 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
                             color = colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
                 is MdBlock.ListItem -> {
                     Text(
@@ -256,10 +278,12 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
                             }
                             appendInlineMarkdown(block.text, colorScheme)
                         },
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
+                        style = style.listItem,
                         color = colorScheme.onSurfaceVariant
                     )
+                    if (style.listItemSpacing > 0.dp) {
+                        Spacer(modifier = Modifier.height(style.listItemSpacing))
+                    }
                 }
                 is MdBlock.Blockquote -> {
                     Row(
@@ -278,12 +302,11 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
                                 appendInlineMarkdown(block.text, colorScheme)
                             },
                             modifier = Modifier.padding(start = 10.dp),
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp,
+                            style = style.paragraph,
                             color = colorScheme.onSurfaceVariant
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
                 is MdBlock.Image -> {
                     Surface(
@@ -300,31 +323,30 @@ fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
                             contentScale = ContentScale.FillWidth
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
                 is MdBlock.HorizontalRule -> {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp),
                         color = colorScheme.outlineVariant
                     ) {}
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
                 is MdBlock.Paragraph -> {
                     Text(
                         text = buildAnnotatedString {
                             appendInlineMarkdown(block.text, colorScheme)
                         },
-                        fontSize = 13.sp,
-                        lineHeight = 20.sp,
+                        style = style.paragraph,
                         color = colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
                 is MdBlock.BlankLine -> {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(style.blockSpacing))
                 }
             }
         }

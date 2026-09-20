@@ -44,6 +44,10 @@ class MainActivity : ComponentActivity() {
     // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
     private val customFontFamily = MutableStateFlow<FontFamily?>(null)
 
+    // Splash 退出动画是否已完全结束：首启隐私同意弹窗需等 splash 消失后再弹
+    // （Compose Dialog 是独立 Window，会直接盖在 Activity 窗口的 splash 遮罩之上）
+    private val splashDismissed = MutableStateFlow(false)
+
     // 应用级协程作用域（生命周期与进程一致，适合“启动即完成、不随 Activity 销毁”的后台任务）
     private val appScope get() = (application as AnimeTrackApp).appScope
 
@@ -51,6 +55,16 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+
+    /** 请求通知权限（已授权或系统不再弹窗时静默跳过）；供冷启动与隐私弹窗同意后复用 */
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     override fun attachBaseContext(newBase: android.content.Context) {
         // 在 Activity 创建前应用语言设置
@@ -78,8 +92,10 @@ class MainActivity : ComponentActivity() {
             AppContainer.getUsageStatsRepository().incrementOpenCount()
             // 冷启动 / 从后台切回前台时，拉取服务器订阅列表到本地（只下载不上传）
             AppContainer.getAnimeRepository().triggerPullSubscriptionsFromServer()
-            // 用户当日首次启动时上报活跃（失败静默）
-            com.aiexile.animetrack.data.ActivityReportHelper.reportActivityIfNeeded()
+            // 用户当日首次启动时上报活跃（失败静默）；隐私政策未同意前不上报（合规）
+            if (AppContainer.getSettingsRepository().isPrivacyPolicyAcceptedBlocking()) {
+                com.aiexile.animetrack.data.ActivityReportHelper.reportActivityIfNeeded()
+            }
         }
     }
 
@@ -109,6 +125,11 @@ class MainActivity : ComponentActivity() {
         val isDataLoaded = java.util.concurrent.atomic.AtomicBoolean(false)
         splashScreen.setKeepOnScreenCondition { !isDataLoaded.get() }
 
+        // Activity 重建（旋转/进程恢复）时无 Splash，直接视为已消失
+        if (savedInstanceState != null) {
+            splashDismissed.value = true
+        }
+
         splashScreen.setOnExitAnimationListener { splashScreenView ->
             val fadeOut = ObjectAnimator.ofFloat(
                 splashScreenView.view, View.ALPHA, 1f, 0f
@@ -118,6 +139,8 @@ class MainActivity : ComponentActivity() {
             fadeOut.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     splashScreenView.remove()
+                    // Splash 完全消失后才允许首启隐私同意弹窗显示（避免弹窗盖在 splash 上）
+                    splashDismissed.value = true
                 }
             })
             fadeOut.start()
@@ -126,18 +149,18 @@ class MainActivity : ComponentActivity() {
         // attachBaseContext 已调用 AppContainer.initialize，此处不再重复调用
         enableEdgeToEdge()
 
-        // Android 13+：主界面启动时请求通知权限（推送通知显示的前提）
-        // 已授权或用户曾拒绝过（系统不再弹窗）时静默跳过
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        // 隐私合规：未同意隐私政策前不申请通知权限、不初始化/上报极光推送
+        // （首启弹窗同意后经 AnimeTrackApp composable 的回调补做）
+        val privacyAccepted = AppContainer.getSettingsRepository().isPrivacyPolicyAcceptedBlocking()
+        // Android 13+：请求通知权限（推送通知显示的前提）；已授权或用户曾拒绝过（系统不再弹窗）时静默跳过
+        if (privacyAccepted) {
+            requestNotificationPermissionIfNeeded()
         }
-
-        // App 启动时检查并上报极光推送 registrationId
-        appScope.launch {
-            PushRegistrationHelper.reportRegistrationIdIfNeeded(applicationContext)
+        // App 启动时检查并上报极光推送 registrationId；依赖 JPush 初始化（隐私同意后才会初始化）
+        if (privacyAccepted) {
+            appScope.launch {
+                PushRegistrationHelper.reportRegistrationIdIfNeeded(applicationContext)
+            }
         }
         // 字体异步加载：先用默认 FontFamily 渲染 UI，后台加载自定义字体完成后通过 StateFlow 触发更新。
         // 保留原 CUSTOM 分支路径判断逻辑（非空 + File.exists），仅将 Typeface.createFromFile 移至 IO 线程。
@@ -194,7 +217,12 @@ class MainActivity : ComponentActivity() {
                     LocalWindowSizeClass provides windowSizeClass,
                     LocalIconPack provides iconPack
                 ) {
-                    AnimeTrackApp(settingsRepository = settingsRepository, isDataLoaded = isDataLoaded)
+                    val splashDismissed by splashDismissed.collectAsState()
+                    AnimeTrackApp(
+                        settingsRepository = settingsRepository,
+                        isDataLoaded = isDataLoaded,
+                        splashDismissed = splashDismissed
+                    )
                 }
             }
         }

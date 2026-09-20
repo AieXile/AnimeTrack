@@ -105,6 +105,7 @@ import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.EmailBindDialog
+import com.aiexile.animetrack.ui.settings.PrivacyConsentDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.player.PlayerScreen
@@ -129,7 +130,8 @@ import kotlin.math.sqrt
 @Composable
 fun AnimeTrackApp(
     settingsRepository: SettingsRepository,
-    isDataLoaded: java.util.concurrent.atomic.AtomicBoolean
+    isDataLoaded: java.util.concurrent.atomic.AtomicBoolean,
+    splashDismissed: Boolean = true
 ) {
     val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
@@ -140,6 +142,8 @@ fun AnimeTrackApp(
     val useSideNavigation = !isCompactWidth()
     val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
     val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsState(null)
+    // 隐私同意状态：null = 加载中；false = 未同意（首启弹窗模态覆盖）；true = 已同意
+    val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsState(null)
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
     val hazeState = rememberHazeState()
@@ -163,8 +167,10 @@ fun AnimeTrackApp(
     var startRoute by remember { mutableStateOf<String?>(null) }
     var isInitialRouteSet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isFirstLaunch) {
-        if (!isInitialRouteSet && isFirstLaunch != null) {
+    LaunchedEffect(isFirstLaunch, privacyAccepted) {
+        // 隐私同意状态也加载完毕后才放行 splash：未同意用户由下方 privacy gate
+        // 弹出同意弹窗（splash 消失瞬间弹窗出现，不闪主界面），已同意直接进主界面/引导
+        if (!isInitialRouteSet && isFirstLaunch != null && privacyAccepted != null) {
             startRoute = if (isFirstLaunch!!) Routes.ONBOARDING else Routes.MAIN
             isInitialRouteSet = true
             isDataLoaded.set(true)
@@ -320,6 +326,29 @@ fun AnimeTrackApp(
     }
 
     val bannerVisibleSources = expiredSources - dismissedSources
+
+    // ===== 隐私政策同意（合规：首启弹窗，优先于新手引导与主界面） =====
+    // 未同意时模态弹窗覆盖；同意后补初始化 JPush/崩溃上报（Application 延迟的部分）并请求通知权限。
+    // 弹窗须等 splash 完全退出后显示：Compose Dialog 是独立 Window，会直接盖在
+    // Activity 窗口的 splash 遮罩之上（出现时机 = 完整启动后、新手引导前）
+    LaunchedEffect(privacyAccepted) {
+        if (privacyAccepted == true) {
+            (appContext.applicationContext as? com.aiexile.animetrack.AnimeTrackApp)
+                ?.onPrivacyAccepted()
+            (appContext as? com.aiexile.animetrack.MainActivity)
+                ?.requestNotificationPermissionIfNeeded()
+        }
+    }
+    if (privacyAccepted == false) {
+        if (splashDismissed) {
+            PrivacyConsentDialog(
+                onAccept = {
+                    appScope.launch { settingsRepository.setPrivacyPolicyAccepted(true) }
+                }
+            )
+        }
+        return
+    }
 
     // 等待初始路由确定
     val currentStartRoute = startRoute

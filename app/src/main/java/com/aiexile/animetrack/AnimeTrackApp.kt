@@ -64,15 +64,13 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         AppLogManager.init(this)
         // xCrash 崩溃捕获（Java/Native/ANR tombstone）：须晚于 AppLogManager 初始化，
         // 保证 rethrow 链为 xCrash 写 tombstone → AppLogManager 写崩溃日志 → 系统默认处理
+        // （本地捕获落盘，不上传，可在隐私同意前初始化；上报见 initPrivacyGatedComponents）
         CrashReporter.init(this)
-        // 崩溃 tombstone 静默上报：延迟避开启动高峰，在 IO 线程逐个上传
-        appScope.launch {
-            delay(reportTombstoneDelayMs)
-            CrashReporter.reportPendingTombstones()
-        }
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
-        appScope.launch {
-            JPushInterface.init(this@AnimeTrackApp)
+        // 隐私合规：JPush 推送与崩溃 tombstone 上报涉及设备信息收集与对外上传，
+        // 已同意隐私政策的用户立即初始化；未同意用户在弹窗同意后经 onPrivacyAccepted() 补初始化
+        if (AppContainer.getSettingsRepository().isPrivacyPolicyAcceptedBlocking()) {
+            initPrivacyGatedComponents()
         }
         // SSE 踢下线事件：立即标记 token 失效（横幅由 AnimeTrackApp UI 层
         // 收集 tokenExpired/tokenKicked 显示，与被动检测链路共用同一状态）
@@ -83,6 +81,33 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
                 }
             }
         }
+    }
+
+    /** 隐私同意后才允许初始化的组件是否已就绪（防止重复初始化） */
+    @Volatile
+    private var privacyGatedInitialized = false
+
+    /**
+     * 初始化涉及个人信息收集/对外上报的组件：
+     * - JPush 推送（设备标识注册）
+     * - 崩溃 tombstone 静默上报（含 deviceId，延迟避开启动高峰，IO 线程逐个上传）
+     * 冷启动时已同意用户在 onCreate 调用；首启弹窗同意后经 [onPrivacyAccepted] 补初始化
+     */
+    private fun initPrivacyGatedComponents() {
+        if (privacyGatedInitialized) return
+        privacyGatedInitialized = true
+        appScope.launch {
+            JPushInterface.init(this@AnimeTrackApp)
+        }
+        appScope.launch {
+            delay(reportTombstoneDelayMs)
+            CrashReporter.reportPendingTombstones()
+        }
+    }
+
+    /** 用户在首启隐私政策弹窗点击同意后调用：补初始化被延后的上报组件 */
+    fun onPrivacyAccepted() {
+        initPrivacyGatedComponents()
     }
 
     override fun newImageLoader(): ImageLoader {

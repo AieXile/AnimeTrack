@@ -1,72 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- PrivacyPolicyScreen -->
+    <!-- PrivacyPolicyScreen: body text lives in res/raw-en/privacy_policy.md (AAPT2 collapses newlines in XML strings, breaking Markdown syntax) -->
     <string name="privacy_policy_title">Privacy Policy</string>
-    <string name="privacy_policy_content">Effective Date: 2026-09-20
+    <string name="privacy_policy_effective_date">Effective 2026-09-20</string>
 
-We take your privacy seriously. This policy explains what data AnimeTrack collects and how it is used and protected. By using this app, you agree to this policy.
-
-# 1. Information We Collect
-
-**Local data (never leaves your device by default)**
-
-- Anime tracking records, watch progress, ratings and notes
-- Appearance and feature preferences
-- Local logs (app behavior and exceptions only, kept for 3 days, no sensitive personal data)
-
-The data above is stored on your device and is never uploaded unless you explicitly enable sync or export.
-
-**Account data (only after registration and login)**
-
-- Username and email address (for login, verification codes and password recovery)
-- Password (encrypted on the server; we cannot see the plaintext)
-- Device information (device ID, name, platform), used for multi-device login management and account security
-
-**Cloud data (only after login and sync)**
-
-- Cloud anime tracking records, for syncing across devices
-- Feedback records (your feedback and our replies)
-
-# 2. How Data Is Used
-
-- To provide cloud sync of tracking records and multi-device login
-- To process and reply to your feedback
-- Local logs are uploaded as an attachment only when you submit feedback, for troubleshooting
-
-# 3. Third-Party Services
-
-This app communicates with the following third-party services, each governed by its own privacy policy:
-
-- **Bangumi / TMDB**: anime metadata and ratings
-- **Bilibili**: syncing your watch list after you actively log in
-- **GitHub**: checking for app updates
-- **Hitokoto**: random quotes
-- **WebDAV**: a sync server configured by yourself; the data never passes through us
-
-# 4. Permissions
-
-- **Notifications**: used only for anime update reminders; can be disabled at any time
-
-# 5. Data Storage and Security
-
-- Account data is transmitted over HTTPS; passwords are stored encrypted
-- Local logs are automatically cleaned up after 3 days
-- We never sell or share your personal data with unrelated third parties
-
-# 6. Data Deletion
-
-- After logging out, your cloud tracking records are retained and can be restored by logging in again
-- Account deletion: there is a 7-day cooling-off period after submission, during which logging back in cancels the request; after that, your account information, cloud tracking records and feedback records are permanently deleted
-
-# 7. Policy Updates
-
-We may revise this policy from time to time and will notify you in the app. Continued use means you accept the revised policy.
-
-# 8. Contact Us
-
-If you have any questions, reach us via:
-
-- GitHub: https://github.com/AieXile/AnimeTrack
-- Telegram: https://t.me/AnimeTrackovo
-- In-app feedback</string>
+    <!-- PrivacyConsentDialog (first-launch privacy consent dialog) -->
+    <string name="privacy_consent_title">Welcome to AnimeTrack</string>
+    <string name="privacy_consent_message_prefix">Thanks for trying it out. Before you start, please read and agree to the </string>
+    <string name="privacy_consent_message_suffix">. Until you agree, the app collects none of your personal information:</string>
+    <string name="privacy_consent_point_local">Tracking records and settings stay on your device</string>
+    <string name="privacy_consent_point_account">Account data is collected only after you sign up or log in</string>
+    <string name="privacy_consent_point_upload">Local data is never uploaded without your consent</string>
+    <string name="privacy_consent_view_full">View full policy</string>
+    <string name="privacy_consent_accept">Agree and continue</string>
+    <string name="privacy_consent_decline">Decline and exit</string>
+    <string name="privacy_consent_decline_title">Exit the app?</string>
+    <string name="privacy_consent_decline_message">AnimeTrack cannot be used without agreeing to the Privacy Policy</string>
+    <string name="privacy_consent_decline_confirm">Exit</string>
+    <string name="privacy_consent_decline_cancel">Reconsider</string>
 </resources>
