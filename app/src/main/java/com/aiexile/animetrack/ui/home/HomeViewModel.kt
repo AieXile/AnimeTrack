@@ -147,7 +147,14 @@ class HomeViewModel(
     val todayUpdateCount: StateFlow<Int> = animeList.map { animes ->
         val todayWeekday = getCurrentWeekday()
         // 排除未放送的番剧：仅有 airWeekday 匹配但尚未开播（airDate 在未来）的不计入今日更新
-        animes.count { it.airWeekday == todayWeekday && !it.isFinished && !isUnaired(it.airDate) }
+        // 仅统计在追/计划观看的番剧：弃番（DROPPED）的 isFinished 缺少兜底重算，
+        // 可能长期残留 false 脏数据导致误报，与 highlightTodayUpdates 及每日通知逻辑对齐
+        animes.count {
+            it.airWeekday == todayWeekday
+                && !it.isFinished
+                && !isUnaired(it.airDate)
+                && (it.status == AnimeStatus.WATCHING || it.status == AnimeStatus.PLANNED)
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
