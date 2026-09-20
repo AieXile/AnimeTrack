@@ -20,6 +20,8 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
+import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.ui.home.SeriesMatcher
 import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.cleanSummary
@@ -142,8 +144,21 @@ interface AnimeRepository {
 
     fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?)
 
-    /** 在应用级协程中补全番剧封面/简介等信息，不会因 ViewModel 销毁而中断 */
-    fun syncCoversInBackground(animesToSync: List<Anime> = emptyList())
+    /**
+     * 在应用级协程中补全番剧封面/简介等信息，不会因 ViewModel 销毁而中断。
+     * @param animesToSync 指定补全列表；空列表时自动捞取所有无封面的番剧
+     * @param notifySuccess 全部成功时是否发送全局横幅（手动触发场景为 true，导入/启动自动补全静默）
+     */
+    fun syncCoversInBackground(
+        animesToSync: List<Anime> = emptyList(),
+        notifySuccess: Boolean = false
+    )
+
+    /**
+     * 启动时检查是否存在元数据缺失的番剧（无封面），存在且距上次自动补全超过 24 小时则触发补全。
+     * 覆盖场景：导入时网络不可达（如未挂代理）导致 Bangumi 匹配失败，恢复网络后重启应用自动补齐。
+     */
+    fun triggerCoverBackfillIfNeeded()
 
     /**
      * 从后端同步订阅列表到本地数据库。
@@ -617,7 +632,10 @@ class AnimeRepositoryImpl(
         }
     }
 
-    override fun syncCoversInBackground(animesToSync: List<Anime>) {
+    override fun syncCoversInBackground(
+        animesToSync: List<Anime>,
+        notifySuccess: Boolean
+    ) {
         appScope.launch {
             val animesWithoutCover = if (animesToSync.isNotEmpty()) {
                 animesToSync.reversed()
@@ -713,6 +731,43 @@ class AnimeRepositoryImpl(
             }
 
             if (BuildConfig.DEBUG) Log.d(TAG, "Background cover sync complete: $count/${animesWithoutCover.size}")
+
+            // 补全结果反馈：失败（网络不可达或无匹配）时全局横幅提示，恢复途径见文案；
+            // 全部成功时仅手动触发场景提示，导入/启动自动补全保持静默
+            val failedCount = animesWithoutCover.size - count
+            if (failedCount > 0) {
+                AppLogManager.w(TAG, "番剧信息补全失败 $failedCount/${animesWithoutCover.size} 部（Bangumi 匹配失败或网络不可达）")
+                AppContainer.importBanner.value = ImportBannerState(
+                    loading = false,
+                    text = "$failedCount 部番剧信息补全失败（访问 Bangumi 需代理），恢复网络后重启应用将自动重试",
+                    isError = true
+                )
+            } else if (notifySuccess) {
+                AppContainer.importBanner.value = ImportBannerState(
+                    loading = false,
+                    text = "已补全 ${animesWithoutCover.size} 部番剧信息"
+                )
+            }
+        }
+    }
+
+    override fun triggerCoverBackfillIfNeeded() {
+        appScope.launch {
+            try {
+                val settings = AppContainer.getSettingsRepository()
+                val last = settings.lastCoverBackfillTime.first()
+                // 24 小时节流：网络持续不可达时避免每次启动都发起一轮必败请求
+                if (System.currentTimeMillis() - last < 24 * 60 * 60 * 1000L) return@launch
+
+                val pending = animeDao.getAnimesWithoutCover()
+                if (pending.isEmpty()) return@launch
+
+                settings.setLastCoverBackfillTime(System.currentTimeMillis())
+                if (BuildConfig.DEBUG) Log.d(TAG, "Cover backfill on launch: ${pending.size} animes pending")
+                syncCoversInBackground()
+            } catch (e: Exception) {
+                AppLogManager.w(TAG, "启动补全检查失败", e)
+            }
         }
     }
 

@@ -26,6 +26,7 @@ object MarkdownParser {
     
     private val headerRegex = Regex("""^#+\s+(.*)""")
     private val dateRegex = Regex("""(\d{4})[./-](\d{1,2})[./-](\d{1,2})""")
+    private val dateOnlyLineRegex = Regex("""^\d{4}[./-]\d{1,2}[./-]\d{1,2}$""")
     private val listPrefixRegex = Regex("""^([-*]\s+|\d+\.\s*)""")
     private val episodeInfoRegex = Regex("""\s+(\d+)/(\d+|\?)\s*$""")
     
@@ -64,7 +65,13 @@ object MarkdownParser {
                 }
                 continue
             }
-            
+
+            // 独立日期行（如 2026.01.20），作为后续已完成条目的完成日期
+            if (dateOnlyLineRegex.matches(trimmed)) {
+                lastDate = parseDate(trimmed)
+                continue
+            }
+
             val directStatus = determineStatus(trimmed)
             if (directStatus != null && isStandaloneStatusLine(trimmed)) {
                 currentStatus = directStatus

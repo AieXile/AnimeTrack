@@ -174,6 +174,8 @@ dependencies {
     // 设置搜索：中文转拼音，支持拼音全拼/首字母模糊匹配
     // （Maven Central 上的 pinyin4j，无传递依赖；TinyPinyin 在 JitPack 上构建已失效不可用）
     implementation(libs.pinyin4j)
+    // xCrash：崩溃捕获（Java + Native + ANR），tombstone 落盘后下次启动静默上报自建服务器
+    implementation(libs.xcrash.android.lib)
     implementation(project(":jiguang"))
     implementation(files("../jiguang/libs/jcore-android-5.5.0.aar"))
     implementation(files("../jiguang/libs/com.heytap.msp_V3.9.8.aar"))

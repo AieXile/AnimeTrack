@@ -24,9 +24,6 @@
     <!-- AnimeCard -->
     <string name="anime_card_change_status">Change status</string>
 
-    <!-- AnimeCardStack -->
-    <string name="card_stack_seasons">%1$d seasons</string>
-
     <!-- BottomNavigationBar -->
     <string name="bottom_nav_favorites">Favorites</string>
     <string name="bottom_nav_schedule">Schedule</string>

@@ -4,6 +4,8 @@
     <string name="user_login_title">AnimeTrack 账号</string>
     <string name="user_login_avatar">头像</string>
     <string name="user_login_user_default">用户</string>
+    <string name="user_login_user_id">ID: %1$d</string>
+    <string name="user_login_beta_badge">内测用户</string>
     <string name="user_login_email_not_set">未设置邮箱</string>
     <string name="user_login_register_time">注册时间: %1$s</string>
     <string name="user_login_logged_in">已登录</string>
@@ -177,15 +179,27 @@
     <string name="data_manage_title">数据管理</string>
     <string name="data_manage_import_export">导入与导出</string>
     <string name="data_manage_import_markdown">导入 Markdown</string>
-    <string name="data_manage_import_markdown_subtitle">从 Markdown 文件导入番剧列表</string>
+    <string name="data_manage_import_markdown_subtitle">从 Markdown 文件或粘贴文本导入番剧列表</string>
     <string name="data_manage_export_data">导出番剧数据</string>
     <string name="data_manage_export_data_subtitle">将番剧列表导出为 Markdown 文件</string>
+    <string name="data_manage_backfill_info">补全缺失信息</string>
+    <string name="data_manage_backfill_info_subtitle">为缺少封面/简介的番剧重新匹配 Bangumi 信息</string>
     <string name="data_manage_cloud_sync">云端同步</string>
     <string name="data_manage_webdav_sync">WebDAV 同步</string>
     <string name="data_manage_webdav_sync_subtitle">配置 WebDAV 服务器以实现云端备份与恢复</string>
     <string name="data_manage_import_guide_title">导入 Markdown</string>
-    <string name="data_manage_import_guide_format_hint">请确保你的 Markdown 文件符合以下格式：</string>
-    <string name="data_manage_select_file">准备好了，选择文件</string>
+    <string name="data_manage_import_guide_format_hint">请确保你的 Markdown 内容符合以下格式：</string>
+    <string name="data_manage_select_file">选择文件导入</string>
+    <string name="data_manage_paste_import_entry">粘贴文本导入</string>
+    <string name="data_manage_import_example_copy">复制示例</string>
+    <string name="data_manage_import_example_copied">已复制格式示例，可粘贴给 AI 帮你整理</string>
+    <string name="data_manage_import_ai_hint">没有现成的 Markdown？点击“复制示例”发给 AI，让它把你的追番记录整理成相同格式，再粘贴回 App 导入。</string>
+    <string name="data_manage_paste_import_title">粘贴文本导入</string>
+    <string name="data_manage_paste_import_hint">将 Markdown 内容粘贴到下方，解析预览确认后即可导入。</string>
+    <string name="data_manage_paste_import_placeholder">在此粘贴 Markdown 内容…</string>
+    <string name="data_manage_paste_from_clipboard">从剪贴板粘贴</string>
+    <string name="data_manage_paste_clipboard_empty">剪贴板中没有可用的文本</string>
+    <string name="data_manage_paste_import_confirm">解析并导入</string>
     <string name="data_manage_export_success">导出成功！</string>
     <string name="data_manage_export_failed">导出失败：%1$s</string>
 
@@ -234,6 +248,7 @@
     <string name="device_manage_title">登录设备</string>
     <string name="device_manage_count_format">%1$d 台设备</string>
     <string name="device_manage_limit_desc">手机端最多同时登录 3 台设备，网页端 1 台</string>
+    <string name="device_manage_swipe_hint">左滑其他设备可将其下线</string>
     <string name="device_manage_current_device">本机</string>
     <string name="device_manage_last_active">最近登录 %1$s</string>
     <string name="device_manage_revoke">下线</string>
@@ -251,4 +266,22 @@
     <string name="device_picker_title">登录设备已达上限</string>
     <string name="device_picker_desc">请选择要下线的设备</string>
     <string name="device_picker_confirm">下线并登录</string>
+
+    <!-- 注销账号 -->
+    <string name="user_login_delete_account">注销账号</string>
+    <string name="user_login_delete_account_warning">注销后将删除账号的全部数据（账号信息、云端追番记录、反馈记录等），请谨慎操作。</string>
+    <string name="user_login_delete_account_no_email_hint">当前账号未绑定邮箱，请输入密码完成验证</string>
+    <string name="user_login_delete_account_confirm_title">确认注销账号</string>
+    <string name="user_login_delete_account_confirm_detail">注销后将删除：账号信息、云端追番记录、推送设置、反馈记录。</string>
+    <string name="user_login_delete_account_grace_period">提交后 7 天为冷静期，期间重新登录可撤销注销；到期后数据将被永久删除且无法恢复。</string>
+    <string name="user_login_delete_account_confirm">确认注销</string>
+    <string name="user_login_delete_account_submitted">注销申请已提交</string>
+    <string name="user_login_delete_account_purge_at">账号数据将于 %1$s 永久删除</string>
+    <string name="user_login_delete_account_local_data_prompt">是否同时清除本机的追番数据？</string>
+    <string name="user_login_delete_account_clear_local">清除本机数据</string>
+    <string name="user_login_delete_account_keep_local">保留本机数据</string>
+    <string name="user_login_delete_failed">注销失败</string>
+    <string name="user_login_account_deletion_pending">账号正在注销中</string>
+    <string name="user_login_account_deletion_pending_detail">账号将于 %1$s 被永久删除。恢复账号可撤销注销并继续使用。</string>
+    <string name="user_login_restore_account">恢复账号</string>
 </resources>

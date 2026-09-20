@@ -65,6 +65,7 @@ fun VerificationCodeField(
         onValueChange = { input -> onCodeChange(input.filter { it.isDigit() }.take(6)) },
         label = { Text(stringResource(R.string.verification_code_label)) },
         singleLine = true,
+        shape = SquircleShape(12.dp),
         enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         trailingIcon = {

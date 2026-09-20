@@ -59,6 +59,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +85,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.HitokotoRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -102,7 +104,8 @@ private const val TG_URL = "https://t.me/AnimeTrackovo"
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
-    onNavigateDeveloper: () -> Unit = {}
+    onNavigateDeveloper: () -> Unit = {},
+    onNavigatePrivacyPolicy: () -> Unit = {}
 ) {
     BackHandler { onBack() }
 
@@ -117,6 +120,11 @@ fun AboutScreen(
     var iconFlipped by remember { mutableStateOf(false) }
     var showSponsorDialog by remember { mutableStateOf(false) }
     val hitokotoRepository = remember { HitokotoRepository() }
+    // 预取一言语录：进页即加载，翻转触发时零延迟出横幅
+    var prefetchedQuote by remember { mutableStateOf<AnimeQuote?>(null) }
+    LaunchedEffect(Unit) {
+        prefetchedQuote = hitokotoRepository.getRandomAnimeQuote()
+    }
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -186,9 +194,14 @@ fun AboutScreen(
                             !iconFlipped && avatarTapCount >= 5 -> {
                                 avatarTapCount = 0
                                 iconFlipped = true
+                                // 同步写入全局状态（由 AnimeTrackApp 顶层渲染横幅）：
+                                // 优先用进页预取的语录，无预取则内置兜底，保证翻转后即时出现
+                                AppContainer.easterEggQuote.value =
+                                    prefetchedQuote ?: hitokotoRepository.getFallbackQuote()
+                                prefetchedQuote = null
+                                // 后台预取下一条备用
                                 scope.launch {
-                                    // 写入全局状态，由 AnimeTrackApp 顶层渲染横幅，切换界面不丢失
-                                    AppContainer.easterEggQuote.value = hitokotoRepository.getRandomAnimeQuote()
+                                    prefetchedQuote = hitokotoRepository.getRandomAnimeQuote()
                                 }
                             }
                             // 第二层彩蛋：翻到头像面后再连点，开启开发者模式
@@ -273,6 +286,16 @@ fun AboutScreen(
                     text = "${BuildConfig.VERSION_NAME} · Build ${BuildConfig.VERSION_CODE}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+
+                Spacer(modifier = Modifier.size(4.dp))
+
+                // 隐私政策小字链接（主流位置：关于页版本号下方）
+                Text(
+                    text = stringResource(R.string.settings_privacy_policy),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    modifier = Modifier.clickable { onNavigatePrivacyPolicy() }
                 )
 
                 Spacer(modifier = Modifier.size(16.dp))

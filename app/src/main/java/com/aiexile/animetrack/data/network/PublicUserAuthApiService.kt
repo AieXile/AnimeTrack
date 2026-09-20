@@ -20,6 +20,15 @@ interface PublicUserAuthApiService {
      */
     @POST("device/activity")
     suspend fun reportDeviceActivity(@Body request: DeviceActivityRequest): ActivityReportResponse
+
+    // ========== 崩溃上报（xCrash tombstone，匿名/已登录均可用） ==========
+
+    /**
+     * 上报单个崩溃 tombstone（下次启动时静默上报，无需登录）。
+     * 上报成功或被服务端明确拒绝（4xx）后本地删除，网络失败保留待重试。
+     */
+    @POST("crash-report")
+    suspend fun reportCrash(@Body request: CrashReportRequest): CrashReportResponse
 }
 
 /**
@@ -30,4 +39,26 @@ interface PublicUserAuthApiService {
 data class DeviceActivityRequest(
     val deviceId: String,
     val userId: Long? = null
+)
+
+/**
+ * 崩溃 tombstone 上报请求体
+ * @param deviceId 设备唯一标识，便于关联同一设备的崩溃；获取失败时为 null
+ * @param fileName tombstone 原始文件名（含时间戳，仅作记录）
+ * @param type 崩溃类型：java / native / anr
+ * @param appVersion 上报时的应用版本
+ * @param content tombstone 全文（超 1MB 已截断）
+ */
+data class CrashReportRequest(
+    val deviceId: String?,
+    val fileName: String,
+    val type: String,
+    val appVersion: String,
+    val content: String
+)
+
+/** 崩溃上报响应 */
+data class CrashReportResponse(
+    val success: Boolean,
+    val message: String? = null
 )

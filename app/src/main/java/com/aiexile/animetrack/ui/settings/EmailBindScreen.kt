@@ -44,6 +44,7 @@ import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.serverMessage
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
+import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -263,6 +264,7 @@ fun EmailBindScreen(
                 onValueChange = { inputEmail = it },
                 label = { Text(stringResource(R.string.email_bind_email)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()

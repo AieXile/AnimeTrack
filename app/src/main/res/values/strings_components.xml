@@ -24,9 +24,6 @@
     <!-- AnimeCard -->
     <string name="anime_card_change_status">修改状态</string>
 
-    <!-- AnimeCardStack -->
-    <string name="card_stack_seasons">%1$d季</string>
-
     <!-- BottomNavigationBar -->
     <string name="bottom_nav_favorites">收藏</string>
     <string name="bottom_nav_schedule">看板</string>

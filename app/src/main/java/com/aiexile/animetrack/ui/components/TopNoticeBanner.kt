@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,7 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
  * 图标 + 主文本(可选次文本)+ 关闭按钮,整条可选点击。
  *
  * TokenExpiredBanner 与彩蛋语录横幅共用此组件。
+ * loading=true 时图标位置展示转圈进度且不显示关闭按钮(任务进行中,不可取消)。
  */
 @Composable
 fun TopNoticeBanner(
@@ -46,7 +48,8 @@ fun TopNoticeBanner(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     secondaryText: String? = null,
-    onBannerClick: (() -> Unit)? = null
+    onBannerClick: (() -> Unit)? = null,
+    loading: Boolean = false
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -73,12 +76,20 @@ fun TopNoticeBanner(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = rememberAppIconPainter(icon),
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
-                )
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = iconTint
+                    )
+                } else {
+                    Icon(
+                        painter = rememberAppIconPainter(icon),
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -102,16 +113,18 @@ fun TopNoticeBanner(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.CLOSE),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(SquircleShape(11.dp))
-                        .clickable { onDismiss() }
-                        .padding(3.dp)
-                )
+                if (!loading) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.CLOSE),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(SquircleShape(11.dp))
+                            .clickable { onDismiss() }
+                            .padding(3.dp)
+                    )
+                }
             }
         }
     }

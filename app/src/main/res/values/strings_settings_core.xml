@@ -48,6 +48,7 @@
     <string name="settings_update_notification_summary">每天 %1$02d:%2$02d 推送番剧更新</string>
     <string name="settings_update_notification_disabled">未开启</string>
     <string name="settings_about">关于</string>
+    <string name="settings_privacy_policy">隐私政策</string>
 
     <!-- AppearanceScreen -->
     <string name="appearance_title">外观与主题</string>

@@ -301,5 +301,12 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         route = Routes.ABOUT, key = null,
         titleRes = R.string.settings_about,
         keywords = listOf("版本", "更新日志", "开源", "github", "许可证", "about", "version")
+    ),
+
+    // ---- 隐私政策 ----
+    SearchableSetting(
+        route = Routes.PRIVACY_POLICY, key = null,
+        titleRes = R.string.settings_privacy_policy,
+        keywords = listOf("隐私", "政策", "数据收集", "个人信息", "privacy", "policy")
     )
 )

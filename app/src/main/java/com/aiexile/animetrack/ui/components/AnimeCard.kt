@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -229,7 +230,13 @@ fun AnimeCard(
                 hoveredElevation = 0.dp
             ),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                // 亮色用最亮白（与堆叠卡片统一）；暗色 surfaceContainerLowest 过深，
+                // 与网格背景几乎无区分，保持原 surfaceContainerLow
+                containerColor = if (isAppDarkTheme()) {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLowest
+                }
             )
         ) {
             Column(
@@ -553,7 +560,7 @@ private fun AnimeCoverWithStatus(
 }
 
 @Composable
-private fun StatusBadge(
+internal fun StatusBadge(
     status: AnimeStatus,
     modifier: Modifier = Modifier,
     unaired: Boolean = false

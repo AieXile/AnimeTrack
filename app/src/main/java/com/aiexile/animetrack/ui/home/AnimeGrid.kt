@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.home
 
-import android.graphics.Bitmap
+import android.graphics.Bitmap
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.AnimatedVisibility
@@ -209,7 +210,9 @@ internal data class AnimeGridState(
     val selectedAnimeId: Long?,
     val highlightedAnimeIds: Set<Long> = emptySet(),
     val selectedFilter: AnimeFilter,
-    val seriesStackEnabled: Boolean = true
+    val seriesStackEnabled: Boolean = true,
+    /** 堆叠卡片顶层页码记忆（系列 stableKey → topIndex），冷启动恢复用 */
+    val seriesStackTopIndices: Map<String, Int> = emptyMap()
 )
 
 internal data class AnimeGridHeaderState(
@@ -239,6 +242,8 @@ internal fun AnimeGrid(
     onDismissBanner: () -> Unit = {},
     onBannerClick: () -> Unit = {},
     onFeedbackClick: () -> Unit = {},
+    /** 堆叠卡片顶层页码变化（seriesStableKey, topIndex），持久化到 DataStore */
+    onSeriesStackTopChange: (String, Int) -> Unit = { _, _ -> },
     gridState: LazyGridState,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
@@ -486,8 +491,14 @@ internal fun AnimeGrid(
                         AnimeCardStack(
                             baseTitle = item.baseTitle,
                             animeList = item.animeList,
-                            onClick = { onAnimeClick(item.animeList.first()) },
-                            onLongPress = { expandedSeriesKeys = expandedSeriesKeys + item.stableKey }
+                            onAnimeClick = { anime -> onAnimeClick(anime) },
+                            onExpand = { expandedSeriesKeys = expandedSeriesKeys + item.stableKey },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            initialTopIndex = state.seriesStackTopIndices[item.stableKey] ?: 0,
+                            onTopIndexChange = { topIndex ->
+                                onSeriesStackTopChange(item.stableKey, topIndex)
+                            }
                         )
                     }
                 }

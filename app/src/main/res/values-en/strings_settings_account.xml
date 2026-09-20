@@ -4,6 +4,8 @@
     <string name="user_login_title">AnimeTrack Account</string>
     <string name="user_login_avatar">Avatar</string>
     <string name="user_login_user_default">User</string>
+    <string name="user_login_user_id">ID: %1$d</string>
+    <string name="user_login_beta_badge">Beta user</string>
     <string name="user_login_email_not_set">Email not set</string>
     <string name="user_login_register_time">Registered: %1$s</string>
     <string name="user_login_logged_in">Logged in</string>
@@ -177,15 +179,27 @@
     <string name="data_manage_title">Data Management</string>
     <string name="data_manage_import_export">Import &amp; Export</string>
     <string name="data_manage_import_markdown">Import Markdown</string>
-    <string name="data_manage_import_markdown_subtitle">Import anime list from Markdown file</string>
+    <string name="data_manage_import_markdown_subtitle">Import anime list from a Markdown file or pasted text</string>
     <string name="data_manage_export_data">Export Anime Data</string>
     <string name="data_manage_export_data_subtitle">Export anime list as Markdown file</string>
+    <string name="data_manage_backfill_info">Backfill Missing Info</string>
+    <string name="data_manage_backfill_info_subtitle">Re-match Bangumi info for animes missing cover/summary</string>
     <string name="data_manage_cloud_sync">Cloud Sync</string>
     <string name="data_manage_webdav_sync">WebDAV Sync</string>
     <string name="data_manage_webdav_sync_subtitle">Configure WebDAV server for cloud backup and restore</string>
     <string name="data_manage_import_guide_title">Import Markdown</string>
-    <string name="data_manage_import_guide_format_hint">Please ensure your Markdown file follows this format:</string>
-    <string name="data_manage_select_file">Ready, select file</string>
+    <string name="data_manage_import_guide_format_hint">Please ensure your Markdown content follows this format:</string>
+    <string name="data_manage_select_file">Choose file</string>
+    <string name="data_manage_paste_import_entry">Paste text</string>
+    <string name="data_manage_import_example_copy">Copy example</string>
+    <string name="data_manage_import_example_copied">Example copied — paste it to an AI to reformat your list</string>
+    <string name="data_manage_import_ai_hint">No Markdown at hand? Tap “Copy example” and send it to an AI, ask it to reformat your watch list into the same format, then paste the result back into the app to import.</string>
+    <string name="data_manage_paste_import_title">Paste Text to Import</string>
+    <string name="data_manage_paste_import_hint">Paste your Markdown content below, check the preview, then import.</string>
+    <string name="data_manage_paste_import_placeholder">Paste Markdown content here…</string>
+    <string name="data_manage_paste_from_clipboard">Paste from clipboard</string>
+    <string name="data_manage_paste_clipboard_empty">No text available in the clipboard</string>
+    <string name="data_manage_paste_import_confirm">Parse and import</string>
     <string name="data_manage_export_success">Export successful!</string>
     <string name="data_manage_export_failed">Export failed: %1$s</string>
 
@@ -234,6 +248,7 @@
     <string name="device_manage_title">Signed-in Devices</string>
     <string name="device_manage_count_format">%1$d devices</string>
     <string name="device_manage_limit_desc">Up to 3 mobile devices and 1 web session can stay signed in at the same time</string>
+    <string name="device_manage_swipe_hint">Swipe left on a device to sign it out</string>
     <string name="device_manage_current_device">This device</string>
     <string name="device_manage_last_active">Last login %1$s</string>
     <string name="device_manage_revoke">Sign out</string>
@@ -251,4 +266,22 @@
     <string name="device_picker_title">Device limit reached</string>
     <string name="device_picker_desc">Select devices to sign out</string>
     <string name="device_picker_confirm">Sign out &amp; log in</string>
+
+    <!-- Delete account -->
+    <string name="user_login_delete_account">Delete Account</string>
+    <string name="user_login_delete_account_warning">Deleting your account will permanently remove all data (account info, cloud watch list, feedback history, etc.). Proceed with caution.</string>
+    <string name="user_login_delete_account_no_email_hint">No email is bound to this account. Enter your password to verify.</string>
+    <string name="user_login_delete_account_confirm_title">Confirm Account Deletion</string>
+    <string name="user_login_delete_account_confirm_detail">The following will be deleted: account info, cloud watch list, push settings, and feedback history.</string>
+    <string name="user_login_delete_account_grace_period">After submitting, there is a 7-day cooling-off period. Logging back in during this period cancels the deletion; after it expires, all data will be permanently deleted and cannot be recovered.</string>
+    <string name="user_login_delete_account_confirm">Delete Account</string>
+    <string name="user_login_delete_account_submitted">Deletion Request Submitted</string>
+    <string name="user_login_delete_account_purge_at">Account data will be permanently deleted on %1$s</string>
+    <string name="user_login_delete_account_local_data_prompt">Also clear local watch list data on this device?</string>
+    <string name="user_login_delete_account_clear_local">Clear Local Data</string>
+    <string name="user_login_delete_account_keep_local">Keep Local Data</string>
+    <string name="user_login_delete_failed">Failed to delete account</string>
+    <string name="user_login_account_deletion_pending">Account Deletion in Progress</string>
+    <string name="user_login_account_deletion_pending_detail">This account will be permanently deleted on %1$s. Restoring the account cancels the deletion so you can keep using it.</string>
+    <string name="user_login_restore_account">Restore Account</string>
 </resources>

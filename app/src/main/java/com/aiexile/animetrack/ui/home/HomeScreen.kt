@@ -97,6 +97,7 @@ fun HomeScreen(
         ?.collectAsState(settingsRepository.cachedStatusBarMode())
         ?: remember { mutableStateOf(StatusBarMode.SCRIM) })
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
+    val seriesStackTopIndices by viewModel.seriesStackTopIndices.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
     val bannerDismissed by viewModel.bannerDismissed.collectAsState()
     val autoSyncState by viewModel.autoSyncState.collectAsState()
@@ -270,7 +271,8 @@ fun HomeScreen(
                         selectedAnimeId = uiState.selectedAnimeId,
                         highlightedAnimeIds = uiState.highlightedAnimeIds,
                         selectedFilter = uiState.selectedFilter,
-                        seriesStackEnabled = seriesStackEnabled
+                        seriesStackEnabled = seriesStackEnabled,
+                        seriesStackTopIndices = seriesStackTopIndices
                     ),
                     headerState = AnimeGridHeaderState(
                         isLoggedIn = isLoggedIn,
@@ -310,6 +312,9 @@ fun HomeScreen(
                     onDismissBanner = { viewModel.dismissBanner() },
                     onBannerClick = { viewModel.highlightTodayUpdates() },
                     onFeedbackClick = onNavigateFeedback,
+                    onSeriesStackTopChange = { seriesKey, topIndex ->
+                        viewModel.setSeriesStackTopIndex(seriesKey, topIndex)
+                    },
                     gridState = gridState,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,

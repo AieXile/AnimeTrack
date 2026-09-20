@@ -244,6 +244,7 @@ fun EmailBindDialog(
                     onValueChange = { inputEmail = it },
                     label = { Text(stringResource(R.string.email_bind_email)) },
                     singleLine = true,
+                    shape = SquircleShape(12.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     enabled = !isLoading && !bindSucceeded,
                     modifier = Modifier.fillMaxWidth()

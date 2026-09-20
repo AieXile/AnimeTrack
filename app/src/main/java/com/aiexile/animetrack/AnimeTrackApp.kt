@@ -6,16 +6,21 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.aiexile.animetrack.data.crash.CrashReporter
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 
 class AnimeTrackApp : Application(), ImageLoaderFactory {
+
+    /** 崩溃 tombstone 上报延迟：避开启动高峰（网络、磁盘、UI 并发初始化） */
+    private val reportTombstoneDelayMs = 5_000L
 
     // 应用级协程作用域：供 MainActivity、SettingsRepository 等复用，替代 GlobalScope
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -57,6 +62,14 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         AppContainer.initialize(this)
         // 文件日志系统：须在其他组件写日志前初始化（崩溃捕获自此刻生效）
         AppLogManager.init(this)
+        // xCrash 崩溃捕获（Java/Native/ANR tombstone）：须晚于 AppLogManager 初始化，
+        // 保证 rethrow 链为 xCrash 写 tombstone → AppLogManager 写崩溃日志 → 系统默认处理
+        CrashReporter.init(this)
+        // 崩溃 tombstone 静默上报：延迟避开启动高峰，在 IO 线程逐个上传
+        appScope.launch {
+            delay(reportTombstoneDelayMs)
+            CrashReporter.reportPendingTombstones()
+        }
         JPushInterface.setDebugMode(BuildConfig.DEBUG)
         appScope.launch {
             JPushInterface.init(this@AnimeTrackApp)

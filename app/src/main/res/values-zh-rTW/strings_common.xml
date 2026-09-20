@@ -2,6 +2,7 @@
 <resources>
     <!-- 通用操作 -->
     <string name="common_confirm">確認</string>
+    <string name="common_next_step">下一步</string>
     <string name="common_cancel">取消</string>
     <string name="common_save">儲存</string>
     <string name="common_delete">刪除</string>

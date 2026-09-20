@@ -204,11 +204,11 @@ fun AnnotatedString.Builder.appendInlineMarkdown(text: String, colorScheme: andr
 }
 
 @Composable
-fun MarkdownText(markdown: String) {
+fun MarkdownText(markdown: String, modifier: Modifier = Modifier) {
     val colorScheme = MaterialTheme.colorScheme
     val blocks = rememberMarkdownBlocks(markdown)
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEach { block ->
             when (block) {
                 is MdBlock.Heading -> {

@@ -42,6 +42,7 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.UserAuthRegisterRequest
 import com.aiexile.animetrack.data.network.serverMessage
+import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -140,6 +141,7 @@ fun UserRegisterScreen(
                 label = { Text(stringResource(R.string.user_register_username)) },
                 placeholder = { Text(stringResource(R.string.user_register_username_hint)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -149,6 +151,7 @@ fun UserRegisterScreen(
                 label = { Text(stringResource(R.string.user_register_password)) },
                 placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth()
@@ -159,6 +162,7 @@ fun UserRegisterScreen(
                 onValueChange = { inputConfirmPassword = it },
                 label = { Text(stringResource(R.string.user_register_confirm_password)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth()
@@ -170,6 +174,7 @@ fun UserRegisterScreen(
                 label = { Text(stringResource(R.string.user_register_email)) },
                 placeholder = { Text(stringResource(R.string.user_register_email_hint)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth()
             )

@@ -179,6 +179,21 @@ class HomeViewModel(
             initialValue = true
         )
 
+    // 堆叠卡片顶层页码记忆（系列 stableKey → topIndex）：翻页结算时写入 DataStore，
+    // 冷启动恢复，杀死后台后顶层不再重置回第一张
+    val seriesStackTopIndices: StateFlow<Map<String, Int>> = settingsRepository.seriesStackTopIndices
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = emptyMap()
+        )
+
+    fun setSeriesStackTopIndex(seriesKey: String, topIndex: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSeriesStackTopIndex(seriesKey, topIndex)
+        }
+    }
+
     /**
      * 派生的首页列表：仅在数据或筛选参数变化时重新排序/分组。
      * 排序 + SeriesMatcher 正则分组是 CPU 密集计算，通过 flowOn(Default) 移出主线程，

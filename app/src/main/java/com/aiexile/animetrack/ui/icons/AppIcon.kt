@@ -45,6 +45,8 @@ enum class AppIcon(
     CLOUD(R.drawable.sym_cloud, R.drawable.lucide_cloud),
     CLOUD_DOWNLOAD(R.drawable.sym_cloud_download, R.drawable.lucide_cloud_download),
     CLOUD_UPLOAD(R.drawable.sym_cloud_upload, R.drawable.lucide_cloud_upload),
+    CONTENT_COPY(R.drawable.sym_content_copy, R.drawable.lucide_copy),
+    CONTENT_PASTE(R.drawable.sym_content_paste, R.drawable.lucide_clipboard_paste),
     CODE(R.drawable.sym_code, R.drawable.lucide_code),
     COLLECTIONS_BOOKMARK(R.drawable.sym_collections_bookmark, R.drawable.lucide_library_big),
     DELETE(R.drawable.sym_delete, R.drawable.lucide_trash_2),

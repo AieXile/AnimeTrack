@@ -5,7 +5,6 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,14 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -73,22 +68,12 @@ fun DataManageScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val isLoading by viewModel.isLoading.collectAsState()
-    val loadingMessage by viewModel.loadingMessage.collectAsState()
-    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
     val importResult by viewModel.importResult.collectAsState()
     val duplicateCount by viewModel.duplicateCount.collectAsState()
     val exportMarkdown by viewModel.exportMarkdown.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadConfig()
-    }
-
-    LaunchedEffect(snackbarMessage) {
-        snackbarMessage?.let { msg ->
-            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Short)
-            viewModel.clearSnackbar()
-        }
     }
 
     var showImportGuide by remember { mutableStateOf(false) }
@@ -175,12 +160,19 @@ fun DataManageScreen(
     }
 
     if (showImportGuide) {
-        ImportGuideBottomSheet(
+        ImportMarkdownSheet(
             sheetState = importGuideSheetState,
             onDismiss = { showImportGuide = false },
             onSelectFile = {
                 showImportGuide = false
                 fileLauncher.launch(arrayOf("text/markdown", "text/plain", "*/*"))
+            },
+            onImport = { content ->
+                showImportGuide = false
+                if (content.isNotBlank()) {
+                    pendingContent = content
+                    viewModel.parseMarkdown(content)
+                }
             }
         )
     }
@@ -259,6 +251,15 @@ fun DataManageScreen(
                                 itemKey = "export",
                                 highlightKey = highlightKey
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SettingActionItem(
+                                title = stringResource(R.string.data_manage_backfill_info),
+                                subtitle = stringResource(R.string.data_manage_backfill_info_subtitle),
+                                icon = rememberAppIconPainter(AppIcon.SYNC),
+                                onClick = { viewModel.backfillMissingInfo() },
+                                itemKey = "backfill",
+                                highlightKey = highlightKey
+                            )
                         }
                     }
                 }
@@ -277,27 +278,6 @@ fun DataManageScreen(
                 }
 
                 item { Spacer(modifier = Modifier.height(80.dp)) }
-            }
-
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = loadingMessage,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
             }
         }
     }
@@ -340,114 +320,6 @@ private fun SettingActionItem(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ImportGuideBottomSheet(
-    sheetState: androidx.compose.material3.SheetState,
-    onDismiss: () -> Unit,
-    onSelectFile: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .width(32.dp)
-                    .height(4.dp)
-                    .clip(SquircleShape(2.dp))
-                    .background(MaterialTheme.colorScheme.outlineVariant)
-            )
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.data_manage_import_guide_title),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = stringResource(R.string.data_manage_import_guide_format_hint),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            val codeBlockShape = SquircleShape(12.dp)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(codeBlockShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = """Now
-孤独摇滚！
-约会大作战IV
-
-Want
-异度侵入
-CLANNAD
-
-Already
-
-2026.01.20
-彻夜之歌 第二季 (依旧夯)
-
-2026.01.13
-游戏人生 (还行吧)
-
-Dropped
-某番剧名称""",
-                    fontSize = 13.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    scope.launch {
-                        sheetState.hide()
-                        onSelectFile()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = SquircleShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text(
-                    text = stringResource(R.string.data_manage_select_file),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
         }
     }
 }

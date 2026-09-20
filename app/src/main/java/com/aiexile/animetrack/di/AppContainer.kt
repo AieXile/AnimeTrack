@@ -16,7 +16,20 @@ import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+
+/**
+ * 数据导入横幅状态：全局层持有，切换界面不丢失。
+ * loading=true 时进行中展示（转圈、不可关闭）；isError=true 时结果用错误图标与颜色渲染。
+ */
+data class ImportBannerState(
+    val loading: Boolean,
+    val text: String,
+    val isError: Boolean = false
+)
 
 object AppContainer {
     
@@ -50,6 +63,15 @@ object AppContainer {
     // 彩蛋语录横幅当前内容:由 AboutScreen 触发彩蛋时写入,
     // AnimeTrackApp 顶层收集并渲染横幅(4 秒自动消失),切换界面不丢失。
     val easterEggQuote: MutableStateFlow<AnimeQuote?> = MutableStateFlow(null)
+
+    // 数据导入横幅当前状态:由 DataManageViewModel 导入流程写入,
+    // AnimeTrackApp 顶层收集并渲染(进行中不自动消失,结果 4 秒自动消失),
+    // 导入任务挂在 applicationScope,退出数据管理界面后进度与结果提示不中断。
+    val importBanner: MutableStateFlow<ImportBannerState?> = MutableStateFlow(null)
+
+    // 应用级协程作用域:承载需要脱离界面生命周期的任务(如 Markdown 导入),
+    // 随单例常驻,任务完成即结束。
+    val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun markFirstFrameRendered() {
         firstFrameRendered.value = true

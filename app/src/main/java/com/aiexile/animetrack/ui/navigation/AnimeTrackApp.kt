@@ -81,6 +81,7 @@ import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.model.AuthSource
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import androidx.compose.ui.platform.LocalContext
@@ -505,6 +506,28 @@ fun AnimeTrackApp(
         }
         val quoteForDisplay = easterEggQuote ?: lastEasterEggQuote
 
+        // 数据导入横幅：全局状态驱动（DataManageViewModel 导入流程写入），
+        // 进行中不自动消失（导入挂在 applicationScope，退出数据管理界面不中断），
+        // 结果展示 4 秒后自动消失；缓存最近一条，退出动画期间内容不闪空
+        val importBanner by AppContainer.importBanner.collectAsState()
+        var lastImportBanner by remember { mutableStateOf<ImportBannerState?>(null) }
+        LaunchedEffect(importBanner) {
+            if (importBanner != null) {
+                lastImportBanner = importBanner
+                if (!importBanner!!.loading) {
+                    delay(4000)
+                    AppContainer.importBanner.value = null
+                }
+            }
+        }
+        val importBannerForDisplay = importBanner ?: lastImportBanner
+
+        // 启动时自动补全元数据缺失的番剧（如导入时未挂代理导致 Bangumi 匹配失败），
+        // 24 小时节流（见 AnimeRepository.triggerCoverBackfillIfNeeded）
+        LaunchedEffect(Unit) {
+            AppContainer.getAnimeRepository().triggerCoverBackfillIfNeeded()
+        }
+
         // 顶部横幅纵向堆叠（Token 失效与彩蛋同时出现概率极低）
         Column {
             TokenExpiredBanner(
@@ -530,6 +553,18 @@ fun AnimeTrackApp(
                     ?.takeIf { it.isNotBlank() }
                     ?.let { "—— $it" },
                 onDismiss = { AppContainer.easterEggQuote.value = null }
+            )
+            TopNoticeBanner(
+                visible = importBanner != null,
+                icon = if (importBannerForDisplay?.isError == true) AppIcon.ERROR else AppIcon.CHECK_CIRCLE,
+                iconTint = if (importBannerForDisplay?.isError == true) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                text = importBannerForDisplay?.text.orEmpty(),
+                loading = importBannerForDisplay?.loading == true,
+                onDismiss = { AppContainer.importBanner.value = null }
             )
         }
 
@@ -780,6 +815,7 @@ internal fun MainPagerContent(
         "settings" -> SettingsScreen(
             showBottomBar = false,
             onNavigateAbout = { onNavigateToScreen(Routes.ABOUT) },
+            onNavigatePrivacyPolicy = { onNavigateToScreen(Routes.PRIVACY_POLICY) },
             onNavigateCustomize = { onNavigateToScreen(Routes.NAVIGATION_CUSTOMIZE) },
             onNavigateAppearance = { onNavigateToScreen(Routes.APPEARANCE) },
             onNavigateFeatures = { onNavigateToScreen(Routes.FEATURES) },

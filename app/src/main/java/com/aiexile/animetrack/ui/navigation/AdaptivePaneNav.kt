@@ -55,6 +55,7 @@ import com.aiexile.animetrack.ui.settings.FeaturesScreen
 import com.aiexile.animetrack.ui.settings.FontSettingsScreen
 import com.aiexile.animetrack.ui.settings.LoginScreen
 import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
+import com.aiexile.animetrack.ui.settings.PrivacyPolicyScreen
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.settings.UpdateNotificationScreen
 import com.aiexile.animetrack.ui.settings.UserLoginScreen
@@ -347,8 +348,14 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.ABOUT) {
         AboutScreen(
             onBack = navigateBack,
-            onNavigateDeveloper = { onNavigate(Routes.DEVELOPER) }
+            onNavigateDeveloper = { onNavigate(Routes.DEVELOPER) },
+            onNavigatePrivacyPolicy = { onNavigate(Routes.PRIVACY_POLICY) }
         )
+    }
+
+    // 隐私政策
+    composable(Routes.PRIVACY_POLICY) {
+        PrivacyPolicyScreen(onBack = navigateBack)
     }
 
     // 定制导航栏

@@ -41,6 +41,7 @@ import com.aiexile.animetrack.data.network.ForgotPasswordRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.serverMessage
+import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -147,6 +148,7 @@ fun ForgotPasswordScreen(
                 onValueChange = { inputEmail = it },
                 label = { Text(stringResource(R.string.forgot_password_email)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -166,6 +168,7 @@ fun ForgotPasswordScreen(
                 label = { Text(stringResource(R.string.forgot_password_new_password)) },
                 placeholder = { Text(stringResource(R.string.user_register_password_hint)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 enabled = !isLoading,
@@ -177,6 +180,7 @@ fun ForgotPasswordScreen(
                 onValueChange = { inputConfirmPassword = it },
                 label = { Text(stringResource(R.string.forgot_password_confirm_password)) },
                 singleLine = true,
+                shape = SquircleShape(12.dp),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 enabled = !isLoading,

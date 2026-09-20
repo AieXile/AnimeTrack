@@ -2,6 +2,7 @@
 <resources>
     <!-- Common actions -->
     <string name="common_confirm">Confirm</string>
+    <string name="common_next_step">Next</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_save">Save</string>
     <string name="common_delete">Delete</string>

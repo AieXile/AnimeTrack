@@ -114,6 +114,7 @@ object EmailCodePurpose {
     const val CHANGE_PASSWORD = "change_password"
     const val CHANGE_EMAIL = "change_email"
     const val RESET_PASSWORD = "reset_password"
+    const val DELETE_ACCOUNT = "delete_account"
 }
 
 data class SendCodeRequest(
@@ -211,6 +212,21 @@ data class ForgotPasswordRequest(
     val email: String,
     val code: String,
     val newPassword: String
+)
+
+// ========== 注销账号 ==========
+
+/** 注销验证：已绑定邮箱用验证码，否则回退密码（二选一） */
+data class DeleteAccountRequest(
+    val code: String? = null,
+    val password: String? = null
+)
+
+data class DeleteAccountResponse(
+    val success: Boolean,
+    /** 物理清除到期时间（服务端时间） */
+    val purgeAt: String? = null,
+    val message: String? = null
 )
 
 // ========== 上传头像 ==========
@@ -358,6 +374,20 @@ interface UserAuthApiService {
         @Body request: ForgotPasswordRequest
     ): UserAuthLogoutResponse
 
+    // ========== 注销账号（宽限期软删除） ==========
+
+    /** 发起注销（需登录态；服务端撤销全部会话，所有设备被下线） */
+    @POST("user/delete-account")
+    suspend fun deleteAccount(
+        @Body request: DeleteAccountRequest
+    ): DeleteAccountResponse
+
+    /** 恢复账号（注销宽限期内，密码验证通过即恢复并完成登录） */
+    @POST("auth/restore-account")
+    suspend fun restoreAccount(
+        @Body request: UserAuthLoginRequest
+    ): UserAuthLoginResponse
+
     @POST("user/change-password")
     suspend fun changePassword(
         @Body request: ChangePasswordRequest
@@ -472,6 +502,52 @@ fun HttpException.serverMessage(): String? = try {
         runCatching {
             val json = com.google.gson.JsonParser.parseString(it).asJsonObject
             if (json.has("message")) json.get("message").asString else null
+        }.getOrNull()
+    }
+} catch (_: Exception) {
+    null
+}
+
+/**
+ * 从 HttpException 错误响应中一次性解析完整 JSON 对象。
+ * 注意：OkHttp 的 errorBody 只能消费一次，需要同时取多个字段
+ * （如 code + purgeAt + message）时必须用本函数一次解析后再取值，
+ * 不能连续调用 serverMessage / serverErrorCode / serverField（第二次读取会得到空）。
+ */
+fun HttpException.serverErrorJson(): com.google.gson.JsonObject? = try {
+    val body = response()?.errorBody()?.string()
+    body?.let {
+        runCatching {
+            com.google.gson.JsonParser.parseString(it).asJsonObject
+        }.getOrNull()
+    }
+} catch (_: Exception) {
+    null
+}
+
+/**
+ * 从 HttpException 错误响应中解析服务端返回的业务 code 字段
+ * （如登录时 403 的 DELETION_PENDING / DELETION_EXPIRED），失败时返回 null
+ */
+fun HttpException.serverErrorCode(): String? = try {
+    val body = response()?.errorBody()?.string()
+    body?.let {
+        runCatching {
+            val json = com.google.gson.JsonParser.parseString(it).asJsonObject
+            if (json.has("code")) json.get("code").asString else null
+        }.getOrNull()
+    }
+} catch (_: Exception) {
+    null
+}
+
+/** 从 HttpException 错误响应中解析服务端返回的任意字符串字段（如 purgeAt） */
+fun HttpException.serverField(name: String): String? = try {
+    val body = response()?.errorBody()?.string()
+    body?.let {
+        runCatching {
+            val json = com.google.gson.JsonParser.parseString(it).asJsonObject
+            if (json.has(name) && !json.get(name).isJsonNull) json.get(name).asString else null
         }.getOrNull()
     }
 } catch (_: Exception) {

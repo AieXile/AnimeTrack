@@ -66,6 +66,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 fun SettingsScreen(
     showBottomBar: Boolean = true,
     onNavigateAbout: () -> Unit,
+    onNavigatePrivacyPolicy: () -> Unit = {},
     onNavigateCustomize: () -> Unit = {},
     onNavigateAppearance: () -> Unit = {},
     onNavigateFeatures: () -> Unit = {},
@@ -297,6 +298,7 @@ fun SettingsScreen(
             }
             when (item.route) {
                 Routes.ABOUT -> onNavigateAbout()
+                Routes.PRIVACY_POLICY -> onNavigatePrivacyPolicy()
                 Routes.NAVIGATION_CUSTOMIZE -> onNavigateCustomize()
                 Routes.APPEARANCE -> onNavigateAppearance()
                 Routes.FEATURES -> onNavigateFeatures()

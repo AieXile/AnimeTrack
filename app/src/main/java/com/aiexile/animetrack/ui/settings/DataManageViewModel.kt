@@ -15,6 +15,7 @@ import com.aiexile.animetrack.data.backup.WebDAVClient
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.util.cleanSummary
@@ -181,6 +182,16 @@ class DataManageViewModel(
     fun parseMarkdown(content: String) {
         val result = MarkdownParser.parse(content)
 
+        // 内容不符合格式时直接提示，不弹空预览（全局横幅，切换界面不丢失）
+        if (result.animes.isEmpty()) {
+            AppContainer.importBanner.value = ImportBannerState(
+                loading = false,
+                text = "未解析到番剧记录，请检查内容格式",
+                isError = true
+            )
+            return
+        }
+
         var dupCount = 0
         viewModelScope.launch {
             for (parsed in result.animes) {
@@ -195,9 +206,10 @@ class DataManageViewModel(
     }
 
     fun importAnimesAndSync(content: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _loadingMessage.value = "正在导入..."
+        // 挂到应用级作用域：退出数据管理界面后导入不中断，
+        // 进度与结果通过全局横幅展示（见 AnimeTrackApp 顶层渲染）
+        AppContainer.applicationScope.launch {
+            AppContainer.importBanner.value = ImportBannerState(loading = true, text = "正在导入...")
 
             val result = MarkdownParser.parse(content)
             val animesToInsert = mutableListOf<Anime>()
@@ -219,13 +231,28 @@ class DataManageViewModel(
                 insertedAnimes.add(anime.copy(id = id.toInt()))
             }
 
-            _isLoading.value = false
-            _loadingMessage.value = ""
-            _snackbarMessage.value = "成功导入 ${animesToInsert.size} 部番剧"
+            AppContainer.importBanner.value = ImportBannerState(loading = false, text = "成功导入 ${animesToInsert.size} 部番剧")
 
             animeRepository.syncCoversInBackground(insertedAnimes)
             // 导入完成后，防抖触发后端订阅同步
             animeRepository.triggerSyncSubscriptionsFromServerDebounced()
+        }
+    }
+
+    /**
+     * 手动补全元数据缺失的番剧（无封面/简介/放送日期）。
+     * 典型场景：导入时未挂代理导致 Bangumi 匹配失败，恢复网络后在此立即补全、无需重启应用。
+     * 进度与结果通过全局横幅展示（loading 横幅持续至补全结束，由 Repository 写入结果横幅）。
+     */
+    fun backfillMissingInfo() {
+        AppContainer.applicationScope.launch {
+            val pending = animeRepository.getAnimesWithoutCover()
+            if (pending.isEmpty()) {
+                AppContainer.importBanner.value = ImportBannerState(loading = false, text = "没有需要补全的番剧")
+                return@launch
+            }
+            AppContainer.importBanner.value = ImportBannerState(loading = true, text = "正在补全 ${pending.size} 部番剧信息...")
+            animeRepository.syncCoversInBackground(notifySuccess = true)
         }
     }
 

@@ -80,6 +80,7 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
+        private val SERIES_STACK_TOP_KEY = stringPreferencesKey("series_stack_top_indices")
         private val RATING_STANDARD_KEY = stringPreferencesKey("rating_standard")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
         private val WEBDAV_URL_KEY = stringPreferencesKey("webdav_url")
@@ -89,6 +90,7 @@ class SettingsRepository(private val context: Context) {
         private val WEBDAV_RESTORE_MODE_KEY = intPreferencesKey("webdav_restore_mode")
         private val WEBDAV_LAST_SYNC_TIME_KEY = longPreferencesKey("webdav_last_sync_time")
         private val WEBDAV_LAST_AUTO_SYNC_TIME_KEY = longPreferencesKey("webdav_last_auto_sync_time")
+        private val LAST_COVER_BACKFILL_TIME_KEY = longPreferencesKey("last_cover_backfill_time")
         private val WEBDAV_MEDIA_PATH_KEY = stringPreferencesKey("webdav_media_path")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
         private val DEVELOPER_MODE_KEY = booleanPreferencesKey("developer_mode")
@@ -418,6 +420,42 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
 
+    /**
+     * 堆叠卡片顶层页码记忆：系列 stableKey（"series_<第一季id>"）→ 顶层索引。
+     * 翻页结算时写入，冷启动时作为初始 topIndex 恢复，杀死后台后不再重置回第一张。
+     * 序列化为 "series_1:2,series_3:0" 格式（stableKey 不含分隔符）。
+     */
+    val seriesStackTopIndices: Flow<Map<String, Int>> = flow {
+        (prefCache[SERIES_STACK_TOP_KEY] as? String)?.let { emit(decodeSeriesStackTop(it)) }
+        emitAll(
+            context.dataStore.data.map { prefs ->
+                decodeSeriesStackTop(prefs[SERIES_STACK_TOP_KEY] ?: "")
+            }
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setSeriesStackTopIndex(seriesKey: String, topIndex: Int) {
+        val current = seriesStackTopIndices.first().toMutableMap()
+        if (current[seriesKey] == topIndex) return
+        current[seriesKey] = topIndex
+        setPreference(SERIES_STACK_TOP_KEY, encodeSeriesStackTop(current))
+    }
+
+    private fun encodeSeriesStackTop(map: Map<String, Int>): String =
+        map.entries.joinToString(",") { "${it.key}:${it.value}" }
+
+    private fun decodeSeriesStackTop(raw: String): Map<String, Int> =
+        if (raw.isBlank()) {
+            emptyMap()
+        } else {
+            raw.split(',').mapNotNull { entry ->
+                val sep = entry.lastIndexOf(':')
+                val idx = entry.substring(sep + 1).toIntOrNull()
+                if (sep <= 0 || idx == null) null else entry.substring(0, sep) to idx
+            }.toMap()
+        }
+
+
     /** 评分标准：使用源评分或手动打分，默认使用源评分 */
     val ratingStandard: Flow<RatingStandard> = preferenceFlow(RATING_STANDARD_KEY, RatingStandard.SOURCE.name)
         .map { runCatching { RatingStandard.valueOf(it) }.getOrDefault(RatingStandard.SOURCE) }
@@ -453,6 +491,11 @@ class SettingsRepository(private val context: Context) {
     val webdavLastSyncTime: Flow<Long> = preferenceFlow(WEBDAV_LAST_SYNC_TIME_KEY, 0L)
 
     suspend fun setWebdavLastSyncTime(time: Long) = setPreference(WEBDAV_LAST_SYNC_TIME_KEY, time)
+
+    /** 上次启动期自动补全番剧元数据的时间戳，用于 24 小时节流 */
+    val lastCoverBackfillTime: Flow<Long> = preferenceFlow(LAST_COVER_BACKFILL_TIME_KEY, 0L)
+
+    suspend fun setLastCoverBackfillTime(time: Long) = setPreference(LAST_COVER_BACKFILL_TIME_KEY, time)
 
     val isFirstLaunch: Flow<Boolean> = preferenceFlow(IS_FIRST_LAUNCH_KEY, true)
 

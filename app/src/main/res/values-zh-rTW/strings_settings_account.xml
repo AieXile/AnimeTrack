@@ -4,6 +4,8 @@
     <string name="user_login_title">AnimeTrack 帳號</string>
     <string name="user_login_avatar">頭像</string>
     <string name="user_login_user_default">使用者</string>
+    <string name="user_login_user_id">ID: %1$d</string>
+    <string name="user_login_beta_badge">內測用戶</string>
     <string name="user_login_email_not_set">未設定信箱</string>
     <string name="user_login_register_time">註冊時間: %1$s</string>
     <string name="user_login_logged_in">已登入</string>
@@ -177,15 +179,27 @@
     <string name="data_manage_title">資料管理</string>
     <string name="data_manage_import_export">匯入與匯出</string>
     <string name="data_manage_import_markdown">匯入 Markdown</string>
-    <string name="data_manage_import_markdown_subtitle">從 Markdown 檔案匯入番劇列表</string>
+    <string name="data_manage_import_markdown_subtitle">從 Markdown 檔案或貼上文字匯入番劇列表</string>
     <string name="data_manage_export_data">匯出番劇資料</string>
     <string name="data_manage_export_data_subtitle">將番劇列表匯出為 Markdown 檔案</string>
+    <string name="data_manage_backfill_info">補全缺失資訊</string>
+    <string name="data_manage_backfill_info_subtitle">為缺少封面/簡介的番劇重新比對 Bangumi 資訊</string>
     <string name="data_manage_cloud_sync">雲端同步</string>
     <string name="data_manage_webdav_sync">WebDAV 同步</string>
     <string name="data_manage_webdav_sync_subtitle">設定 WebDAV 伺服器以實現雲端備份與還原</string>
     <string name="data_manage_import_guide_title">匯入 Markdown</string>
-    <string name="data_manage_import_guide_format_hint">請確保你的 Markdown 檔案符合以下格式：</string>
-    <string name="data_manage_select_file">準備好了，選擇檔案</string>
+    <string name="data_manage_import_guide_format_hint">請確保你的 Markdown 內容符合以下格式：</string>
+    <string name="data_manage_select_file">選擇檔案匯入</string>
+    <string name="data_manage_paste_import_entry">貼上文字匯入</string>
+    <string name="data_manage_import_example_copy">複製範例</string>
+    <string name="data_manage_import_example_copied">已複製格式範例，可貼給 AI 幫你整理</string>
+    <string name="data_manage_import_ai_hint">沒有現成的 Markdown？點擊「複製範例」傳給 AI，讓它把你的追番紀錄整理成相同格式，再貼回 App 匯入。</string>
+    <string name="data_manage_paste_import_title">貼上文字匯入</string>
+    <string name="data_manage_paste_import_hint">將 Markdown 內容貼到下方，解析預覽確認後即可匯入。</string>
+    <string name="data_manage_paste_import_placeholder">在此貼上 Markdown 內容…</string>
+    <string name="data_manage_paste_from_clipboard">從剪貼簿貼上</string>
+    <string name="data_manage_paste_clipboard_empty">剪貼簿中沒有可用的文字</string>
+    <string name="data_manage_paste_import_confirm">解析並匯入</string>
     <string name="data_manage_export_success">匯出成功！</string>
     <string name="data_manage_export_failed">匯出失敗：%1$s</string>
 
@@ -234,6 +248,7 @@
     <string name="device_manage_title">登入裝置</string>
     <string name="device_manage_count_format">%1$d 台裝置</string>
     <string name="device_manage_limit_desc">手機端最多同時登入 3 台裝置，網頁端 1 台</string>
+    <string name="device_manage_swipe_hint">左滑其他裝置可將其下線</string>
     <string name="device_manage_current_device">本機</string>
     <string name="device_manage_last_active">最近登入 %1$s</string>
     <string name="device_manage_revoke">下線</string>
@@ -251,4 +266,22 @@
     <string name="device_picker_title">登入裝置已達上限</string>
     <string name="device_picker_desc">請選擇要下線的裝置</string>
     <string name="device_picker_confirm">下線並登入</string>
+
+    <!-- 註銷帳號 -->
+    <string name="user_login_delete_account">註銷帳號</string>
+    <string name="user_login_delete_account_warning">註銷後將刪除帳號的全部資料（帳號資訊、雲端追番記錄、回饋記錄等），請謹慎操作。</string>
+    <string name="user_login_delete_account_no_email_hint">目前帳號未綁定信箱，請輸入密碼完成驗證</string>
+    <string name="user_login_delete_account_confirm_title">確認註銷帳號</string>
+    <string name="user_login_delete_account_confirm_detail">註銷後將刪除：帳號資訊、雲端追番記錄、推播設定、回饋記錄。</string>
+    <string name="user_login_delete_account_grace_period">提交後 7 天為冷靜期，期間重新登入可撤銷註銷；到期後資料將被永久刪除且無法復原。</string>
+    <string name="user_login_delete_account_confirm">確認註銷</string>
+    <string name="user_login_delete_account_submitted">註銷申請已提交</string>
+    <string name="user_login_delete_account_purge_at">帳號資料將於 %1$s 永久刪除</string>
+    <string name="user_login_delete_account_local_data_prompt">是否同時清除本機的追番資料？</string>
+    <string name="user_login_delete_account_clear_local">清除本機資料</string>
+    <string name="user_login_delete_account_keep_local">保留本機資料</string>
+    <string name="user_login_delete_failed">註銷失敗</string>
+    <string name="user_login_account_deletion_pending">帳號正在註銷中</string>
+    <string name="user_login_account_deletion_pending_detail">帳號將於 %1$s 被永久刪除。恢復帳號可撤銷註銷並繼續使用。</string>
+    <string name="user_login_restore_account">恢復帳號</string>
 </resources>

@@ -44,6 +44,7 @@
     <string name="settings_update_notification_summary">Push anime updates daily at %1$02d:%2$02d</string>
     <string name="settings_update_notification_disabled">Disabled</string>
     <string name="settings_about">About</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
 
     <!-- AppearanceScreen -->
     <string name="appearance_title">Appearance &amp; Theme</string>

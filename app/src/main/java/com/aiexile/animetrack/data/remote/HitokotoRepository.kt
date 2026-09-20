@@ -21,6 +21,9 @@ class HitokotoRepository {
         AnimeQuote("人没有牺牲就什么都得不到，为了得到什么，就需要付出同等的代价。", "钢之炼金术师")
     )
 
+    /** 立即返回内置语录（无网络等待），用于彩蛋即时展示 */
+    fun getFallbackQuote(): AnimeQuote = fallbackQuotes[Random.nextInt(fallbackQuotes.size)]
+
     suspend fun getRandomAnimeQuote(): AnimeQuote {
         return try {
             val res = RetrofitClient.hitokotoApi.getQuote()

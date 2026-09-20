@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.StatusCount
 import com.aiexile.animetrack.data.auth.DeviceInfo
@@ -68,6 +69,7 @@ import com.aiexile.animetrack.data.network.RevokeDeviceRequest
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.UserAuthLoginRequest
 import com.aiexile.animetrack.data.network.UserAuthLogoutRequest
+import com.aiexile.animetrack.data.network.serverErrorJson
 import com.aiexile.animetrack.data.network.serverMessage
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.AnimeStatus
@@ -100,6 +102,7 @@ fun UserLoginScreen(
 
     val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
     val tokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+    val userId by userAuthManager.userId.collectAsState(initial = null)
     val username by userAuthManager.username.collectAsState(initial = null)
     val email by userAuthManager.email.collectAsState(initial = null)
     val createdAt by userAuthManager.createdAt.collectAsState(initial = null)
@@ -139,6 +142,12 @@ fun UserLoginScreen(
     var manageDevices by remember { mutableStateOf<List<DeviceSession>>(emptyList()) }
     var showDeviceManageDialog by remember { mutableStateOf(false) }
     var revokingSessionId by remember { mutableStateOf<String?>(null) }
+
+    // 注销账号 / 恢复账号
+    var showDeleteAccount by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var restorePurgeAt by remember { mutableStateOf<String?>(null) }
+    var isRestoring by remember { mutableStateOf(false) }
 
     /** 拉取当前登录设备列表（登录后 / 下线设备后刷新） */
     fun refreshDevices() {
@@ -315,6 +324,52 @@ fun UserLoginScreen(
     }
 
     /**
+     * 认证成功后的统一处理（login / restore-account 共用）：
+     * 保存登录态 → 补全 profile → 上报推送 ID → 触发订阅同步。
+     * 必须在 IO 协程中调用。
+     */
+    suspend fun processAuthSuccess(accessToken: String, refreshToken: String, userId: Int, uname: String, uemail: String?, ucreatedAt: String?, uavatar: String?) {
+        userAuthManager.saveLogin(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
+            userId = userId,
+            username = uname,
+            email = uemail,
+            createdAt = ucreatedAt,
+            avatar = uavatar
+        )
+        // 获取完整用户信息（含 created_at）
+        try {
+            val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $accessToken")
+            if (profileResponse.success && profileResponse.user != null) {
+                val profileUser = profileResponse.user
+                userAuthManager.saveLogin(
+                    accessToken = accessToken,
+                    refreshToken = refreshToken,
+                    userId = profileUser.id,
+                    username = profileUser.username,
+                    email = profileUser.email,
+                    createdAt = profileUser.createdAt,
+                    avatar = profileUser.avatar
+                )
+            }
+        } catch (_: Exception) {
+            // 获取 profile 失败不影响登录
+        }
+        // 登录成功后上报极光推送 registrationId
+        try {
+            PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
+        } catch (_: Exception) { }
+        // 登录成功后拉取后端订阅列表，同步到本地数据库
+        // 使用应用级协程，避免登录后 UI 切换导致同步被取消
+        try {
+            AppContainer.getAnimeRepository().triggerSyncSubscriptionsFromServer()
+        } catch (e: Exception) {
+            android.util.Log.w("UserLogin", "Trigger sync subscriptions failed (non-fatal)", e)
+        }
+    }
+
+    /**
      * 执行登录：携带设备信息创建多端登录会话；
      * 设备超限时服务端返回 deviceLimitReached + 设备列表，弹出选择框后
      * 携带所选 kickDeviceIds 重试。
@@ -354,47 +409,85 @@ fun UserLoginScreen(
                     return@launch
                 }
                 if (response.success && response.accessToken != null && response.refreshToken != null && response.user != null) {
-                    val accessToken = response.accessToken
-                    val refreshToken = response.refreshToken
-                    val user = response.user
-                    userAuthManager.saveLogin(
-                        accessToken = accessToken,
-                        refreshToken = refreshToken,
-                        userId = user.id,
-                        username = user.username,
-                        email = user.email,
-                        createdAt = user.createdAt,
-                        avatar = user.avatar
+                    processAuthSuccess(
+                        accessToken = response.accessToken,
+                        refreshToken = response.refreshToken,
+                        userId = response.user.id,
+                        uname = response.user.username,
+                        uemail = response.user.email,
+                        ucreatedAt = response.user.createdAt,
+                        uavatar = response.user.avatar
                     )
-                    // 获取完整用户信息（含 created_at）
-                    try {
-                        val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $accessToken")
-                        if (profileResponse.success && profileResponse.user != null) {
-                            val profileUser = profileResponse.user
-                            userAuthManager.saveLogin(
-                                accessToken = accessToken,
-                                refreshToken = refreshToken,
-                                userId = profileUser.id,
-                                username = profileUser.username,
-                                email = profileUser.email,
-                                createdAt = profileUser.createdAt,
-                                avatar = profileUser.avatar
-                            )
-                        }
-                    } catch (_: Exception) {
-                        // 获取 profile 失败不影响登录
+                } else {
+                    withContext(Dispatchers.Main) {
+                        errorMessage = response.message ?: context.getString(R.string.user_login_login_failed)
                     }
-                    // 登录成功后上报极光推送 registrationId
-                    try {
-                        PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-                    } catch (_: Exception) { }
-                    // 登录成功后拉取后端订阅列表，同步到本地数据库
-                    // 使用应用级协程，避免登录后 UI 切换导致同步被取消
-                    try {
-                        com.aiexile.animetrack.di.AppContainer.getAnimeRepository()
-                            .triggerSyncSubscriptionsFromServer()
-                    } catch (e: Exception) {
-                        android.util.Log.w("UserLogin", "Trigger sync subscriptions failed (non-fatal)", e)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: HttpException) {
+                withContext(Dispatchers.Main) {
+                    // errorBody 只能读一次：一次解析后从 JsonObject 取所有字段
+                    val errorJson = e.serverErrorJson()
+                    val errorCode = errorJson?.get("code")?.takeIf { !it.isJsonNull }?.asString
+                    if (errorCode == "DELETION_PENDING") {
+                        // 账号处于注销宽限期：弹出恢复账号弹窗
+                        restorePurgeAt = errorJson?.get("purgeAt")?.takeIf { !it.isJsonNull }?.asString
+                        showRestoreDialog = true
+                    } else {
+                        errorMessage = errorJson?.get("message")?.takeIf { !it.isJsonNull }?.asString
+                            ?: context.getString(R.string.user_login_login_failed)
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    errorMessage = context.getString(R.string.user_login_network_error)
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    /**
+     * 恢复注销中的账号：用当前输入的用户名/密码调用 restore-account，
+     * 验证通过即撤销注销并完成登录（设备处理与 login 一致）。
+     */
+    fun performRestore() {
+        if (isRestoring) return
+        isRestoring = true
+        errorMessage = null
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.userAuthApi.restoreAccount(
+                    UserAuthLoginRequest(
+                        username = inputUsername.trim(),
+                        password = inputPassword,
+                        deviceId = DeviceInfo.getDeviceId(),
+                        deviceName = DeviceInfo.deviceName,
+                        platform = DeviceInfo.PLATFORM
+                    )
+                )
+                if (response.success && response.accessToken != null && response.refreshToken != null && response.user != null) {
+                    processAuthSuccess(
+                        accessToken = response.accessToken,
+                        refreshToken = response.refreshToken,
+                        userId = response.user.id,
+                        uname = response.user.username,
+                        uemail = response.user.email,
+                        ucreatedAt = response.user.createdAt,
+                        uavatar = response.user.avatar
+                    )
+                    withContext(Dispatchers.Main) {
+                        showRestoreDialog = false
+                    }
+                } else if (response.deviceLimitReached == true) {
+                    // 恢复成功但设备超限：提示用户走登录流程选择设备
+                    withContext(Dispatchers.Main) {
+                        showRestoreDialog = false
+                        errorMessage = response.message ?: context.getString(R.string.user_login_login_failed)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -403,13 +496,17 @@ fun UserLoginScreen(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: HttpException) {
+                withContext(Dispatchers.Main) {
+                    errorMessage = e.serverMessage() ?: context.getString(R.string.user_login_login_failed)
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     errorMessage = context.getString(R.string.user_login_network_error)
                 }
             } finally {
                 withContext(Dispatchers.Main) {
-                    isLoading = false
+                    isRestoring = false
                 }
             }
         }
@@ -499,6 +596,31 @@ fun UserLoginScreen(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                // 用户 ID + 内测用户标识（版本名包含 beta 时显示徽章）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    userId?.let { id ->
+                        Text(
+                            text = stringResource(R.string.user_login_user_id, id),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
+                        if (userId != null) Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = SquircleShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = stringResource(R.string.user_login_beta_badge),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = email ?: stringResource(R.string.user_login_email_not_set),
@@ -642,6 +764,18 @@ fun UserLoginScreen(
                         Text(stringResource(R.string.user_login_logout))
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                // 注销账号入口（危险操作，红色弱化展示）
+                TextButton(
+                    onClick = { showDeleteAccount = true },
+                    enabled = !isLoggingOut
+                ) {
+                    Text(
+                        text = stringResource(R.string.user_login_delete_account),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 Spacer(modifier = Modifier.height(24.dp))
             } else {
                 // 未登录 / token 已失效（强制重新登录）
@@ -683,6 +817,7 @@ fun UserLoginScreen(
                     onValueChange = { inputUsername = it },
                     label = { Text(stringResource(R.string.user_login_username)) },
                     singleLine = true,
+                    shape = SquircleShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -691,6 +826,7 @@ fun UserLoginScreen(
                     onValueChange = { inputPassword = it },
                     label = { Text(stringResource(R.string.user_login_password)) },
                     singleLine = true,
+                    shape = SquircleShape(12.dp),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth()
@@ -735,6 +871,42 @@ fun UserLoginScreen(
         }
     }
 
+    // 注销账号流程弹窗（验证 → 确认 → 本地数据选择）
+    if (showDeleteAccount) {
+        DeleteAccountFlowDialogs(
+            hasVerifiedEmail = !email.isNullOrBlank(),
+            onDismiss = { showDeleteAccount = false },
+            onDeletionConfirmed = { clearLocalData ->
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        if (clearLocalData) {
+                            // 清空本机追番数据（Room anime 表）
+                            AppContainer.getAnimeDatabase().animeDao().deleteAllAnimes()
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("UserLogin", "Clear local data failed (non-fatal)", e)
+                    } finally {
+                        // 服务端已撤销全部会话，本地统一执行登出清理
+                        userAuthManager.logout()
+                        withContext(Dispatchers.Main) {
+                            showDeleteAccount = false
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    // 恢复账号弹窗（登录时服务端返回 DELETION_PENDING 触发）
+    if (showRestoreDialog) {
+        RestoreAccountDialog(
+            purgeAt = restorePurgeAt,
+            isRestoring = isRestoring,
+            onRestore = { performRestore() },
+            onDismiss = { showRestoreDialog = false }
+        )
+    }
+
     // 修改密码 Dialog
     if (showChangePasswordDialog) {
         AlertDialog(
@@ -756,6 +928,7 @@ fun UserLoginScreen(
                         onValueChange = { oldPassword = it },
                         label = { Text(stringResource(R.string.user_login_old_password)) },
                         singleLine = true,
+                        shape = SquircleShape(12.dp),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isChangingPassword,
@@ -768,6 +941,7 @@ fun UserLoginScreen(
                         label = { Text(stringResource(R.string.user_login_new_password)) },
                         placeholder = { Text(stringResource(R.string.user_login_password_min_hint)) },
                         singleLine = true,
+                        shape = SquircleShape(12.dp),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isChangingPassword,
@@ -779,6 +953,7 @@ fun UserLoginScreen(
                         onValueChange = { confirmNewPassword = it },
                         label = { Text(stringResource(R.string.user_login_confirm_new_password)) },
                         singleLine = true,
+                        shape = SquircleShape(12.dp),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isChangingPassword,
@@ -911,6 +1086,7 @@ fun UserLoginScreen(
                         onValueChange = { changeEmailPassword = it },
                         label = { Text(stringResource(R.string.user_login_current_password)) },
                         singleLine = true,
+                        shape = SquircleShape(12.dp),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         enabled = !isChangingEmail,
@@ -922,6 +1098,7 @@ fun UserLoginScreen(
                         onValueChange = { changeEmailNewEmail = it },
                         label = { Text(stringResource(R.string.user_login_new_email)) },
                         singleLine = true,
+                        shape = SquircleShape(12.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         enabled = !isChangingEmail,
                         modifier = Modifier.fillMaxWidth()
