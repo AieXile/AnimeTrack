@@ -6,6 +6,7 @@
     <string name="user_login_user_default">使用者</string>
     <string name="user_login_user_id">ID: %1$d</string>
     <string name="user_login_beta_badge">內測用戶</string>
+    <string name="user_login_official_badge">正式版用戶</string>
     <string name="user_login_email_not_set">未設定信箱</string>
     <string name="user_login_register_time">註冊時間: %1$s</string>
     <string name="user_login_logged_in">已登入</string>

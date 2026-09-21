@@ -162,7 +162,7 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 
 前往 [Releases 页面](https://github.com/AieXile/AnimeTrack/releases) 下载最新 APK 文件，直接安装即可。
 
-> 注意：当前为 beta 版本，功能仍在完善中，使用过程中如遇问题欢迎提交 Issue。
+> 使用过程中如遇问题欢迎提交 Issue。
 
 ---
 

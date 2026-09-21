@@ -12,17 +12,22 @@
     <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
   </p>
   <p align="center">
-    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-参加-blue?style=flat&logo=tencentqq&logoColor=white" alt="QQ Group"></a>
-    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-参加-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram Group"></a>
+    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-参加-blue?style=flat" alt="QQ Group"></a>
+    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-参加-2CA5E0?style=flat" alt="Telegram Group"></a>
   </p>
+</p>
+
+<p align="center">
+  <a href="README.md">中文</a> |
+  <a href="README.en.md">English</a>
 </p>
 
 AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された Android 向けアニメ追跡ツールで、検索・マーク・再生・振り返りまでの一連の流れを提供します。
 
 - **マルチソース検索＆マーク** – Bangumi または TMDB からアニメを検索し、「見たい」「見てる」「見た」に素早くマーク。完了日時を自動記録。
-- ~~**内蔵プレーヤー＆進捗連携** – ExoPlayer を統合し、WebDAV からローカルリソースを再生可能。視聴完了時に自動で話数更新、手動操作不要。~~
 - **タイムライン＆ボード** – すべての視聴完了記録がタイムラインに集約され、補完履歴の振り返りが簡単に。連載中の作品は曜日別にボードに表示され、今日の更新がひと目でわかります。
 - **マルチデバイスデータ同期** – 独自アカウント、Bangumi、Bilibili、WebDAV の4種類の同期方法に対応。クラウドバックアップ、機種変更、デバイス間シームレス移行で、データは常にあなたとともに。
+- ~~**内蔵プレーヤー＆進捗連携** – ExoPlayer を統合し、WebDAV からローカルリソースを再生可能。視聴完了時に自動で話数更新、手動操作不要。~~
 
 ---
 
@@ -53,7 +58,7 @@ AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された
 ### 追跡＆再生
 - **マルチデータソース検索** – Bangumi と TMDB の両方からの検索マッチングに対応し、カバー、話数、放送開始日などの基本情報を自動取得。データソースが欠けている作品は、詳細ページのマッチボタンから手動で補完可能（Bangumi または TMDB 別々にマッチング）。
 - **複数ステータス管理** – アニメを「見たい」「見てる」「見た」の3ステータスに分類し、完全な追跡フローを実現。視聴中の作品は現在の視聴話数を記録でき、完了時に完了日時が自動書き込み。
-- **複数シーズンコレクション** – 同一シリーズの複数シーズンを自動認識（「第X季/期/章」、ローマ数字、Final Season、最終季など多様な命名ルールに対応）。シリーズごとにグループ化し、カードスタック形式で表示。左右スワイプでシーズン間を切り替え可能、リスト内で探す手間が不要。
+- **複数シーズンコレクション** – Bangumi の関係チェーン（前編・続編関係）により同一シリーズの複数シーズンを自動認識（「第X季/期/章」、ローマ数字、Final Season、最終季など多様な命名ルールに対応）。シリーズごとにグループ化し、カードスタック形式で表示。左右スワイプでシーズン間を切り替え可能、リスト内で探す手間が不要。
 - ~~**内蔵プレーヤー** – ExoPlayer を統合し、WebDAV リモートディレクトリからローカルアニメリソースを直接再生。視聴進捗はローカル記録と連動し、視聴完了時に自動で話数更新。~~
 - **タイムライン振り返り** – どのアニメをいつ見終わったかを時系列で確認でき、補完履歴の振り返りが簡単。月別ブラウズにも対応。
 - **追跡ボード** – 追加した連載作品は毎週何曜日に更新されるかを表示し、ボード上で今日更新されるアニメを曜日別に一覧表示。ワンクリックで作品詳細へ移動。
@@ -64,19 +69,20 @@ AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された
 - **Bangumi 同期** – Bangumi のコレクション状況と視聴進捗を双方向同期。ローカル記録を Bangumi お気に入りにプッシュしたり、Bangumi のマークをローカルにマージしたりでき、二重管理を回避。
 - **Bilibili 同期** – B站の追跡リストをワンクリックで取得しローカルにマージ。B站アカウントにログイン後、同期したいアニメを選択すると、カバー・話数・ステータスなどを自動取得し、選択的インポートが可能。
 - **WebDAV 同期** – WebDAV 経由でデータベースとカバーを自前のクラウド（Nutstore、Nextcloud など）にバックアップ。自動定期同期に対応し、データを自分の手元に保持。
-- **Markdown インポート / エクスポート** – Markdown による一括インポート（ステータスグループ、話数情報、完了日、メモなどに対応。中英両方のキーワードを認識）をサポート。また、ローカル記録をタイムライン形式で可読性の高い Markdown ファイルにエクスポート可能。バックアップや他ツールへの移行に便利。
+- **Markdown インポート / エクスポート** – **Markdown ファイル/テキスト**による一括インポート（ステータスグループ、話数情報、完了日、メモなどに対応。中英両方のキーワードを認識）をサポート。また、ローカル記録をタイムライン形式で可読性の高い Markdown ファイルにエクスポート可能。バックアップや他ツールへの移行に便利。
 - **ZIP バックアップ / 復元** – ローカルデータベース（WAL ログ含む）とカバーディレクトリを ZIP にパッケージ。復元時は上書きとマージ（bangumiId またはタイトルで重複排除）の両モードに対応し、機種変更も安心。
 
 ### カスタマイズ＆ツール
 - **Material Design 3** – Jetpack Compose ベースで構築。動的カラーとダークモードに対応し、M3 デザインガイドラインに準拠。
-- **複数テーマプリセット** – クリアブルー、オーシャンシアン、ミントグリーン、スレートインディゴ、モノクロの5種類のカラースキームを内蔵。各テーマは異なるパレット戦略（TONAL_SPOT / VIBRANT / CONTENT / NEUTRAL）を採用し、異なるビジュアル印象を提供。
+- **複数テーマプリセット** – 朝霧ブルー、レイクシアン、モスグリーン、サンセットオレンジ、ミスティパープル、ローズピンク、モノクロの7種類のカラースキームを内蔵。「ニュートラルベース + カラーアクセント」モデル（Apple HIG 準拠）により、差別化されたビジュアル印象を提供。
+- **4段階ダークモード** – ダークモード時に「Amoled（純黒 OLED）/ 標準 / ソフト / ハイコントラスト」の4つの明暗スタイルから選択可能。
 - **カスタマイズ可能なナビゲーションバー** – 従来の下部固定型とフローティングカプセル型の2種類のナビゲーションスタイルを提供。ナビゲーションエリアでの左右スワイプによるページ切り替えが可能で、選択インジケーターにはバネアニメーションが付随。
 - **ガイドページ** – 初回インストール時のガイドで、コア機能と権限説明を素早く理解。
 - **プロキシ設定** – Bangumi 逆プロキシ（Bangumi が一部地域でブロックされる問題を回避）とグローバル HTTP プロキシ（制限のあるネットワーク環境に対応）を内蔵。変更後は再起動で有効。
 - **シェアカード** – カバー、タイトル、評価、進捗を含むアニメ情報カードを生成し、ワンタップで SNS にシェア。
 - **カバー編集** – 詳細ページの編集モードでは、オンラインカバー検索、ギャラリーからのカスタムカバーアップロード、現在のカバーをローカルに保存の3機能を提供。ニーズに合わせたカスタマイズが可能。
 - **データ統計** – アプリ使用時間、追加・完了したアニメ数を記録。日別 / 月別 / 年別で表示し、あなたの追跡足跡を数値化。
-- **バージョン更新チェック** – GitHub Releases を通じて自動で新バージョンをチェック。バージョン番号を比較して更新を通知し、更新ログの閲覧も可能。
+- **バージョン更新チェック** – 独自サーバーを通じて自動で新バージョンをチェックし、GitHub Releases をフォールバックとして利用。バージョン番号を比較して更新を通知し、更新ログの閲覧も可能。
 
 </details>
 
@@ -132,6 +138,9 @@ AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された
 
 - [x] **Bangumi アカウント同期** – ログイン後、クラウド記録を直接同期して紛失を防ぎ、双方向更新をサポート。
 - [x] **視聴記録を MD にエクスポート** – ローカル記録をタイムライン形式で可読性の高い Markdown ファイルにエクスポート。バックアップや共有に便利。
+- [x] **タブレット対応** – タブレットでのデュアルペインレイアウト、リストグリッドの自動適応、FAB レイアウトの再設計。
+- [x] **リキッドグラス効果** – ボトムナビゲーションバーにリキッドグラス効果を実装。
+- [x] **メイン画面のカードスタック** – WeChat の複数画像スタック体験を再現し、同一シリーズのアニメをスタック表示。
 - [ ] **タイムラインレポート** – 視聴履歴をもとに週報・月報・年報を自動生成し、シンプルなチャートで追跡トレンドを表示。
 - [ ] **Web とアプリのマルチデバイス同期** – Web アクセスを提供し、Web とアプリ間でデータをリアルタイム同期。デバイス間のシームレスな連携を実現。
 - [ ] **ローカル再生と自動記録** – ローカルプレーヤーを強化し、視聴進捗をタイムラインに自動記録。手動マークが不要に。
@@ -141,12 +150,15 @@ AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された
 <h2 align="center">クイックスタート</h2>
 
 ### 環境要件
-- Android 8.0 以上
+
+**Android 8.0** 以上
+
+> リキッドグラスには **Android 13** 以上が必要です
 
 ### インストール
 [Releases ページ](https://github.com/AieXile/AnimeTrack/releases) から最新の APK をダウンロードし、直接インストールしてください。
 
-> 注意：現在はベータ版です。機能はまだ改善中です。問題が発生した場合は、お気軽に Issue を提出してください。
+> 問題が発生した場合は、お気軽に Issue を提出してください。
 
 ---
 

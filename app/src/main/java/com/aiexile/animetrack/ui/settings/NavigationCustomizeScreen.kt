@@ -71,7 +71,8 @@ fun NavigationCustomizeScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    val showFavorites by settingsRepository.showFavorites.collectAsState(false)
+    // 「显示收藏」开关暂时隐藏，功能本身保留，后续视收藏页完善情况恢复
+    // val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
@@ -290,12 +291,13 @@ fun NavigationCustomizeScreen(
                     modifier = rememberHighlightModifier("content", highlightKey)
                 ) {
                     Column {
-                        SwitchItem(
-                            title = stringResource(R.string.nav_custom_show_favorites),
-                            description = stringResource(R.string.nav_custom_show_favorites_desc),
-                            checked = showFavorites,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowFavorites(it) } }
-                        )
+                        // 「显示收藏」开关暂时隐藏
+//                        SwitchItem(
+//                            title = stringResource(R.string.nav_custom_show_favorites),
+//                            description = stringResource(R.string.nav_custom_show_favorites_desc),
+//                            checked = showFavorites,
+//                            onCheckedChange = { scope.launch { settingsRepository.setShowFavorites(it) } }
+//                        )
                         SwitchItem(
                             title = stringResource(R.string.nav_custom_show_timeline),
                             description = stringResource(R.string.nav_custom_show_timeline_desc),

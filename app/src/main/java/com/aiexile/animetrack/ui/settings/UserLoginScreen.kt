@@ -56,7 +56,6 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
-import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.StatusCount
 import com.aiexile.animetrack.data.auth.DeviceInfo
@@ -597,7 +596,7 @@ fun UserLoginScreen(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                // 用户 ID + 内测用户标识（版本名包含 beta 时显示徽章）
+                // 用户 ID + 内测/正式版用户标识（ID ≤ 36 为内测用户，之后为正式版用户）
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     userId?.let { id ->
                         Text(
@@ -606,16 +605,23 @@ fun UserLoginScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (BuildConfig.VERSION_NAME.contains("beta", ignoreCase = true)) {
-                        if (userId != null) Spacer(modifier = Modifier.width(8.dp))
+                    if (userId != null) {
+                        val uid = userId!!
+                        val isBetaUser = uid <= 36
+                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = SquircleShape(6.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            color = if (isBetaUser) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerHighest
                         ) {
                             Text(
-                                text = stringResource(R.string.user_login_beta_badge),
+                                text = stringResource(
+                                    if (isBetaUser) R.string.user_login_beta_badge
+                                    else R.string.user_login_official_badge
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = if (isBetaUser) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }

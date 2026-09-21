@@ -6,6 +6,7 @@
     <string name="user_login_user_default">User</string>
     <string name="user_login_user_id">ID: %1$d</string>
     <string name="user_login_beta_badge">Beta user</string>
+    <string name="user_login_official_badge">Official user</string>
     <string name="user_login_email_not_set">Email not set</string>
     <string name="user_login_register_time">Registered: %1$s</string>
     <string name="user_login_logged_in">Logged in</string>
