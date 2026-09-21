@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
@@ -86,6 +87,12 @@ fun SettingsScreen(
     var tmdbApiKeyInput by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+
+    // 返回键先收起设置搜索，而不是直接退出主界面
+    BackHandler(enabled = searchActive) {
+        searchActive = false
+        searchQuery = ""
+    }
 
     // 反馈新回复红点：登录状态下每次页面可见时检查（从反馈页返回后自动消除）
     var feedbackUnread by remember { mutableStateOf(false) }

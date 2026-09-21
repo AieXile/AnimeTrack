@@ -84,6 +84,9 @@
     <string name="detail_share_notes_hint">添加备注（将显示在分享卡片上）</string>
     <string name="detail_write_something_hint">写点什么...</string>
     <string name="detail_match_source_format">匹配 %1$s</string>
+    <string name="detail_bangumi_hint_title">未关联 Bangumi</string>
+    <string name="detail_bangumi_hint_message">该番剧的 Bangumi ID 为空或为 0，可能无法同步观看进度、参与系列堆叠与跨设备同步。建议点击右上角按钮匹配一次。</string>
+    <string name="detail_bangumi_hint_button">不再提示</string>
     <string name="detail_data_source">数据源</string>
     <string name="detail_search_keyword_hint">输入关键词搜索...</string>
     <string name="detail_input_keyword_hint">输入关键词后点击搜索</string>

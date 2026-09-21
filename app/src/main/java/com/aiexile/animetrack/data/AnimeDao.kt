@@ -58,6 +58,17 @@ interface AnimeDao {
 
     @Query("UPDATE anime SET remoteSyncId = :remoteSyncId WHERE id = :id")
     suspend fun updateRemoteSyncId(id: Int, remoteSyncId: String)
+
+    /**
+     * 清洗历史脏数据：bangumiId<=0（B站导入经服务端同步曾产生 animeId='0'）
+     * 不是有效 Bangumi ID，置空并改用稳定的 remoteSyncId 标识。
+     */
+    @Query("UPDATE anime SET bangumiId = NULL, remoteSyncId = :remoteSyncId WHERE id = :id")
+    suspend fun clearDirtyBangumiId(id: Int, remoteSyncId: String)
+
+    /** 标记「Bangumi 未关联」提示已展示过（同一部番剧仅提示一次） */
+    @Query("UPDATE anime SET bangumiMatchHintShown = 1 WHERE id = :id")
+    suspend fun markBangumiMatchHintShown(id: Int)
     
     @Query("SELECT * FROM anime WHERE coverUrl IS NULL OR coverUrl = ''")
     suspend fun getAnimesWithoutCover(): List<Anime>

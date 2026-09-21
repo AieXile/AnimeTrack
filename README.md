@@ -12,23 +12,22 @@
     <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
   </p>
   <p align="center">
-    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-加入-blue?style=flat&logo=tencentqq&logoColor=white" alt="QQ Group"></a>
-    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-加入-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram Group"></a>
+    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-加入-blue?style=flat" alt="QQ Group"></a>
+    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-加入-2CA5E0?style=flat" alt="Telegram Group"></a>
   </p>
 </p>
 
 <p align="center">
   <a href="README.en.md">English</a> | 
-  <a href="README.ja.md">日本語</a> | 
-  <a href="README.md">中文</a>
+  <a href="README.ja.md">日本語</a>
 </p>
 
 AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓追番工具，提供从搜索、标记、播放到回顾的完整流程。
 
 - **多源搜索与标记** – 通过 Bangumi 或 TMDB 搜索动画，快速标记为“想看”“在看”或“已看”，自动记录完成时间。
-- ~~**内置播放与进度联动** – 集成 ExoPlayer，支持从 WebDAV 播放本地资源，看完自动更新集数，无需手动操作。~~
 - **时间线与看板** – 所有已看完的记录汇聚成时间线，方便回顾补番轨迹；连载作品在看板中按星期分组，今日更新一目了然。
 - **多端数据同步** – 支持自有账号、Bangumi、Bilibili 和 WebDAV 四种同步方式，云端备份、换机迁移、跨设备无缝衔接，数据永远随身。
+- ~~**内置播放与进度联动** – 集成 ExoPlayer，支持从 WebDAV 播放本地资源，看完自动更新集数，无需手动操作。~~
 
 ---
 
@@ -57,32 +56,36 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 <summary><b>点击展开完整功能列表</b></summary>
 
 ### 追番与播放
+
 - **多数据源搜索** – 支持 Bangumi、TMDB 双数据源搜索匹配，自动拉取封面、集数、开播日期等基本信息。当某部作品缺失数据源时，可在详情页点击匹配按钮手动搜索补全，支持按 Bangumi 或 TMDB 分别匹配。
 - **多状态管理** – 将动画归类为「想看」「在看」「已看」三种状态，满足完整的追踪流程。在看作品可记录当前观看集数，看完时自动写入完成时间。
 - **多季合集** – 自动识别同系列多季作品（支持「第X季/期/章」、罗马数字、Final Season、最终季等多种命名规则），按系列分组并以卡片堆叠形式展示。左右滑动可在季与季之间切换，无需在列表中翻找。
-- ~~**内置播放器** – 集成 ExoPlayer 播放器，支持从 WebDAV 远程目录直接播放本地番剧资源，观看进度与本地记录联动，看完自动更新集数。~~
 - **时间线回顾** – 按时间顺序查看自己什么时候看完了哪部动画，方便回顾补番历程，支持按月份浏览历史记录。
 - **追番看板** – 已添加的连载作品会展示每周几更新，并在看板中按星期分组列出今日更新的动画列表，一键跳转到对应作品详情。
-- ~~**更新推送提醒** – 通过 WorkManager 与极光推送，在番剧更新当日按时提醒。（暂时不开放）~~
+- ~~**更新推送提醒** – 通过 WorkManager 与极光推送，在番剧更新当日按时提醒。~~（暂时不开放）
+- ~~**内置播放器** – 集成 ExoPlayer 播放器，支持从 WebDAV 远程目录直接播放本地番剧资源，观看进度与本地记录联动，看完自动更新集数。~~
 
 ### 同步与备份
+
 - **AnimeTrack 账号同步** – 注册登录自有后端，订阅数据云端双向同步。登录后自动拉取云端数据，本地增删改也会实时上传，多设备数据保持一致。支持头像上传、修改密码等账号管理。
 - **Bangumi 同步** – 双向同步 Bangumi 收藏状态与观看进度。可将本地记录推送到 Bangumi 收藏夹，也可拉取 Bangumi 的标记合并到本地，避免重复维护。
 - **Bilibili 同步** – 一键拉取 B 站追番列表并合并到本地。登录 B 站账号后选择要同步的番剧，自动拉取封面、集数、状态等信息，支持选择性导入。
 - **WebDAV 同步** – 通过 WebDAV 远程备份数据库与封面到自建网盘（坚果云、Nextcloud 等），支持自动定时同步，数据掌握在自己手中。
-- **Markdown 导入 / 导出** – 支持 Markdown 批量导入已看记录（兼容状态分组、集数信息、完成日期、备注等字段，中英双语关键词均可识别），也可将本地记录按时间线导出为可读的 Markdown 文件，方便备份或迁移到其他工具。
+- **Markdown 导入 / 导出** – 支持 **Markdown 文件/文本** 批量导入已看记录（兼容状态分组、集数信息、完成日期、备注等字段，中英双语关键词均可识别），也可将本地记录按时间线导出为可读的 Markdown 文件，方便备份或迁移到其他工具。
 - **ZIP 备份 / 恢复** – 将本地数据库（含 WAL 日志）与封面目录打包为 ZIP 备份，恢复时支持覆盖与合并两种模式（按 bangumiId 或标题去重），换机无忧。
 
 ### 个性化与工具
+
 - **Material Design 3** – 基于 Jetpack Compose 构建，适配动态取色与深色模式，遵循 M3 设计规范。
-- **多套主题预设** – 内置清透蓝、海洋青、薄荷绿、石板靛、黑白简洁五种配色风格，每种主题采用不同的调色板策略（TONAL_SPOT / VIBRANT / CONTENT / NEUTRAL），呈现差异化的视觉气质。
+- **多套主题预设** – 内置晨雾蓝、湖水青、苔青绿、落日橘、雾霭紫、蔷薇粉、黑白简洁七种配色风格，采用「中性底座 + 彩色点缀」模型（参考 Apple HIG），呈现差异化的视觉气质。
+- **四档深色模式** – 深色模式下可选「增强（纯黑 OLED）/ 标准 / 柔和 / 高对比」四种深浅风格
 - **可定制导航栏** – 提供传统沉底与悬浮胶囊两种导航栏样式，支持在导航栏区域左右滑动手指切换页面，选中指示器带弹簧动画跟随手势。
 - **引导页** – 首次安装引导流程，快速了解核心功能与权限说明。
 - **代理设置** – 内置 Bangumi 反向代理（解决 Bangumi 被墙无法搜索）与全局 HTTP 代理（适配网络受限环境），修改后重启生效。
 - **分享卡片** – 生成包含封面、标题、评分、进度的番剧信息卡片，一键分享到社交平台。
 - **封面编辑** – 详情页编辑模式支持搜索在线封面、从相册上传自定义封面、保存当前封面到本地相册，三件套满足个性化需求。
 - **数据统计** – 记录应用使用时长、添加与完结的番剧数量，可按日 / 月 / 年查看统计，量化你的追番足迹。
-- **版本更新检查** – 通过 GitHub Releases 自动检查新版本，对比版本号提示更新，支持查看更新日志。
+- **版本更新检查** – 通过 自有服务器+GitHub Releases兜底 自动检查新版本，对比版本号提示更新，支持查看更新日志。
 
 </details>
 
@@ -138,6 +141,9 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 
 - [x] **Bangumi 账号同步** – 登录后直接同步云端记录，避免丢失，并支持双向更新。
 - [x] **观看记录导出为 MD** – 将本地记录按时间线导出为可读的 Markdown 文件，方便备份或分享。
+- [x] **平板适配** – 平板端双栏 Pane 布局适配，列表网格自适应，FAB 布局重构
+- [x] **液态玻璃效果** – 底栏实现液态玻璃效果
+- [x] **主界面卡片堆叠** – 复刻微信多图堆叠体验，实现同系列番剧堆叠
 - [ ] **时间线报表** – 基于观看历史自动生成周报、月报或年报，以简单图表呈现追番趋势。
 - [ ] **网页与 App 多端同步** – 提供 Web 端访问能力，实现网页与 App 数据实时同步，跨设备无缝衔接。
 - [ ] **本地播放与自动记录** – 强化本地播放器，观看进度自动记录到时间线，无需手动标记。
@@ -147,9 +153,13 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 <h2 align="center">快速开始</h2>
 
 ### 环境要求
-- Android 8.0 及以上设备
+
+**Android 8.0**及以上设备
+
+> 液态玻璃需要**Android 13**及以上系统版本才能支持
 
 ### 安装
+
 前往 [Releases 页面](https://github.com/AieXile/AnimeTrack/releases) 下载最新 APK 文件，直接安装即可。
 
 > 注意：当前为 beta 版本，功能仍在完善中，使用过程中如遇问题欢迎提交 Issue。

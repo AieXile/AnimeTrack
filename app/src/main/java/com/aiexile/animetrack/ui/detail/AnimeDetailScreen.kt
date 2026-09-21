@@ -98,6 +98,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -210,6 +211,15 @@ fun AnimeDetailScreen(
     val showMatchDialog by viewModel.showMatchDialog.collectAsState()
     val matchSearchQuery by viewModel.matchSearchQuery.collectAsState()
     val matchSearchState by viewModel.matchSearchState.collectAsState()
+    val showBangumiHint by viewModel.showBangumiHint.collectAsState()
+
+    // 匹配按钮在 window 中的位置（供引导遮罩挖洞定位），按钮组合完成后回调
+    var matchButtonBounds by remember { mutableStateOf<Rect?>(null) }
+
+    // 引导遮罩展示时优先拦截返回键：先关遮罩（并标记已提示），不直接退出详情页
+    BackHandler(enabled = showBangumiHint) {
+        viewModel.dismissBangumiHint()
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -331,10 +341,16 @@ fun AnimeDetailScreen(
                             //         tint = MaterialTheme.colorScheme.primary
                             //     )
                             // }
-                            val missingBangumi = anime.bangumiId == null
+                            // bangumiId<=0（历史脏数据）与 null 同样视为未关联，保证引导遮罩触发时按钮必然可见
+                            val missingBangumi = anime.bangumiId == null || anime.bangumiId <= 0
                             val missingTmdb = anime.tmdbId == null
                             if (missingBangumi || missingTmdb) {
-                                IconButton(onClick = { viewModel.showMatchDialog() }) {
+                                IconButton(
+                                    onClick = { viewModel.showMatchDialog() },
+                                    modifier = Modifier.onGloballyPositioned { coordinates ->
+                                        matchButtonBounds = coordinates.boundsInWindow()
+                                    }
+                                ) {
                                     Icon(
                                         painter = rememberAppIconPainter(AppIcon.LINK),
                                         contentDescription = stringResource(R.string.detail_match_source),
@@ -521,6 +537,17 @@ fun AnimeDetailScreen(
                 onDismiss = { viewModel.hideMatchDialog() }
             )
         }
+
+        // 「Bangumi 未关联」引导遮罩：bangumiId 为空/为 0 且未提示过时展示（仅一次）
+        BangumiMatchHintOverlay(
+            visible = showBangumiHint,
+            targetBounds = matchButtonBounds,
+            onDismiss = { viewModel.dismissBangumiHint() },
+            onMatchClick = {
+                viewModel.dismissBangumiHint()
+                viewModel.showMatchDialog()
+            }
+        )
     }
 }
 

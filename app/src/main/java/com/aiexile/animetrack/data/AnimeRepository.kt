@@ -86,6 +86,9 @@ interface AnimeRepository {
      */
     fun syncAnimeToServer(anime: Anime)
 
+    /** 标记「Bangumi 未关联」详情页提示已展示（同一部番剧仅提示一次） */
+    suspend fun markBangumiMatchHintShown(id: Int)
+
     suspend fun deleteAnime(anime: Anime)
 
     suspend fun getAnimeByTitle(title: String): Anime?
@@ -196,6 +199,24 @@ class AnimeRepositoryImpl(
     private val pendingCoverUrlUpdates = ConcurrentHashMap<Int, String>()
     private val coverBatcherStarted = AtomicBoolean(false)
 
+    // ===== Bangumi 关系链系列识别（进程级缓存，冷启动后增量补拉） =====
+
+    /** 关系数据缓存：subjectId → 已过滤为动漫类型的关联列表。仅缓存拉取成功的结果（空列表 = 确认无关联）。 */
+    private val relationsCache = ConcurrentHashMap<Int, List<BangumiSeriesResolver.SubjectRelation>>()
+
+    /** 拉取失败的 subjectId 集合：本次进程内不再重试（避免断网时反复请求），冷启动后重新尝试 */
+    private val failedSubjectIds = ConcurrentHashMap.newKeySet<Int>()
+
+    /** Bangumi 关系链解析结果缓存：anime.id → 系列归属，供 reassignSeriesKeys 融合（权威，优先于正则） */
+    @Volatile
+    private var bangumiSeriesCache: Map<Int, BangumiSeriesResolver.SeriesAssignment> = emptyMap()
+
+    /** 关系链同步单飞锁：正在同步时新触发直接跳过（下次 reassign 再补） */
+    private val seriesRelationsMutex = Mutex()
+
+    /** 关系链同步时单次最多拉取的条目数（库内 + 递归库外前传），防止异常数据导致请求风暴 */
+    private val relationsFetchLimit = 300
+
     companion object {
         private const val TAG = "AnimeTrack"
         private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -212,6 +233,8 @@ class AnimeRepositoryImpl(
         private const val SYNC_DEBOUNCE_MS = 3000L
         /** reassignSeriesKeys 防抖延迟，批量增删时只执行最后一次 */
         private const val REASSIGN_DEBOUNCE_MS = 1000L
+        /** Bangumi 关系拉取间隔（毫秒），与封面补全节奏一致，避免触发限流 */
+        private const val RELATIONS_FETCH_INTERVAL_MS = 700L
         /** 封面本地化写库合批 flush 延迟：短时间内的多次封面更新合并为一次事务写库 */
         private const val COVER_BATCH_FLUSH_MS = 300L
         /** reassignSeriesKeys 防抖 Job（在 appScope 上调度，cancel/replace 安全） */
@@ -336,6 +359,10 @@ class AnimeRepositoryImpl(
 
     override fun syncAnimeToServer(anime: Anime) {
         syncSubscriptionToServer(anime, isAdd = true)
+    }
+
+    override suspend fun markBangumiMatchHintShown(id: Int) {
+        animeDao.markBangumiMatchHintShown(id)
     }
 
     /**
@@ -538,18 +565,112 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun reassignSeriesKeys() {
+        recomputeAndPersistSeriesKeys(triggerRelationsSync = true)
+    }
+
+    /**
+     * 重算并持久化 seriesKey / seasonNumber：
+     * - 标题正则分组（SeriesMatcher.assignSeriesKeys）
+     * - 融合 Bangumi 关系链结果（[bangumiSeriesCache]，权威优先）
+     * 仅持久化发生变化的项，合并为单事务写库（一次 Room 失效）。
+     *
+     * @param triggerRelationsSync true 时在完成后异步触发 Bangumi 关系链增量同步
+     *        （关系链同步完成后的重算传 false，避免无限递归触发）
+     */
+    private suspend fun recomputeAndPersistSeriesKeys(triggerRelationsSync: Boolean) {
         val allAnimes = animeDao.getAllAnimesList()
         if (allAnimes.isEmpty()) return
         // 正则匹配计算挪到 Default，避免启动期在主线程全表扫描
-        val updated = withContext(Dispatchers.Default) { SeriesMatcher.assignSeriesKeys(allAnimes) }
+        val updated = withContext(Dispatchers.Default) {
+            SeriesMatcher.assignSeriesKeys(allAnimes, bangumiSeriesCache)
+        }
         // 建立 id → 原对象索引，避免在 filter lambda 内做 O(n²) 线性查找
         val oldById = allAnimes.associateBy { it.id }
-        // 仅持久化 seriesKey 变化的项，且合并为单事务写库（一次 Room 失效）
-        val changed = updated.filter { it.seriesKey != oldById[it.id]?.seriesKey }
-        if (changed.isEmpty()) return
-        val database = AnimeDatabase.getDatabase(context)
-        database.withTransaction { changed.forEach { animeDao.updateAnime(it) } }
-        if (BuildConfig.DEBUG) Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}")
+        // 仅持久化 seriesKey/seasonNumber 变化的项，且合并为单事务写库（一次 Room 失效）
+        val changed = updated.filter {
+            it.seriesKey != oldById[it.id]?.seriesKey || it.seasonNumber != oldById[it.id]?.seasonNumber
+        }
+        if (changed.isNotEmpty()) {
+            val database = AnimeDatabase.getDatabase(context)
+            database.withTransaction { changed.forEach { animeDao.updateAnime(it) } }
+        }
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}, bangumiOverrides=${bangumiSeriesCache.size}")
+        }
+        if (triggerRelationsSync) {
+            appScope.launch { syncSeriesRelationsFromBangumi() }
+        }
+    }
+
+    /**
+     * Bangumi 关系链系列同步（后台单飞）：
+     * 1. 增量拉取「未缓存」条目的关联关系（含递归库外前传，用于计算准确的链头与季数深度）
+     * 2. 调 [BangumiSeriesResolver.resolve] 计算每部番剧的系列归属（seriesKey + seasonNumber）
+     * 3. 结果写入 [bangumiSeriesCache] 并触发重算持久化（不回调本方法，避免循环）
+     *
+     * 失败静默降级：拉取失败的条目跳过（进程内不重试），正则分组结果保持不变。
+     * 拉取间隔 [RELATIONS_FETCH_INTERVAL_MS]，与封面补全的节流节奏一致。
+     */
+    private suspend fun syncSeriesRelationsFromBangumi() {
+        if (!seriesRelationsMutex.tryLock()) return
+        try {
+            // bangumiId <= 0 为历史脏数据（B站导入经服务端同步产生的 animeId='0'），
+            // 请求 /v0/subjects/0/subjects 必然 400，跳过以免浪费时间与请求配额
+            val animesWithBangumiId = animeDao.getAllAnimesList().filter { (it.bangumiId ?: 0) > 0 }
+            if (animesWithBangumiId.isEmpty()) return
+
+            // 增量队列：库内未缓存的 + 递归发现的库外前传
+            val queue = ArrayDeque<Int>()
+            val enqueued = mutableSetOf<Int>()
+            for (anime in animesWithBangumiId) {
+                val id = anime.bangumiId ?: continue
+                if (!relationsCache.containsKey(id) && !failedSubjectIds.contains(id) && enqueued.add(id)) {
+                    queue.addLast(id)
+                }
+            }
+            var fetched = 0
+            while (queue.isNotEmpty() && enqueued.size <= relationsFetchLimit) {
+                val subjectId = queue.removeFirst()
+                if (relationsCache.containsKey(subjectId) || failedSubjectIds.contains(subjectId)) continue
+                try {
+                    val relations = RetrofitClient.bangumiApi.getSubjectRelations(subjectId)
+                    relationsCache[subjectId] = relations.filter { it.isAnime }.map {
+                        BangumiSeriesResolver.SubjectRelation(
+                            subjectId = it.id,
+                            title = it.displayName,
+                            relation = it.relation ?: "",
+                            isAnime = it.isAnime
+                        )
+                    }
+                    fetched++
+                    // 递归：库外前传入队（计算链头深度需要完整前传链）
+                    relationsCache[subjectId].orEmpty()
+                        .filter { it.relation == "前传" }
+                        .forEach { pre ->
+                            if (!relationsCache.containsKey(pre.subjectId) && !failedSubjectIds.contains(pre.subjectId) && enqueued.add(pre.subjectId)) {
+                                queue.addLast(pre.subjectId)
+                            }
+                        }
+                } catch (e: Exception) {
+                    failedSubjectIds.add(subjectId)
+                    AppLogManager.w(TAG, "拉取条目关联关系失败: subjectId=$subjectId", e)
+                }
+                delay(RELATIONS_FETCH_INTERVAL_MS)
+            }
+
+            if (fetched > 0 || bangumiSeriesCache.isEmpty()) {
+                val resolved = withContext(Dispatchers.Default) {
+                    BangumiSeriesResolver.resolve(animesWithBangumiId, relationsCache.toMap())
+                }
+                bangumiSeriesCache = resolved
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "syncSeriesRelations: fetched=$fetched, cacheSize=${relationsCache.size}, resolved=${resolved.size}")
+                }
+                recomputeAndPersistSeriesKeys(triggerRelationsSync = false)
+            }
+        } finally {
+            seriesRelationsMutex.unlock()
+        }
     }
 
     override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?) {
@@ -786,7 +907,8 @@ class AnimeRepositoryImpl(
                 if (isAdd) {
                     // 无 bangumiId 的番剧懒生成稳定远程 ID（首次上传时回存）
                     val synced = ensureRemoteSyncId(anime)
-                    val animeId = synced.bangumiId?.toString() ?: synced.remoteSyncId!!
+                    // bangumiId<=0 为历史脏数据，不得上传（服务端已拒绝 '0'）
+                    val animeId = synced.bangumiId?.takeIf { it > 0 }?.toString() ?: synced.remoteSyncId!!
                     val response = RetrofitClient.userAuthApi.addSubscription(
                         buildSubscribeRequest(synced, animeId)
                     )
@@ -820,11 +942,12 @@ class AnimeRepositoryImpl(
 
     /**
      * 确保番剧拥有跨设备稳定的远程同步 ID。
-     * bangumiId 非空的番剧天然稳定，直接返回；其余若无 remoteSyncId 则生成 UUID 并回存。
+     * bangumiId 有效（>0）的番剧天然稳定，直接返回；其余若无 remoteSyncId 则生成 UUID 并回存。
      * 懒生成策略：存量数据不批量回填，首次上传时逐条补全。
      */
     private suspend fun ensureRemoteSyncId(anime: Anime): Anime {
-        if (anime.bangumiId != null || anime.remoteSyncId != null) return anime
+        // bangumiId<=0 为历史脏数据，不视为有效标识，仍需生成 remoteSyncId
+        if ((anime.bangumiId ?: 0) > 0 || anime.remoteSyncId != null) return anime
         val syncId = java.util.UUID.randomUUID().toString()
         animeDao.updateRemoteSyncId(anime.id, syncId)
         return anime.copy(remoteSyncId = syncId)
@@ -898,6 +1021,43 @@ class AnimeRepositoryImpl(
             && anime.finishDate?.let { formatDate(it) } == remote.finishDate.norm()
     }
 
+    /**
+     * 清洗历史脏数据：B 站导入经服务端同步曾产生 animeId='0'（旧版客户端上传，
+     * 服务端旧校验拦不住字符串 '0'），下行解析后落地为本地 bangumiId=0。
+     * 0 不是有效 Bangumi ID，会导致关系拉取恒 400、系列堆叠异常，
+     * 且上行会把 '0' 原样传回服务端，形成自我维持的脏数据循环。
+     *
+     * 处理：置空 bangumiId 并改用稳定 remoteSyncId → 以新 ID 重新上传 →
+     * 删除服务端 '0' 旧行（唯一索引下同用户仅一行，删一次即够，幂等）。
+     * 先写库后上传：上传失败时本地已干净，仅暂时缺云端记录，
+     * 后续单条同步路径（ensureRemoteSyncId 已有 remoteSyncId）会补传。
+     */
+    private suspend fun sanitizeDirtyBangumiIds() {
+        val dirty = animeDao.getAllAnimesList().filter { it.bangumiId != null && it.bangumiId <= 0 }
+        if (dirty.isEmpty()) return
+        AppLogManager.w(TAG, "检测到 ${dirty.size} 条 bangumiId<=0 历史脏数据，开始清洗")
+        var removedServerZeroRow = false
+        for (anime in dirty) {
+            try {
+                // 1. 本地清洗：置空 bangumiId，改用稳定远程 ID（已生成过则复用）
+                val syncId = anime.remoteSyncId ?: java.util.UUID.randomUUID().toString()
+                animeDao.clearDirtyBangumiId(anime.id, syncId)
+                val cleaned = anime.copy(bangumiId = null, remoteSyncId = syncId)
+                // 2. 以正确 ID 重新上传（服务端 upsert，字段为本地当前值，覆盖无害）
+                RetrofitClient.userAuthApi.addSubscription(buildSubscribeRequest(cleaned, syncId))
+                // 3. 删除服务端 '0' 旧行，切断脏数据循环（失败不影响本地清洗结果）
+                if (!removedServerZeroRow) {
+                    runCatching {
+                        RetrofitClient.userAuthApi.removeSubscription(RemoveSubscribeRequest(animeId = "0"))
+                    }.onSuccess { removedServerZeroRow = true }
+                }
+                AppLogManager.i(TAG, "脏数据清洗完成: ${anime.title}")
+            } catch (e: Exception) {
+                AppLogManager.w(TAG, "脏数据清洗失败（不影响本地，后续单条同步会补传）: ${anime.title}", e)
+            }
+        }
+    }
+
     override suspend fun syncSubscriptionsFromServer() {
         if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: start")
         val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
@@ -909,6 +1069,9 @@ class AnimeRepositoryImpl(
         if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: user logged in, proceeding")
 
         try {
+            // ===== 第零步：清洗历史脏数据（bangumiId<=0），并修正服务端对应记录 =====
+            sanitizeDirtyBangumiIds()
+
             // ===== 第一步：先拉取后端订阅列表，用于上传前的差异比对 =====
             val response = RetrofitClient.userAuthApi.getSubscriptions()
             val remoteList = response.subscriptions
@@ -921,7 +1084,8 @@ class AnimeRepositoryImpl(
             var uploadedCount = 0
             var skippedCount = 0
             for (anime in localAnimes) {
-                val animeId = anime.bangumiId?.toString() ?: continue
+                // bangumiId<=0 为历史脏数据，跳过上传（sanitizeDirtyBangumiIds 负责清洗后重传）
+                val animeId = anime.bangumiId?.takeIf { it > 0 }?.toString() ?: continue
                 // 远程已存在且字段完全一致 → 跳过上传
                 val remote = remoteMap[animeId]
                 if (remote != null && isRemoteInSync(anime, remote)) {
@@ -953,9 +1117,11 @@ class AnimeRepositoryImpl(
             var mergedCount = 0
             val pendingInsert = mutableListOf<Anime>()
             for (remote in remoteList) {
-                // animeId 格式分流：纯数字 → Bangumi 条目 ID；UUID → 稳定远程同步 ID
-                val bangumiId = remote.animeId.toIntOrNull()
-                val remoteSyncId = if (bangumiId == null) remote.animeId else null
+                // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
+                // '0' 为历史脏数据（旧版 B 站导入产生），既不作 bangumiId 也不作 remoteSyncId，
+                // 仅靠标题匹配本地，避免无效 ID 落库（/v0/subjects/0 请求 400、系列堆叠异常）
+                val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
+                val remoteSyncId = if (bangumiId == null && remote.animeId != "0") remote.animeId else null
                 val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
                 if (existing == null) {
                     // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全
@@ -1087,9 +1253,11 @@ class AnimeRepositoryImpl(
             var mergedCount = 0
             val pendingInsert = mutableListOf<Anime>()
             for (remote in response.subscriptions) {
-                // animeId 格式分流：纯数字 → Bangumi 条目 ID；UUID → 稳定远程同步 ID
-                val bangumiId = remote.animeId.toIntOrNull()
-                val remoteSyncId = if (bangumiId == null) remote.animeId else null
+                // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
+                // '0' 为历史脏数据（旧版 B 站导入产生），既不作 bangumiId 也不作 remoteSyncId，
+                // 仅靠标题匹配本地，避免无效 ID 落库（/v0/subjects/0 请求 400、系列堆叠异常）
+                val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
+                val remoteSyncId = if (bangumiId == null && remote.animeId != "0") remote.animeId else null
                 val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
                 if (existing == null) {
                     // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全

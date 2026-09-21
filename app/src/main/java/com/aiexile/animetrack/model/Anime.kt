@@ -47,8 +47,13 @@ data class Anime(
     val hasNewUpdate: Boolean = false,
     val syncRemarks: String? = null,
     val tmdbId: Int? = null,
-    /** 系列识别 key（= baseTitle），同系列多季番剧共享。null 表示未识别为系列。 */
+    /** 系列识别 key（= baseTitle 或 Bangumi 关系链系列头标题），同系列多季番剧共享。null 表示未识别为系列。 */
     val seriesKey: String? = null,
+    /**
+     * Bangumi 关系链推导的显式季数（1-based；99=剧场版/外传/总集篇等特殊类型，排所有正季后）。
+     * null 表示未由关系链推导，堆叠排序回退到标题正则（extractSeasonNumber）+ airDate。
+     */
+    val seasonNumber: Int? = null,
     /** 远程封面 URL（wsrv.nl 代理或原始 URL），用于同步到后端。coverUrl 被本地化后仍保留此值。 */
     val remoteCoverUrl: String? = null,
     /** 是否已从 API 获取过简介。true 表示已尝试获取（无论 summary 是否为空），null/false 表示尚未获取。 */
@@ -68,7 +73,12 @@ data class Anime(
      * 上传订阅时用作服务端 animeId，替代仅本设备稳定的本地自增 id，避免多设备
      * 拉取合并时因 ID 语义错位产生重复记录。bangumiId 非空的番剧不使用此字段。
      */
-    val remoteSyncId: String? = null
+    val remoteSyncId: String? = null,
+    /**
+     * 是否已展示过「Bangumi 未关联」详情页提示遮罩（bangumiId 为空/为 0 时首次进入触发）。
+     * 同一部番剧仅提示一次；删除后重新添加会重新提示。
+     */
+    val bangumiMatchHintShown: Boolean = false
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

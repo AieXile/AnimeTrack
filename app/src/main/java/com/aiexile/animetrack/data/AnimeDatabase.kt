@@ -11,7 +11,7 @@ import com.aiexile.animetrack.model.Anime
 
 @Database(
     entities = [Anime::class],
-    version = 20,
+    version = 22,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -309,6 +309,30 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 20→21 迁移：新增 seasonNumber 列（Bangumi 关系链推导的显式季数，可空）。
+         *
+         * 用于多季堆叠排序：优先级 seasonNumber > 标题正则（extractSeasonNumber）> airDate。
+         * 99 表示剧场版/外传/总集篇等特殊类型（排所有正季后）。
+         * 存量数据不回填，首次关系链同步后由 reassignSeriesKeys 持久化。
+         */
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN seasonNumber INTEGER")
+            }
+        }
+
+        /**
+         * 21→22 迁移：新增 bangumiMatchHintShown 列（「Bangumi 未关联」提示是否已展示过）。
+         *
+         * bangumiId 为空/为 0 的番剧首次进入详情页时展示匹配引导遮罩，同一部仅提示一次。
+         */
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN bangumiMatchHintShown INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -323,7 +347,7 @@ abstract class AnimeDatabase : RoomDatabase() {
                         MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
                         MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
-                        MIGRATION_19_20
+                        MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()

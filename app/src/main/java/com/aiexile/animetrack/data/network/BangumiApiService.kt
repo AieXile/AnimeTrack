@@ -271,6 +271,32 @@ data class CollectionStatusBody(
     val isPrivate: Boolean? = null
 )
 
+/**
+ * Bangumi 条目关联关系（GET /v0/subjects/{id}/subjects 响应项）。
+ *
+ * 字段说明（经实际响应验证）：
+ * - [id]：关联条目的 subject ID（可能不在用户库中，如库外前传）
+ * - [name] / [nameCn]：关联条目的原始名 / 中文名
+ * - [relation]：关系类型中文名（"前传"/"续集"/"总集篇"/"外传"/"联动"/"书籍"等）
+ * - [type]：关联条目类型（1=书籍 2=动漫 3=音乐 4=游戏），用于过滤非动漫关联
+ */
+data class BangumiSubjectRelation(
+    val id: Int,
+    val name: String?,
+    @SerializedName("name_cn")
+    val nameCn: String?,
+    val relation: String?,
+    val type: Int?
+) {
+    /** 关联条目显示名（中文名优先） */
+    val displayName: String
+        get() = nameCn?.takeIf { it.isNotBlank() } ?: name ?: ""
+
+    /** 是否为动漫类型条目 */
+    val isAnime: Boolean
+        get() = type == 2
+}
+
 data class BangumiEpisode(
     val id: Int,
     val type: Int,
@@ -301,6 +327,13 @@ interface BangumiApiService {
     suspend fun getSubjectDetail(
         @Path("id") id: Int
     ): BangumiSubjectDetail
+
+    /** 获取条目的关联条目列表（前传/续集/外传/总集篇等关系），用于系列识别 */
+    @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")
+    @GET("subjects/{id}/subjects")
+    suspend fun getSubjectRelations(
+        @Path("id") id: Int
+    ): List<BangumiSubjectRelation>
 
     @FormUrlEncoded
     @Headers("User-Agent: AieXile/AnimeTrack/1.0 (https://github.com/AieXile)")

@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.home
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -137,6 +138,15 @@ fun HomeScreen(
         }
     }
     var showAccountPanel by remember { mutableStateOf(false) }
+
+    // 返回键先收起主页临时状态（本地搜索、长按选中），而不是直接退出主界面；
+    // 仅当前页生效（Pager 相邻页仍处于组合中，避免误拦截其他页的返回）
+    BackHandler(enabled = isCurrentPage && (uiState.isLocalSearchActive || uiState.selectedAnimeId != null)) {
+        when {
+            uiState.isLocalSearchActive -> viewModel.clearLocalSearch()
+            uiState.selectedAnimeId != null -> viewModel.clearSelection()
+        }
+    }
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {

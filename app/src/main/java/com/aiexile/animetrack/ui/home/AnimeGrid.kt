@@ -294,10 +294,11 @@ internal fun AnimeGrid(
             }
         } else {
             // 堆叠开关开启：组内按季数升序排序
+            // 季数优先级：Bangumi 关系链推导的 seasonNumber > 标题正则（extractSeasonNumber）> airDate 兜底
             val seasonSortedItems = state.animeListItems.map { item ->
                 if (item is AnimeListItem.Series) {
                     item.copy(animeList = item.animeList.sortedWith(
-                        compareBy<Anime> { SeriesMatcher.extractSeasonNumber(it.title) }
+                        compareBy<Anime> { it.seasonNumber ?: SeriesMatcher.extractSeasonNumber(it.title) }
                             .thenBy { it.airDate ?: "" }
                             .thenBy { it.id }
                     ))

@@ -132,11 +132,38 @@ class AnimeDetailViewModel(
     private val _showMatchDialog = MutableStateFlow(false)
     val showMatchDialog: StateFlow<Boolean> = _showMatchDialog.asStateFlow()
 
+    /** 本次会话内遮罩是否已被用户关闭（配合库内 bangumiMatchHintShown 实现「仅提示一次」） */
+    private val _bangumiHintDismissed = MutableStateFlow(false)
+
+    /**
+     * 「Bangumi 未关联」详情页引导遮罩：
+     * bangumiId 为空/为 0（无法同步进度、参与系列堆叠）且从未提示过时展示。
+     */
+    val showBangumiHint: StateFlow<Boolean> = combine(animeFlow, _bangumiHintDismissed) { anime, dismissed ->
+        anime != null && !dismissed &&
+            (anime.bangumiId == null || anime.bangumiId <= 0) &&
+            !anime.bangumiMatchHintShown
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    /** 关闭引导遮罩并持久化标记（同一部番剧后续进入不再提示） */
+    fun dismissBangumiHint() {
+        if (_bangumiHintDismissed.value) return
+        _bangumiHintDismissed.value = true
+        viewModelScope.launch {
+            animeFlow.value?.id?.let { repository.markBangumiMatchHintShown(it) }
+        }
+    }
+
     val missingSearchSource: SearchSource?
         get() {
             val anime = animeFlow.value ?: return null
             return when {
-                anime.bangumiId == null -> SearchSource.BANGUMI
+                // bangumiId<=0（历史脏数据）与 null 同样视为未关联
+                anime.bangumiId == null || anime.bangumiId <= 0 -> SearchSource.BANGUMI
                 anime.tmdbId == null -> SearchSource.TMDB
                 else -> null
             }
