@@ -367,21 +367,26 @@ class AnimeRepositoryImpl(
 
     /**
      * 判断本次更新是否需要同步到后端。
-     * 仅关注用户可见/后端关心的字段：状态、观看进度、评分、备注、标题、完结状态。
+     * 仅关注用户可见/后端关心的字段：状态、观看进度、评分、备注、标题、完结状态、Bangumi 绑定。
      * oldAnime 为 null（新数据或查不到）时保守返回 true。
      *
      * isFinished 纳入比对的原因：后端用 isAiring(0/1) 表示连载状态，
      * 当本地因拉取到 Bangumi infobox「播放结束」而把 isFinished 翻为 true 时，
      * 需要触发 syncSubscriptionToServer 把 isAiring 更新为 0。
+     *
+     * bangumiId 纳入比对的原因：详情页搜索重新匹配只改 bangumiId（封面/简介等元数据
+     * 回填不触发同步），若不上传，服务器上仍是旧标识（'0'/UUID/旧本地 id）的寄生行，
+     * 重启拉取合并时按旧标题/无效 id 匹配失败，会插入"幽灵卡片"（旧名、无元数据）。
      */
     private fun shouldSyncToServer(oldAnime: Anime?, newAnime: Anime): Boolean {
         if (oldAnime == null) return true
         return oldAnime.status != newAnime.status
-            || oldAnime.watchedEpisodes != newAnime.watchedEpisodes
-            || oldAnime.rating != newAnime.rating
-            || oldAnime.notes != newAnime.notes
-            || oldAnime.title != newAnime.title
-            || oldAnime.isFinished != newAnime.isFinished
+                || oldAnime.watchedEpisodes != newAnime.watchedEpisodes
+                || oldAnime.rating != newAnime.rating
+                || oldAnime.notes != newAnime.notes
+                || oldAnime.title != newAnime.title
+                || oldAnime.isFinished != newAnime.isFinished
+                || oldAnime.bangumiId != newAnime.bangumiId
     }
 
     override suspend fun deleteAnime(anime: Anime) {
@@ -914,6 +919,20 @@ class AnimeRepositoryImpl(
                     )
                     if (response.success) {
                         if (BuildConfig.DEBUG) Log.d(TAG, "Subscription added to server: ${anime.title}")
+                        // 服务器行标识迁移：条目绑定有效 bangumiId 后，原先以 remoteSyncId
+                        // 为 anime_id 的行成为寄生行（sanitize 清洗/早期上传的产物），
+                        // 不删会残留旧标题旧元数据，重启合并时可能被当成新番剧插入（幽灵卡片）。
+                        // UUID 全局唯一、remove 幂等，失败不影响主流程，下次同步会重试。
+                        val oldSyncId = synced.remoteSyncId
+                        if (oldSyncId != null && oldSyncId != animeId) {
+                            runCatching {
+                                RetrofitClient.userAuthApi.removeSubscription(
+                                    RemoveSubscribeRequest(animeId = oldSyncId)
+                                )
+                            }.onFailure {
+                                Log.w(TAG, "Remove legacy remoteSyncId row failed (non-fatal): ${anime.title}", it)
+                            }
+                        }
                     } else {
                         Log.w(TAG, "Subscription add failed: ${anime.title}, message=${response.message}")
                     }
@@ -1117,11 +1136,17 @@ class AnimeRepositoryImpl(
             var mergedCount = 0
             val pendingInsert = mutableListOf<Anime>()
             for (remote in remoteList) {
+                // 历史 '0' 脏行（旧版 B 站导入上传）：不入库，顺手清理服务器行（幂等）。
+                // 不清理会残留旧标题/无元数据记录，标题兜底匹配失败时被当成新番剧插入（幽灵卡片）
+                if (remote.animeId == "0") {
+                    runCatching {
+                        RetrofitClient.userAuthApi.removeSubscription(RemoveSubscribeRequest(animeId = "0"))
+                    }
+                    continue
+                }
                 // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
-                // '0' 为历史脏数据（旧版 B 站导入产生），既不作 bangumiId 也不作 remoteSyncId，
-                // 仅靠标题匹配本地，避免无效 ID 落库（/v0/subjects/0 请求 400、系列堆叠异常）
                 val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
-                val remoteSyncId = if (bangumiId == null && remote.animeId != "0") remote.animeId else null
+                val remoteSyncId = if (bangumiId == null) remote.animeId else null
                 val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
                 if (existing == null) {
                     // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全
@@ -1145,7 +1170,20 @@ class AnimeRepositoryImpl(
                     )
                     pendingInsert.add(metaAnime)
                 } else {
-                    // 本地已有 → 跳过，保留本地完整数据
+                    // 本地已有 → 跳过，保留本地完整数据。
+                    // 额外清理寄生行：本地条目已绑定有效 bangumiId，但远程仍存在以它的
+                    // remoteSyncId 为 anime_id 的旧行（sanitize 清洗/早期上传产物，且
+                    // 未能被 add 路径顺带删除），留着会在换绑设备外的场景复活幽灵卡片
+                    if (remoteSyncId != null && remoteSyncId == existing.remoteSyncId
+                        && (existing.bangumiId ?: 0) > 0
+                        && remote.animeId != existing.bangumiId.toString()
+                    ) {
+                        runCatching {
+                            RetrofitClient.userAuthApi.removeSubscription(
+                                RemoveSubscribeRequest(animeId = remote.animeId)
+                            )
+                        }
+                    }
                     mergedCount++
                 }
             }
@@ -1253,11 +1291,17 @@ class AnimeRepositoryImpl(
             var mergedCount = 0
             val pendingInsert = mutableListOf<Anime>()
             for (remote in response.subscriptions) {
+                // 历史 '0' 脏行（旧版 B 站导入上传）：不入库，顺手清理服务器行（幂等），
+                // 防止旧标题/无元数据记录在标题兜底匹配失败时被当成新番剧插入（幽灵卡片）
+                if (remote.animeId == "0") {
+                    runCatching {
+                        RetrofitClient.userAuthApi.removeSubscription(RemoveSubscribeRequest(animeId = "0"))
+                    }
+                    continue
+                }
                 // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
-                // '0' 为历史脏数据（旧版 B 站导入产生），既不作 bangumiId 也不作 remoteSyncId，
-                // 仅靠标题匹配本地，避免无效 ID 落库（/v0/subjects/0 请求 400、系列堆叠异常）
                 val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
-                val remoteSyncId = if (bangumiId == null && remote.animeId != "0") remote.animeId else null
+                val remoteSyncId = if (bangumiId == null) remote.animeId else null
                 val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
                 if (existing == null) {
                     // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全
@@ -1281,7 +1325,19 @@ class AnimeRepositoryImpl(
                     )
                     pendingInsert.add(metaAnime)
                 } else {
-                    // 本地已有 → 跳过，保留本地完整数据
+                    // 本地已有 → 跳过，保留本地完整数据。
+                    // 额外清理寄生行：本地条目已绑定有效 bangumiId，但远程仍存在以它的
+                    // remoteSyncId 为 anime_id 的旧行，留着会在换绑场景复活幽灵卡片
+                    if (remoteSyncId != null && remoteSyncId == existing.remoteSyncId
+                        && (existing.bangumiId ?: 0) > 0
+                        && remote.animeId != existing.bangumiId.toString()
+                    ) {
+                        runCatching {
+                            RetrofitClient.userAuthApi.removeSubscription(
+                                RemoveSubscribeRequest(animeId = remote.animeId)
+                            )
+                        }
+                    }
                     mergedCount++
                 }
             }
