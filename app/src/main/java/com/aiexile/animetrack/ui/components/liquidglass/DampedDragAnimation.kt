@@ -26,7 +26,8 @@ class DampedDragAnimation(
     val initialScale: Float,
     val pressedScale: Float,
     val onDragStarted: DampedDragAnimation.(position: Offset) -> Unit,
-    val onDragStopped: DampedDragAnimation.() -> Unit,
+    /** 手势抬起回调：[change] 为抬起事件（携带点按落点；手势被系统/其它手势打断时为 null） */
+    val onDragStopped: DampedDragAnimation.(change: PointerInputChange?) -> Unit,
     /** 手势被取消（事件被其他手势消费/系统打断）时的回弹回调；缺省复用 [onDragStopped] */
     val onDragCancelled: (DampedDragAnimation.() -> Unit)? = null,
     val onDrag: DampedDragAnimation.(size: IntSize, dragAmount: Offset, change: PointerInputChange) -> Unit,
@@ -77,12 +78,16 @@ class DampedDragAnimation(
                 onDragStarted(down.position)
                 press()
             },
-            onDragEnd = {
-                onDragStopped()
+            onDragEnd = { change ->
+                onDragStopped(change)
                 release()
             },
             onDragCancel = {
-                (onDragCancelled ?: onDragStopped)()
+                if (onDragCancelled != null) {
+                    onDragCancelled.invoke(this@DampedDragAnimation)
+                } else {
+                    onDragStopped(null)
+                }
                 release()
             }
         ) { change, dragAmount ->

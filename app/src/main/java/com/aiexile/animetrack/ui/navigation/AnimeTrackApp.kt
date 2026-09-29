@@ -19,6 +19,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -191,11 +192,48 @@ fun AnimeTrackApp(
         // 守卫同时对比 currentPage 与 targetPage：跳转动画进行中 targetPage 即最终
         // 目标，相同目标的重复点击不再重启动画（中途重启会造成卡顿，且与其它导航
         // 来源竞态时可能取消原跳转）；不同目标仍可即时重定向
-        if (targetIndex >= 0 && targetIndex != pagerState.currentPage && targetIndex != pagerState.targetPage) {
+        val accepted = targetIndex >= 0 &&
+                targetIndex != pagerState.currentPage &&
+                targetIndex != pagerState.targetPage
+        AppLogManager.i(
+            "TabNav",
+            "navigate route=$route target=$targetIndex accepted=$accepted " +
+                    "page=${pagerState.currentPage}/${pagerState.targetPage} " +
+                    "scrolling=${pagerState.isScrollInProgress}"
+        )
+        if (accepted) {
             navJumpTarget = targetIndex
             appScope.launch {
-                pagerState.animateScrollToPage(targetIndex)
-                navJumpTarget = null
+                try {
+                    // 无条件先用 UserInput 优先级的空 scroll 抢占滚动互斥锁（取消任何
+                    // 进行中的 fling/drag/snap，哪怕此刻 isScrollInProgress 尚未翻转），
+                    // 空块执行完即释放，随后 animateScrollToPage 从空闲锁起步——
+                    // 避免 Default 优先级被 UserInput 持锁静默取消的竞态窗口
+                    pagerState.scroll(MutatePriority.UserInput) { }
+                    // 跨页跳转动画在 0→3 方向屡次被未定位的 Default/UserInput 滚动在
+                    // 启动后 ~100-200ms（动画滚至 2.x 处）掐断，页面 settle 在看板；
+                    // 实测同一路径的"第二次点击"（从 2 出发的短跳转）必成功——失败时
+                    // 在同协程内重试（重新抢锁后继续滚完），以重试对抗该竞态。
+                    // CancellationException 也承载协程自身取消，故重试仅限 3 次，
+                    // 且每次重试前都重新以 UserInput 抢锁，避免被锁内残留取消。
+                    var attempts = 0
+                    while (pagerState.currentPage != targetIndex && attempts < 3) {
+                        attempts++
+                        try {
+                            pagerState.animateScrollToPage(targetIndex)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            if (attempts >= 3 || pagerState.currentPage == targetIndex) {
+                                AppLogManager.w("TabNav", "jump CANCELLED target=$targetIndex at page=${pagerState.currentPage}/${pagerState.targetPage} scrolling=${pagerState.isScrollInProgress}")
+                                throw e
+                            }
+                            AppLogManager.w("TabNav", "jump interrupted at page=${pagerState.currentPage}/${pagerState.targetPage}, retry #$attempts")
+                            pagerState.scroll(MutatePriority.UserInput) { }
+                        }
+                    }
+                    AppLogManager.i("TabNav", "jump done target=$targetIndex attempts=$attempts page=${pagerState.currentPage}/${pagerState.targetPage}")
+                } finally {
+                    navJumpTarget = null
+                }
             }
         }
     }
@@ -207,13 +245,23 @@ fun AnimeTrackApp(
     var lastPagerRoute by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pagerState.currentPage, mainPages) {
-        lastPagerRoute = mainPages.getOrNull(pagerState.currentPage)?.route
+        // 跳转动画进行中不记录"途经页"：动画从 0 向 3 途经 page 2（看板）时
+        // currentPage 短暂变为 2，若此刻把 lastPagerRoute 污染为 schedule，
+        // 下方 mainPages 同步 effect 一旦重启就会 scrollToPage(2) 取消跳转，
+        // 表现为"点设置永远只停在看板"
+        if (navJumpTarget == null) {
+            lastPagerRoute = mainPages.getOrNull(pagerState.currentPage)?.route
+        }
     }
 
     LaunchedEffect(mainPages) {
         val route = lastPagerRoute ?: return@LaunchedEffect
+        // 跳转进行中不做页面同步：scrollToPage 是无动画的即时跳转，以 Default
+        // 优先级取消进行中的 animateScrollToPage，把页面定死在中途页（看板）
+        if (navJumpTarget != null) return@LaunchedEffect
         val newIndex = mainPages.indexOfFirst { it.route == route }
         if (newIndex >= 0 && newIndex != pagerState.currentPage) {
+            AppLogManager.w("TabNav", "mainPages-sync scrollToPage($newIndex) route=$route page=${pagerState.currentPage}/${pagerState.targetPage}")
             pagerState.scrollToPage(newIndex)
         }
     }

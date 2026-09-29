@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="Stars">
     <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
     <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
-    <img src="https://img.shields.io/badge/license-MIT-lightgrey?style=flat&logo=opensourceinitiative&logoColor=lightgrey" alt="License">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-lightgrey?style=flat&logo=apache&logoColor=lightgrey" alt="License">
   </p>
   <p align="center">
     <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-参加-blue?style=flat" alt="QQ Group"></a>
@@ -171,4 +171,4 @@ AnimeTrack は「何を見たか」「いつ見たか」を軸に設計された
 
 <h2 align="center">ライセンス</h2>
 
-このプロジェクトは [MIT License](LICENSE) の下でオープンソース化されています。
+このプロジェクトは [Apache License 2.0](LICENSE) の下でオープンソース化されています。

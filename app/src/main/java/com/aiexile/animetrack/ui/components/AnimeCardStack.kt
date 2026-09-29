@@ -366,7 +366,16 @@ fun AnimeCardStack(
             key(i) {
                 StackCardSlot(
                     anime = animeList[i],
-                    title = if (i == topIndex) baseTitle else animeList[i].title,
+                    title = when {
+                        i == topIndex -> baseTitle
+                        // 擦洗进行中：即将升顶的卡提前切换为合并主标题。
+                        // 若等结算才切换，滑动全程显示带省略号的季标题、
+                        // 翻页完成瞬间突变为完整主标题，产生"…→全名"跳脱感；
+                        // 提前到擦洗开始切换，此时卡片尚在探边位、标题被顶卡
+                        // 遮挡，切换视觉无感，滑动全程与结算后标题一致零跳变
+                        scrubDir.intValue != 0 && i == topIndex - scrubDir.intValue -> baseTitle
+                        else -> animeList[i].title
+                    },
                     depth = abs(i - topIndex),
                     seasonIndex = i + 1,
                     totalSeasons = animeList.size,

@@ -52,6 +52,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.kyant.backdrop.Backdrop
 import dev.chrisbanes.haze.HazeState
@@ -130,6 +131,7 @@ fun CapsuleNavigationBar(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         if (pageWidthPx > 0f) {
+                            AppLogManager.i("CapsuleNav", "bar drag scrollBy ${-dragAmount / pageWidthPx}")
                             scope.launch {
                                 pagerState.scrollBy(-dragAmount / pageWidthPx)
                             }
@@ -190,16 +192,35 @@ fun CapsuleNavigationBar(
                         initialScale = 1f,
                         pressedScale = 1.15f,
                         onDragStarted = {},
-                        onDragStopped = {
+                        onDragStopped = { change ->
                             val target = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
                             animateToValue(target.toFloat())
-                            // 仅真实拖拽（累计位移超过 touchSlop）才滚动 Pager：
-                            // 指示器上的纯点按由下层 Tab 的 clickable 处理；飞行途中
-                            // 指示器跟随 Pager 处于分数位置，若点按也滚动，会以中途
-                            // 四舍五入的索引重启动画，取消进行中的跳转导致误跳相邻页
                             if (draggedDistance > touchSlopPx) {
+                                // 仅真实拖拽（累计位移超过 touchSlop）才按指示器吸附
+                                // 目标滚动 Pager：若点按也按指示器位置滚动，飞行途中
+                                // 会以中途四舍五入的索引重启动画，取消进行中的跳转
+                                // 导致误跳相邻页
+                                AppLogManager.i("CapsuleNav", "indicator DRAGGED -> animateScrollToPage($target) draggedDistance=$draggedDistance value=$value")
                                 pagerState?.let { pager ->
                                     scope.launch { pager.animateScrollToPage(target) }
+                                }
+                            } else if (change != null) {
+                                // 纯点按：指示器是渲染在 Tab 行之上的兄弟节点，命中
+                                // 测试独占其 [v, v+1) 跨度，飞行途中会盖住相邻 Tab
+                                //（如设置），此时点按事件到不了下层 Tab 的 clickable
+                                //（此前直接吞掉，导致滑动途中点「设置」无反应、Pager
+                                // 按自身惯性停在看板）。按点按落点换算 Tab 并导航，
+                                // 与手指所指的 Tab 永远一致
+                                val paddingPx = with(density) { 4.dp.toPx() } * 2
+                                val innerWidthPx = (rowWidthPx - paddingPx).coerceAtLeast(0f)
+                                val itemW = if (innerWidthPx > 0f) innerWidthPx / itemCount else 0f
+                                if (itemW > 0f) {
+                                    val tapIndex = (value + change.position.x / itemW)
+                                        .toInt().coerceIn(0, itemCount - 1)
+                                    AppLogManager.i("CapsuleNav", "indicator TAP -> navigate tapIndex=$tapIndex value=$value")
+                                    if (tapIndex < visibleItems.size) {
+                                        onNavigate(visibleItems[tapIndex].route)
+                                    }
                                 }
                             }
                         },
@@ -209,8 +230,15 @@ fun CapsuleNavigationBar(
                             animateToValue(target.toFloat())
                         },
                         onDrag = { _, dragAmount, change ->
-                            // 消费事件：避免同时触发整栏水平拖拽手势（双重滚动）
-                            change.consume()
+                            // 仅在真实拖拽（累计位移超过 touchSlop）时才消费事件，
+                            // 避免与整栏水平拖拽手势双重滚动。点按时不消费——
+                            // 此前无条件 consume 会把点按也吞掉，导致滑动途中
+                            // 指示器停在目标 Tab 上方时，下层 Tab 的 clickable
+                            // 收不到 down（detectTapAndPress 要求 down 未被消费），
+                            // onNavigate 不触发，跳转落在相邻页（如看板）而非设置
+                            if (draggedDistance > touchSlopPx) {
+                                change.consume()
+                            }
                             val paddingPx = with(density) { 4.dp.toPx() } * 2
                             val innerWidthPx = (rowWidthPx - paddingPx).coerceAtLeast(0f)
                             val itemW = if (innerWidthPx > 0f) innerWidthPx / itemCount else 0f
@@ -269,7 +297,10 @@ fun CapsuleNavigationBar(
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
-                                ) { onNavigate(item.route) },
+                                ) {
+                                    AppLogManager.i("CapsuleNav", "tab CLICK route=${item.route}")
+                                    onNavigate(item.route)
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             CapsuleNavItem(
@@ -283,7 +314,9 @@ fun CapsuleNavigationBar(
                 }
 
                 // ===== 可拖拽指示器（渲染在 Tab 行之上以接收拖拽手势）=====
-                // 盖住的恰为当前 Tab 区域，点击本就无操作，不损失可点击性
+                // 静止时恰盖当前 Tab（点击本就无操作）；飞行途中会盖住相邻 Tab，
+                // 其上的纯点按由 onDragStopped 的点按分支按落点代为导航，
+                // 不损失可点击性
                 if (itemCount > 0) {
                     val paddingPx = with(density) { 4.dp.toPx() } * 2
                     val innerWidthPx = (rowWidthPx - paddingPx).coerceAtLeast(0f)

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.annotation.StringRes
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import androidx.compose.foundation.layout.offset
@@ -125,6 +126,7 @@ fun BottomNavigationBar(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         if (pageWidthPx > 0f) {
+                            AppLogManager.i("BottomNav", "bar drag scrollBy ${-dragAmount / pageWidthPx}")
                             scope.launch {
                                 pagerState.scrollBy(-dragAmount / pageWidthPx)
                             }

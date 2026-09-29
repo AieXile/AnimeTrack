@@ -44,6 +44,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
@@ -137,19 +138,32 @@ internal fun LiquidGlassNavBar(
                 // 46dp 浮块按压放大 22dp（与示例 56→78dp 的放大增量一致）
                 pressedScale = 68f / 46f,
                 onDragStarted = {},
-                onDragStopped = {
+                onDragStopped = { change ->
                     val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
                     animationScope.launch {
                         offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                     }
-                    // 仅真实拖拽（累计位移超过 touchSlop）才导航：浮块上的纯点按
-                    // 由下层 Tab 的 clickable 处理，此处若也导航，飞行途中的补点/
-                    // 双击会二次触发 onNavigate，取消进行中的 animateScrollToPage
-                    // 导致误跳相邻页（概率性无法复现的根因）
-                    if (draggedDistance > touchSlopPx && targetIndex in visibleItems.indices) {
-                        onNavigate(visibleItems[targetIndex].route)
+                    if (draggedDistance > touchSlopPx) {
+                        // 仅真实拖拽（累计位移超过 touchSlop）才按浮块吸附目标导航：
+                        // 若点按也按浮块位置导航，飞行途中会以中途位置二次触发
+                        // onNavigate，取消进行中的 animateScrollToPage 导致误跳相邻页
+                        AppLogManager.i("LiquidNav", "blob DRAGGED -> navigate targetIndex=$targetIndex draggedDistance=$draggedDistance value=$value")
+                        if (targetIndex in visibleItems.indices) {
+                            onNavigate(visibleItems[targetIndex].route)
+                        }
+                    } else if (change != null) {
+                        // 纯点按：浮块渲染在 Tab 行之上，命中测试独占其跨度，飞行
+                        // 途中会盖住相邻 Tab（如设置），点按事件到不了下层 Tab 的
+                        // clickable（此前直接吞掉，导致滑动途中点「设置」无反应、
+                        // Pager 按自身惯性停在看板）。按点按落点换算 Tab 并导航
+                        val tapIndex = (value + change.position.x / tabWidth)
+                            .toInt().coerceIn(0, itemCount - 1)
+                        AppLogManager.i("LiquidNav", "blob TAP -> navigate tapIndex=$tapIndex value=$value")
+                        if (tapIndex in visibleItems.indices) {
+                            onNavigate(visibleItems[tapIndex].route)
+                        }
                     }
                 },
                 // 手势被取消（事件被其他手势消费/系统打断）：仅视觉回弹，不导航
