@@ -15,11 +15,15 @@ import java.time.temporal.ChronoUnit
  * 数据库中存储的本地封面路径是裸绝对路径（如 /data/data/.../files/anime_covers/12345.jpg），
  * Coil 的 String→Uri→Fetcher 链路无法处理 scheme 为 null 的裸路径，
  * 需要转为 File 对象才能由 FileFetcher 正确加载。
+ *
+ * 防御性判空：空串脏数据与本地文件缺失（清理工具误删 filesDir）均返回 null，
+ * 使调用方走占位图分支而非加载失败空白。
  */
 fun resolveCoverModel(coverUrl: String?): Any? {
-    if (coverUrl == null) return null
+    if (coverUrl.isNullOrBlank()) return null
     return if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
-        File(coverUrl.removePrefix("file://"))
+        val file = File(coverUrl.removePrefix("file://"))
+        if (file.exists() && file.length() > 0) file else null
     } else if (coverUrl.contains("lain.bgm.tv")) {
         "https://wsrv.nl/?url=$coverUrl"
     } else {
@@ -34,7 +38,7 @@ fun resolveCoverModel(coverUrl: String?): Any? {
  * 消除首帧空白导致的封面闪烁。
  */
 fun coverMemoryCacheKey(coverUrl: String?): String? {
-    if (coverUrl == null) return null
+    if (coverUrl.isNullOrBlank()) return null
     return "cover_$coverUrl"
 }
 

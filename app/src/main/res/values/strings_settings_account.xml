@@ -7,6 +7,7 @@
     <string name="user_login_user_id">ID: %1$d</string>
     <string name="user_login_beta_badge">内测用户</string>
     <string name="user_login_official_badge">正式版用户</string>
+    <string name="user_login_level_badge">贡献 Lv.%1$d</string>
     <string name="user_login_email_not_set">未设置邮箱</string>
     <string name="user_login_register_time">注册时间: %1$s</string>
     <string name="user_login_logged_in">已登录</string>
@@ -101,8 +102,6 @@
     <string name="login_screen_logged_in">已登录</string>
     <string name="login_screen_bilibili_subtitle">登录后可同步追番列表</string>
     <string name="login_screen_bangumi_subtitle">登录后可同步番剧数据</string>
-    <string name="login_screen_auto_sync">自动同步</string>
-    <string name="login_screen_auto_sync_desc">在Bilibili同步界面显示自动同步开关</string>
     <string name="login_screen_hide_avatar">隐藏主界面头像</string>
     <string name="login_screen_hide_avatar_desc">隐藏主界面顶部的登录头像按钮</string>
 

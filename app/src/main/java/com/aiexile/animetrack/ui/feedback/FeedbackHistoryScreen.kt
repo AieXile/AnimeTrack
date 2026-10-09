@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_CLOSED
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_PENDING
+import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSessionsPage
 import com.aiexile.animetrack.di.AppContainer
@@ -55,6 +57,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+/** 「已解决」状态标签绿色（与账号面板在线状态绿一致，区别于进行中/已结束） */
+private val ResolvedGreen = Color(0xFF4CAF50)
 
 /** 反馈历史列表状态 */
 data class FeedbackHistoryUiState(
@@ -228,7 +233,7 @@ private fun HistoryStatusText(text: String, onClick: (() -> Unit)? = null) {
     }
 }
 
-/** 历史列表项卡片：标题（首条摘要）+ 最新消息 + 时间 + 状态（三态），有未读回复时标注 */
+/** 历史列表项卡片：标题（首条摘要）+ 最新消息 + 时间 + 状态（四态），有未读回复时标注 */
 @Composable
 private fun FeedbackSessionCard(
     title: String,
@@ -292,6 +297,11 @@ private fun FeedbackSessionCard(
                     R.string.feedback_status_pending,
                     MaterialTheme.colorScheme.tertiary,
                     MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
+                )
+                FEEDBACK_STATUS_RESOLVED -> Triple(
+                    R.string.feedback_status_resolved,
+                    ResolvedGreen,
+                    ResolvedGreen.copy(alpha = 0.12f)
                 )
                 else -> Triple(
                     R.string.feedback_status_open,

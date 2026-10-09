@@ -16,6 +16,7 @@ import com.aiexile.animetrack.data.network.FEEDBACK_CODE_RATE_LIMITED
 import com.aiexile.animetrack.data.network.FEEDBACK_CODE_SENSITIVE
 import com.aiexile.animetrack.data.network.FEEDBACK_CODE_SESSION_CLOSED
 import com.aiexile.animetrack.data.network.FEEDBACK_CODE_SESSION_NOT_FOUND
+import com.aiexile.animetrack.data.network.FEEDBACK_CODE_SESSION_RESOLVED
 import com.aiexile.animetrack.data.network.FeedbackApiService
 import com.aiexile.animetrack.data.network.FeedbackAttachmentRef
 import com.aiexile.animetrack.data.network.FeedbackMessage
@@ -52,6 +53,9 @@ sealed class FeedbackSendResult {
 
     /** 会话已关闭，不能追加 */
     data object SessionClosed : FeedbackSendResult()
+
+    /** 会话已解决（resolved，终态），不能追加 */
+    data object SessionResolved : FeedbackSendResult()
 
     /** 会话不存在（可能已被删除） */
     data object SessionNotFound : FeedbackSendResult()
@@ -277,6 +281,7 @@ class FeedbackRepository(private val context: Context) {
                         FeedbackSendResult.RateLimited(response.retryAfter ?: 30)
                     FEEDBACK_CODE_SENSITIVE -> FeedbackSendResult.SensitiveContent
                     FEEDBACK_CODE_SESSION_CLOSED -> FeedbackSendResult.SessionClosed
+                    FEEDBACK_CODE_SESSION_RESOLVED -> FeedbackSendResult.SessionResolved
                     else -> FeedbackSendResult.Error()
                 }
             }
@@ -302,6 +307,7 @@ class FeedbackRepository(private val context: Context) {
                 FeedbackSendResult.RateLimited(error.retryAfter ?: 30)
             FEEDBACK_CODE_SENSITIVE -> FeedbackSendResult.SensitiveContent
             FEEDBACK_CODE_SESSION_CLOSED -> FeedbackSendResult.SessionClosed
+            FEEDBACK_CODE_SESSION_RESOLVED -> FeedbackSendResult.SessionResolved
             FEEDBACK_CODE_SESSION_NOT_FOUND -> FeedbackSendResult.SessionNotFound
             else -> when (e.code()) {
                 // 401 未登录 / 403 token 过期且刷新失败：登录已过期

@@ -88,9 +88,10 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("账号", "账户", "同步", "授权", "Bilibili", "B站", "哔哩哔哩", "Bangumi", "AnimeTrack", "login", "account", "sync")
     ),
     SearchableSetting(
-        route = Routes.LOGIN, key = "auto_sync",
-        titleRes = R.string.login_screen_auto_sync, descRes = R.string.login_screen_auto_sync_desc,
-        keywords = listOf("自动同步", "bilibili同步", "autosync")
+        // 自动同步开关已移至 Bilibili 登录成功后的个人界面，搜索直达该页
+        route = Routes.BILIBILI_LOGIN, key = null,
+        titleRes = R.string.bilibili_login_auto_sync, descRes = R.string.bilibili_login_auto_sync_desc,
+        keywords = listOf("自动同步", "bilibili同步", "B站同步", "autosync")
     ),
     SearchableSetting(
         route = Routes.LOGIN, key = "hide_avatar",
@@ -186,12 +187,12 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
     SearchableSetting(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "greeting",
         titleRes = R.string.nav_custom_greeting_title, descRes = R.string.nav_custom_greeting_subtitle,
-        keywords = listOf("欢迎语", "首页标题", "打字机")
+        keywords = listOf("欢迎语", "首页标题", "打字机", "乱码解码")
     ),
     SearchableSetting(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "typing_effect",
-        titleRes = R.string.nav_custom_typing_effect, descRes = R.string.nav_custom_typing_effect_desc,
-        keywords = listOf("打字效果", "逐字显示", "动画")
+        titleRes = R.string.nav_custom_greeting_effect, descRes = R.string.nav_custom_greeting_effect_desc,
+        keywords = listOf("入场效果", "打字机", "逐字显示", "乱码解码", "动画")
     ),
 
     // ---- 功能 ----

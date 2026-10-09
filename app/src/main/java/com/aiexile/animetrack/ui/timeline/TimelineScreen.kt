@@ -1,11 +1,15 @@
 package com.aiexile.animetrack.ui.timeline
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,7 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.appendInlineContent
@@ -65,6 +74,8 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 
@@ -83,14 +94,18 @@ fun TimelineScreen(
     val monthFormat = stringResource(R.string.timeline_month_format)
     
     var selectedIndex by remember { mutableIntStateOf(-1) }
-    
+    // 标记程序化滚动(点击/拖动索引器触发的滚动),期间抑制被动高亮更新,避免高亮慢半拍
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
+
     val hasWatchingSection = watchingAnimeList.isNotEmpty()
     val hasTimelineData = timelineData.isNotEmpty()
-    
+
     LaunchedEffect(Unit) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .debounce(50)
             .collect { firstVisibleIndex ->
+                // 程序化滚动进行中:高亮已由点击/拖动立即设置,跳过中间状态的被动更新
+                if (isProgrammaticScroll) return@collect
                 // 直接读取 watchingAnimeList.isNotEmpty() 而非局部变量 hasWatchingSection，
                 // 因为 LaunchedEffect(Unit) 仅在首次组合时启动一次,捕获的 Boolean 局部变量会是陈旧值；
                 // 而 watchingAnimeList 是 collectAsState 的 State 代理,每次访问读取最新值。
@@ -163,9 +178,24 @@ fun TimelineScreen(
                     hasWatchingSection = hasWatchingSection,
                     currentIndex = selectedIndex,
                     onIndexClick = { index ->
+                        // 点击立即高亮,不等滚动动画推进(否则高亮慢半拍)
+                        selectedIndex = index
+                        isProgrammaticScroll = true
+                        scope.launch {
+                            try {
+                                val targetIndex = if (hasWatchingSection) index + 1 else index
+                                listState.animateScrollToItem(targetIndex)
+                            } finally {
+                                isProgrammaticScroll = false
+                            }
+                        }
+                    },
+                    onIndexSeek = { index ->
+                        // 拖动定位:立即高亮 + 瞬时滚动(无动画),高频调用时新滚动自动取消旧滚动
+                        selectedIndex = index
                         scope.launch {
                             val targetIndex = if (hasWatchingSection) index + 1 else index
-                            listState.animateScrollToItem(targetIndex)
+                            listState.scrollToItem(targetIndex)
                         }
                     },
                     modifier = Modifier
@@ -509,48 +539,134 @@ private fun MonthIndexer(
     hasWatchingSection: Boolean,
     currentIndex: Int,
     onIndexClick: (Int) -> Unit,
+    onIndexSeek: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    // 拖动中标记:控制月份气泡显隐
+    var isSeeking by remember { mutableStateOf(false) }
+    // 内容区高度(px),用于计算每个月份的均匀 slot 高度
+    var contentHeightPx by remember { mutableIntStateOf(0) }
+
+    Box(
         modifier = modifier
             .width(32.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 shape = SquircleShape(topStart = 16.dp, bottomStart = 16.dp)
             )
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly
-    ) {
-        months.forEachIndexed { index, month ->
-            // isSelected 为简单直接 Boolean 比较(index == currentIndex),
-            // 且 animateFloatAsState 本身仅在 targetValue 真正变化时触发新动画,
-            // 无需 derivedStateOf 包裹(index/currentIndex 均非 Snapshot State,派生无收益)。
-            val isSelected = index == currentIndex
-
-            val alpha by animateFloatAsState(
-                targetValue = if (isSelected) 1f else 0.5f,
-                animationSpec = tween(durationMillis = 150),
-                label = "alpha"
-            )
-            
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(
-                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent
-                    )
-                    .clickable { onIndexClick(index) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = month,
-                    fontSize = 10.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.alpha(alpha)
+            .padding(vertical = 8.dp)
+            .onSizeChanged { contentHeightPx = it.height }
+            // 按住拖动:根据手指 Y 坐标实时定位月份(Scrubber 式快速导航)
+            .pointerInput(months) {
+                // 根据手指 Y 坐标换算月份下标(月份均匀分布,按高度比例映射)
+                fun indexOfY(y: Float): Int =
+                    ((y / size.height) * months.size).toInt().coerceIn(0, months.size - 1)
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        if (months.isNotEmpty()) {
+                            isSeeking = true
+                            onIndexSeek(indexOfY(offset.y))
+                        }
+                    },
+                    onDragEnd = { isSeeking = false },
+                    onDragCancel = { isSeeking = false },
+                    onVerticalDrag = { change, _ ->
+                        change.consume()
+                        if (months.isNotEmpty()) onIndexSeek(indexOfY(change.position.y))
+                    }
                 )
+            }
+    ) {
+        if (months.isNotEmpty() && contentHeightPx > 0) {
+            val density = LocalDensity.current
+            val slotPx = contentHeightPx.toFloat() / months.size
+            val slotDp = with(density) { slotPx.toDp() }
+
+            // 高亮下标动画化:高亮浮层从旧位置平滑滚动到新位置,而非逐项闪变
+            val animatedIndex by animateFloatAsState(
+                targetValue = currentIndex.toFloat(),
+                animationSpec = tween(durationMillis = 150),
+                label = "indexerIndex"
+            )
+
+            // 高亮圆形浮层:绘制在月份文字下层,随 animatedIndex 平滑滚动
+            if (currentIndex >= 0) {
+                val highlightPx = minOf(slotPx, with(density) { 28.dp.toPx() })
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset {
+                            IntOffset(
+                                0,
+                                (animatedIndex * slotPx + (slotPx - highlightPx) / 2f).roundToInt()
+                            )
+                        }
+                        .size(with(density) { highlightPx.toDp() })
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                )
+            }
+
+            months.forEachIndexed { index, month ->
+                // 浮层滑过一半时切换文字样式,与高亮到达保持同步
+                val isCurrent = abs(index - animatedIndex) < 0.5f
+
+                val alpha by animateFloatAsState(
+                    targetValue = if (isCurrent) 1f else 0.5f,
+                    animationSpec = tween(durationMillis = 150),
+                    label = "alpha"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset { IntOffset(0, (index * slotPx).roundToInt()) }
+                        .size(width = 32.dp, height = slotDp)
+                        .clickable { onIndexClick(index) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = month,
+                        fontSize = 10.sp,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.alpha(alpha)
+                    )
+                }
+            }
+
+            // 拖动时的月份气泡:索引器左侧的白色圆形徽章,垂直居中于当前月份
+            AnimatedVisibility(
+                visible = isSeeking && currentIndex in months.indices,
+                enter = fadeIn(tween(durationMillis = 100)),
+                exit = fadeOut(tween(durationMillis = 200)),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset {
+                        val centerY = currentIndex * slotPx + slotPx / 2f
+                        IntOffset(
+                            -44.dp.roundToPx(),   // 36dp 圆 + 8dp 间距
+                            (centerY - 18.dp.roundToPx()).roundToInt()
+                        )
+                    }
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .shadow(elevation = 2.dp, shape = CircleShape)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                ) {
+                    // getOrNull 防御:退出动画期间 currentIndex 可能已越界
+                    Text(
+                        text = months.getOrNull(currentIndex).orEmpty(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        // 白底固定深色文字,保证明暗主题下均可读
+                        color = Color(0xDE000000)
+                    )
+                }
             }
         }
     }

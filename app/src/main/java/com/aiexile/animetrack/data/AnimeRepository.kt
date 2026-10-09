@@ -13,12 +13,12 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SubscribeRequest
 import com.aiexile.animetrack.data.network.RemoveSubscribeRequest
 import com.aiexile.animetrack.data.network.TmdbTvDetail
-import com.aiexile.animetrack.data.network.parseAnimeStatus
 import com.aiexile.animetrack.data.network.toApiString
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
+import com.aiexile.animetrack.data.sync.SubscriptionMerger
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.ImportBannerState
@@ -26,7 +26,6 @@ import com.aiexile.animetrack.ui.home.SeriesMatcher
 import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.cleanSummary
 import com.aiexile.animetrack.util.formatDate
-import com.aiexile.animetrack.util.parseDateToTimestamp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,6 +78,12 @@ interface AnimeRepository {
      * @return 与入参顺序对应的旧数据列表（不存在则为 null）
      */
     suspend fun batchUpdateAnimesInternal(animes: List<Anime>): List<Anime?>
+
+    /**
+     * 批量写入手动排序位置（单事务）。纯本地 UI 偏好：
+     * 不触发后端订阅同步、完结统计与 WebDAV 通知。
+     */
+    suspend fun updateManualOrders(orders: List<Pair<Int, Int>>)
 
     /**
      * 手动触发后端订阅同步（POST /subscriptions/add）。
@@ -148,6 +153,15 @@ interface AnimeRepository {
     fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?)
 
     /**
+     * 启动期封面自愈：扫描全库修复因清理缓存/文件误删导致的封面异常。
+     * - coverUrl 为本地路径但文件缺失（清理工具误删 filesDir）→ 用 remoteCoverUrl 重新本地化，无源则置空
+     * - coverUrl 为空串脏数据 → 同上处理
+     * - coverUrl 为网络 URL（本地化失败残留）→ 幂等重触发本地化（文件已存在时仅回写路径，不发网络请求）
+     * 由 Application.onCreate 挂载，进程级仅执行一次。
+     */
+    fun healMissingCoversAsync()
+
+    /**
      * 在应用级协程中补全番剧封面/简介等信息，不会因 ViewModel 销毁而中断。
      * @param animesToSync 指定补全列表；空列表时自动捞取所有无封面的番剧
      * @param notifySuccess 全部成功时是否发送全局横幅（手动触发场景为 true，导入/启动自动补全静默）
@@ -194,6 +208,14 @@ class AnimeRepositoryImpl(
     private val animeDao: AnimeDao,
     private val context: android.content.Context
 ) : AnimeRepository {
+
+    /**
+     * 订阅合并器：sync / pull 两个入口共享的合并决策核心
+     * （规则链与副作用说明见 [SubscriptionMerger]，此处 lazy 以避免构造期泄漏 this）
+     */
+    private val subscriptionMerger by lazy {
+        SubscriptionMerger(animeDao, this, TAG)
+    }
 
     /** 封面本地化写库合批队列：key=animeId，value=最新 coverUrl（flush 前合并同 id 的更新） */
     private val pendingCoverUrlUpdates = ConcurrentHashMap<Int, String>()
@@ -267,9 +289,14 @@ class AnimeRepositoryImpl(
         if (BuildConfig.DEBUG) Log.d(TAG, "insertAnime: Inserting anime - $anime")
         // 如果 coverUrl 是远程 URL，保存其可公开访问版本到 remoteCoverUrl
         // coverUrl 后续会被本地化（下载到本地路径），remoteCoverUrl 保留用于同步到后端
-        val animeToInsert = anime.remoteCoverUrl?.let { anime } ?: run {
+        val animeToInsert = (anime.remoteCoverUrl?.let { anime } ?: run {
             val remoteUrl = computeRemoteCoverUrl(anime.coverUrl) ?: return@run anime
             anime.copy(remoteCoverUrl = remoteUrl)
+        }).let {
+            // 添加视为一次「修改」：把添加时刻写入 lastProgressAt（已有值时保留）。
+            // 主列表按「最后修改时间」排序（lastProgressAt 回退 startDate），
+            // 若不写入则新番剧只能按 startDate 排序，会被之前改过状态/进度的番剧长期压在后面
+            it.copy(lastProgressAt = it.lastProgressAt ?: System.currentTimeMillis())
         }
         val id = animeDao.insertAnime(animeToInsert)
         if (BuildConfig.DEBUG) Log.d(TAG, "insertAnime: Inserted with id=$id")
@@ -344,7 +371,7 @@ class AnimeRepositoryImpl(
         // 仅当用户可见字段变化时才同步到后端（与 updateAnime 逐条行为一致）
         for ((old, anime) in oldAnimes.zip(animes)) {
             if (shouldSyncToServer(old, anime)) {
-                syncSubscriptionToServer(anime, isAdd = true)
+                syncSubscriptionToServer(anime, isAdd = true, oldAnime = old)
             }
         }
     }
@@ -353,8 +380,13 @@ class AnimeRepositoryImpl(
         val oldAnime = updateAnimeInternal(anime)
         // 仅当用户可见字段变化时才同步到后端，避免封面/简介等内部回填触发无谓的 POST
         if (shouldSyncToServer(oldAnime, anime)) {
-            syncSubscriptionToServer(anime, isAdd = true)
+            syncSubscriptionToServer(anime, isAdd = true, oldAnime = oldAnime)
         }
+    }
+
+    override suspend fun updateManualOrders(orders: List<Pair<Int, Int>>) {
+        if (orders.isEmpty()) return
+        animeDao.updateManualOrders(orders)
     }
 
     override fun syncAnimeToServer(anime: Anime) {
@@ -411,12 +443,16 @@ class AnimeRepositoryImpl(
 
     override suspend fun batchInsertAnimes(animes: List<Anime>): List<Long> {
         if (animes.isEmpty()) return emptyList()
-        // 与单条 insertAnime 一致：保存可公开访问的远程封面 URL
-        val animesToInsert = animes.map { anime ->
-            anime.remoteCoverUrl?.let { anime } ?: run {
+        // 与单条 insertAnime 一致：保存可公开访问的远程封面 URL；
+        // 并把添加时刻写入 lastProgressAt（批内按序递增毫秒，保持导入顺序），
+        // 使主列表「最后修改时间」排序对同步新增的番剧同样生效
+        val baseTime = System.currentTimeMillis()
+        val animesToInsert = animes.mapIndexed { index, anime ->
+            val withRemoteCover = anime.remoteCoverUrl?.let { anime } ?: run {
                 val remoteUrl = computeRemoteCoverUrl(anime.coverUrl) ?: return@run anime
                 anime.copy(remoteCoverUrl = remoteUrl)
             }
+            withRemoteCover.copy(lastProgressAt = withRemoteCover.lastProgressAt ?: baseTime + index)
         }
         // 单事务批量插入，避免 N 次独立事务的开销
         val database = AnimeDatabase.getDatabase(context)
@@ -682,16 +718,16 @@ class AnimeRepositoryImpl(
         if (coverUrl.isNullOrBlank()) return
         if (bangumiId == null && tmdbId == null) return
 
-        // 本地路径但文件已不存在，清除 DB 中的 coverUrl 避免 UI 空白
+        // 本地路径但文件已不存在（清理工具误删 filesDir 等）：优先用 remoteCoverUrl 重新本地化，
+        // 无恢复来源时置空 coverUrl 使 UI 显示占位图，而非加载失败空白
         if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
             val localFile = java.io.File(coverUrl.removePrefix("file://"))
             if (!localFile.exists() || localFile.length() == 0L) {
                 appScope.launch {
                     try {
-                        animeDao.updateCoverUrl(animeId, "")
-                        Log.w(TAG, "Local cover file missing, cleared coverUrl: animeId=$animeId")
+                        recoverMissingLocalCover(animeId)
                     } catch (e: Exception) {
-                        AppLogManager.e(TAG, "Failed to clear missing cover: animeId=$animeId", e)
+                        AppLogManager.e(TAG, "Failed to recover missing cover: animeId=$animeId", e)
                     }
                 }
             }
@@ -725,6 +761,67 @@ class AnimeRepositoryImpl(
                 } catch (e: Exception) {
                     AppLogManager.w(TAG, "封面下载失败: animeId=$animeId", e)
                 }
+            }
+        }
+    }
+
+    /**
+     * 恢复本地封面文件丢失的条目（清理工具误删 filesDir、空串脏数据等）。
+     * 优先用 insertAnime 时保存的 remoteCoverUrl 重新本地化；无恢复来源时
+     * 将 coverUrl 置为 null，使 UI 显示占位图而非加载失败空白。
+     */
+    private suspend fun recoverMissingLocalCover(animeId: Int) {
+        val anime = animeDao.getAnimeById(animeId) ?: return
+        val remote = anime.remoteCoverUrl?.takeIf {
+            it.isNotBlank() && !it.startsWith("/") && !it.startsWith("file://")
+        }
+        if (remote != null && (anime.bangumiId != null || anime.tmdbId != null)) {
+            // 先回写网络 URL 让 UI 立即恢复显示，再重新走本地化（幂等：文件已存在则仅回写路径）
+            pendingCoverUrlUpdates[animeId] = remote
+            ensureCoverBatcherStarted()
+            downloadCoverAsync(animeId, remote, anime.bangumiId, anime.tmdbId)
+            Log.i(TAG, "Local cover file missing, recovering from remoteCoverUrl: animeId=$animeId")
+        } else {
+            animeDao.updateCoverUrl(animeId, null)
+            Log.w(TAG, "Local cover file missing and no remote source, reset coverUrl to null: animeId=$animeId")
+        }
+    }
+
+    override fun healMissingCoversAsync() {
+        appScope.launch {
+            try {
+                val animes = animeDao.getAllAnimesList()
+                var healed = 0
+                for (anime in animes) {
+                    val cover = anime.coverUrl ?: continue
+                    val isLocalPath = cover.startsWith("/") || cover.startsWith("file://")
+                    when {
+                        // 空串脏数据：直接按「源丢失」恢复
+                        cover.isBlank() -> {
+                            recoverMissingLocalCover(anime.id)
+                            healed++
+                        }
+                        // 本地路径：文件缺失时恢复
+                        isLocalPath -> {
+                            val file = java.io.File(cover.removePrefix("file://"))
+                            if (!file.exists() || file.length() == 0L) {
+                                recoverMissingLocalCover(anime.id)
+                                healed++
+                            }
+                        }
+                        // 网络 URL：本地化失败的历史残留，幂等重触发
+                        // （文件已存在则 localizeTo 直接返回本地路径并回写，不发网络请求）
+                        anime.bangumiId != null || anime.tmdbId != null -> {
+                            downloadCoverAsync(anime.id, cover, anime.bangumiId, anime.tmdbId)
+                            healed++
+                        }
+                    }
+                }
+                if (healed > 0) {
+                    Log.i(TAG, "Cover heal on launch: processed $healed/${animes.size} animes")
+                }
+            } catch (e: Exception) {
+                AppLogManager.w(TAG, "启动期封面自愈扫描失败", e)
             }
         }
     }
@@ -903,7 +1000,7 @@ class AnimeRepositoryImpl(
      * - isAdd=false: 调用 POST /subscriptions/remove（新稳定 ID 与旧本地 id 各删一次，兼容新旧记录）
      * 网络失败不影响本地操作。
      */
-    private fun syncSubscriptionToServer(anime: Anime, isAdd: Boolean) {
+    private fun syncSubscriptionToServer(anime: Anime, isAdd: Boolean, oldAnime: Anime? = null) {
         appScope.launch {
             try {
                 val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
@@ -914,8 +1011,18 @@ class AnimeRepositoryImpl(
                     val synced = ensureRemoteSyncId(anime)
                     // bangumiId<=0 为历史脏数据，不得上传（服务端已拒绝 '0'）
                     val animeId = synced.bangumiId?.takeIf { it > 0 }?.toString() ?: synced.remoteSyncId!!
+                    // 行键迁移上报：换绑 bangumiId（如详情页补全封面/重新匹配）后行键改变，
+                    // 上报被取代的旧行键，服务端删旧行并记录迁移映射——拦截其他设备旧副本
+                    // 以旧键重传（乒乓复活），合并下发时各设备按映射换键合并而非插入新卡。
+                    // 常规同键上传时列表过滤后为空，不会误报。
+                    val supersededAnimeIds = buildList {
+                        oldAnime?.bangumiId?.takeIf { it > 0 }?.let { add(it.toString()) }
+                        oldAnime?.remoteSyncId?.let { add(it) }
+                        // 换绑后 copy 仍保留 remoteSyncId，它正是迁移前的旧行键
+                        synced.remoteSyncId?.let { add(it) }
+                    }.filter { it != animeId }.distinct().takeIf { it.isNotEmpty() }
                     val response = RetrofitClient.userAuthApi.addSubscription(
-                        buildSubscribeRequest(synced, animeId)
+                        buildSubscribeRequest(synced, animeId, supersededAnimeIds)
                     )
                     if (response.success) {
                         if (BuildConfig.DEBUG) Log.d(TAG, "Subscription added to server: ${anime.title}")
@@ -937,19 +1044,28 @@ class AnimeRepositoryImpl(
                         Log.w(TAG, "Subscription add failed: ${anime.title}, message=${response.message}")
                     }
                 } else {
-                    // 新稳定 ID（bangumiId 或 remoteSyncId）
-                    val currentId = anime.bangumiId?.toString() ?: anime.remoteSyncId
-                    if (currentId != null) {
-                        RetrofitClient.userAuthApi.removeSubscription(
-                            RemoveSubscribeRequest(animeId = currentId)
-                        )
+                    // 稳定 ID 各删一次：换绑 bangumiId 后 copy 仍保留 remoteSyncId，
+                    // 二者并存时只删其一会漏删另一行，残留行会随其他设备旧副本重传
+                    // 复活（删除的番剧再次出现）。单个失败不影响其余删除。
+                    val stableIds = buildList {
+                        anime.bangumiId?.let { add(it.toString()) }
+                        anime.remoteSyncId?.let { add(it) }
+                    }.distinct()
+                    for (id in stableIds) {
+                        runCatching {
+                            RetrofitClient.userAuthApi.removeSubscription(
+                                RemoveSubscribeRequest(animeId = id)
+                            )
+                        }
                     }
-                    // 旧本地 id（旧版本客户端上传的记录），与上面不同才删
+                    // 旧本地 id（旧版本客户端上传的记录），与稳定 ID 不同才删
                     val legacyId = anime.id.toString()
-                    if (currentId != legacyId) {
-                        RetrofitClient.userAuthApi.removeSubscription(
-                            RemoveSubscribeRequest(animeId = legacyId)
-                        )
+                    if (legacyId !in stableIds) {
+                        runCatching {
+                            RetrofitClient.userAuthApi.removeSubscription(
+                                RemoveSubscribeRequest(animeId = legacyId)
+                            )
+                        }
                     }
                     if (BuildConfig.DEBUG) Log.d(TAG, "Subscription removed from server: ${anime.title}")
                 }
@@ -999,7 +1115,11 @@ class AnimeRepositoryImpl(
     }
 
     /** 构建上传到后端的订阅请求体（统一逻辑，避免多处重复） */
-    private fun buildSubscribeRequest(anime: Anime, animeId: String): SubscribeRequest {
+    private fun buildSubscribeRequest(
+        anime: Anime,
+        animeId: String,
+        supersededAnimeIds: List<String>? = null
+    ): SubscribeRequest {
         return SubscribeRequest(
             animeId = animeId,
             animeTitle = anime.title,
@@ -1016,7 +1136,9 @@ class AnimeRepositoryImpl(
             startDate = anime.startDate?.let { formatDate(it) },
             finishDate = anime.finishDate?.let { formatDate(it) },
             // 附带旧版本客户端使用的本地 id，服务端 upsert 后据此清理存量旧记录
-            legacyAnimeId = anime.id.toString()
+            legacyAnimeId = anime.id.toString(),
+            // 行键迁移时被取代的旧行键（服务端删旧行 + 记录迁移映射）
+            supersededAnimeIds = supersededAnimeIds
         )
     }
 
@@ -1104,7 +1226,15 @@ class AnimeRepositoryImpl(
             var skippedCount = 0
             for (anime in localAnimes) {
                 // bangumiId<=0 为历史脏数据，跳过上传（sanitizeDirtyBangumiIds 负责清洗后重传）
-                val animeId = anime.bangumiId?.takeIf { it > 0 }?.toString() ?: continue
+                // bangumiId=null（B 站导入清洗产物等）回退 remoteSyncId 上传：
+                // 否则其服务端行自首次写入后永不刷新，进度/元数据变化无法上行，
+                // 新设备拉到的永远是残缺数据（仅标题、进度为 0）
+                val bangumiId = anime.bangumiId
+                val animeId = when {
+                    (bangumiId ?: 0) > 0 -> bangumiId.toString()
+                    bangumiId != null -> null // <=0 脏数据，交由 sanitize 清洗
+                    else -> anime.remoteSyncId ?: ensureRemoteSyncId(anime).remoteSyncId
+                } ?: continue
                 // 远程已存在且字段完全一致 → 跳过上传
                 val remote = remoteMap[animeId]
                 if (remote != null && isRemoteInSync(anime, remote)) {
@@ -1132,69 +1262,11 @@ class AnimeRepositoryImpl(
                 if (BuildConfig.DEBUG) Log.d(TAG, "Sync done: uploaded=$uploadedCount, remote list unavailable")
                 return
             }
-
-            var mergedCount = 0
-            val pendingInsert = mutableListOf<Anime>()
-            for (remote in remoteList) {
-                // 历史 '0' 脏行（旧版 B 站导入上传）：不入库，顺手清理服务器行（幂等）。
-                // 不清理会残留旧标题/无元数据记录，标题兜底匹配失败时被当成新番剧插入（幽灵卡片）
-                if (remote.animeId == "0") {
-                    runCatching {
-                        RetrofitClient.userAuthApi.removeSubscription(RemoveSubscribeRequest(animeId = "0"))
-                    }
-                    continue
-                }
-                // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
-                val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
-                val remoteSyncId = if (bangumiId == null) remote.animeId else null
-                val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
-                if (existing == null) {
-                    // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全
-                    val metaAnime = Anime(
-                        title = remote.animeTitle,
-                        totalEpisodes = remote.totalEpisodes ?: 0,
-                        watchedEpisodes = remote.watchedEpisodes ?: 0,
-                        status = parseAnimeStatus(remote.status),
-                        rating = remote.rating,
-                        notes = remote.notes ?: "",
-                        startDate = parseDateToTimestamp(remote.startDate),
-                        finishDate = parseDateToTimestamp(remote.finishDate),
-                        coverUrl = remote.animeImage,
-                        airDate = remote.airDate,
-                        summary = null,
-                        bangumiId = bangumiId,
-                        remoteSyncId = remoteSyncId,
-                        airWeekday = remote.weekday,
-                        isFinished = !remote.isAiring, // isAiring: true=连载中, false=已完结
-                        currentEpisodes = remote.currentEpisodes ?: 0
-                    )
-                    pendingInsert.add(metaAnime)
-                } else {
-                    // 本地已有 → 跳过，保留本地完整数据。
-                    // 额外清理寄生行：本地条目已绑定有效 bangumiId，但远程仍存在以它的
-                    // remoteSyncId 为 anime_id 的旧行（sanitize 清洗/早期上传产物，且
-                    // 未能被 add 路径顺带删除），留着会在换绑设备外的场景复活幽灵卡片
-                    if (remoteSyncId != null && remoteSyncId == existing.remoteSyncId
-                        && (existing.bangumiId ?: 0) > 0
-                        && remote.animeId != existing.bangumiId.toString()
-                    ) {
-                        runCatching {
-                            RetrofitClient.userAuthApi.removeSubscription(
-                                RemoveSubscribeRequest(animeId = remote.animeId)
-                            )
-                        }
-                    }
-                    mergedCount++
-                }
-            }
-            // 批量插入（单事务）：避免逐条插入触发 N 次 Room 失效与列表重算
-            if (pendingInsert.isNotEmpty()) {
-                animeDao.insertAnimes(pendingInsert)
-            }
+            val result = subscriptionMerger.merge(remoteList, localAnimes)
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "Sync subscriptions: uploaded=$uploadedCount, " +
-                    "merged(skipped)=$mergedCount, inserted=${pendingInsert.size}, " +
+                    "merged(skipped)=${result.mergedCount}, inserted=${result.insertedCount}, " +
                     "remote total=${remoteList.size}"
             )
         } catch (e: Exception) {
@@ -1247,26 +1319,6 @@ class AnimeRepositoryImpl(
     }
 
     /**
-     * 按后端订阅记录查找本地已有番剧（合并前的存在性判断），三级匹配：
-     * 1. bangumiId（animeId 为纯数字时，可能是 Bangumi 条目 ID 或旧版本客户端的本地 id）
-     * 2. remoteSyncId（animeId 为 UUID 时，稳定远程 ID 直接命中）
-     * 3. 标题兜底（兼容旧版本客户端用本地自增 id 上传的记录，防止重复插入）
-     */
-    private suspend fun findExistingAnimeByRemote(
-        bangumiId: Int?,
-        remoteSyncId: String?,
-        title: String
-    ): Anime? {
-        if (bangumiId != null) {
-            animeDao.getAnimeByBangumiId(bangumiId)?.let { return it }
-        }
-        if (remoteSyncId != null) {
-            animeDao.getAnimeByRemoteSyncId(remoteSyncId)?.let { return it }
-        }
-        return animeDao.getAnimeByTitle(title)
-    }
-
-    /**
      * 只从后端拉取订阅列表合并到本地（不上传本地数据）。
      * - 本地已有的番剧跳过（保留本地完整数据）
      * - 本地没有的番剧插入元数据（完整信息留空待用户点击详情时补全）
@@ -1288,67 +1340,13 @@ class AnimeRepositoryImpl(
                 return
             }
 
-            var mergedCount = 0
-            val pendingInsert = mutableListOf<Anime>()
-            for (remote in response.subscriptions) {
-                // 历史 '0' 脏行（旧版 B 站导入上传）：不入库，顺手清理服务器行（幂等），
-                // 防止旧标题/无元数据记录在标题兜底匹配失败时被当成新番剧插入（幽灵卡片）
-                if (remote.animeId == "0") {
-                    runCatching {
-                        RetrofitClient.userAuthApi.removeSubscription(RemoveSubscribeRequest(animeId = "0"))
-                    }
-                    continue
-                }
-                // animeId 格式分流：纯数字（>0）→ Bangumi 条目 ID；UUID → 稳定远程同步 ID。
-                val bangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 }
-                val remoteSyncId = if (bangumiId == null) remote.animeId else null
-                val existing = findExistingAnimeByRemote(bangumiId, remoteSyncId, remote.animeTitle)
-                if (existing == null) {
-                    // 本地没有 → 插入（同步其他设备添加的番剧），完整信息留空待用户点击详情时补全
-                    val metaAnime = Anime(
-                        title = remote.animeTitle,
-                        totalEpisodes = remote.totalEpisodes ?: 0,
-                        watchedEpisodes = remote.watchedEpisodes ?: 0,
-                        status = parseAnimeStatus(remote.status),
-                        rating = remote.rating,
-                        notes = remote.notes ?: "",
-                        startDate = parseDateToTimestamp(remote.startDate),
-                        finishDate = parseDateToTimestamp(remote.finishDate),
-                        coverUrl = remote.animeImage,
-                        airDate = remote.airDate,
-                        summary = null,
-                        bangumiId = bangumiId,
-                        remoteSyncId = remoteSyncId,
-                        airWeekday = remote.weekday,
-                        isFinished = !remote.isAiring,
-                        currentEpisodes = remote.currentEpisodes ?: 0
-                    )
-                    pendingInsert.add(metaAnime)
-                } else {
-                    // 本地已有 → 跳过，保留本地完整数据。
-                    // 额外清理寄生行：本地条目已绑定有效 bangumiId，但远程仍存在以它的
-                    // remoteSyncId 为 anime_id 的旧行，留着会在换绑场景复活幽灵卡片
-                    if (remoteSyncId != null && remoteSyncId == existing.remoteSyncId
-                        && (existing.bangumiId ?: 0) > 0
-                        && remote.animeId != existing.bangumiId.toString()
-                    ) {
-                        runCatching {
-                            RetrofitClient.userAuthApi.removeSubscription(
-                                RemoveSubscribeRequest(animeId = remote.animeId)
-                            )
-                        }
-                    }
-                    mergedCount++
-                }
-            }
-            // 批量插入（单事务）：避免逐条插入触发 N 次 Room 失效与列表重算
-            if (pendingInsert.isNotEmpty()) {
-                animeDao.insertAnimes(pendingInsert)
-            }
+            // 换键行兜底识别的候选集（本地记录 + 本批次已插入的）
+            val localAnimes = animeDao.getAllAnimesList()
+            val result = subscriptionMerger.merge(response.subscriptions, localAnimes)
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
-                "pullSubscriptionsFromServer: merged(skipped)=$mergedCount, " +
-                    "inserted=${pendingInsert.size}, remote total=${response.subscriptions.size}"
+                "pullSubscriptionsFromServer: merged(skipped)=${result.mergedCount}, " +
+                    "inserted=${result.insertedCount}, remote total=${response.subscriptions.size}"
             )
         } catch (e: Exception) {
             Log.w(TAG, "pullSubscriptionsFromServer failed (non-fatal)", e)

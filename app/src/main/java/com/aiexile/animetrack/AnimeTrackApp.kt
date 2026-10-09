@@ -22,6 +22,9 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
     /** 崩溃 tombstone 上报延迟：避开启动高峰（网络、磁盘、UI 并发初始化） */
     private val reportTombstoneDelayMs = 5_000L
 
+    /** 启动期封面自愈延迟：晚于 tombstone 上报，避开启动期封面批量下载/合批写库的高峰 */
+    private val coverHealDelayMs = 10_000L
+
     // 应用级协程作用域：供 MainActivity、SettingsRepository 等复用，替代 GlobalScope
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -80,6 +83,12 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
                     AppContainer.getUserAuthManager().markTokenExpired(kicked = true)
                 }
             }
+        }
+        // 启动期封面自愈：修复清理缓存后封面文件被误删/本地化失败残留导致的封面空白
+        // （本地路径文件缺失 → remoteCoverUrl 重下载；网络 URL 残留 → 幂等重本地化）
+        appScope.launch {
+            delay(coverHealDelayMs)
+            AppContainer.getAnimeRepository().healMissingCoversAsync()
         }
     }
 

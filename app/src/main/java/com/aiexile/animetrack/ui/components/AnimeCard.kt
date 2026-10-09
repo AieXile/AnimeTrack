@@ -509,11 +509,13 @@ private fun AnimeCoverWithStatus(
                 .clip(CoverTopShape)
         }
         
-        if (coverUrl != null) {
+        // 先解析封面模型：空串脏数据/本地文件缺失均解析为 null，走占位图分支
+        val resolvedModel = remember(coverUrl) { resolveCoverModel(coverUrl) }
+        if (resolvedModel != null) {
             val context = LocalContext.current
             val request = remember(coverUrl) {
                 ImageRequest.Builder(context)
-                    .data(resolveCoverModel(coverUrl))
+                    .data(resolvedModel)
                     .memoryCacheKey(coverMemoryCacheKey(coverUrl))
                     .build()
             }

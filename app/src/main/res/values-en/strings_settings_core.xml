@@ -87,8 +87,11 @@
     <string name="nav_custom_show_schedule_desc">Show schedule entry in navigation</string>
     <string name="nav_custom_greeting_title">Custom Greeting</string>
     <string name="nav_custom_greeting_subtitle">Set greeting text shown in home title bar</string>
-    <string name="nav_custom_typing_effect">Typing Effect</string>
-    <string name="nav_custom_typing_effect_desc">Typewriter animation for greeting</string>
+    <string name="nav_custom_greeting_effect">Entrance Effect</string>
+    <string name="nav_custom_greeting_effect_desc">Choose greeting animation: typewriter or scramble decode</string>
+    <string name="greeting_effect_none">Off</string>
+    <string name="greeting_effect_typing">Typewriter</string>
+    <string name="greeting_effect_scramble">Decode</string>
     <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
     <string name="nav_custom_advanced_blur">Advanced Blur</string>

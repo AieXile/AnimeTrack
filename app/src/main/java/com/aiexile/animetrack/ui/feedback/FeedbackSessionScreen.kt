@@ -56,6 +56,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_CLOSED
+import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.network.FeedbackSession
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
@@ -131,7 +132,9 @@ class FeedbackSessionViewModel(
     /** 追加发送到当前会话 */
     fun append(content: String) {
         val state = _uiState.value
-        if (state.isSending || state.session?.status == FEEDBACK_STATUS_CLOSED) return
+        // 已结束/已解决均为终态，禁止追加
+        val status = state.session?.status
+        if (state.isSending || status == FEEDBACK_STATUS_CLOSED || status == FEEDBACK_STATUS_RESOLVED) return
 
         viewModelScope.launch {
             // 日志占位附件 → 实际导出文件（导出失败降级移除，反馈优先送达）
@@ -172,6 +175,12 @@ class FeedbackSessionViewModel(
                     _sendError.value = FeedbackSendError.SessionClosed
                     _uiState.value = _uiState.value.copy(
                         session = _uiState.value.session?.copy(status = FEEDBACK_STATUS_CLOSED)
+                    )
+                }
+                FeedbackSendResult.SessionResolved -> {
+                    _sendError.value = FeedbackSendError.SessionResolved
+                    _uiState.value = _uiState.value.copy(
+                        session = _uiState.value.session?.copy(status = FEEDBACK_STATUS_RESOLVED)
                     )
                 }
                 FeedbackSendResult.SessionNotFound -> _sendError.value = FeedbackSendError.SessionNotFound
@@ -234,6 +243,8 @@ fun FeedbackSessionScreen(
                     context.getString(R.string.feedback_error_sensitive)
                 FeedbackSendError.SessionClosed ->
                     context.getString(R.string.feedback_error_session_closed)
+                FeedbackSendError.SessionResolved ->
+                    context.getString(R.string.feedback_error_session_resolved)
                 FeedbackSendError.SessionNotFound ->
                     context.getString(R.string.feedback_error_session_not_found)
                 FeedbackSendError.AttachmentFailed ->
@@ -262,6 +273,9 @@ fun FeedbackSessionScreen(
     }
 
     val isClosed = uiState.session?.status == FEEDBACK_STATUS_CLOSED
+    val isResolved = uiState.session?.status == FEEDBACK_STATUS_RESOLVED
+    // 已结束/已解决均为终态：隐藏输入、禁用追加并展示对应禁用文案
+    val isLocked = isClosed || isResolved
 
     Scaffold(
         topBar = {
@@ -298,7 +312,7 @@ fun FeedbackSessionScreen(
                         .padding(horizontal = 16.dp)
                 ) {
                     AnimatedVisibility(
-                        visible = appendInputVisible && !isClosed,
+                        visible = appendInputVisible && !isLocked,
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()
                     ) {
@@ -321,7 +335,7 @@ fun FeedbackSessionScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                     }
-                    if (!appendInputVisible || isClosed) {
+                    if (!appendInputVisible || isLocked) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -329,17 +343,20 @@ fun FeedbackSessionScreen(
                                 .padding(vertical = 12.dp)
                                 .clip(SquircleShape(16.dp))
                                 .background(
-                                    if (isClosed) MaterialTheme.colorScheme.surfaceContainerHighest
+                                    if (isLocked) MaterialTheme.colorScheme.surfaceContainerHighest
                                     else MaterialTheme.colorScheme.primary
                                 )
-                                .clickable(enabled = !isClosed) { appendInputVisible = true }
+                                .clickable(enabled = !isLocked) { appendInputVisible = true }
                                 .padding(vertical = 14.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (isClosed) stringResource(R.string.feedback_append_closed)
+                                text = if (isLocked) stringResource(
+                                    if (isResolved) R.string.feedback_append_resolved
+                                    else R.string.feedback_append_closed
+                                )
                                 else stringResource(R.string.feedback_append),
-                                color = if (isClosed) MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isLocked) MaterialTheme.colorScheme.onSurfaceVariant
                                 else MaterialTheme.colorScheme.onPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium

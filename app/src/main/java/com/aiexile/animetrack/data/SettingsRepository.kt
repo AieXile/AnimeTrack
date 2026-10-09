@@ -49,6 +49,16 @@ enum class RatingStandard {
     MANUAL
 }
 
+/**
+ * 主界面列表排序方式：
+ * - [RECENT_PROGRESS] 按最近更新进度时间降序（默认，历史行为）
+ * - [MANUAL] 按用户手动拖拽保存的顺序（manualOrder），不再跟随进度自动重排
+ */
+enum class ListSortMode {
+    RECENT_PROGRESS,
+    MANUAL
+}
+
 class SettingsRepository(private val context: Context) {
 
     companion object {
@@ -75,12 +85,14 @@ class SettingsRepository(private val context: Context) {
         private val COMPLETED_TOAST_KEY = booleanPreferencesKey("completed_toast_enabled")
         private val HIDE_BANGUMI_AVATAR_KEY = booleanPreferencesKey("hide_bangumi_avatar")
         private val GREETING_TYPING_EFFECT_KEY = booleanPreferencesKey("greeting_typing_effect")
+        private val GREETING_EFFECT_STYLE_KEY = stringPreferencesKey("greeting_effect_style")
         private val SHOW_UPDATE_BANNER_KEY = booleanPreferencesKey("show_update_banner")
         private val FEEDBACK_REPLY_PILL_ENABLED_KEY = booleanPreferencesKey("feedback_reply_pill_enabled")
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
         private val SERIES_STACK_TOP_KEY = stringPreferencesKey("series_stack_top_indices")
+        private val LIST_SORT_MODE_KEY = stringPreferencesKey("list_sort_mode")
         private val RATING_STANDARD_KEY = stringPreferencesKey("rating_standard")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
         private val WEBDAV_URL_KEY = stringPreferencesKey("webdav_url")
@@ -96,7 +108,6 @@ class SettingsRepository(private val context: Context) {
         private val PRIVACY_POLICY_ACCEPTED_KEY = booleanPreferencesKey("privacy_policy_accepted")
         private val DEVELOPER_MODE_KEY = booleanPreferencesKey("developer_mode")
         private val SHARE_BUTTON_ENABLED_KEY = booleanPreferencesKey("share_button_enabled")
-        private val AUTO_SYNC_VISIBLE_KEY = booleanPreferencesKey("auto_sync_visible")
         private val TMDB_API_KEY_KEY = stringPreferencesKey("tmdb_api_key")
         private val WEBDAV_AUTO_SYNC_ENABLED_KEY = booleanPreferencesKey("webdav_auto_sync_enabled")
         private val WEBDAV_AUTO_SYNC_ON_DATA_CHANGE_KEY = booleanPreferencesKey("webdav_auto_sync_on_data_change")
@@ -390,6 +401,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCustomGreeting(greeting: String) = setPreference(CUSTOM_GREETING_KEY, greeting)
 
+    /** 自定义欢迎语同步缓存：MainOverlay 随路由切换销毁重建，collectAsState("")
+     * 的空初始值会使欢迎语瞬态解析为随机前缀，与已播放标记不匹配导致重播动画 */
+    fun cachedCustomGreeting(): String = prefCache[CUSTOM_GREETING_KEY] as? String ?: ""
+
     val autoCompleteEnabled: Flow<Boolean> = preferenceFlow(AUTO_COMPLETE_KEY, true)
 
     suspend fun setAutoCompleteEnabled(enabled: Boolean) = setPreference(AUTO_COMPLETE_KEY, enabled)
@@ -402,9 +417,29 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHideBangumiAvatar(hide: Boolean) = setPreference(HIDE_BANGUMI_AVATAR_KEY, hide)
 
-    val greetingTypingEffect: Flow<Boolean> = preferenceFlow(GREETING_TYPING_EFFECT_KEY, true)
+    /**
+     * 欢迎语入场效果。新 key（greeting_effect_style）优先；未设置过新 key 的老用户
+     * 按旧布尔开关（greeting_typing_effect）迁移：false → NONE，默认 true → TYPING，
+     * 保证升级后行为与原开关一致
+     */
+    val greetingEffectStyle: Flow<GreetingEffectStyle> = flow {
+        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)?.let { emit(GreetingEffectStyle.fromName(it)) }
+        emitAll(
+            context.dataStore.data.map { prefs ->
+                prefs[GREETING_EFFECT_STYLE_KEY]?.let { GreetingEffectStyle.fromName(it) }
+                    ?: if (prefs[GREETING_TYPING_EFFECT_KEY] == false) GreetingEffectStyle.NONE
+                       else GreetingEffectStyle.TYPING
+            }
+        )
+    }.distinctUntilChanged()
 
-    suspend fun setGreetingTypingEffect(enabled: Boolean) = setPreference(GREETING_TYPING_EFFECT_KEY, enabled)
+    suspend fun setGreetingEffectStyle(style: GreetingEffectStyle) =
+        setPreference(GREETING_EFFECT_STYLE_KEY, style.name)
+
+    /** 入场效果同步缓存：避免 MainOverlay 重建瞬态默认值使已关闭的效果误触发动画 */
+    fun cachedGreetingEffectStyle(): GreetingEffectStyle =
+        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)?.let { GreetingEffectStyle.fromName(it) }
+            ?: GreetingEffectStyle.TYPING
 
     val showUpdateBanner: Flow<Boolean> = preferenceFlow(SHOW_UPDATE_BANNER_KEY, true)
 
@@ -425,6 +460,14 @@ class SettingsRepository(private val context: Context) {
     val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, false)
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
+
+    /** 主界面列表排序方式（默认按最近更新进度，与历史行为一致） */
+    val listSortMode: Flow<ListSortMode> = preferenceFlow(LIST_SORT_MODE_KEY, ListSortMode.RECENT_PROGRESS.name)
+        .map { modeString ->
+            try { ListSortMode.valueOf(modeString) } catch (_: IllegalArgumentException) { ListSortMode.RECENT_PROGRESS }
+        }
+
+    suspend fun setListSortMode(mode: ListSortMode) = setPreference(LIST_SORT_MODE_KEY, mode.name)
 
     /**
      * 堆叠卡片顶层页码记忆：系列 stableKey（"series_<第一季id>"）→ 顶层索引。
@@ -535,10 +578,6 @@ class SettingsRepository(private val context: Context) {
     val shareButtonEnabled: Flow<Boolean> = preferenceFlow(SHARE_BUTTON_ENABLED_KEY, false)
 
     suspend fun setShareButtonEnabled(enabled: Boolean) = setPreference(SHARE_BUTTON_ENABLED_KEY, enabled)
-
-    val autoSyncVisible: Flow<Boolean> = preferenceFlow(AUTO_SYNC_VISIBLE_KEY, false)
-
-    suspend fun setAutoSyncVisible(visible: Boolean) = setPreference(AUTO_SYNC_VISIBLE_KEY, visible)
 
     val tmdbApiKey: Flow<String?> = context.dataStore.data
         .map { preferences ->

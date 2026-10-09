@@ -127,7 +127,7 @@ fun HomeScreen(
                 hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
             }
     }
-    // customGreeting / greetingTypingEffect / showSearchButton / focusRequester
+    // customGreeting / greetingEffectStyle / showSearchButton / focusRequester
     // 已移至 MainOverlay（SharedTransitionLayout 外层）的 HomeTopBar 中维护
 
     LaunchedEffect(isCurrentPage) {
@@ -139,10 +139,11 @@ fun HomeScreen(
     }
     var showAccountPanel by remember { mutableStateOf(false) }
 
-    // 返回键先收起主页临时状态（本地搜索、长按选中），而不是直接退出主界面；
+    // 返回键先收起主页临时状态（手动排序、本地搜索、长按选中），而不是直接退出主界面；
     // 仅当前页生效（Pager 相邻页仍处于组合中，避免误拦截其他页的返回）
-    BackHandler(enabled = isCurrentPage && (uiState.isLocalSearchActive || uiState.selectedAnimeId != null)) {
+    BackHandler(enabled = isCurrentPage && (uiState.isSortEditMode || uiState.isLocalSearchActive || uiState.selectedAnimeId != null)) {
         when {
+            uiState.isSortEditMode -> viewModel.cancelSortEditMode()
             uiState.isLocalSearchActive -> viewModel.clearLocalSearch()
             uiState.selectedAnimeId != null -> viewModel.clearSelection()
         }
@@ -163,6 +164,7 @@ fun HomeScreen(
     }
 
     val filteredAnimeListItems by viewModel.filteredAnimeListItems.collectAsState()
+    val listSortMode by viewModel.listSortMode.collectAsState()
     val scope = rememberCoroutineScope()
 
     val gridState = viewModel.gridState
@@ -282,7 +284,10 @@ fun HomeScreen(
                         highlightedAnimeIds = uiState.highlightedAnimeIds,
                         selectedFilter = uiState.selectedFilter,
                         seriesStackEnabled = seriesStackEnabled,
-                        seriesStackTopIndices = seriesStackTopIndices
+                        seriesStackTopIndices = seriesStackTopIndices,
+                        listSortMode = listSortMode,
+                        isSortEditMode = uiState.isSortEditMode,
+                        sortEditList = uiState.sortEditList
                     ),
                     headerState = AnimeGridHeaderState(
                         isLoggedIn = isLoggedIn,
@@ -316,6 +321,11 @@ fun HomeScreen(
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
                     onTogglePin = { anime -> viewModel.togglePin(anime) },
                     onFilterSelected = { viewModel.setFilter(it) },
+                    onSortModeSelected = { viewModel.setListSortMode(it) },
+                    onStartSortEdit = { viewModel.startSortEditMode() },
+                    onSaveSortEdit = { viewModel.saveSortEditOrder() },
+                    onCancelSortEdit = { viewModel.cancelSortEditMode() },
+                    onSortItemMove = { from, to -> viewModel.onSortItemMove(from, to) },
                     onAvatarClick = {
                         showAccountPanel = true
                     },

@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.ListSortMode
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.TmdbTvDetail
@@ -77,7 +78,11 @@ data class HomeUiState(
     val highlightedAnimeIds: Set<Long> = emptySet(),
     val todayUpdatePinnedIds: Set<Long> = emptySet(),
     val localSearchQuery: String = "",
-    val isLocalSearchActive: Boolean = false
+    val isLocalSearchActive: Boolean = false,
+    /** 手动排序编辑模式：主界面网格进入长按拖拽状态 */
+    val isSortEditMode: Boolean = false,
+    /** 排序编辑模式下的内存快照（拖拽仅改此列表，点保存才写库） */
+    val sortEditList: List<Anime> = emptyList()
 )
 
 enum class AnimeFilter(val displayName: String) {
@@ -161,20 +166,32 @@ class HomeViewModel(
         initialValue = 0
     )
 
+    /** 主界面列表排序方式（最近更新优先 / 手动顺序），持久化到 DataStore */
+    val listSortMode: StateFlow<ListSortMode> = settingsRepository.listSortMode
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = ListSortMode.RECENT_PROGRESS
+        )
+
     /** 影响列表排序/分组的筛选参数，用于派生列表的去重防抖 */
     private data class ListParams(
         val filter: AnimeFilter,
         val searchQuery: String,
-        val pinnedIds: Set<Long>
+        val pinnedIds: Set<Long>,
+        val sortMode: ListSortMode
     )
 
-    private val listParams: StateFlow<ListParams> = _uiState.map {
-        ListParams(it.selectedFilter, it.localSearchQuery, it.todayUpdatePinnedIds)
+    private val listParams: StateFlow<ListParams> = combine(
+        _uiState,
+        listSortMode
+    ) { state, sortMode ->
+        ListParams(state.selectedFilter, state.localSearchQuery, state.todayUpdatePinnedIds, sortMode)
     }.distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ListParams(AnimeFilter.ALL, "", emptySet())
+            initialValue = ListParams(AnimeFilter.ALL, "", emptySet(), ListSortMode.RECENT_PROGRESS)
         )
 
     // 系列堆叠开关：hoist 到 ViewModel，避免 Composable 重建时 collectAsState 初始值闪烁
@@ -211,7 +228,7 @@ class HomeViewModel(
      */
     val filteredAnimeListItems: StateFlow<List<AnimeListItem>> =
         combine(animeList, listParams, seriesStackEnabled) { animes, params, stackEnabled ->
-            val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds)
+            val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds, params.sortMode)
             if (stackEnabled) {
                 SeriesMatcher.groupAnimeList(filtered)
             } else {
@@ -508,6 +525,99 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * 进入手动排序编辑模式：以当前可见列表（拆开系列堆叠）为快照，
+     * 拖拽只改内存快照，点保存才批量写库。编辑期间筛选/搜索保持锁定。
+     */
+    fun startSortEditMode() {
+        val snapshot = filteredAnimeListItems.value.flatMap { item ->
+            when (item) {
+                is AnimeListItem.Single -> listOf(item.anime)
+                is AnimeListItem.Series -> item.animeList
+                is AnimeListItem.ExpandedSeriesCard -> listOf(item.anime)
+            }
+        }
+        if (snapshot.size < 2) return
+        // 排序编辑前清空本地搜索，避免搜索过滤子集造成排序语义混乱
+        _uiState.update {
+            it.copy(
+                localSearchQuery = "",
+                isLocalSearchActive = false,
+                isSortEditMode = true,
+                sortEditList = snapshot
+            )
+        }
+    }
+
+    /**
+     * 拖拽交换（来自 ReorderableLazyGrid 的 onMove）。
+     * 置顶区/非置顶区锁定：跨区移动直接忽略（置顶卡片始终固定在最前）。
+     */
+    fun onSortItemMove(fromIndex: Int, toIndex: Int) {
+        _uiState.update { state ->
+            val list = state.sortEditList
+            if (fromIndex !in list.indices || toIndex !in list.indices || fromIndex == toIndex) {
+                return@update state
+            }
+            if (list[fromIndex].isPinned != list[toIndex].isPinned) {
+                return@update state
+            }
+            state.copy(
+                sortEditList = list.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            )
+        }
+    }
+
+    /** 取消排序编辑：丢弃内存快照，不写库 */
+    fun cancelSortEditMode() {
+        _uiState.update { it.copy(isSortEditMode = false, sortEditList = emptyList()) }
+    }
+
+    /**
+     * 保存手动顺序：把编辑快照的新顺序映射回全局 effective 序列并整体重编号（0..n-1），
+     * 只写 manualOrder 变化的条目；随后排序方式切换为 MANUAL。
+     *
+     * 映射规则：快照条目在全局序列中占有一组槽位（升序），新顺序按序填入这组槽位。
+     * 由于 effective 序列与快照都是「置顶在前」，置顶/非置顶分区天然保持一致，
+     * 在筛选视图下编辑也只会重排该筛选子集内部的相对顺序，不污染其他条目。
+     */
+    fun saveSortEditOrder() {
+        val edited = _uiState.value.sortEditList
+        if (edited.isEmpty()) {
+            cancelSortEditMode()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val effective = animeList.value.sortedWith(manualOrderComparator)
+                val effectiveIds = effective.map { it.id }.toHashSet()
+                val presentEdited = edited.filter { it.id in effectiveIds }
+                if (presentEdited.isNotEmpty()) {
+                    val editedIds = presentEdited.map { it.id }.toHashSet()
+                    val slots = effective.withIndex().filter { it.value.id in editedIds }.map { it.index }
+                    val newEffective = effective.toMutableList()
+                    slots.forEachIndexed { i, slot -> newEffective[slot] = presentEdited[i] }
+                    val updates = newEffective.mapIndexedNotNull { index, anime ->
+                        if (anime.manualOrder != index) anime.id to index else null
+                    }
+                    repository.updateManualOrders(updates)
+                }
+                settingsRepository.setListSortMode(ListSortMode.MANUAL)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save manual sort order", e)
+            } finally {
+                cancelSortEditMode()
+            }
+        }
+    }
+
+    /** 切换排序方式（筛选菜单内单选） */
+    fun setListSortMode(mode: ListSortMode) {
+        viewModelScope.launch {
+            settingsRepository.setListSortMode(mode)
+        }
+    }
+
     fun hideFormDialog() {
         _uiState.update { it.copy(showFormDialog = false) }
     }
@@ -702,7 +812,10 @@ class HomeViewModel(
                     old != null && old.lastProgressAt != new.lastProgressAt
                 }
                 if (progressChanged) {
-                    gridState.scrollToItem(index = 0)
+                    // 手动排序模式下列表不随进度重排，跳顶反而打断用户浏览，跳过
+                    if (listSortMode.value != ListSortMode.MANUAL) {
+                        gridState.scrollToItem(index = 0)
+                    }
                 }
             }
         }
@@ -712,9 +825,24 @@ class HomeViewModel(
         _uiState.update { it.copy(newlyAddedAnimeId = null) }
     }
     
-    fun getFilteredAnimeList(animeList: List<Anime>, filter: AnimeFilter, searchQuery: String = "", pinnedIds: Set<Long> = emptySet()): List<Anime> {
-        if (BuildConfig.DEBUG) Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery")
-        
+    /**
+     * 手动排序模式的排序键：置顶优先 → manualOrder 升序（null 未排序的排最后）→ 默认键回退。
+     * 不再跟随 lastProgressAt 自动重排（用户手动排序后顺序完全由拖拽结果决定）。
+     */
+    private val manualOrderComparator: Comparator<Anime> =
+        compareBy<Anime> { !it.isPinned }
+            .thenBy { it.manualOrder ?: Int.MAX_VALUE }
+            .thenByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
+
+    fun getFilteredAnimeList(
+        animeList: List<Anime>,
+        filter: AnimeFilter,
+        searchQuery: String = "",
+        pinnedIds: Set<Long> = emptySet(),
+        sortMode: ListSortMode = ListSortMode.RECENT_PROGRESS
+    ): List<Anime> {
+        if (BuildConfig.DEBUG) Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery, sortMode: $sortMode")
+
         val filtered = when (filter) {
             AnimeFilter.ALL -> animeList
             AnimeFilter.WATCHING -> animeList.filter { it.status == AnimeStatus.WATCHING }
@@ -723,8 +851,11 @@ class HomeViewModel(
             AnimeFilter.DROPPED -> animeList.filter { it.status == AnimeStatus.DROPPED }
             AnimeFilter.NOT_AIRED -> animeList.filter { isAirDateInFuture(it.airDate) }
         }
-        
-        val sorted = when (filter) {
+
+        // 手动排序模式：完全按用户拖拽保存的顺序，忽略状态分组与进度时间键
+        val sorted = if (sortMode == ListSortMode.MANUAL) {
+            filtered.sortedWith(manualOrderComparator)
+        } else when (filter) {
             AnimeFilter.ALL -> {
                 // WATCHING 在前，COMPLETED 在后；同组内按最近更新进度时间降序（null 回退到 startDate）
                 filtered.sortedWith(

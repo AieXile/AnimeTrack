@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -88,8 +89,20 @@ interface AnimeDao {
     @Query("UPDATE anime SET isPinned = :isPinned WHERE id = :id")
     suspend fun setPinned(id: Int, isPinned: Boolean)
 
+    @Query("UPDATE anime SET manualOrder = :manualOrder WHERE id = :id")
+    suspend fun updateManualOrder(id: Int, manualOrder: Int)
+
+    /**
+     * 批量写入手动排序位置（单事务，仅 anime 表失效一次触发列表重算）。
+     * 纯本地字段，不走 Repository 的同步/统计副作用链。
+     */
+    @Transaction
+    suspend fun updateManualOrders(orders: List<Pair<Int, Int>>) {
+        orders.forEach { (id, manualOrder) -> updateManualOrder(id, manualOrder) }
+    }
+
     @Query("UPDATE anime SET coverUrl = :coverUrl WHERE id = :id")
-    suspend fun updateCoverUrl(id: Int, coverUrl: String)
+    suspend fun updateCoverUrl(id: Int, coverUrl: String?)
 
     @Query("DELETE FROM anime")
     suspend fun deleteAllAnimes()

@@ -45,7 +45,9 @@ data class UserAuthUser(
     val emailVerified: Int? = null,
     val avatar: String? = null,
     @SerializedName("created_at")
-    val createdAt: String?
+    val createdAt: String?,
+    /** 贡献等级（服务端下发，默认 0；旧版本服务端不返回时为 null） */
+    val level: Int? = null
 )
 
 data class UserAuthLoginResponse(
@@ -286,7 +288,13 @@ data class SubscribeRequest(
      * 旧版本客户端上传时使用的本地自增 id。服务端 upsert 成功后按
      * (anime_id + anime_title) 双条件删除该旧记录，完成向稳定远程 ID 的迁移。
      */
-    val legacyAnimeId: String? = null
+    val legacyAnimeId: String? = null,
+    /**
+     * 行键迁移时被本行取代的旧行键列表（旧 bangumiId / remoteSyncId）。
+     * 服务端 upsert 后删除旧行并记录迁移映射：拦截其他设备旧副本以旧键重传
+     * （乒乓复活），下发列表时携带映射，让各设备合并换键而非插入新卡。
+     */
+    val supersededAnimeIds: List<String>? = null
 )
 
 data class RemoveSubscribeRequest(
@@ -308,7 +316,9 @@ data class Subscription(
     val rating: Float? = null,
     val notes: String? = null,
     val startDate: String? = null,
-    val finishDate: String? = null
+    val finishDate: String? = null,
+    /** 行键迁移映射（服务端下发）：本行取代的旧行键，客户端合并时据此换键合并 */
+    val supersededAnimeIds: List<String>? = null
 )
 
 data class SubscriptionsResponse(

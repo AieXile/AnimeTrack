@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -101,17 +102,6 @@ fun CapsuleNavigationBar(
     val selectedIndex = visibleItems.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val itemCount = visibleItems.size
     val scope = rememberCoroutineScope()
-
-    // 指示器目标位置：点击跳转为静态目标（动画由 dragAnim 的 spring 完成），
-    // 手势滑动跟随 Pager 实际位置
-    val effectiveIndex = when {
-        jumpTarget != null && itemCount > 0 ->
-            jumpTarget.toFloat().coerceIn(0f, (itemCount - 1).toFloat())
-        pagerState != null && itemCount > 0 ->
-            (pagerState.currentPage + pagerState.currentPageOffsetFraction)
-                .coerceIn(0f, (itemCount - 1).toFloat())
-        else -> selectedIndex.toFloat()
-    }
 
     var rowWidthPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
@@ -253,7 +243,7 @@ fun CapsuleNavigationBar(
                 }
                 // 指示器跟随：必须直接读取 Pager 的快照状态（逐帧重发），
                 // 滑动中的分数位置与最终落点才能持续驱动弹簧。
-                // 不能监听 effectiveIndex——它是组合期计算的普通值，
+                // 不能监听组合期计算的普通位置值（如路由推导的索引），
                 // snapshotFlow 只发射一次，滑动结束后指示器会停在两个 Tab 中间。
                 // 拖动指示器本身时 Pager 静止、流不发射，手指位置不会被覆盖；
                 // 松手吸附期间按压未消退则跳过，避免 Pager 补间把指示器拉回中途
@@ -284,10 +274,19 @@ fun CapsuleNavigationBar(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // 指示器连续位置按 0.25 步长量化（与液态玻璃一致）：
+                    // 拖拽/飞行/Pager 滑动期间仅跨步长时重组一次，
+                    // 颜色/缩放过渡交给 CapsuleNavItem 内的 spring 动画平滑
+                    val dragPosition by remember(dragAnim) {
+                        derivedStateOf { (dragAnim.value * 4f).fastRoundToInt() / 4f }
+                    }
                     visibleItems.forEachIndexed { index, item ->
-                        val selected = index == selectedIndex
+                        // 选中态实时跟随指示器连续位置（Apple 液态玻璃 TabBar 行为）：
+                        // 指示器盖过哪个图标，哪个就渲染选中态，无需等松手导航
+                        val selected = index == dragPosition.fastRoundToInt()
                         val proximity = if (itemCount > 1) {
-                            1f - abs(effectiveIndex - index) / (itemCount - 1).toFloat()
+                            (1f - abs(dragPosition - index) / (itemCount - 1).toFloat())
+                                .fastCoerceIn(0f, 1f)
                         } else if (selected) 1f else 0f
 
                         Box(

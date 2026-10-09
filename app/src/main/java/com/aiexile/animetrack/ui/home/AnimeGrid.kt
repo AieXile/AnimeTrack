@@ -1,9 +1,11 @@
 package com.aiexile.animetrack.ui.home
 
 import android.graphics.Bitmap
+import android.view.HapticFeedbackConstants
 
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
+import com.aiexile.animetrack.data.ListSortMode
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -40,14 +43,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,10 +73,13 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.aiexile.animetrack.R
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,6 +92,8 @@ import com.aiexile.animetrack.ui.components.animateEnter
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyGridState
 
 // 季数角标形状顶层化复用：位于滞动热路径（ExpandedSeriesCard 每卡渲染），
 // 提升为顶层 val 使 SquircleShape 内置 size 级缓存生效。
@@ -93,6 +104,10 @@ private val SeasonBadgeShape = SquircleShape(6.dp)
 private fun FilterMenu(
     selectedFilter: AnimeFilter,
     onFilterSelected: (AnimeFilter) -> Unit,
+    listSortMode: ListSortMode,
+    onSortModeSelected: (ListSortMode) -> Unit,
+    onAdjustOrderClick: () -> Unit,
+    sortEditEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -116,56 +131,116 @@ private fun FilterMenu(
                 .padding(horizontal = 4.dp)
         ) {
             AnimeFilter.entries.forEach { filter ->
-                val isSelected = filter == selectedFilter
-
-                // 使用 Box + clickable（无涟漪）替代 DropdownMenuItem，
-                // 因为 DropdownMenuItem 不支持去除涟漪，而此行已有选中背景+对勾作为视觉指示
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            onFilterSelected(filter)
-                            expanded = false
-                        }
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(CircleShape)
-                            .then(
-                                if (isSelected) Modifier.background(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                ) else Modifier
-                            )
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (isSelected) {
-                                Icon(
-                                    painter = rememberAppIconPainter(AppIcon.CHECK),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                            Text(
-                                text = filter.displayName,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                fontSize = 14.sp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                FilterMenuRow(
+                    label = filter.displayName,
+                    isSelected = filter == selectedFilter,
+                    onClick = {
+                        onFilterSelected(filter)
+                        expanded = false
                     }
+                )
+            }
+
+            // 排序方式区块
+            HorizontalDivider(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .padding(top = 6.dp, bottom = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+            FilterMenuRow(
+                label = stringResource(R.string.home_sort_recent),
+                isSelected = listSortMode == ListSortMode.RECENT_PROGRESS,
+                onClick = {
+                    onSortModeSelected(ListSortMode.RECENT_PROGRESS)
+                    expanded = false
                 }
+            )
+            FilterMenuRow(
+                label = stringResource(R.string.home_sort_manual),
+                isSelected = listSortMode == ListSortMode.MANUAL,
+                onClick = {
+                    onSortModeSelected(ListSortMode.MANUAL)
+                    expanded = false
+                }
+            )
+            FilterMenuRow(
+                label = stringResource(R.string.home_sort_adjust),
+                isSelected = false,
+                leadingIcon = AppIcon.LIST_ARROW,
+                enabled = sortEditEnabled,
+                onClick = {
+                    onAdjustOrderClick()
+                    expanded = false
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 筛选/排序菜单行：选中态带主色胶囊背景 + 对勾；未选中可带前缀图标（如「调整顺序」）。
+ * 无涟漪点击（选中背景 + 对勾已作为视觉指示），视觉与原筛选行完全一致。
+ */
+@Composable
+private fun FilterMenuRow(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    leadingIcon: AppIcon? = null,
+    enabled: Boolean = true
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            )
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .then(
+                    if (isSelected) Modifier.background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    ) else Modifier
+                )
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (isSelected) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.CHECK),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else if (leadingIcon != null) {
+                    Icon(
+                        painter = rememberAppIconPainter(leadingIcon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Text(
+                    text = label,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 14.sp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = if (enabled) 1f else 0.45f
+                        )
+                )
             }
         }
     }
@@ -212,7 +287,13 @@ internal data class AnimeGridState(
     val selectedFilter: AnimeFilter,
     val seriesStackEnabled: Boolean = true,
     /** 堆叠卡片顶层页码记忆（系列 stableKey → topIndex），冷启动恢复用 */
-    val seriesStackTopIndices: Map<String, Int> = emptyMap()
+    val seriesStackTopIndices: Map<String, Int> = emptyMap(),
+    /** 主界面列表排序方式（筛选菜单排序区块 + 手动排序模式入口用） */
+    val listSortMode: ListSortMode = ListSortMode.RECENT_PROGRESS,
+    /** 手动排序编辑模式：网格替换为可拖拽卡片 + 顶部操作栏 */
+    val isSortEditMode: Boolean = false,
+    /** 排序编辑模式的内存快照（拖拽只改此列表，保存才写库） */
+    val sortEditList: List<Anime> = emptyList()
 )
 
 internal data class AnimeGridHeaderState(
@@ -238,6 +319,11 @@ internal fun AnimeGrid(
     onDelete: (Anime) -> Unit,
     onTogglePin: (Anime) -> Unit,
     onFilterSelected: (AnimeFilter) -> Unit,
+    onSortModeSelected: (ListSortMode) -> Unit = {},
+    onStartSortEdit: () -> Unit = {},
+    onSaveSortEdit: () -> Unit = {},
+    onCancelSortEdit: () -> Unit = {},
+    onSortItemMove: (Int, Int) -> Unit = { _, _ -> },
     onAvatarClick: () -> Unit = {},
     onDismissBanner: () -> Unit = {},
     onBannerClick: () -> Unit = {},
@@ -365,6 +451,24 @@ internal fun AnimeGrid(
         maxColumnsLandscape = 6
     )
 
+    // 手动排序拖拽状态：仅排序编辑模式下的卡片挂载 draggableItem，正常模式不生效
+    val view = LocalView.current
+    val reorderableGridState = rememberReorderableLazyGridState(gridState) { from, to ->
+        // 网格槽位 0 是排序工具栏，卡片列表下标 = 网格下标 - 1（越界/跨置顶区由 ViewModel 拒绝）
+        onSortItemMove(from.index - 1, to.index - 1)
+    }
+
+    // 可见卡片数（拆开系列堆叠后）≥2 才允许进入手动排序
+    val sortEditEnabled = remember(state.animeListItems) {
+        state.animeListItems.sumOf { item ->
+            when (item) {
+                is AnimeListItem.Single -> 1
+                is AnimeListItem.Series -> item.animeList.size
+                is AnimeListItem.ExpandedSeriesCard -> 1
+            }
+        } >= 2
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         modifier = modifier
@@ -385,6 +489,40 @@ internal fun AnimeGrid(
             bottom = if (isCapsuleNav) 96.dp else 16.dp
         )
     ) {
+        if (state.isSortEditMode) {
+            // 手动排序编辑模式：顶部操作栏 + 可拖拽卡片（独立 key 空间，避免与正常列表的 key 冲突）
+            item(
+                key = "sort_toolbar",
+                span = { GridItemSpan(maxLineSpan) },
+                contentType = "sort_toolbar"
+            ) {
+                SortModeToolbar(
+                    onCancel = onCancelSortEdit,
+                    onSave = onSaveSortEdit
+                )
+            }
+            items(
+                count = state.sortEditList.size,
+                key = { index -> "sort_${state.sortEditList[index].id}" },
+                contentType = { "sort_card" }
+            ) { index ->
+                val anime = state.sortEditList[index]
+                ReorderableItem(
+                    state = reorderableGridState,
+                    key = "sort_${anime.id}"
+                ) { isDragging ->
+                    SortEditCard(
+                        anime = anime,
+                        isDragging = isDragging,
+                        modifier = Modifier.longPressDraggableHandle(
+                            onDragStarted = {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            }
+                        )
+                    )
+                }
+            }
+        } else {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Box(
                 modifier = Modifier
@@ -414,6 +552,10 @@ internal fun AnimeGrid(
                 FilterMenu(
                     selectedFilter = state.selectedFilter,
                     onFilterSelected = onFilterSelected,
+                    listSortMode = state.listSortMode,
+                    onSortModeSelected = onSortModeSelected,
+                    onAdjustOrderClick = onStartSortEdit,
+                    sortEditEnabled = sortEditEnabled,
                     modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
@@ -640,6 +782,7 @@ internal fun AnimeGrid(
                 }
             }
         }
+        }
     }
 }
 
@@ -865,6 +1008,136 @@ private fun UserAvatarButton(
                 modifier = Modifier.size(18.dp),
                 tint = if (isLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 手动排序编辑模式顶部操作栏：取消 / 操作提示 / 保存。
+ * 替代正常模式的头像-横幅-筛选 header 行（编辑期间锁定筛选，防止列表结构变化）。
+ */
+@Composable
+private fun SortModeToolbar(
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onCancel) {
+            Text(text = stringResource(R.string.common_cancel))
+        }
+        Text(
+            text = stringResource(R.string.home_sort_hint),
+            fontSize = 12.sp,
+            lineHeight = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
+        )
+        Button(onClick = onSave) {
+            Text(text = stringResource(R.string.common_save))
+        }
+    }
+}
+
+/**
+ * 手动排序编辑模式的卡片：封面 + 标题 + 拖拽把手（右上角）+ 置顶角标（左上角）。
+ * 无点击/长按菜单/共享元素（编辑模式手势全部让位给拖拽），长按任意位置即可拖动。
+ */
+@Composable
+private fun SortEditCard(
+    anime: Anime,
+    isDragging: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isDragging) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "sortCardScale"
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        shape = SquircleShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shadowElevation = if (isDragging) 12.dp else 0.dp
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(anime.coverUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = anime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(SquircleShape(12.dp))
+                )
+
+                // 置顶角标：与正常模式「置顶固定最前」语义呼应
+                if (anime.isPinned) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(6.dp),
+                        shape = SquircleShape(6.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier
+                                .padding(3.dp)
+                                .size(12.dp)
+                        )
+                    }
+                }
+
+                // 拖拽把手：右上角圆形按钮
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                ) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.DRAG_HANDLE),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(16.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = anime.title,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
             )
         }
     }

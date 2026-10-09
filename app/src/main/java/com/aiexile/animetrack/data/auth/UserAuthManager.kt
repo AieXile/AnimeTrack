@@ -28,6 +28,7 @@ class UserAuthManager(private val context: Context) {
         private val EMAIL_KEY = stringPreferencesKey("email")
         private val AVATAR_KEY = stringPreferencesKey("avatar")
         private val CREATED_AT_KEY = stringPreferencesKey("created_at")
+        private val USER_LEVEL_KEY = intPreferencesKey("user_level")
         private val IS_LOGGED_IN_KEY = booleanPreferencesKey("is_logged_in")
         private val TOKEN_EXPIRED_KEY = booleanPreferencesKey("token_expired")
         private val TOKEN_KICKED_KEY = booleanPreferencesKey("token_kicked")
@@ -83,6 +84,10 @@ class UserAuthManager(private val context: Context) {
     val createdAt: Flow<String?> = context.userAuthDataStore.data
         .map { preferences -> preferences[CREATED_AT_KEY] }
 
+    /** 贡献等级（服务端下发，含 0）；未同步过为 null */
+    val userLevel: Flow<Int?> = context.userAuthDataStore.data
+        .map { preferences -> preferences[USER_LEVEL_KEY] }
+
     /** 当前登录用户 ID，未登录返回 null */
     val userId: Flow<Int?> = context.userAuthDataStore.data
         .map { preferences -> preferences[USER_ID_KEY] }
@@ -97,7 +102,8 @@ class UserAuthManager(private val context: Context) {
         username: String,
         email: String?,
         createdAt: String?,
-        avatar: String? = null
+        avatar: String? = null,
+        level: Int? = null
     ) {
         context.userAuthDataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = accessToken
@@ -107,12 +113,33 @@ class UserAuthManager(private val context: Context) {
             if (email != null) preferences[EMAIL_KEY] = email
             if (avatar != null) preferences[AVATAR_KEY] = avatar
             if (createdAt != null) preferences[CREATED_AT_KEY] = createdAt
+            if (level != null) preferences[USER_LEVEL_KEY] = level
             preferences[IS_LOGGED_IN_KEY] = true
             // 重新登录成功，清除失效与被踢标记
             preferences.remove(TOKEN_EXPIRED_KEY)
             preferences.remove(TOKEN_KICKED_KEY)
             // 新会话需重新上报 registrationId 绑定（服务端按会话级存储，用于被踢实时通知）
             preferences.remove(REGISTRATION_ID_REPORTED_KEY)
+        }
+    }
+
+    /**
+     * 静默刷新用户资料（个人页进入时 GET /user/profile 成功后调用）：
+     * 仅更新非空字段，不改动登录态、token 与推送上报标记（与 [saveLogin] 的副作用区分）。
+     */
+    suspend fun saveUserProfile(
+        username: String? = null,
+        email: String? = null,
+        createdAt: String? = null,
+        avatar: String? = null,
+        level: Int? = null
+    ) {
+        context.userAuthDataStore.edit { preferences ->
+            if (username != null) preferences[USERNAME_KEY] = username
+            if (email != null) preferences[EMAIL_KEY] = email
+            if (createdAt != null) preferences[CREATED_AT_KEY] = createdAt
+            if (avatar != null) preferences[AVATAR_KEY] = avatar
+            if (level != null) preferences[USER_LEVEL_KEY] = level
         }
     }
 
@@ -163,6 +190,7 @@ class UserAuthManager(private val context: Context) {
             preferences.remove(EMAIL_KEY)
             preferences.remove(AVATAR_KEY)
             preferences.remove(CREATED_AT_KEY)
+            preferences.remove(USER_LEVEL_KEY)
             preferences[IS_LOGGED_IN_KEY] = false
             // 主动登出后失效与被踢标记无意义，一并清除
             preferences.remove(TOKEN_EXPIRED_KEY)

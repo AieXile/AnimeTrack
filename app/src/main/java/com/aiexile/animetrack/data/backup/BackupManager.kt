@@ -50,7 +50,10 @@ object BackupManager {
         val dbFile = context.getDatabasePath("anime_database")
         val walFile = File(dbFile.parent, "anime_database-wal")
         val shmFile = File(dbFile.parent, "anime_database-shm")
+        // 下载封面目录（CoverDownloader 本地化的封面）
         val coversDir = File(context.filesDir, "anime_covers")
+        // 手动设置封面目录（用户自选图片，copyCoverToInternalStorage 保存）
+        val customCoversDir = File(context.filesDir, "covers")
 
         val zipFile = File(context.cacheDir, "AnimeTrack_Backup.zip")
         ZipOutputStream(FileOutputStream(zipFile).buffered()).use { zos ->
@@ -84,6 +87,19 @@ object BackupManager {
             if (coversDir.exists() && coversDir.isDirectory) {
                 coversDir.listFiles()?.forEach { coverFile ->
                     val entry = ZipEntry("covers/${coverFile.name}")
+                    zos.putNextEntry(entry)
+                    FileInputStream(coverFile).use { fis ->
+                        fis.copyTo(zos)
+                    }
+                    zos.closeEntry()
+                }
+            }
+
+            // 手动设置的封面存于 filesDir/covers，数据库中 coverUrl 指向其绝对路径，
+            // 不打包的话恢复后路径仍存在但文件缺失，封面将无法显示
+            if (customCoversDir.exists() && customCoversDir.isDirectory) {
+                customCoversDir.listFiles()?.forEach { coverFile ->
+                    val entry = ZipEntry("custom_covers/${coverFile.name}")
                     zos.putNextEntry(entry)
                     FileInputStream(coverFile).use { fis ->
                         fis.copyTo(zos)
@@ -151,6 +167,14 @@ object BackupManager {
                     entry.name.startsWith("covers/") -> {
                         val coverName = entry.name.removePrefix("covers/")
                         val coverFile = File(File(context.filesDir, "anime_covers"), coverName)
+                        coverFile.parentFile?.mkdirs()
+                        FileOutputStream(coverFile).use { fos ->
+                            zis.copyTo(fos)
+                        }
+                    }
+                    entry.name.startsWith("custom_covers/") -> {
+                        val coverName = entry.name.removePrefix("custom_covers/")
+                        val coverFile = File(File(context.filesDir, "covers"), coverName)
                         coverFile.parentFile?.mkdirs()
                         FileOutputStream(coverFile).use { fos ->
                             zis.copyTo(fos)

@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
-import android.Manifest
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
+import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,8 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -30,7 +27,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +52,8 @@ import com.aiexile.animetrack.data.network.UpdatePushSettingsRequest
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.util.TimeZoneHelper
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,6 +66,9 @@ fun UpdateNotificationScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
     val enabled by settingsRepository.updateNotificationEnabled.collectAsState(false)
     val hour by settingsRepository.updateNotificationHour.collectAsState(9)
     val minute by settingsRepository.updateNotificationMinute.collectAsState(0)
@@ -81,8 +82,10 @@ fun UpdateNotificationScreen(
     val highlightKey = rememberSettingsHighlight(Routes.UPDATE_NOTIFICATION)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf("toggle" to 1, "time" to 2)
+    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
     LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
     }
 
     // 登录后从后端拉取推送设置
@@ -198,22 +201,11 @@ fun UpdateNotificationScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.update_notif_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.update_notif_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
@@ -221,8 +213,18 @@ fun UpdateNotificationScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                 .padding(horizontal = 16.dp),
+            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
+            contentPadding = if (liquidGlassEnabled) {
+                PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding()
+                )
+            } else {
+                PaddingValues(0.dp)
+            },
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }

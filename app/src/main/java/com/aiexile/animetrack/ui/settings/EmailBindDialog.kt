@@ -129,7 +129,8 @@ fun EmailBindDialog(
                         username = user.username,
                         email = user.email,
                         createdAt = user.createdAt,
-                        avatar = user.avatar
+                        avatar = user.avatar,
+                        level = user.level
                     )
                     // 与登录流程一致：上报推送 ID + 拉取云端订阅
                     try {

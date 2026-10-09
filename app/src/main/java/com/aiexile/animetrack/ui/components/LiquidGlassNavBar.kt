@@ -73,9 +73,9 @@ import kotlin.math.sign
  * 2. 镜像内容层（不可见）：捕获 Tab 内容到 [tabsBackdrop]，供浮块折射出强调色图标；
  * 3. 玻璃浮块（选中指示器）：拖拽移动、松手弹性吸附最近 Tab，按压时放大 +
  *    高光/阴影/内阴影渐显 + 色差折射；拖拽时整条胶囊有轻微弹性位移（panelOffset）。
- *    按压/拖拽/飞行期间，图标选中态与接近度实时跟随浮块连续位置（Apple
- *    液态玻璃 TabBar 行为）：浮块底下是哪个图标，哪个就渲染选中态，
- *    相邻图标按接近度渐变亮起。
+ *    按压/拖拽/飞行期间，可见行图标选中态实时跟随浮块连续位置（Apple
+ *    液态玻璃 TabBar 行为），相邻图标按接近度渐变亮起；浮块内折射出的
+ *    镜像图标一律直接渲染选中态——玻璃盖住的部分即选中渲染，无阈值切换。
  *
  * 尺寸与 [CapsuleNavigationBar] 普通模式一致：胶囊高 54dp、内部 4dp 边距、
  * 浮块高 46dp；水平 32dp / 底部 24dp 边距由 [CapsuleNavigationBar] 统一应用。
@@ -225,10 +225,11 @@ internal fun LiquidGlassNavBar(
             )
         }
 
-        // 图标选中态实时跟随浮块连续位置（Apple 液态玻璃 TabBar 行为）：
+        // 可见行图标选中态实时跟随浮块连续位置（Apple 液态玻璃 TabBar 行为）：
         // round 量化后仅在浮块跨过图标边界时重组一次，颜色/缩放过渡由
         // CapsuleNavItem 内的 spring 动画平滑，不逐帧重组。
-        // 逻辑（导航回调）仍用 currentIndex，视觉用 activeIndex，二者解耦
+        // 逻辑（导航回调）仍用 currentIndex，视觉用 activeIndex，二者解耦；
+        // 仅驱动可见行——浮块内镜像不受该阈值影响，一律渲染选中态
         val activeIndex by remember(dampedDragAnimation, itemCount) {
             derivedStateOf {
                 dampedDragAnimation.value.fastRoundToInt().fastCoerceIn(0, itemCount - 1)
@@ -316,7 +317,7 @@ internal fun LiquidGlassNavBar(
                 .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            visibleItems.forEachIndexed { index, item ->
+            visibleItems.forEach { item ->
                 // 折射内容按压时放大 1.2 倍，与浮块放大同步（示例 LocalLiquidBottomTabScale 语义）
                 Box(
                     modifier = Modifier
@@ -329,10 +330,13 @@ internal fun LiquidGlassNavBar(
                         },
                     contentAlignment = Alignment.Center
                 ) {
+                    // 镜像只在浮块折射中可见：玻璃盖住的部分直接渲染选中态
+                    //（填充图标变体 + 主题色，经 tint 呈强调色），不随 activeIndex
+                    // 的 round 阈值切换——拖拽途中滑入玻璃的图标即刻呈现选中渲染
                     CapsuleNavItem(
                         item = item,
-                        selected = index == activeIndex,
-                        proximity = rememberTabProximity(dampedDragAnimation, index),
+                        selected = true,
+                        proximity = 1f,
                         labelMode = labelMode
                     )
                 }

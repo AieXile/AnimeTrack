@@ -31,3 +31,15 @@ enum class StatusBarMode(@param:StringRes val labelRes: Int) {
     /** 实心状态栏：实色状态栏条，列表顶部预留随收拢收紧，内容被顶到其下方 */
     SOLID(R.string.statusbar_mode_solid),
 }
+
+/** 欢迎语入场效果：关闭 / 打字机逐字 / 乱码逐渐解码 */
+enum class GreetingEffectStyle(@param:StringRes val labelRes: Int) {
+    NONE(R.string.greeting_effect_none),
+    TYPING(R.string.greeting_effect_typing),
+    SCRAMBLE(R.string.greeting_effect_scramble);
+
+    companion object {
+        fun fromName(name: String?): GreetingEffectStyle =
+            entries.firstOrNull { it.name == name } ?: TYPING
+    }
+}

@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,13 +17,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +33,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.icons.AppIcon
+import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,22 +50,17 @@ fun BangumiAccountScreen(
     val syncState = uiState.syncState
     val isSyncing = syncState is BangumiSyncState.Syncing
     val syncingAction = (syncState as? BangumiSyncState.Syncing)?.action
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.bangumi_account_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.bangumi_account_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
@@ -73,8 +68,20 @@ fun BangumiAccountScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                    .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                     .verticalScroll(rememberScrollState())
+                    // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
+                    .then(
+                        if (liquidGlassEnabled) {
+                            Modifier.padding(
+                                top = paddingValues.calculateTopPadding(),
+                                bottom = paddingValues.calculateBottomPadding()
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -201,7 +208,18 @@ fun BangumiAccountScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                    .then(
+                        // 玻璃模式下内容视口全高，顶/底 inset 等效替换原 padding
+                        if (liquidGlassEnabled) {
+                            Modifier.padding(
+                                top = paddingValues.calculateTopPadding(),
+                                bottom = paddingValues.calculateBottomPadding()
+                            )
+                        } else {
+                            Modifier.padding(paddingValues)
+                        }
+                    )
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center

@@ -17,6 +17,10 @@
     <string name="home_ongoing">連載中</string>
     <string name="home_watched_exceeds_total">已看集數不能超過總集數</string>
     <string name="home_filter">篩選</string>
+    <string name="home_sort_recent">最近更新優先</string>
+    <string name="home_sort_manual">手動順序</string>
+    <string name="home_sort_adjust">調整順序</string>
+    <string name="home_sort_hint">長按卡片拖動調整順序，置頂卡片固定在最前</string>
     <string name="home_empty_anime_title">還沒有新增任何番劇</string>
     <string name="home_empty_anime_hint">點擊右下角的 + 按鈕新增</string>
     <string name="home_season_format">第%1$d季</string>

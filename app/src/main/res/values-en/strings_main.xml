@@ -17,6 +17,10 @@
     <string name="home_ongoing">Ongoing</string>
     <string name="home_watched_exceeds_total">Watched episodes cannot exceed total</string>
     <string name="home_filter">Filter</string>
+    <string name="home_sort_recent">Recently updated first</string>
+    <string name="home_sort_manual">Manual order</string>
+    <string name="home_sort_adjust">Adjust order</string>
+    <string name="home_sort_hint">Long-press and drag cards to reorder. Pinned cards stay on top</string>
     <string name="home_empty_anime_title">No anime added yet</string>
     <string name="home_empty_anime_hint">Tap the + button to add</string>
     <string name="home_season_format">Season %1$d</string>

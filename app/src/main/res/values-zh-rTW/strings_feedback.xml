@@ -24,11 +24,13 @@
     <string name="feedback_status_open">進行中</string>
     <string name="feedback_status_pending">已回覆</string>
     <string name="feedback_status_closed">已結束</string>
+    <string name="feedback_status_resolved">已解決</string>
     <string name="feedback_new_reply">新回覆</string>
 
     <!-- 會話詳情 -->
     <string name="feedback_append">追加回報</string>
     <string name="feedback_append_closed">會話已結束，無法繼續追加</string>
+    <string name="feedback_append_resolved">會話已解決，無法繼續追加</string>
     <string name="feedback_session_load_failed">載入會話失敗</string>
     <string name="feedback_attachment_file">附件</string>
 
@@ -50,6 +52,7 @@
     <string name="feedback_error_hourly_limit">1 小時內回報已達上限，請稍後再試</string>
     <string name="feedback_error_sensitive">內容包含不允許的詞彙，請修改後再試</string>
     <string name="feedback_error_session_closed">該回報已結束，請發起新回報</string>
+    <string name="feedback_error_session_resolved">該會話已解決，無法繼續追加</string>
     <string name="feedback_error_session_not_found">會話不存在或已被刪除</string>
     <string name="feedback_error_attachment">附件上傳失敗，請重試</string>
     <string name="feedback_error_auth_expired">登入已過期，請重新登入</string>

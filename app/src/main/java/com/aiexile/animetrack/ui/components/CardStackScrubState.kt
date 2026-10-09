@@ -60,6 +60,9 @@ internal data class StackLayerPlacement(
     val zIndex: Float
 )
 
+/** 行程缩放系数：进度 1 在"起点到边缘距离 × 0.6"处达成，缩短翻页确认行程。 */
+private const val StackTravelScale = 0.6f
+
 /**
  * 完成动画缓动（ease-out 二次）：k → 1-(1-k)²。
  * PhotoStack `_finish()` 的进度映射 p = fromP + (1-fromP)·(1-(1-k)²)
@@ -289,12 +292,14 @@ internal fun stackLayerPlacement(
 
 /**
  * 行程分母（JS `_progress` 的方向感知适配）：手指起点到**滑动方向同侧**
- * 屏幕边缘的距离，下限 120dp。
+ * 屏幕边缘距离的 [StackTravelScale] 倍，下限 120dp。
  *
  * JS 原版固定用"起点到左缘"（聊天卡片固定侧、位置集中），网格场景下
  * 起点随卡片所在列变化，固定左缘会导致屏幕右侧卡片向右滑的可用行程
- * 远小于分母、进度永远到不了翻页阈值——故按方向选取，保证拖到屏幕
- * 边缘恰好进度 1，两侧列卡片向边缘方向滑动总能触发阈值。
+ * 远小于分母、进度永远到不了翻页阈值——故按方向选取，保证两侧列卡片
+ * 向边缘方向滑动总能触发阈值。原始规格（拖到边缘恰好进度 1）在网格
+ * 场景实测行程过长（翻页需拖 100~200dp），乘 0.6 缩放系数缩短确认
+ * 距离，同时保留"越靠近边缘行程越短"的跟手特性。
  *
  * @param startXInWindowPx 手指起点在窗口坐标系中的 x
  * @param dir 滑动方向（-1 向左 / +1 向右）
@@ -305,10 +310,9 @@ internal fun stackDragDenominator(
     dir: Int,
     screenWidthPx: Float,
     motion: CardStackMotion
-): Float = if (dir < 0) {
-    max(motion.minTravelPx, startXInWindowPx)
-} else {
-    max(motion.minTravelPx, screenWidthPx - startXInWindowPx)
+): Float {
+    val travel = if (dir < 0) startXInWindowPx else screenWidthPx - startXInWindowPx
+    return max(motion.minTravelPx, travel * StackTravelScale)
 }
 
 /** 擦洗进度：|dx| / 行程分母，上限 1。 */

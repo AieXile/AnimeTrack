@@ -26,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +74,8 @@ import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import androidx.compose.runtime.LaunchedEffect
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -98,6 +98,9 @@ fun UserLoginScreen(
     val userAuthManager = remember { AppContainer.getUserAuthManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
 
     val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
     val tokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
@@ -106,6 +109,7 @@ fun UserLoginScreen(
     val email by userAuthManager.email.collectAsState(initial = null)
     val createdAt by userAuthManager.createdAt.collectAsState(initial = null)
     val avatar by userAuthManager.avatar.collectAsState(initial = null)
+    val userLevel by userAuthManager.userLevel.collectAsState(initial = null)
 
     var inputUsername by remember { mutableStateOf("") }
     var inputPassword by remember { mutableStateOf("") }
@@ -171,6 +175,28 @@ fun UserLoginScreen(
         } else {
             deviceCount = null
             manageDevices = emptyList()
+        }
+    }
+
+    // 进入个人页时静默刷新用户资料（等级/头像/用户名等），失败不提示、不阻塞 UI
+    LaunchedEffect(isLoggedIn && !tokenExpired) {
+        if (isLoggedIn && !tokenExpired) {
+            val token = userAuthManager.getCachedAccessToken() ?: return@LaunchedEffect
+            try {
+                val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $token")
+                val profileUser = profileResponse.user
+                if (profileResponse.success && profileUser != null) {
+                    userAuthManager.saveUserProfile(
+                        username = profileUser.username,
+                        email = profileUser.email,
+                        createdAt = profileUser.createdAt,
+                        avatar = profileUser.avatar,
+                        level = profileUser.level
+                    )
+                }
+            } catch (_: Exception) {
+                // 静默失败：保留本地缓存资料
+            }
         }
     }
 
@@ -327,7 +353,7 @@ fun UserLoginScreen(
      * 保存登录态 → 补全 profile → 上报推送 ID → 触发订阅同步。
      * 必须在 IO 协程中调用。
      */
-    suspend fun processAuthSuccess(accessToken: String, refreshToken: String, userId: Int, uname: String, uemail: String?, ucreatedAt: String?, uavatar: String?) {
+    suspend fun processAuthSuccess(accessToken: String, refreshToken: String, userId: Int, uname: String, uemail: String?, ucreatedAt: String?, uavatar: String?, ulevel: Int? = null) {
         userAuthManager.saveLogin(
             accessToken = accessToken,
             refreshToken = refreshToken,
@@ -335,9 +361,10 @@ fun UserLoginScreen(
             username = uname,
             email = uemail,
             createdAt = ucreatedAt,
-            avatar = uavatar
+            avatar = uavatar,
+            level = ulevel
         )
-        // 获取完整用户信息（含 created_at）
+        // 获取完整用户信息（含 created_at / level）
         try {
             val profileResponse = RetrofitClient.userAuthApi.getProfile("Bearer $accessToken")
             if (profileResponse.success && profileResponse.user != null) {
@@ -349,7 +376,8 @@ fun UserLoginScreen(
                     username = profileUser.username,
                     email = profileUser.email,
                     createdAt = profileUser.createdAt,
-                    avatar = profileUser.avatar
+                    avatar = profileUser.avatar,
+                    level = profileUser.level
                 )
             }
         } catch (_: Exception) {
@@ -415,7 +443,8 @@ fun UserLoginScreen(
                         uname = response.user.username,
                         uemail = response.user.email,
                         ucreatedAt = response.user.createdAt,
-                        uavatar = response.user.avatar
+                        uavatar = response.user.avatar,
+                        ulevel = response.user.level
                     )
                 } else {
                     withContext(Dispatchers.Main) {
@@ -477,7 +506,8 @@ fun UserLoginScreen(
                         uname = response.user.username,
                         uemail = response.user.email,
                         ucreatedAt = response.user.createdAt,
-                        uavatar = response.user.avatar
+                        uavatar = response.user.avatar,
+                        ulevel = response.user.level
                     )
                     withContext(Dispatchers.Main) {
                         showRestoreDialog = false
@@ -513,28 +543,32 @@ fun UserLoginScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.user_login_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.user_login_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                 .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
+                .then(
+                    if (liquidGlassEnabled) {
+                        Modifier.padding(
+                            top = paddingValues.calculateTopPadding(),
+                            bottom = paddingValues.calculateBottomPadding()
+                        )
+                    } else {
+                        Modifier
+                    }
+                ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoggedIn && !tokenExpired) {
@@ -624,6 +658,21 @@ fun UserLoginScreen(
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
+                        }
+                        // 贡献等级徽章（服务端下发 level，含 0 即展示；样式与内测徽章同款）
+                        userLevel?.let { level ->
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = SquircleShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.user_login_level_badge, level),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
                         }
                     }
                 }

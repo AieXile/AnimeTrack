@@ -31,8 +31,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 40
-        versionName = "v0.7.0"
+        versionCode = 41
+        versionName = "v0.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -141,6 +141,8 @@ dependencies {
     implementation(libs.haze)
     implementation(libs.backdrop)
     implementation(libs.kyant.shapes)
+    // LazyGrid 拖拽排序（主界面手动排序模式）
+    implementation(libs.reorderable)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     

@@ -52,6 +52,7 @@ enum class AppIcon(
     DELETE(R.drawable.sym_delete, R.drawable.lucide_trash_2),
     DESCRIPTION(R.drawable.sym_description, R.drawable.lucide_file_text),
     DEVICES(R.drawable.sym_devices, R.drawable.lucide_smartphone),
+    DRAG_HANDLE(R.drawable.sym_drag_handle, R.drawable.lucide_grip_vertical),
     EDIT(R.drawable.sym_edit, R.drawable.lucide_pencil),
     EMAIL(R.drawable.sym_email, R.drawable.lucide_mail),
     ERROR(R.drawable.sym_error, R.drawable.lucide_circle_alert),

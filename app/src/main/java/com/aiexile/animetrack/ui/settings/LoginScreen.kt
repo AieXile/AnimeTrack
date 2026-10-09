@@ -20,12 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,6 +51,8 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,36 +78,31 @@ fun LoginScreen(
     val bangumiExpired by authManager.tokenExpired.collectAsState(initial = false)
 
     val scope = rememberCoroutineScope()
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
     val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
-    val autoSyncVisible by (settingsRepository?.autoSyncVisible?.collectAsState(false) ?: remember { mutableStateOf(false) })
 
     // 搜索定位：高亮目标项并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.LOGIN)
     val listState = rememberLazyListState()
-    // LazyColumn 索引：0=AnimeTrack 1=Bilibili 2=Bangumi 3=自动同步 4=隐藏头像
+    // LazyColumn 索引：0=AnimeTrack 1=Bilibili 2=Bangumi 3=隐藏头像
     val highlightAnchors = mapOf(
-        "auto_sync" to 3,
-        "hide_avatar" to 4
+        "hide_avatar" to 3
     )
+    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
     LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.login_screen_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.login_screen_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
@@ -115,10 +110,19 @@ fun LoginScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），原有 contentPadding 叠加顶/底 inset
+            contentPadding = if (liquidGlassEnabled) {
+                PaddingValues(
+                    top = 16.dp + paddingValues.calculateTopPadding(),
+                    bottom = 100.dp + paddingValues.calculateBottomPadding()
+                )
+            } else {
+                PaddingValues(top = 16.dp, bottom = 100.dp)
+            }
         ) {
             item {
                 val userAuthManager = remember { AppContainer.getUserAuthManager() }
@@ -170,34 +174,6 @@ fun LoginScreen(
                     // 失效后强制进入重新登录，不再进入账号管理页
                     onClick = if (bangumiLoggedIn && !bangumiExpired) onNavigateBangumiAccount else onNavigateBangumiLogin
                 )
-            }
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .then(rememberHighlightModifier("auto_sync", highlightKey)),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.login_screen_auto_sync),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = stringResource(R.string.login_screen_auto_sync_desc),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    AppSwitch(
-                        checked = autoSyncVisible,
-                        onCheckedChange = { scope.launch { settingsRepository?.setAutoSyncVisible(it) } }
-                    )
-                }
             }
             item {
                 Row(

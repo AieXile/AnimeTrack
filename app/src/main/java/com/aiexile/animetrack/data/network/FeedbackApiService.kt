@@ -19,15 +19,19 @@ const val FEEDBACK_ROLE_USER = "user"
 const val FEEDBACK_ROLE_ASSISTANT = "assistant"
 const val FEEDBACK_ROLE_SYSTEM = "system"
 
-/** 会话状态：进行中（可追加）/ 已回复待确认（可追加）/ 已结束（不可追加） */
+/** 会话状态：进行中（可追加）/ 已回复待确认（可追加）/ 已解决（终态，不可追加）/ 已结束（不可追加） */
 const val FEEDBACK_STATUS_OPEN = "open"
 const val FEEDBACK_STATUS_PENDING = "pending"
 const val FEEDBACK_STATUS_CLOSED = "closed"
+/** 已解决（终态，行为同 closed：只读、禁止追加） */
+const val FEEDBACK_STATUS_RESOLVED = "resolved"
 
 /** 服务端错误码 */
 const val FEEDBACK_CODE_RATE_LIMITED = "RATE_LIMITED"
 const val FEEDBACK_CODE_SENSITIVE = "SENSITIVE_CONTENT"
 const val FEEDBACK_CODE_SESSION_CLOSED = "SESSION_CLOSED"
+/** 向已解决（resolved）会话追加时返回，语义同 SESSION_CLOSED */
+const val FEEDBACK_CODE_SESSION_RESOLVED = "SESSION_RESOLVED"
 const val FEEDBACK_CODE_SESSION_NOT_FOUND = "SESSION_NOT_FOUND"
 
 /** 附件类型 */
@@ -104,7 +108,7 @@ data class FeedbackSendResponse(
     @SerializedName(value = "userMessage", alternate = ["user_message"])
     val userMessage: FeedbackMessage? = null,
     val reply: FeedbackMessage? = null,
-    /** 错误码：SENSITIVE_CONTENT / SESSION_CLOSED / CONTENT_TOO_LONG / RATE_LIMITED */
+    /** 错误码：SENSITIVE_CONTENT / SESSION_CLOSED / SESSION_RESOLVED / CONTENT_TOO_LONG / RATE_LIMITED */
     val code: String? = null,
     /** 限流场景下的重试等待秒数（429 时返回） */
     @SerializedName(value = "retryAfter", alternate = ["retry_after"])
@@ -121,7 +125,7 @@ data class FeedbackSession(
     val lastMessage: String? = null,
     @SerializedName(value = "messageCount", alternate = ["message_count"])
     val messageCount: Int = 0,
-    /** open（可追加）/ closed（已关闭） */
+    /** open（可追加）/ pending / resolved（已解决，不可追加）/ closed（不可追加） */
     val status: String = "open",
     /** 有未读的管理员回复（最新消息是 assistant 且晚于上次已读时间） */
     @SerializedName(value = "hasNewReply", alternate = ["has_new_reply"])

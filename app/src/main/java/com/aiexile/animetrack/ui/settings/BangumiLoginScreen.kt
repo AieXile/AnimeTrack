@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -16,13 +14,10 @@ import androidx.compose.foundation.layout.size
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +36,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.ui.login.LoginViewModel
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +48,9 @@ fun BangumiLoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var webView by remember { mutableStateOf<WebView?>(null) }
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(uiState.isLoginSuccess) {
         if (uiState.isLoginSuccess) {
@@ -62,30 +62,31 @@ fun BangumiLoginScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.bangumi_login_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
+            GlassSettingsTopBar(
+                title = stringResource(R.string.bangumi_login_title),
+                onBack = {
+                    // 与原返回逻辑一致：先销毁 WebView 再返回
+                    webView?.destroy()
+                    webView = null
+                    onBack()
                 },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        webView?.destroy()
-                        webView = null
-                        onBack()
-                    }) {
-                        Icon(rememberAppIconPainter(AppIcon.ARROW_BACK), contentDescription = stringResource(R.string.common_back))
-                    }
-                }
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(
+                    // 玻璃模式下内容视口全高（WebView 延伸到顶栏下方供模糊采样），底部保留导航栏 inset
+                    if (liquidGlassEnabled) {
+                        Modifier.padding(bottom = paddingValues.calculateBottomPadding())
+                    } else {
+                        Modifier.padding(paddingValues)
+                    }
+                )
         ) {
             if (uiState.isLoading) {
                 Box(

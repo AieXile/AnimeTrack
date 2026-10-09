@@ -91,8 +91,11 @@
     <string name="nav_custom_show_schedule_desc">在导航栏显示追番看板入口</string>
     <string name="nav_custom_greeting_title">自定义欢迎语</string>
     <string name="nav_custom_greeting_subtitle">设置首页标题栏显示的欢迎语</string>
-    <string name="nav_custom_typing_effect">打字效果</string>
-    <string name="nav_custom_typing_effect_desc">欢迎语逐字显示的打字机动画</string>
+    <string name="nav_custom_greeting_effect">入场效果</string>
+    <string name="nav_custom_greeting_effect_desc">选择欢迎语入场动画：打字机逐字或乱码逐渐解码</string>
+    <string name="greeting_effect_none">关闭</string>
+    <string name="greeting_effect_typing">打字机</string>
+    <string name="greeting_effect_scramble">乱码解码</string>
     <string name="nav_custom_greeting_placeholder">留空则显示随机 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案过长可能会被截断</string>
     <string name="nav_custom_advanced_blur">高级模糊</string>

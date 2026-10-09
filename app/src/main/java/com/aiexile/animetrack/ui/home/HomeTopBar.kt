@@ -24,8 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,17 +34,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import com.aiexile.animetrack.R
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.advancedHazeEffect
 import dev.chrisbanes.haze.HazeState
-import kotlinx.coroutines.delay
 
 /**
  * 主页顶部栏（独立 Composable，用于在 SharedTransitionLayout 外层渲染，
@@ -57,7 +53,7 @@ import kotlinx.coroutines.delay
 fun HomeTopBar(
     viewModel: HomeViewModel,
     customGreeting: String,
-    greetingTypingEffect: Boolean,
+    greetingEffectStyle: GreetingEffectStyle,
     showSearchButton: Boolean,
     fabLocation: FabLocation,
     isCurrentPage: Boolean,
@@ -182,9 +178,11 @@ fun HomeTopBar(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 val greetingText = viewModel.resolveGreetingText(customGreeting)
-                TypingGreeting(
+                GreetingText(
                     greetingText = greetingText,
-                    shouldAnimate = greetingTypingEffect && viewModel.shouldAnimateGreeting(greetingText),
+                    style = greetingEffectStyle,
+                    shouldAnimate = greetingEffectStyle != GreetingEffectStyle.NONE &&
+                        viewModel.shouldAnimateGreeting(greetingText),
                     onAnimated = { viewModel.onGreetingAnimated(it) },
                     // morph 收拢早期（0→0.35）问候语先行淡出，右侧按钮保留到终点与 FAB 图标交接
                     modifier = Modifier.graphicsLayer {
@@ -227,37 +225,4 @@ fun HomeTopBar(
             }
         }
     }
-}
-
-@Composable
-private fun TypingGreeting(
-    greetingText: String,
-    shouldAnimate: Boolean,
-    onAnimated: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var visibleCharCount by remember { mutableIntStateOf(if (shouldAnimate) 0 else greetingText.length) }
-
-    LaunchedEffect(greetingText, shouldAnimate) {
-        if (shouldAnimate) {
-            delay(500)
-            for (i in 1..greetingText.length) {
-                visibleCharCount = i
-                delay(100)
-            }
-            onAnimated(greetingText)
-        } else {
-            visibleCharCount = greetingText.length
-        }
-    }
-
-    Text(
-        text = greetingText.substring(0, visibleCharCount.coerceAtMost(greetingText.length)),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onBackground,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier
-    )
 }

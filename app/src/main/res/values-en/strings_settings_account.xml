@@ -7,6 +7,7 @@
     <string name="user_login_user_id">ID: %1$d</string>
     <string name="user_login_beta_badge">Beta user</string>
     <string name="user_login_official_badge">Official user</string>
+    <string name="user_login_level_badge">Contributor Lv.%1$d</string>
     <string name="user_login_email_not_set">Email not set</string>
     <string name="user_login_register_time">Registered: %1$s</string>
     <string name="user_login_logged_in">Logged in</string>
@@ -101,8 +102,6 @@
     <string name="login_screen_logged_in">Logged in</string>
     <string name="login_screen_bilibili_subtitle">Log in to sync anime list</string>
     <string name="login_screen_bangumi_subtitle">Log in to sync anime data</string>
-    <string name="login_screen_auto_sync">Auto Sync</string>
-    <string name="login_screen_auto_sync_desc">Show auto-sync toggle on Bilibili sync screen</string>
     <string name="login_screen_hide_avatar">Hide Home Avatar</string>
     <string name="login_screen_hide_avatar_desc">Hide the login avatar button at the top of the home screen</string>
 

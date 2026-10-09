@@ -10,14 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -30,8 +28,8 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.MarkdownText
 import com.aiexile.animetrack.ui.components.MarkdownTextStyle
 import com.aiexile.animetrack.ui.components.SquircleShape
-import com.aiexile.animetrack.ui.icons.AppIcon
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 /**
  * 隐私政策长文档排版：较默认紧凑样式更大字号（正文 14sp）与更宽的
@@ -58,6 +56,9 @@ fun PrivacyPolicyScreen(
     onBack: () -> Unit
 ) {
     BackHandler { onBack() }
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
     val context = LocalContext.current
     val content = remember {
         runCatching {
@@ -68,30 +69,31 @@ fun PrivacyPolicyScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.privacy_policy_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.privacy_policy_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                 .verticalScroll(rememberScrollState())
+                // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
+                .then(
+                    if (liquidGlassEnabled) {
+                        Modifier.padding(
+                            top = paddingValues.calculateTopPadding(),
+                            bottom = paddingValues.calculateBottomPadding()
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(horizontal = 20.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))

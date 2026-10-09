@@ -58,6 +58,7 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.util.coverImageRequestForList
 import com.aiexile.animetrack.util.isUnaired
+import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -146,7 +147,8 @@ fun AnimeCardStack(
         }
     }
 
-    // 屏幕宽（px）：方向感知行程分母——向右滑时计算"起点到右缘"剩余行程用
+    // 屏幕宽（px）：方向感知行程分母（×0.6 缩放）——计算"起点到滑动方向
+    // 同侧边缘"剩余行程用
     val screenWidthPx = with(density) {
         LocalConfiguration.current.screenWidthDp.dp.toPx()
     }
@@ -249,8 +251,9 @@ fun AnimeCardStack(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     // 手指起点窗口 x（手势区域原点窗口 x + 局部 x，等价 JS 的 clientX）。
                     // 行程分母按滑动方向选取（方向感知）：向左 = 起点到左缘距离、
-                    // 向右 = 起点到右缘距离——拖到屏幕边缘恰好进度 1，
-                    // 保证屏幕两侧列的卡片向边缘方向滑动也总能触发翻页阈值。
+                    // 向右 = 起点到右缘距离，再乘 0.6 缩放系数（拖到边缘路程的
+                    // 60% 即进度 1）——保证屏幕两侧列的卡片向边缘方向滑动也总能
+                    // 触发翻页阈值，同时缩短翻页确认行程。
                     val startXInWindow = stackOriginWindowX.floatValue + down.position.x
                     // 接管判定阈值：平台 touchSlop（约 8dp，与 JS 8px 测量值一致）
                     val slop = viewConfiguration.touchSlop
@@ -490,11 +493,12 @@ private fun StackCardLayer(
                 .fillMaxWidth()
                 .aspectRatio(CoverAspectRatio)
         ) {
-            if (anime.coverUrl != null) {
-                val coverUrl = anime.coverUrl
+            // 先解析封面模型：空串脏数据/本地文件缺失均解析为 null，走占位图分支
+            val resolvedModel = remember(anime.coverUrl) { resolveCoverModel(anime.coverUrl) }
+            if (resolvedModel != null) {
                 val context = LocalContext.current
-                val coverRequest = remember(coverUrl) {
-                    coverImageRequestForList(context, coverUrl)
+                val coverRequest = remember(anime.coverUrl) {
+                    coverImageRequestForList(context, anime.coverUrl)
                 }
                 // 共享元素过渡：仅顶卡（depth==0）参与，key 与详情页封面配对实现
                 // 飞入飞出；探边卡带旋转/缩放变换，参与会导致飞行起点歪斜。

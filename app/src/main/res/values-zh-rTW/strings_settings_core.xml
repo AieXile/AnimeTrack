@@ -87,8 +87,11 @@
     <string name="nav_custom_show_schedule_desc">在導航欄顯示追番看板入口</string>
     <string name="nav_custom_greeting_title">自訂歡迎語</string>
     <string name="nav_custom_greeting_subtitle">設定首頁標題欄顯示的歡迎語</string>
-    <string name="nav_custom_typing_effect">打字效果</string>
-    <string name="nav_custom_typing_effect_desc">歡迎語逐字顯示的打字機動畫</string>
+    <string name="nav_custom_greeting_effect">入場效果</string>
+    <string name="nav_custom_greeting_effect_desc">選擇歡迎語入場動畫：打字機逐字或亂碼逐漸解碼</string>
+    <string name="greeting_effect_none">關閉</string>
+    <string name="greeting_effect_typing">打字機</string>
+    <string name="greeting_effect_scramble">亂碼解碼</string>
     <string name="nav_custom_greeting_placeholder">留空則顯示隨機 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案過長可能會被截斷</string>
     <string name="nav_custom_advanced_blur">進階模糊</string>

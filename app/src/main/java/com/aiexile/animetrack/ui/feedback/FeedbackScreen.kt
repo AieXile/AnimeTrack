@@ -102,6 +102,8 @@ fun FeedbackScreen(
                     context.getString(R.string.feedback_error_sensitive)
                 FeedbackSendError.SessionClosed ->
                     context.getString(R.string.feedback_error_session_closed)
+                FeedbackSendError.SessionResolved ->
+                    context.getString(R.string.feedback_error_session_resolved)
                 FeedbackSendError.SessionNotFound ->
                     context.getString(R.string.feedback_error_session_not_found)
                 FeedbackSendError.AttachmentFailed ->

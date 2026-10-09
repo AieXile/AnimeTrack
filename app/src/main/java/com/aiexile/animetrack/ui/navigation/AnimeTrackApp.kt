@@ -971,9 +971,13 @@ private fun MainOverlay(
         )
     }
 
-    // 从 settingsRepository 读取 HomeTopBar 所需状态
-    val customGreeting by settingsRepository.customGreeting.collectAsState("")
-    val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
+    // 从 settingsRepository 读取 HomeTopBar 所需状态；初始值取同步缓存：
+    // MainOverlay 随路由切换销毁重建，collectAsState 默认值会使欢迎语瞬态解析为
+    // 随机前缀，与已播放标记不匹配导致返回主页时重播打字动画
+    val customGreeting by settingsRepository.customGreeting
+        .collectAsState(settingsRepository.cachedCustomGreeting())
+    val greetingEffectStyle by settingsRepository.greetingEffectStyle
+        .collectAsState(settingsRepository.cachedGreetingEffectStyle())
     val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
 
     // 从 homeViewModel 读取列表状态，用于判断搜索按钮可见性
@@ -1151,7 +1155,7 @@ private fun MainOverlay(
                 HomeTopBar(
                     viewModel = homeViewModel,
                     customGreeting = customGreeting,
-                    greetingTypingEffect = greetingTypingEffect,
+                    greetingEffectStyle = greetingEffectStyle,
                     showSearchButton = showSearchButton,
                     fabLocation = fabLocation,
                     // 大屏无 FAB，顶栏始终提供添加入口（不受 FAB 位置设置约束）

@@ -9,23 +9,27 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -33,7 +37,6 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,10 +60,14 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.isCompactWidth
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationLabelMode
+import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.navigation.Routes
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +79,9 @@ fun NavigationCustomizeScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
+    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
+    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
+    val glassBackdrop = rememberLayerBackdrop()
     // 「显示收藏」开关暂时隐藏，功能本身保留，后续视收藏页完善情况恢复
     // val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
@@ -103,40 +114,46 @@ fun NavigationCustomizeScreen(
         put("content", i); i++
         put("greeting", i); put("typing_effect", i)
     }
+    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
     LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it) }
+        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
     }
+    // 欢迎语分组索引：聚焦输入框时整组滚动到顶栏下缘，为下方超限提示留出键盘上方冗余
+    val greetingGroupIndex = highlightAnchors["greeting"] ?: 0
     // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
     val expandNavStyleGroup = highlightKey == "nav_style"
     val expandFabGroup = highlightKey == "fab"
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.nav_custom_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
+            GlassSettingsTopBar(
+                title = stringResource(R.string.nav_custom_title),
+                onBack = onBack,
+                liquidGlassEnabled = liquidGlassEnabled,
+                backdrop = glassBackdrop
             )
-        }
+        },
+        // 键盘弹出时把 IME 边衬并入内容区域：标准模式收缩列表视口、
+        // 玻璃模式抬高 contentPadding 驻留区，输入框区域随键盘抬升
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.ime)
     ) { paddingValues ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
+                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
                 .padding(horizontal = 16.dp),
+            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
+            contentPadding = if (liquidGlassEnabled) {
+                PaddingValues(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding()
+                )
+            } else {
+                PaddingValues(0.dp)
+            },
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "spacer_top") { Spacer(modifier = Modifier.height(4.dp)) }
@@ -321,18 +338,42 @@ fun NavigationCustomizeScreen(
                     modifier = rememberHighlightModifier("greeting", highlightKey)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val greetingTypingEffect by settingsRepository.greetingTypingEffect.collectAsState(true)
-                        SwitchItem(
-                            title = stringResource(R.string.nav_custom_typing_effect),
-                            description = stringResource(R.string.nav_custom_typing_effect_desc),
-                            checked = greetingTypingEffect,
-                            onCheckedChange = { scope.launch { settingsRepository.setGreetingTypingEffect(it) } },
-                            itemKey = "typing_effect",
-                            highlightKey = highlightKey
-                        )
+                        val greetingEffectStyle by settingsRepository.greetingEffectStyle
+                            .collectAsState(settingsRepository.cachedGreetingEffectStyle())
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = rememberHighlightModifier("typing_effect", highlightKey)
+                                .fillMaxWidth()
+                        ) {
+                            GreetingEffectStyle.entries.forEachIndexed { index, style ->
+                                SegmentedButton(
+                                    selected = greetingEffectStyle == style,
+                                    onClick = { scope.launch { settingsRepository.setGreetingEffectStyle(style) } },
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index = index,
+                                        count = GreetingEffectStyle.entries.size
+                                    ),
+                                    icon = {},
+                                    label = {
+                                        Text(
+                                            text = stringResource(style.labelRes),
+                                            maxLines = 1,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                )
+                            }
+                        }
                         CustomGreetingField(
                             customGreeting = settingsRepository.customGreeting.collectAsState("").value,
-                            onGreetingChange = { scope.launch { settingsRepository.setCustomGreeting(it) } }
+                            onGreetingChange = { scope.launch { settingsRepository.setCustomGreeting(it) } },
+                            onFocus = {
+                                scope.launch {
+                                    // 略延迟避开键盘弹出动画与输入框自带 bringIntoView 的滚动竞争，
+                                    // 最终以整组（含超限提示）完整露出在键盘上方为准
+                                    delay(250)
+                                    listState.animateScrollToItem(greetingGroupIndex, glassScrollCompensation)
+                                }
+                            }
                         )
                     }
                 }
@@ -651,11 +692,18 @@ private fun calculateGreetingWeight(text: String): Int {
 @Composable
 private fun CustomGreetingField(
     customGreeting: String,
-    onGreetingChange: (String) -> Unit
+    onGreetingChange: (String) -> Unit,
+    onFocus: () -> Unit
 ) {
     var textFieldValue by remember(customGreeting) { mutableStateOf(customGreeting) }
     val currentWeight = calculateGreetingWeight(textFieldValue)
     val isOverLimit = currentWeight > GREETING_MAX_WEIGHT
+    var isFocused by remember { mutableStateOf(false) }
+
+    // 聚焦时上滚整组；聚焦期间超限提示出现/消失改变组高度时再次上滚，确保提示不被键盘遮挡
+    LaunchedEffect(isFocused, isOverLimit) {
+        if (isFocused) onFocus()
+    }
 
     Column {
         TextField(
@@ -664,7 +712,9 @@ private fun CustomGreetingField(
                 textFieldValue = newValue
                 onGreetingChange(newValue)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isFocused = it.isFocused },
             placeholder = {
                 Text(
                     text = stringResource(R.string.nav_custom_greeting_placeholder),

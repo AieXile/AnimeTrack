@@ -62,6 +62,8 @@ sealed class FeedbackSendError {
     data object HourlyLimit : FeedbackSendError()
     data object Sensitive : FeedbackSendError()
     data object SessionClosed : FeedbackSendError()
+    /** 会话已解决（resolved，终态），不能追加 */
+    data object SessionResolved : FeedbackSendError()
     data object SessionNotFound : FeedbackSendError()
     data object AttachmentFailed : FeedbackSendError()
     /** 日志导出失败：反馈不带日志继续发送（降级提示，非发送失败） */

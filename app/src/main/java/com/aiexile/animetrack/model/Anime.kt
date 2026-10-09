@@ -78,7 +78,13 @@ data class Anime(
      * 是否已展示过「Bangumi 未关联」详情页提示遮罩（bangumiId 为空/为 0 时首次进入触发）。
      * 同一部番剧仅提示一次；删除后重新添加会重新提示。
      */
-    val bangumiMatchHintShown: Boolean = false
+    val bangumiMatchHintShown: Boolean = false,
+    /**
+     * 用户手动排序的全局位置（0 起，越小越靠前）。null 表示从未参与过手动排序，
+     * 排序时排在已设置条目之后并按默认排序键（lastProgressAt/startDate）回退。
+     * 仅本地有效，不参与服务器订阅同步。
+     */
+    val manualOrder: Int? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

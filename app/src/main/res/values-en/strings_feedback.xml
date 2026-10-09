@@ -24,11 +24,13 @@
     <string name="feedback_status_open">Open</string>
     <string name="feedback_status_pending">Replied</string>
     <string name="feedback_status_closed">Closed</string>
+    <string name="feedback_status_resolved">Resolved</string>
     <string name="feedback_new_reply">New reply</string>
 
     <!-- Session detail -->
     <string name="feedback_append">Add reply</string>
     <string name="feedback_append_closed">This session is closed</string>
+    <string name="feedback_append_resolved">This session is resolved</string>
     <string name="feedback_session_load_failed">Failed to load session</string>
     <string name="feedback_attachment_file">Attachment</string>
 
@@ -50,6 +52,7 @@
     <string name="feedback_error_hourly_limit">Hourly feedback limit reached, try later</string>
     <string name="feedback_error_sensitive">Content contains disallowed words</string>
     <string name="feedback_error_session_closed">Session closed, start a new one</string>
+    <string name="feedback_error_session_resolved">Session resolved, you can no longer add to it</string>
     <string name="feedback_error_session_not_found">Session not found or deleted</string>
     <string name="feedback_error_attachment">Attachment upload failed</string>
     <string name="feedback_error_auth_expired">Login expired, please sign in again</string>

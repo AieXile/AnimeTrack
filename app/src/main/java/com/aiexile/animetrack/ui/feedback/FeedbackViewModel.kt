@@ -181,6 +181,7 @@ class FeedbackViewModel(
                     _sendError.value = FeedbackSendError.RateLimited(result.retryAfterSeconds)
                 FeedbackSendResult.SensitiveContent -> _sendError.value = FeedbackSendError.Sensitive
                 FeedbackSendResult.SessionClosed -> _sendError.value = FeedbackSendError.SessionClosed
+                FeedbackSendResult.SessionResolved -> _sendError.value = FeedbackSendError.SessionResolved
                 FeedbackSendResult.SessionNotFound -> _sendError.value = FeedbackSendError.SessionNotFound
                 FeedbackSendResult.AttachmentUploadFailed ->
                     _sendError.value = FeedbackSendError.AttachmentFailed
