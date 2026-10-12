@@ -162,6 +162,22 @@ Download the latest APK from the [Releases page](https://github.com/AieXile/Anim
 
 ---
 
+<h2 align="center">Open Protocol: anime-play://</h2>
+
+AnimeTrack has initiated the [Anime Play Link Open Protocol](docs/ANIME_PLAY_LINK_PROTOCOL.md) — an open specification that any anime tracking/playback app is free to implement:
+
+```
+anime-play://subject/{bangumiSubjectId}?ep={episode}&ep_id={bangumiEpisodeId}&title={title}&src={senderId}&callback={callbackUri}
+```
+
+- **One-tap playback jump** – Tracking apps (senders) can launch any playback app (receivers) via the URI above and jump straight to the target episode, no more manual searching and episode hunting;
+- **Progress feedback sync** – After finishing an episode, the playback app reports progress back via the `callback` URI, keeping both ends in sync automatically;
+- **Zero-friction integration** – Pure local URL Scheme with no server dependency; uses Bangumi subject ID as the global key so no private mapping tables are needed; unknown parameters are always ignored for graceful compatibility.
+
+AnimeTrack has implemented the sender side of this protocol (one-tap launch of external players from the detail page). If you are developing an anime player or another tracking app, you are **warmly welcome to adopt** this protocol — as either a sender or a receiver, just follow the integration guides in the [full protocol document](docs/ANIME_PLAY_LINK_PROTOCOL.md). Implemented it? Feel free to add your app to the ecosystem list in the document.
+
+---
+
 <h2 align="center">Contributing</h2>
 
 Welcome to report issues or suggest ideas via [Issue](https://github.com/AieXile/AnimeTrack/issues). You are also welcome to fork the project and submit PRs.  

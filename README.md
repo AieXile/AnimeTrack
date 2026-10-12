@@ -166,6 +166,22 @@ AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓
 
 ---
 
+<h2 align="center">开放协议：anime-play://</h2>
+
+AnimeTrack 发起了 [番剧播放跳转开放协议](docs/ANIME_PLAY_LINK_PROTOCOL.md) —— 一套任何追番/播放类应用均可自由实现的开放规范：
+
+```
+anime-play://subject/{bangumiSubjectId}?ep={集数}&ep_id={Bangumi集数ID}&title={标题}&src={发送方标识}&callback={进度回传地址}
+```
+
+- **一键跳转播放** – 管理类应用（发送方）通过上述 URI 即可唤起任意播放类应用（接收方）并直达指定集数，免去手动搜索、翻找集数的繁琐；
+- **进度回传联动** – 播放方看完一集后通过 `callback` 地址回传进度，管理端进度自动更新，两端数据双向打通；
+- **零门槛接入** – 纯本地 URL Scheme，不依赖任何服务端；以 Bangumi 条目 ID 为全局主键，各方无需维护私有映射表；未知参数一律忽略，渐进兼容。
+
+AnimeTrack 已作为发送方实现该协议（详情页一键唤起外部播放器）。如果你正在开发番剧播放器或其他追番管理应用，**欢迎积极适配**——无论是作为发送方还是接收方，参照[完整协议文档](docs/ANIME_PLAY_LINK_PROTOCOL.md)中的适配指南即可快速接入，实现了也欢迎补充到协议文档的生态列表中。
+
+---
+
 <h2 align="center">参与贡献</h2>
 
 欢迎通过 [Issue](https://github.com/AieXile/AnimeTrack/issues) 报告问题或提出建议，也欢迎 Fork 项目并提交 PR。  
