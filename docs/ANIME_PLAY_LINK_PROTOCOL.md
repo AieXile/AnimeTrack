@@ -235,6 +235,8 @@ fun reportProgress(link: AnimePlayLink, ep: Int, completed: Boolean, positionMs:
 
 ### 7.1 接收方自测(adb)
 
+> 前提:设备上需已安装声明了本协议的接收方,否则报 `Activity not started`(生态早期可先用最小测试接收器自测)。命令末尾的包名用于强制定向到指定接收方,省略时走系统解析(存在多个接收方时会弹出选择框)。
+
 ```bash
 # 详情页级
 adb shell am start -a android.intent.action.VIEW -d "anime-play://subject/12" <你的包名>
@@ -244,7 +246,8 @@ adb shell am start -a android.intent.action.VIEW -d "anime-play://subject/12?ep=
 
 # 非法输入防御(不应崩溃)
 adb shell am start -a android.intent.action.VIEW -d "anime-play://subject/abc" <你的包名>
-adb shell am start -a android.intent.action.VIEW -d "anime-play://subject/12?ep=xyz&unknown_param=1" <你的包名>
+# URI 含 & 时必须整条命令包裹引号,否则 & 会被 shell 当作命令分隔符截断 URI
+adb shell "am start -a android.intent.action.VIEW -d 'anime-play://subject/12?ep=xyz&unknown_param=1' <你的包名>"
 ```
 
 **验收清单**:□ 详情页可达 □ 集数直达(或预选)□ ep 越界优雅降级 □ 非法 URI 静默 □ 未知参数忽略 □ 冷启动/热启动均可达
@@ -256,8 +259,11 @@ adb shell am start -a android.intent.action.VIEW -d "anime-play://subject/12?ep=
 
 ### 7.3 发送方自测
 
+`<queries>` 安装探测需在应用内验证:Android 11+ 包可见性限制只作用于应用自身进程,应用内 `PackageManager.resolveActivity` 在未安装接收方时应返回 `null` 并走引导文案分支(而非静默失败)。
+
 ```bash
-# 未安装任何接收方时,resolveActivity 应返回 null(验证 queries 声明生效)
+# 确认设备上是否有应用声明了本协议。以 shell 身份运行,不受 <queries> 包可见性限制,
+# 不能用于验证 <queries> 是否生效,仅用于确认接收方 intent-filter 已正确注册
 adb shell cmd package resolve-activity -a android.intent.action.VIEW -d "anime-play://subject/12"
 ```
 
