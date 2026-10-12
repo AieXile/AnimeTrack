@@ -1,0 +1,176 @@
+name: Issue Bot
+
+# 轻量版 issue 自动分拣机器人:
+#   1. 确保仓库标签齐全(幂等:不存在则创建,存在则更新颜色/描述)
+#   2. 按关键词规则给新 issue 打标签(类型标签单选,领域标签可叠加)
+#   3. 规范化标题(去零宽字符、折叠空白、剥离【求助】类包裹)
+#   4. bug 且缺关键信息时,自动评论引导补充(版本/机型/复现步骤/日志)
+# 触发时机:仅在 issue 创建时执行一次;不监听 edited,避免机器人改标题后自触发死循环。
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: issue-bot-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    # 跳过机器人账号创建的 issue,防止 bot 之间互相触发
+    if: github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      # ---------- 第一步:确保所有标签存在 ----------
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          LABELS=(
+            "bug|d73a4a|功能异常、崩溃、闪退"
+            "enhancement|a2eeef|功能请求与改进建议"
+            "question|d876e3|使用疑问"
+            "triage|ededed|尚未匹配到类型,等待人工分拣"
+            "needs-info|e99695|缺少关键信息,等待作者补充"
+            "player|1d76db|播放相关(本地/WebDAV 播放)"
+            "webdav|0e8a16|WebDAV 相关"
+            "sync|c5def5|同步/账号/多设备"
+            "bangumi|fef2c0|Bangumi 数据与条目"
+            "ui|bfd4f2|界面/主题/外观"
+            "feedback|f9d0c4|反馈中心"
+            "external-player|5319e7|外部播放器跳转(Animeko 等)"
+          )
+          for entry in "${LABELS[@]}"; do
+            name="${entry%%|*}"; rest="${entry#*|}"
+            color="${rest%%|*}"; desc="${rest#*|}"
+            # --force:已存在则更新颜色与描述,保证规则调整后可收敛
+            gh label create "$name" --color "$color" --description "$desc" --force >/dev/null
+          done
+
+      # ---------- 第二步:分类与标题规范化(纯逻辑,无副作用) ----------
+      - name: Classify issue
+        id: classify
+        env:
+          # 事件数据一律经 env 传入,避免拼进脚本造成注入
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+          text="$ISSUE_TITLE
+          $ISSUE_BODY"
+          title="$ISSUE_TITLE"
+          type_label=""
+          areas=""
+          needs_info="false"
+          title_changed="false"
+
+          # ----- 类型标签:优先级 bug > enhancement > question,首个命中即停 -----
+          if printf '%s' "$text" | grep -qiE '崩溃|闪退|卡死|无响应|ANR|报错|异常|错误|白屏|黑屏|花屏|失效|故障|不生效|登录失败|同步失败|数据丢失|无法(使用|打开|加载|保存)|\bbug\b|\bcrash\b|\berror\b|exception|\bfail(ure|ed)?\b|not ?work|doesn.?t ?work|broken|\bstuck\b|freez'; then
+            type_label="bug"
+          elif printf '%s' "$text" | grep -qiE '希望|建议|期待|优化|改进|增加|添加|新增|能不能|可不可以|能否|可否|\bfeature\b|\brequest\b|\bsupport\b|\badd\b|\bimprove\b|enhance|proposal'; then
+            type_label="enhancement"
+          elif printf '%s' "$text" | grep -qiE '怎么|如何|为什么|为何|请问|疑问|有办法|how (to|do|can)|\bwhy\b|is there a way'; then
+            type_label="question"
+          elif printf '%s' "$title" | grep -qE '[?？][[:space:]]*$'; then
+            # 标题以问号结尾也算提问(问号只看标题,避免正文里 URL 带问号误判)
+            type_label="question"
+          fi
+
+          # ----- 领域标签:可叠加,全部命中全部打 -----
+          if printf '%s' "$text" | grep -qiE '播放|视频|弹幕|\bplayer\b|\bvideo\b|danmaku'; then areas="${areas:+$areas,}player"; fi
+          if printf '%s' "$text" | grep -qiE 'webdav|网盘|挂载|alist'; then areas="${areas:+$areas,}webdav"; fi
+          if printf '%s' "$text" | grep -qiE '同步|多设备|登录|登出|会话|鉴权|账号|sse|推送|\bsync\b|token'; then areas="${areas:+$areas,}sync"; fi
+          if printf '%s' "$text" | grep -qiE 'bangumi|bgm\.tv|条目|番剧信息'; then areas="${areas:+$areas,}bangumi"; fi
+          if printf '%s' "$text" | grep -qiE '界面|样式|布局|主题|外观|字体|颜色|配色|图标|动效|动画|卡片|导航|深色|浅色|暗色|\bui\b|\btheme\b|\blayout\b|\bicon\b|widget'; then areas="${areas:+$areas,}ui"; fi
+          if printf '%s' "$text" | grep -qiE '反馈中心|管理员|\bfeedback\b'; then areas="${areas:+$areas,}feedback"; fi
+          if printf '%s' "$text" | grep -qiE '外部播放|animeko|ani://|第三方播放器|其他播放器|播放器跳转|deep.?link'; then areas="${areas:+$areas,}external-player"; fi
+
+          # ----- 缺信息判定:仅对 bug 生效;正文含版本/设备/日志/复现步骤任一即视为信息充分 -----
+          if [ "$type_label" = "bug" ]; then
+            if printf '%s' "$text" | grep -qiE '版本|version|v[0-9]+\.[0-9]|设备|机型|\bdevice\b|安卓|android|系统|日志|logcat|\blog\b|复现|步骤|reproduc|\bsteps\b'; then
+              needs_info="false"
+            else
+              needs_info="true"
+            fi
+          fi
+
+          # ----- 标题规范化 -----
+          # 1) 删除零宽字符(U+200B/200C/200D/BOM) 2) 折叠连续空白(含全角空格) 3) 去首尾空格
+          norm=$(printf '%s' "$title" | tr -d '\342\200\213\342\200\214\342\200\215\357\273\277' | sed -E 's/[[:space:]　]+/ /g; s/^ +//; s/ +$//')
+          # 4) 剥离开头的【求助】【建议】【bug】类包裹(标签已承载该信息)
+          norm=$(printf '%s' "$norm" | sed -E 's/^【[^】]*(求助|问题|疑问|报错|缺陷|建议|反馈|优化|[Bb][Uu][Gg])[^】]*】 */')
+          # 5) 整体加粗的标题去掉星号
+          norm=$(printf '%s' "$norm" | sed -E 's/^\*\*(.+)\*\*$/\1/')
+          if [ -n "$norm" ] && [ "$norm" != "$title" ]; then
+            title="$norm"
+            title_changed="true"
+          fi
+
+          echo "type_label=$type_label" >> "$GITHUB_OUTPUT"
+          echo "areas=$areas" >> "$GITHUB_OUTPUT"
+          echo "needs_info=$needs_info" >> "$GITHUB_OUTPUT"
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "title_changed=$title_changed" >> "$GITHUB_OUTPUT"
+
+      # ---------- 第三步:应用标签、更新标题、必要时评论引导 ----------
+      - name: Apply labels, normalize title, ask for info
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TYPE_LABEL: ${{ steps.classify.outputs.type_label }}
+          AREAS: ${{ steps.classify.outputs.areas }}
+          NEEDS_INFO: ${{ steps.classify.outputs.needs_info }}
+          NEW_TITLE: ${{ steps.classify.outputs.title }}
+          TITLE_CHANGED: ${{ steps.classify.outputs.title_changed }}
+        run: |
+          set -euo pipefail
+          labels=()
+          if [ -n "$TYPE_LABEL" ]; then
+            labels+=("$TYPE_LABEL")
+          else
+            # 规则未命中任何类型时挂 triage,方便人工补分拣
+            labels+=("triage")
+          fi
+          if [ -n "$AREAS" ]; then
+            IFS=',' read -ra area_arr <<< "$AREAS"
+            labels+=("${area_arr[@]}")
+          fi
+          if [ "$NEEDS_INFO" = "true" ]; then
+            labels+=("needs-info")
+          fi
+
+          label_list=$(IFS=,; echo "${labels[*]}")
+          gh issue edit "$ISSUE_NUMBER" --add-label "$label_list"
+
+          if [ "$TITLE_CHANGED" = "true" ]; then
+            gh issue edit "$ISSUE_NUMBER" --title "$NEW_TITLE"
+          fi
+
+          if [ "$NEEDS_INFO" = "true" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body-file - <<'EOF'
+          > 此回复由 Issue Bot 自动发送,仅供引导补充信息,维护者会人工跟进。
+
+          检测到这可能是**功能异常报告**,但目前缺少定位问题所需的关键信息。请直接编辑本 issue 补充:
+
+          1. **App 版本**(设置 → 关于),如 `v0.7.1`
+          2. **机型与系统版本**,如 `Redmi K60 / Android 15`
+          3. **复现步骤**:做了什么操作、预期结果、实际结果
+          4. **日志**(可选):可在 设置 → 开发者选项 导出;通过反馈中心提交时也会自动附带
+
+          补充完成后无需另行通知,维护者看到 issue 更新即可。若这其实是使用疑问而非异常,也欢迎直接描述你的使用场景。
+          EOF
+          fi
+
+          # 执行摘要,便于在 Actions 页面核对命中结果
+          echo "### Issue Bot 结果 (#$ISSUE_NUMBER)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 类型标签: \`${TYPE_LABEL:-triage(兜底)}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 领域标签: \`${AREAS:-无}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 缺信息引导: $NEEDS_INFO" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 标题规范化: $TITLE_CHANGED" >> "$GITHUB_STEP_SUMMARY"
