@@ -74,6 +74,7 @@ class SettingsRepository(private val context: Context) {
         private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
         private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
         private val CAPSULE_LIQUID_GLASS_KEY = booleanPreferencesKey("capsule_liquid_glass")
+        private val CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY = booleanPreferencesKey("capsule_liquid_glass_backdrop_blur")
         private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
         private val STATUS_BAR_MODE_KEY = stringPreferencesKey("status_bar_mode")
         private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
@@ -125,6 +126,7 @@ class SettingsRepository(private val context: Context) {
         private val UPDATE_NOTIFICATION_VISIBLE_KEY = booleanPreferencesKey("update_notification_visible")
 
         private val PLAYER_HUB_VISIBLE_KEY = booleanPreferencesKey("player_hub_visible")
+        private val EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY = booleanPreferencesKey("external_player_entry_visible")
         /** 播放器专属 WebDAV 配置：与备份同步相互独立 */
         private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
         private val PLAYER_WEBDAV_USERNAME_KEY = stringPreferencesKey("player_webdav_username")
@@ -353,6 +355,15 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCapsuleLiquidGlassEnabled(enabled: Boolean) = setPreference(CAPSULE_LIQUID_GLASS_KEY, enabled)
     /** 液态玻璃的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
     fun cachedCapsuleLiquidGlass(): Boolean = prefCache[CAPSULE_LIQUID_GLASS_KEY] as? Boolean ?: false
+
+    /** 液态玻璃导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启。仅液态玻璃模式下生效 */
+    val capsuleLiquidGlassBackdropBlurEnabled: Flow<Boolean> =
+        preferenceFlow(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, true)
+    suspend fun setCapsuleLiquidGlassBackdropBlurEnabled(enabled: Boolean) =
+        setPreference(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, enabled)
+    /** 导航栏背景模糊的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
+    fun cachedCapsuleLiquidGlassBackdropBlur(): Boolean =
+        prefCache[CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY] as? Boolean ?: true
 
     /** 主页顶栏下滑隐藏，默认关闭。开启后向下滑动列表收起顶栏，搜索/添加按钮转为组合悬浮按钮 */
     val hideTopBarOnScrollEnabled: Flow<Boolean> = preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, false)
@@ -693,6 +704,10 @@ class SettingsRepository(private val context: Context) {
     /** 设置页是否显示「视频播放」聚合入口（开发者选项控制，默认隐藏） */
     val playerHubVisible: Flow<Boolean> = preferenceFlow(PLAYER_HUB_VISIBLE_KEY, false)
     suspend fun setPlayerHubVisible(visible: Boolean) = setPreference(PLAYER_HUB_VISIBLE_KEY, visible)
+
+    /** 详情页顶栏是否显示 Animeko 跳转按钮（开发者选项控制，默认隐藏） */
+    val externalPlayerEntryVisible: Flow<Boolean> = preferenceFlow(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, false)
+    suspend fun setExternalPlayerEntryVisible(visible: Boolean) = setPreference(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, visible)
 
     // ---- 播放器专属 WebDAV（与备份同步的 webdavUrl 三件套互不影响）----
     val playerWebdavUrl: Flow<String> = preferenceFlow(PLAYER_WEBDAV_URL_KEY, "")

@@ -153,6 +153,8 @@
     <string name="developer_trigger_simulate_update">觸發模擬更新</string>
     <string name="developer_player_hub_entry">設定頁顯示「影片播放」</string>
     <string name="developer_player_hub_entry_desc">在設定列表中展示影片播放聚合入口，預設隱藏</string>
+    <string name="developer_external_player_entry">詳情頁顯示「在 Animeko 中觀看」</string>
+    <string name="developer_external_player_entry_desc">在番劇詳情頁頂欄展示 Animeko 跳轉按鈕，預設隱藏</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看與測試公告彈窗及投票</string>
     <string name="developer_open_announcement">開啟公告</string>

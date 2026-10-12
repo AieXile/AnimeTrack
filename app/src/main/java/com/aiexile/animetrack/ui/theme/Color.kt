@@ -34,6 +34,10 @@ data class AnimeColors(
     val chipUnselected: Color,
     val chipUnselectedContainer: Color,
     val chipUnselectedContent: Color,
+    /** 封面状态角标底色：黑白简洁暗色下为半透明黑 scrim，其余主题跟随 primary */
+    val statusBadgeContainer: Color,
+    /** 封面状态角标文字色：与 statusBadgeContainer 配对 */
+    val statusBadgeContent: Color,
 )
 
 val LocalAnimeColors = staticCompositionLocalOf {
@@ -51,5 +55,7 @@ val LocalAnimeColors = staticCompositionLocalOf {
         chipUnselected = Color.Unspecified,
         chipUnselectedContainer = Color.Unspecified,
         chipUnselectedContent = Color.Unspecified,
+        statusBadgeContainer = Color.Unspecified,
+        statusBadgeContent = Color.Unspecified,
     )
 }

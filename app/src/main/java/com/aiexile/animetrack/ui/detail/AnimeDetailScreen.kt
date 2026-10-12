@@ -53,6 +53,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.isExpandedWidth
+import com.aiexile.animetrack.ui.components.rememberSharedCoverClipShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -147,6 +148,10 @@ import coil.Coil
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayRequest
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayResult
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerId
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerLauncher
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
@@ -196,6 +201,8 @@ fun AnimeDetailScreen(
     val focusManager = LocalFocusManager.current
     val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
+    // 外部播放器 Animeko 跳转按钮可见性（开发者选项控制，默认隐藏）
+    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
 
     // 浏览下方内容时顶栏收缩变窄（64dp → 32dp），内容滚回顶部后才展开
     val topBarScrollBehavior = rememberShrinkOnScrollTopAppBarBehavior(collapsedHeight = 32.dp)
@@ -356,6 +363,36 @@ fun AnimeDetailScreen(
                                         contentDescription = stringResource(R.string.detail_match_source),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            if (externalPlayerEntryVisible) {
+                                IconButton(onClick = {
+                                    // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
+                                    // 直接传 0 会被误判为“已看完”而回退详情页级跳转
+                                    val request = ExternalPlayRequest.continueWatching(
+                                        animeId = anime.id,
+                                        bangumiId = anime.bangumiId,
+                                        title = anime.title,
+                                        watchedEpisodes = anime.watchedEpisodes,
+                                        totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
+                                    )
+                                    val result = ExternalPlayerLauncher.launch(
+                                        context, request, ExternalPlayerId.ANIMEKO
+                                    )
+                                    // 未安装/唤起失败已由便捷入口自动 Toast+降级；未关联需调用方提示
+                                    if (result is ExternalPlayResult.MissingBangumiLink) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.external_player_missing_link),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }) {
+                                    Icon(
+                                        painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
+                                        contentDescription = stringResource(R.string.external_player_watch_in_animeko),
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -883,23 +920,35 @@ private fun AnimeDetailContent(
                     .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val enableSharedCover = sharedTransitionScope != null && animatedVisibilityScope != null
+                // 转场期间圆角随进度连续插值（与卡片侧同一形状曲线），
+                // 避免底部圆角在两侧静态 clip 切换时 0↔16dp 硬跳变
+                val sharedCoverClipShape = if (enableSharedCover) {
+                    rememberSharedCoverClipShape(
+                        animatedVisibilityScope = animatedVisibilityScope!!,
+                        cornerRadius = CardCornerRadius,
+                        detailSide = true
+                    )
+                } else {
+                    SquircleShape(CardCornerRadius)
+                }
                 Box(
                     modifier = Modifier
                         .width(130.dp)
                         .aspectRatio(2f / 3f)
                         .then(
-                            if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                                with(sharedTransitionScope) {
+                            if (enableSharedCover) {
+                                with(sharedTransitionScope!!) {
                                     Modifier.sharedElement(
                                         rememberSharedContentState(key = "cover_${anime.id}"),
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                        animatedVisibilityScope = animatedVisibilityScope!!
                                     )
                                 }
                             } else {
                                 Modifier
                             }
                         )
-                        .clip(SquircleShape(CardCornerRadius))
+                        .clip(sharedCoverClipShape)
                 ) {
                     val displayCoverUrl = if (editState.isEditing) editState.localCoverUri ?: editState.coverUrl else anime.coverUrl
 
@@ -2149,8 +2198,9 @@ private fun StatusBadge(
     modifier: Modifier = Modifier,
     unaired: Boolean = false
 ) {
-    val containerColor = MaterialTheme.colorScheme.primary
-    val contentColor = MaterialTheme.colorScheme.onPrimary
+    // 黑白简洁暗色下为半透明黑 scrim + 浅字（与主界面角标一致，见 Theme.kt 中 AnimeColors 计算）
+    val containerColor = LocalAnimeColors.current.statusBadgeContainer
+    val contentColor = LocalAnimeColors.current.statusBadgeContent
     val text = if (unaired) {
         stringResource(R.string.status_unaired)
     } else {

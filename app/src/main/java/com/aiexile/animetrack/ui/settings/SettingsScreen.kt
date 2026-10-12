@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,11 +57,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +110,15 @@ fun SettingsScreen(
             feedbackUnread = false
         }
         onPauseOrDispose { }
+    }
+    // SSE 管理员回复事件：停留设置页期间红点实时亮起（不再依赖切页/重进触发可见性检查）
+    LaunchedEffect(userLoggedIn) {
+        if (!userLoggedIn) return@LaunchedEffect
+        AppContainer.getSseClient().events
+            .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+            .collect {
+                feedbackUnread = AppContainer.getFeedbackRepository().hasNewReplies()
+            }
     }
 
     val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsState(initial = false)

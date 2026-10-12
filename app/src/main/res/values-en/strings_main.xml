@@ -37,6 +37,7 @@
     <string name="detail_completed_celebration">Series completed!</string>
     <string name="detail_play">Play</string>
     <string name="detail_match_source">Match data source</string>
+    <string name="detail_open_in_animeko">Watch in Animeko</string>
     <string name="detail_unknown_error">Unknown error</string>
     <string name="detail_no_cover_to_save">No cover to save</string>
     <string name="detail_search_anime_hint">Search anime...</string>

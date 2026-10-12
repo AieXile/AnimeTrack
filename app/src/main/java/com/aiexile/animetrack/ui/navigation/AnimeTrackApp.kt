@@ -90,6 +90,7 @@ import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
+import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
 import com.aiexile.animetrack.ui.components.SideNavigationRail
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.TokenExpiredBanner
@@ -956,6 +957,9 @@ private fun MainOverlay(
         .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
     val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
+    val capsuleLiquidGlassBackdropBlurEnabled by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
 
     // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
     val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -1096,6 +1100,14 @@ private fun MainOverlay(
                 }
             )
         } else if (isCapsuleNav) {
+            // 液态玻璃「导航栏背景模糊」：在胶囊下层渲染四周磨砂区域（类 iOS Tab Bar）。
+            // 胶囊自身采样 Pager 内容层（navBackdrop 不含本层），不受模糊层影响，保持清晰玻璃
+            if (capsuleLiquidGlassEnabled && capsuleLiquidGlassBackdropBlurEnabled) {
+                LiquidGlassNavBackdropBlur(
+                    backdrop = navBackdrop,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -503,20 +503,31 @@ private fun StackCardLayer(
                 // 共享元素过渡：仅顶卡（depth==0）参与，key 与详情页封面配对实现
                 // 飞入飞出；探边卡带旋转/缩放变换，参与会导致飞行起点歪斜。
                 // 顶卡静止态 graphicsLayer 全 identity，bounds 干净
-                val coverModifier = if (depth == 0 && sharedTransitionScope != null && animatedVisibilityScope != null) {
-                    with(sharedTransitionScope) {
+                val enableSharedCover = depth == 0 && sharedTransitionScope != null && animatedVisibilityScope != null
+                // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变
+                val coverClipShape = if (enableSharedCover) {
+                    rememberSharedCoverClipShape(
+                        animatedVisibilityScope = animatedVisibilityScope!!,
+                        cornerRadius = CardCornerRadius,
+                        detailSide = false
+                    )
+                } else {
+                    CoverTopShape
+                }
+                val coverModifier = if (enableSharedCover) {
+                    with(sharedTransitionScope!!) {
                         Modifier
                             .fillMaxSize()
                             .sharedElement(
                                 rememberSharedContentState(key = "cover_${anime.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope
+                                animatedVisibilityScope = animatedVisibilityScope!!
                             )
-                            .clip(CoverTopShape)
+                            .clip(coverClipShape)
                     }
                 } else {
                     Modifier
                         .fillMaxSize()
-                        .clip(CoverTopShape)
+                        .clip(coverClipShape)
                 }
                 AsyncImage(
                     model = coverRequest,

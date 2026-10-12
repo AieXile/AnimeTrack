@@ -10,6 +10,7 @@ import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sse.SseClient
@@ -45,6 +46,7 @@ object AppContainer {
     private var playerRepository: PlayerRepository? = null
     private var usageStatsRepository: UsageStatsRepository? = null
     private var feedbackRepository: FeedbackRepository? = null
+    private var adminFeedbackRepository: AdminFeedbackRepository? = null
     private var sseClient: SseClient? = null
 
     // 当前会话开始时间（由 MainActivity.onStart 设置）
@@ -93,6 +95,7 @@ object AppContainer {
         playerRepository = PlayerRepository(this.context!!)
         usageStatsRepository = UsageStatsRepository(this.context!!)
         feedbackRepository = FeedbackRepository(this.context!!)
+        adminFeedbackRepository = AdminFeedbackRepository()
         sseClient = SseClient(userAuthManager!!)
         WebDAVAutoSyncManager.initialize(this.context!!, settingsRepository!!, database!!.animeDao())
     }
@@ -154,6 +157,11 @@ object AppContainer {
 
     fun getFeedbackRepository(): FeedbackRepository {
         return feedbackRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getAdminFeedbackRepository(): AdminFeedbackRepository {
+        return adminFeedbackRepository
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 

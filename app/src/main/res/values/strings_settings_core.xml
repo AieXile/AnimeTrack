@@ -102,6 +102,8 @@
     <string name="nav_custom_advanced_blur_desc">为悬浮胶囊与悬浮按钮启用背景模糊（毛玻璃）效果，与液态玻璃互斥</string>
     <string name="nav_custom_liquid_glass">液态玻璃</string>
     <string name="nav_custom_liquid_glass_desc">悬浮胶囊使用折射玻璃渲染，替代高级模糊，两者互斥</string>
+    <string name="nav_custom_liquid_glass_backdrop_blur">导航栏背景模糊</string>
+    <string name="nav_custom_liquid_glass_backdrop_blur_desc">液态玻璃模式下，在悬浮胶囊四周渲染磨砂模糊区域，提升导航栏可读性</string>
     <string name="nav_custom_topbar_title">顶部栏</string>
     <string name="nav_custom_topbar_subtitle">自定义主页顶部栏行为</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隐藏顶部栏</string>

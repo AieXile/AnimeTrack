@@ -60,4 +60,28 @@
     <string name="feedback_error_network">Network error, try again later</string>
     <string name="feedback_error_empty">Please enter your feedback</string>
     <string name="feedback_error_too_long">Content exceeds %1$d characters</string>
+
+    <!-- Admin feedback center (admin only) -->
+    <string name="admin_feedback_entry">Feedback admin</string>
+    <string name="admin_feedback_title">Feedback admin</string>
+    <string name="admin_feedback_empty">No feedback yet</string>
+    <string name="admin_feedback_filter_all">All</string>
+    <string name="admin_feedback_unknown_user">Unknown user</string>
+    <string name="admin_feedback_message_count">%1$d messages</string>
+    <string name="admin_feedback_actions">Admin actions</string>
+    <string name="admin_feedback_reply_hint">Reply to user…</string>
+    <string name="admin_feedback_mark_pending">Mark as replied</string>
+    <string name="admin_feedback_mark_resolved">Mark as resolved</string>
+    <string name="admin_feedback_mark_closed">Mark as closed</string>
+    <string name="admin_feedback_mark_open">Reopen</string>
+    <string name="admin_feedback_status_updated">Status updated</string>
+    <string name="admin_feedback_status_terminal">Session is in a final state and cannot change</string>
+    <string name="admin_feedback_status_terminal_hint">Final state, cannot change</string>
+    <string name="admin_feedback_grant_level">Grant contribution level</string>
+    <string name="admin_feedback_grant_level_hint">Enter a delta: positive to raise, negative to adjust (non-zero, max 999)</string>
+    <string name="admin_feedback_level_granted">Level adjusted to Lv.%1$d</string>
+    <string name="admin_feedback_confirm">Confirm</string>
+    <string name="admin_feedback_cancel">Cancel</string>
+    <string name="admin_feedback_invalid_input">Invalid input</string>
+    <string name="admin_feedback_no_permission">No admin permission</string>
 </resources>

@@ -545,4 +545,9 @@ object RetrofitClient {
     val feedbackApi: FeedbackApiService by lazy {
         userAuthRetrofit.create(FeedbackApiService::class.java)
     }
+
+    /** 管理员反馈 API：同用户体系鉴权链路，服务端校验 ADMIN_USER_IDS 白名单 */
+    val adminFeedbackApi: AdminFeedbackApiService by lazy {
+        userAuthRetrofit.create(AdminFeedbackApiService::class.java)
+    }
 }

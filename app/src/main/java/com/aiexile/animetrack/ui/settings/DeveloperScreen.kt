@@ -1,6 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
-import android.content.Context
+import android.content.Context
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import android.widget.Toast
@@ -75,6 +75,7 @@ fun DeveloperScreen(
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
     val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsState(initial = false)
     val playerHubVisible by settingsRepository.playerHubVisible.collectAsState(initial = false)
+    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
@@ -258,6 +259,36 @@ fun DeveloperScreen(
                     onCheckedChange = { enabled ->
                         scope.launch {
                             settingsRepository.setPlayerHubVisible(enabled)
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.developer_external_player_entry),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.developer_external_player_entry_desc),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                AppSwitch(
+                    checked = externalPlayerEntryVisible,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            settingsRepository.setExternalPlayerEntryVisible(enabled)
                         }
                     }
                 )

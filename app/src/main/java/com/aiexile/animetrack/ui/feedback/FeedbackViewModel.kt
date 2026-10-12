@@ -9,6 +9,8 @@ import com.aiexile.animetrack.data.network.FEEDBACK_ATTACHMENT_TYPE_LOG
 import com.aiexile.animetrack.data.network.FeedbackMessage
 import com.aiexile.animetrack.data.network.FEEDBACK_ROLE_SYSTEM
 import com.aiexile.animetrack.data.network.FEEDBACK_ROLE_USER
+import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
+import com.aiexile.animetrack.data.remote.AdminIdentityResult
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
@@ -48,11 +50,13 @@ internal suspend fun resolveLogPlaceholder(
 }
 
 /**
- * 反馈聊天主页 ViewModel：新建会话发送消息。
- * 消息仅保留在内存中（主页始终开启新反馈），历史记录由服务端存储、经历史页查看。
+ * 反馈聊天主页 ViewModel：新建会话发送消息，并保持与当前会话的实时通信——
+ * 管理员回复经 SSE（feedback_reply，sessionId 匹配）实时拉取并展示在主页，
+ * 用户无需前往历史页即可收到回复。消息仅保留在内存中，历史记录由服务端存储。
  */
 class FeedbackViewModel(
     private val repository: FeedbackRepository,
+    private val adminRepository: AdminFeedbackRepository,
     userAuthManager: UserAuthManager
 ) : ViewModel() {
 
@@ -71,14 +75,25 @@ class FeedbackViewModel(
 
     private val _hasNewReplies = MutableStateFlow(false)
 
-    /** 是否有未读的管理员回复（历史入口红点用；已读以进入历史界面为准，主页不清除） */
+    /** 是否有未读的管理员回复（历史入口红点用；当前会话回复已在主页展示时随 markRead 清除） */
     val hasNewReplies: StateFlow<Boolean> = _hasNewReplies.asStateFlow()
+
+    private val _isAdmin = MutableStateFlow(false)
+
+    /** 当前用户是否管理员（服务端白名单识别，控制「反馈管理」入口显隐） */
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
 
     init {
         viewModelScope.launch {
             userAuthManager.isLoggedIn.collect { loggedIn ->
                 _isLoggedIn.value = loggedIn
-                if (loggedIn) refreshNewReplies() else _hasNewReplies.value = false
+                if (loggedIn) {
+                    refreshNewReplies()
+                    refreshAdminIdentity()
+                } else {
+                    _hasNewReplies.value = false
+                    _isAdmin.value = false
+                }
             }
         }
         viewModelScope.launch {
@@ -86,18 +101,52 @@ class FeedbackViewModel(
                 _username.value = name?.takeIf { it.isNotBlank() }
             }
         }
-        // SSE 管理员回复事件：前台在线时红点即时刷新（替代进界面/重启才刷新的被动链路）
+        // SSE 管理员回复事件：前台在线时实时处理
+        // - 回复主页当前会话：拉取服务端最新消息实时展示在主页（用户无需前往历史页），并标记已读
+        // - 回复其他（历史）会话：仅刷新红点
         viewModelScope.launch {
             AppContainer.getSseClient().events
                 .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
-                .collect { refreshNewReplies() }
+                .collect { event ->
+                    if (event.sessionId != null && event.sessionId == _uiState.value.sessionId) {
+                        refreshCurrentSessionMessages()
+                    } else {
+                        refreshNewReplies()
+                    }
+                }
+        }
+    }
+
+    /**
+     * SSE 通知管理员回复了主页当前会话：拉取服务端最新消息替换主页列表
+     * （发送中的本地乐观消息保留在末尾，避免闪烁），随后标记已读并同步红点。
+     */
+    private fun refreshCurrentSessionMessages() {
+        val sessionId = _uiState.value.sessionId ?: return
+        viewModelScope.launch {
+            val detail = repository.getSessionDetail(sessionId) ?: return@launch
+            val serverMessages = detail.second.map { it.toChatMessage() }
+            val state = _uiState.value
+            val pendingLocal = state.messages.filter { it.id < 0 && state.isSending }
+            _uiState.value = state.copy(messages = serverMessages + pendingLocal)
+            // 主页已展示最新回复：标记已读并刷新红点（与历史/详情页的查看行为一致）
+            repository.markRead()
+            refreshNewReplies()
+        }
+    }
+
+    /** 查询当前登录用户是否在管理员白名单（仅登录时调用一次） */
+    private fun refreshAdminIdentity() {
+        viewModelScope.launch {
+            _isAdmin.value = adminRepository.getIdentity() is AdminIdentityResult.Admin
         }
     }
 
     /** 刷新未读回复状态（页面重新可见时调用，如从历史界面返回后红点应及时熄灭） */
     fun refreshNewReplies() {
         viewModelScope.launch {
-            // 主页不展示管理员回复，不在此处 markRead（红点由历史界面清除）
+            // 当前会话的回复已在主页展示并 markRead（见 refreshCurrentSessionMessages），
+            // 此处查询仍以服务端为准（覆盖其他历史会话的未读）
             _hasNewReplies.value = repository.hasNewReplies()
         }
     }
@@ -155,10 +204,19 @@ class FeedbackViewModel(
                 is FeedbackSendResult.Success -> {
                     val messages = _uiState.value.messages
                     val confirmed = result.userMessage?.let { serverMsg ->
-                        // 服务端确认消息替换本地乐观消息
-                        messages.map { if (it.id == localId) serverMsg.toChatMessage() else it }
+                        if (messages.any { it.id == serverMsg.id }) {
+                            // SSE 重拉已包含服务端确认消息：仅移除本地乐观占位，避免重复
+                            messages.filterNot { it.id == localId }
+                        } else {
+                            // 服务端确认消息替换本地乐观消息
+                            messages.map { if (it.id == localId) serverMsg.toChatMessage() else it }
+                        }
                     } ?: messages
-                    val withReply = result.reply?.let { confirmed + it.toChatMessage() } ?: confirmed
+                    val withReply = result.reply?.let { r ->
+                        // 自动回执也可能已被 SSE 重拉包含（同样按 id 去重）
+                        if (confirmed.any { it.id == r.id }) confirmed
+                        else confirmed + r.toChatMessage()
+                    } ?: confirmed
                     val withPlaceholder = if (result.reply == null && state.sessionId == null) {
                         // 新会话且服务端暂无回复：插入收到提示
                         withReply + FeedbackChatMessage(
@@ -206,6 +264,7 @@ class FeedbackViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return FeedbackViewModel(
                 AppContainer.getFeedbackRepository(),
+                AppContainer.getAdminFeedbackRepository(),
                 AppContainer.getUserAuthManager()
             ) as T
         }

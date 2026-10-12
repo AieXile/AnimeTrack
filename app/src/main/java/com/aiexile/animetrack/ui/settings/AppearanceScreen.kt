@@ -7,8 +7,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -62,6 +64,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
 import com.aiexile.animetrack.ui.components.IconPackPreviewCard
@@ -128,13 +131,16 @@ fun AppearanceScreen(
         .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
     val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
+    val capsuleLiquidGlassBackdropBlur by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
+        .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
 
     // 搜索定位：高亮目标区块并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.APPEARANCE)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf(
         "mode" to 2, "dark_style" to 2, "color" to 4, "icon_pack" to 6,
-        "advanced_blur" to 8, "liquid_glass" to 8
+        "advanced_blur" to 8, "liquid_glass" to 8, "liquid_glass_backdrop_blur" to 8
     )
     // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
     val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
@@ -359,6 +365,50 @@ fun AppearanceScreen(
                             }
                         ) {
                             GlassEffectPreviewContent(advancedBlur = false, liquidGlass = true)
+                        }
+                    }
+                    // 液态玻璃「导航栏背景模糊」：仅液态玻璃选中时显示，动画展开/收起
+                    AnimatedVisibility(
+                        visible = capsuleLiquidGlass,
+                        enter = expandVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) + fadeIn(animationSpec = androidx.compose.animation.core.tween(300)),
+                        exit = shrinkVertically(
+                            animationSpec = androidx.compose.animation.core.tween(200)
+                        ) + fadeOut(animationSpec = androidx.compose.animation.core.tween(200))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(rememberHighlightModifier("liquid_glass_backdrop_blur", highlightKey))
+                                .padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.nav_custom_liquid_glass_backdrop_blur),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.nav_custom_liquid_glass_backdrop_blur_desc),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AppSwitch(
+                                checked = capsuleLiquidGlassBackdropBlur,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setCapsuleLiquidGlassBackdropBlurEnabled(it)
+                                    }
+                                }
+                            )
                         }
                     }
                 }

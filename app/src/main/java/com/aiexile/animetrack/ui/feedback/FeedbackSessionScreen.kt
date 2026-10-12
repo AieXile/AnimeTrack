@@ -61,10 +61,12 @@ import com.aiexile.animetrack.data.network.FeedbackSession
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 /** 会话详情状态 */
@@ -93,6 +95,15 @@ class FeedbackSessionViewModel(
 
     private var sessionId: String = ""
 
+    init {
+        // SSE 管理员回复事件：停留在会话详情页时实时追加管理员回复（无需退出重进）
+        viewModelScope.launch {
+            AppContainer.getSseClient().events
+                .filter { it.type == SseEventTypes.FEEDBACK_REPLY && it.sessionId == sessionId }
+                .collect { refreshFromServer() }
+        }
+    }
+
     fun consumeError() {
         _sendError.value = null
     }
@@ -115,6 +126,21 @@ class FeedbackSessionViewModel(
                     loadFailed = false
                 )
             }
+        }
+    }
+
+    /** SSE 通知后静默重拉消息：发送中的本地乐观消息（负 id）保留在末尾，避免闪烁 */
+    private fun refreshFromServer() {
+        if (sessionId.isBlank() || _uiState.value.isLoading) return
+        viewModelScope.launch {
+            val detail = repository.getSessionDetail(sessionId) ?: return@launch
+            val serverMessages = detail.second.map { it.toChatMessage() }
+            val pendingLocal = _uiState.value.messages
+                .filter { it.id < 0 && _uiState.value.isSending }
+            _uiState.value = _uiState.value.copy(
+                session = detail.first,
+                messages = serverMessages + pendingLocal
+            )
         }
     }
 

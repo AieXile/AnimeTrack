@@ -153,6 +153,8 @@
     <string name="developer_trigger_simulate_update">Trigger Simulated Update</string>
     <string name="developer_player_hub_entry">Show "Video Playback" in Settings</string>
     <string name="developer_player_hub_entry_desc">Show the playback hub entry in the settings list, hidden by default</string>
+    <string name="developer_external_player_entry">Show "Watch in Animeko" in details</string>
+    <string name="developer_external_player_entry_desc">Show the Animeko launch button in the anime detail top bar, hidden by default</string>
     <string name="developer_announcement">Announcement</string>
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>

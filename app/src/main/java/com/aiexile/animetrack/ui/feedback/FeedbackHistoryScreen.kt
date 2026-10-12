@@ -52,10 +52,12 @@ import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_PENDING
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSessionsPage
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 /** 「已解决」状态标签绿色（与账号面板在线状态绿一致，区别于进行中/已结束） */
@@ -70,7 +72,7 @@ data class FeedbackHistoryUiState(
     val page: Int = 0
 )
 
-/** 反馈历史列表 ViewModel：分页加载会话列表 */
+/** 反馈历史列表 ViewModel：分页加载会话列表；SSE 管理员回复事件实时刷新列表 */
 class FeedbackHistoryViewModel(
     private val repository: FeedbackRepository
 ) : ViewModel() {
@@ -80,6 +82,15 @@ class FeedbackHistoryViewModel(
 
     init {
         refresh()
+        // SSE 管理员回复事件：停留列表页期间实时刷新（新回复红点/最新消息摘要/状态/时间），
+        // 无需退出重进（refresh 首页加载成功即 markRead，与进入页面时的行为一致）
+        viewModelScope.launch {
+            AppContainer.getSseClient().events
+                .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+                .collect {
+                    if (!_uiState.value.isLoading) refresh()
+                }
+        }
     }
 
     fun refresh() {

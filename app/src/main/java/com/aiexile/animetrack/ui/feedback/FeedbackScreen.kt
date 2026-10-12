@@ -80,11 +80,13 @@ import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 fun FeedbackScreen(
     onBack: () -> Unit,
     onNavigateHistory: () -> Unit,
+    onNavigateAdmin: () -> Unit,
     onNavigateLogin: () -> Unit
 ) {
     val viewModel: FeedbackViewModel = viewModel(factory = FeedbackViewModel.Factory())
     val uiState by viewModel.uiState.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()
     val sendError by viewModel.sendError.collectAsState()
     val context = LocalContext.current
 
@@ -240,6 +242,8 @@ fun FeedbackScreen(
             onBack = onBack,
             onHistory = onNavigateHistory,
             showHistoryBadge = hasNewReplies,
+            showAdminEntry = isAdmin && isLoggedIn,
+            onAdmin = onNavigateAdmin,
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -280,12 +284,14 @@ fun FeedbackScreen(
     }
 }
 
-/** 顶部浮动圆形按钮行：左侧返回、右侧历史入口（有未读回复时红点提示） */
+/** 顶部浮动圆形按钮行：左侧返回、右侧管理员「反馈管理」入口（管理员可见）与历史入口（有未读回复时红点） */
 @Composable
 private fun FeedbackFloatingHeader(
     onBack: () -> Unit,
     onHistory: () -> Unit,
     showHistoryBadge: Boolean,
+    showAdminEntry: Boolean,
+    onAdmin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -298,6 +304,14 @@ private fun FeedbackFloatingHeader(
             onClick = onBack
         )
         Spacer(modifier = Modifier.weight(1f))
+        if (showAdminEntry) {
+            FeedbackCircleButton(
+                icon = rememberAppIconPainter(AppIcon.INBOX),
+                contentDescription = stringResource(R.string.admin_feedback_entry),
+                onClick = onAdmin
+            )
+            Spacer(modifier = Modifier.padding(start = 8.dp))
+        }
         FeedbackCircleButton(
             icon = rememberAppIconPainter(AppIcon.HISTORY),
             contentDescription = stringResource(R.string.feedback_history_entry),

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- External player launching (Animeko etc.) -->
+    <string name="external_player_not_installed">%1$s is not installed</string>
+    <string name="external_player_open_failed">Failed to open external player</string>
+    <string name="external_player_watch_in_animeko">Watch in Animeko</string>
+    <string name="external_player_missing_link">Not linked to Bangumi. Cannot open external player</string>
+</resources>

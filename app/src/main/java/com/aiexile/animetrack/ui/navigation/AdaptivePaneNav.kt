@@ -510,6 +510,7 @@ internal fun NavGraphBuilder.sharedDestinations(
         FeedbackScreen(
             onBack = navigateBack,
             onNavigateHistory = { onNavigate(Routes.FEEDBACK_HISTORY) },
+            onNavigateAdmin = { onNavigate(Routes.FEEDBACK_ADMIN) },
             onNavigateLogin = { onNavigate(Routes.USER_LOGIN) }
         )
     }
@@ -529,6 +530,26 @@ internal fun NavGraphBuilder.sharedDestinations(
     ) { backStackEntry ->
         val sid = backStackEntry.arguments?.getString("sessionId") ?: return@composable
         FeedbackSessionScreen(
+            sessionId = sid,
+            onBack = navigateBack
+        )
+    }
+
+    // 管理员反馈中心（列表，仅管理员可见入口）
+    composable(Routes.FEEDBACK_ADMIN) {
+        com.aiexile.animetrack.ui.feedback.admin.AdminFeedbackScreen(
+            onBack = navigateBack,
+            onOpenSession = { sessionId -> onNavigate(Routes.feedbackAdminSession(sessionId)) }
+        )
+    }
+
+    // 管理员反馈会话详情（回复 + 状态流转 + 授等级）
+    composable(
+        route = Routes.FEEDBACK_ADMIN_SESSION,
+        arguments = Routes.feedbackAdminSessionArguments
+    ) { backStackEntry ->
+        val sid = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+        com.aiexile.animetrack.ui.feedback.admin.AdminFeedbackSessionScreen(
             sessionId = sid,
             onBack = navigateBack
         )

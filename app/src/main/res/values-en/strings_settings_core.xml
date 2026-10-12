@@ -98,6 +98,8 @@
     <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule and FAB; mutually exclusive with Liquid Glass</string>
     <string name="nav_custom_liquid_glass">Liquid Glass</string>
     <string name="nav_custom_liquid_glass_desc">Render the floating capsule with refraction glass instead of Advanced Blur; mutually exclusive</string>
+    <string name="nav_custom_liquid_glass_backdrop_blur">Nav Bar Backdrop Blur</string>
+    <string name="nav_custom_liquid_glass_backdrop_blur_desc">In Liquid Glass mode, render a frosted blur area around the floating capsule for better readability</string>
     <string name="nav_custom_topbar_title">Top Bar</string>
     <string name="nav_custom_topbar_subtitle">Customize home top bar behavior</string>
     <string name="nav_custom_hide_topbar_on_scroll">Hide top bar on scroll</string>

@@ -60,4 +60,28 @@
     <string name="feedback_error_network">網路異常，請稍後重試</string>
     <string name="feedback_error_empty">請輸入回報內容</string>
     <string name="feedback_error_too_long">內容不能超過 %1$d 字</string>
+
+    <!-- 管理員回報中心（僅管理員可見） -->
+    <string name="admin_feedback_entry">回報管理</string>
+    <string name="admin_feedback_title">回報管理</string>
+    <string name="admin_feedback_empty">暫無回報</string>
+    <string name="admin_feedback_filter_all">全部</string>
+    <string name="admin_feedback_unknown_user">未知用戶</string>
+    <string name="admin_feedback_message_count">%1$d 則訊息</string>
+    <string name="admin_feedback_actions">管理操作</string>
+    <string name="admin_feedback_reply_hint">回覆用戶…</string>
+    <string name="admin_feedback_mark_pending">標記為已回覆</string>
+    <string name="admin_feedback_mark_resolved">標記為已解決</string>
+    <string name="admin_feedback_mark_closed">標記為已結束</string>
+    <string name="admin_feedback_mark_open">重新開啟</string>
+    <string name="admin_feedback_status_updated">狀態已更新</string>
+    <string name="admin_feedback_status_terminal">會話已是終態，狀態不可變更</string>
+    <string name="admin_feedback_status_terminal_hint">已是終態，不可流轉</string>
+    <string name="admin_feedback_grant_level">授予貢獻等級</string>
+    <string name="admin_feedback_grant_level_hint">輸入調整值：正數提升、負數調整（非零，絕對值不超過 999）</string>
+    <string name="admin_feedback_level_granted">等級已調整至 Lv.%1$d</string>
+    <string name="admin_feedback_confirm">確認</string>
+    <string name="admin_feedback_cancel">取消</string>
+    <string name="admin_feedback_invalid_input">輸入無效</string>
+    <string name="admin_feedback_no_permission">無管理員權限</string>
 </resources>

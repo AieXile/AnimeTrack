@@ -90,15 +90,34 @@ fun formatFeedbackTime(raw: String?): String {
     }
 }
 
-/** 反馈消息气泡：用户消息靠右主色底，助手回复靠左容器底，系统消息居中灰字 */
+/** 反馈消息气泡：用户消息靠右主色底，助手回复靠左容器底，系统消息居中灰字。
+ *  viewerIsAdmin = true 时翻转视角（管理员端）：管理员自己的 assistant 回复靠右主色，用户的反馈靠左 */
 @Composable
-fun FeedbackMessageBubble(message: FeedbackChatMessage, modifier: Modifier = Modifier) {
-    FeedbackMessageBubbleContent(message, modifier)
+fun FeedbackMessageBubble(
+    message: FeedbackChatMessage,
+    modifier: Modifier = Modifier,
+    viewerIsAdmin: Boolean = false
+) {
+    FeedbackMessageBubbleContent(message, modifier, viewerIsAdmin)
 }
 
 @Composable
-private fun FeedbackMessageBubbleContent(message: FeedbackChatMessage, modifier: Modifier = Modifier) {
-    when (message.role) {
+private fun FeedbackMessageBubbleContent(
+    message: FeedbackChatMessage,
+    modifier: Modifier = Modifier,
+    viewerIsAdmin: Boolean = false
+) {
+    // 管理员视角：user 与 assistant 互换（自己的回复显示在右侧主色气泡）
+    val effectiveRole = if (viewerIsAdmin) {
+        when (message.role) {
+            FEEDBACK_ROLE_USER -> FEEDBACK_ROLE_ASSISTANT
+            FEEDBACK_ROLE_ASSISTANT -> FEEDBACK_ROLE_USER
+            else -> message.role
+        }
+    } else {
+        message.role
+    }
+    when (effectiveRole) {
         FEEDBACK_ROLE_USER -> Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End

@@ -26,6 +26,9 @@ object SseEventTypes {
     /** 管理员回复了用户反馈（反馈红点/胶囊即时刷新） */
     const val FEEDBACK_REPLY = "feedback_reply"
 
+    /** 用户发了新反馈（推送给在线管理员，管理员端列表/详情页实时刷新） */
+    const val FEEDBACK_MESSAGE = "feedback_message"
+
     /** 会话被撤销/设备被下线（立即标记 token 失效并显示横幅） */
     const val SESSION_KICKED = "session_kicked"
 

@@ -37,6 +37,7 @@
     <string name="detail_completed_celebration">完結撒花！</string>
     <string name="detail_play">播放</string>
     <string name="detail_match_source">匹配資料來源</string>
+    <string name="detail_open_in_animeko">在 Animeko 中觀看</string>
     <string name="detail_unknown_error">未知錯誤</string>
     <string name="detail_no_cover_to_save">無封面可儲存</string>
     <string name="detail_search_anime_hint">搜尋番劇...</string>

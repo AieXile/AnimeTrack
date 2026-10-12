@@ -27,6 +27,19 @@
         </intent>
 
         <package android:name="tv.danmaku.bili" />
+
+        <!-- 外部播放器 Animeko：deep link 可见性（Android 11+ 包过滤）。
+             scheme+host 声明不锁包名（Animeko 换包名/新变体仍可发现），包名声明保证精确可见 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <category android:name="android.intent.category.BROWSABLE" />
+
+            <data
+                android:host="subjects"
+                android:scheme="ani" />
+        </intent>
+        <package android:name="me.him188.ani" />
     </queries>
 
     <application

@@ -493,6 +493,17 @@ private fun AnimeCoverWithStatus(
             .fillMaxWidth()
             .aspectRatio(CoverAspectRatio)
     ) {
+        // 共享元素转场时圆角随进度连续插值（底部直角→圆角），避免两侧静态
+        // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape
+        val coverClipShape = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            rememberSharedCoverClipShape(
+                animatedVisibilityScope = animatedVisibilityScope,
+                cornerRadius = CardCornerRadius,
+                detailSide = false
+            )
+        } else {
+            CoverTopShape
+        }
         val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
             with(sharedTransitionScope) {
                 Modifier
@@ -501,12 +512,12 @@ private fun AnimeCoverWithStatus(
                         rememberSharedContentState(key = "cover_${animeId}"),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
-                    .clip(CoverTopShape)
+                    .clip(coverClipShape)
             }
         } else {
             Modifier
                 .fillMaxSize()
-                .clip(CoverTopShape)
+                .clip(coverClipShape)
         }
         
         // 先解析封面模型：空串脏数据/本地文件缺失均解析为 null，走占位图分支
@@ -546,12 +557,13 @@ private fun AnimeCoverWithStatus(
                     .align(Alignment.BottomStart)
                     .padding(6.dp),
                 shape = BadgeShape,
-                color = MaterialTheme.colorScheme.primary
+                // 黑白简洁暗色下角标 scrim（与 StatusBadge 同色），其余主题沿用 primary
+                color = LocalAnimeColors.current.statusBadgeContainer
             ) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                     contentDescription = stringResource(R.string.common_pin),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = LocalAnimeColors.current.statusBadgeContent,
                     modifier = Modifier
                         .padding(2.dp)
                         .size(12.dp)
@@ -567,8 +579,10 @@ internal fun StatusBadge(
     modifier: Modifier = Modifier,
     unaired: Boolean = false
 ) {
-    val containerColor = MaterialTheme.colorScheme.primary
-    val contentColor = MaterialTheme.colorScheme.onPrimary
+    // 黑白简洁暗色下为半透明黑 scrim + 浅字（见 Theme.kt 中 AnimeColors 的计算），
+    // 其余主题/明暗模式保持 primary 实底样式
+    val containerColor = LocalAnimeColors.current.statusBadgeContainer
+    val contentColor = LocalAnimeColors.current.statusBadgeContent
     val text = if (unaired) {
         stringResource(R.string.status_unaired)
     } else {
