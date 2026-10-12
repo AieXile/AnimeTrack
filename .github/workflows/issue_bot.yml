@@ -77,7 +77,7 @@ jobs:
             type_label="enhancement"
           elif printf '%s' "$text" | grep -qiE '怎么|如何|为什么|为何|请问|疑问|有办法|how (to|do|can)|\bwhy\b|is there a way'; then
             type_label="question"
-          elif printf '%s' "$title" | grep -qE '[?？][[:space:]]*$'; then
+          elif printf '%s' "$title" | grep -qE '(\?|？) *$'; then
             # 标题以问号结尾也算提问(问号只看标题,避免正文里 URL 带问号误判)
             type_label="question"
           fi
@@ -101,12 +101,17 @@ jobs:
           fi
 
           # ----- 标题规范化 -----
+          # 用 perl 按 Unicode 码点处理(runner 为 C locale,sed/tr 的字节级操作会损坏多字节汉字,
+          # 实测 tr -d 误删过 0x80 字节导致【】退 等字变 U+FFFD):
           # 1) 删除零宽字符(U+200B/200C/200D/BOM) 2) 折叠连续空白(含全角空格) 3) 去首尾空格
-          norm=$(printf '%s' "$title" | tr -d '\342\200\213\342\200\214\342\200\215\357\273\277' | sed -E 's/[[:space:]　]+/ /g; s/^ +//; s/ +$//')
-          # 4) 剥离开头的【求助】【建议】【bug】类包裹(标签已承载该信息)
-          norm=$(printf '%s' "$norm" | sed -E 's/^【[^】]*(求助|问题|疑问|报错|缺陷|建议|反馈|优化|[Bb][Uu][Gg])[^】]*】 *//')
-          # 5) 整体加粗的标题去掉星号
-          norm=$(printf '%s' "$norm" | sed -E 's/^\*\*(.+)\*\*$/\1/')
+          # 4) 剥离开头的【求助】类包裹(标签已承载该信息) 5) 去整体加粗
+          norm=$(printf '%s' "$title" | perl -CSD -pe '
+            use utf8;
+            s/[\x{200B}\x{200C}\x{200D}\x{FEFF}]//g;
+            s/[ \t\x{3000}]+/ /g; s/^ //; s/ $//;
+            s/^【[^】]*(求助|问题|疑问|报错|缺陷|建议|反馈|优化|[Bb][Uu][Gg])[^】]*】 *//;
+            s/^\*\*(.+)\*\*$/$1/;
+          ')
           if [ -n "$norm" ] && [ "$norm" != "$title" ]; then
             title="$norm"
             title_changed="true"
