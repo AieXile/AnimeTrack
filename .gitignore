@@ -61,6 +61,7 @@ CLAUDE.md
 .fleet/
 .animetrack/
 .ccgui/
+.workbuddy/
 
 # Local dev tools
 tools/
