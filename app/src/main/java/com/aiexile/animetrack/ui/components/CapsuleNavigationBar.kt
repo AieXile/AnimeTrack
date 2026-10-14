@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,7 +38,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -417,16 +417,26 @@ internal fun CapsuleNavItem(
 /** 屏幕内可见的模糊区高度：底部 24dp 边距 + 接近胶囊顶部（78dp），顶部为渐隐区 */
 private val NavBackdropBlurVisibleHeight = 72.dp
 
-/** 向下超出屏幕的延伸：使屏幕底边处的 blur 采样仍落在有效内容内，避免底边混入透明像素发透 */
-private val NavBackdropBlurExtraHeight = 16.dp
+/** 上边缘渐隐区间占比：0.3 × 72dp ≈ 21.6dp 内由透明过渡到完整磨砂 */
+private const val NavBackdropBlurFadeFraction = 0.3f
 
 /**
  * 液态玻璃模式下导航栏四周的背景模糊层（类 iOS Tab Bar 的底部磨砂区域）。
  *
+ * 结构刻意拆成「父节点挖遮罩、子节点出模糊」两层：
+ * `DstIn` 渐隐必须工作在离屏缓冲（[CompositingStrategy.Offscreen]）里，
+ * 但若把 Offscreen 与 `drawBackdrop` 串在同一节点的 modifier 链上，
+ * 外层离屏合成会使 `drawBackdrop` 内部的 blur RenderEffect 失效，
+ * 最终只剩淡底色、没有模糊。因此父节点只负责离屏合成与渐隐，
+ * 模糊采样完整放在子节点自己的 `drawBackdrop` 里。
+ *
  * 渲染在悬浮胶囊下层：胶囊自身采样页面内容层（navBackdrop 不含本层），
  * 因此胶囊保持清晰的折射玻璃，仅四周区域呈现磨砂模糊。
- * 上边缘通过离屏层 + DstIn 渐变渐隐，柔和融入上方的清晰内容；
- * 底部向下超出屏幕 [NavBackdropBlurExtraHeight]，规避边缘采样透明。
+ *
+ * 底边必须与屏幕底边严格齐平：采样源（navBackdrop）只覆盖屏幕范围，
+ * 若向下超出屏幕，超出的部分在采样源中为透明像素，经 blur 的
+ * TileMode.Clamp 延拓后会把透明混入屏幕内最底部约 8dp，
+ * 表现为屏幕最下边缘模糊「消失」、透出下层背景色。
  */
 @Composable
 internal fun LiquidGlassNavBackdropBlur(
@@ -437,38 +447,43 @@ internal fun LiquidGlassNavBackdropBlur(
     val scrimColor =
         if (isAppDarkTheme()) Color(0xFF121212).copy(0.3f)
         else Color(0xFFFAFAFA).copy(0.3f)
+    // 父节点：尺寸定位 + 离屏合成 + DstIn 渐隐遮罩（不出模糊）
     Box(
         modifier
             .fillMaxWidth()
-            .height(NavBackdropBlurVisibleHeight + NavBackdropBlurExtraHeight)
-            .offset(y = NavBackdropBlurExtraHeight)
-            // 离屏合成：DstIn 渐隐仅作用于本模糊层，不影响下层的页面内容
+            .height(NavBackdropBlurVisibleHeight)
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { RectangleShape },
-                effects = {
-                    // 仅保留 blur：vibrancy(ColorFilterEffect) 与胶囊/浮块的 drawBackdrop
-                    // 叠加在本项目设备上会触发水平细线 GPU 伪影（与镜像层规避方案一致）
-                    blur(8.dp.toPx())
-                },
-                // 关闭默认边缘高光与外阴影：drawBackdrop 默认给 shape 描玻璃高光边，
-                // 矩形模糊层四边的白色亮线即来源于此（暗色下尤为明显）
-                highlight = null,
-                shadow = null,
-                onDrawSurface = { drawRect(scrimColor) }
-            )
-            .drawWithContent {
-                drawContent()
-                // 上边缘渐隐：以渐变 alpha 调制模糊层，顶部约 26dp 缓慢过渡到清晰内容
-                //（区间足够长，避免模糊边界与胶囊端弧交叉处产生突兀的直线感）
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.3f to Color.Black
-                    ),
-                    blendMode = BlendMode.DstIn
+            .drawWithCache {
+                val fadeBrush = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    NavBackdropBlurFadeFraction to Color.Black,
+                    startY = 0f,
+                    endY = size.height
                 )
+                onDrawWithContent {
+                    drawContent()
+                    drawRect(brush = fadeBrush, blendMode = BlendMode.DstIn)
+                }
             }
-    )
+    ) {
+        // 子节点：采样页面内容层出 8dp 磨砂模糊 + 淡底色
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { RectangleShape },
+                    effects = {
+                        // 仅保留 blur：vibrancy(ColorFilterEffect) 与胶囊/浮块的 drawBackdrop
+                        // 叠加在本项目设备上会触发水平细线 GPU 伪影（与镜像层规避方案一致）
+                        blur(8.dp.toPx())
+                    },
+                    // 关闭默认边缘高光与外阴影：drawBackdrop 默认给 shape 描玻璃高光边，
+                    // 矩形模糊层四边的白色亮线即来源于此（暗色下尤为明显）
+                    highlight = null,
+                    shadow = null,
+                    onDrawSurface = { drawRect(scrimColor) }
+                )
+        )
+    }
 }
