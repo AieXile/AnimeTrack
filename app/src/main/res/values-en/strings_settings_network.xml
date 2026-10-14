@@ -51,19 +51,29 @@
 
     <!-- BangumiProxyScreen -->
     <string name="bangumi_proxy_title">Proxy settings</string>
+    <string name="bangumi_mirror_group">Mirror data source</string>
+    <string name="bangumi_mirror_enable">Use server mirror data source</string>
+    <string name="bangumi_mirror_desc">Fetch subject data (search/details/episodes) from %1$s instead, directly reachable without proxy; server caches periodically (up to 7 days behind), and falls back to the official API automatically when search misses. Account login and collection sync still use the official API, and can work with reverse proxy</string>
     <string name="bangumi_proxy_reverse_group">Bangumi reverse proxy</string>
     <string name="bangumi_proxy_enable_reverse">Enable reverse proxy</string>
     <string name="bangumi_proxy_set_address_first">Please set proxy address first</string>
     <string name="bangumi_proxy_reverse_desc">Access api.bgm.tv via %1$s proxy to resolve direct connection issues</string>
-    <string name="bangumi_proxy_http_group">HTTP proxy</string>
-    <string name="bangumi_proxy_enable_http">Enable HTTP proxy</string>
-    <string name="bangumi_proxy_http_desc">Proxy all network requests via %1$s:%2$d (requires app restart after change)</string>
+    <string name="bangumi_proxy_http_group">Network proxy</string>
+    <string name="bangumi_proxy_enable_http">Enable network proxy</string>
+    <string name="bangumi_proxy_http_desc">Proxy network access via %1$s, applies to new requests immediately after saving</string>
+    <string name="bangumi_proxy_protocol_web">WEB proxy</string>
+    <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT tunnel, best compatibility</string>
+    <string name="bangumi_proxy_protocol_socks5">SOCKS5 proxy</string>
+    <string name="bangumi_proxy_protocol_socks5_desc">Supports username/password auth, domains resolved by proxy</string>
+    <string name="bangumi_proxy_server">Server</string>
+    <string name="bangumi_proxy_username">Username (optional)</string>
+    <string name="bangumi_proxy_password">Password (optional)</string>
+    <string name="bangumi_proxy_port_invalid">Port must be 1-65535</string>
+    <string name="bangumi_proxy_share">Share proxy config</string>
     <string name="bangumi_proxy_dialog_title">Proxy address</string>
     <string name="bangumi_proxy_domain">Domain</string>
-    <string name="bangumi_proxy_address">Address</string>
     <string name="bangumi_proxy_port">Port</string>
     <string name="bangumi_proxy_domain_label">Proxy domain</string>
-    <string name="bangumi_proxy_address_label">Proxy address</string>
     <string name="bangumi_proxy_modify">Modify</string>
 
     <!-- BangumiLoginScreen -->

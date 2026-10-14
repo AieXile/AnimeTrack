@@ -51,19 +51,29 @@
 
     <!-- BangumiProxyScreen -->
     <string name="bangumi_proxy_title">代理設定</string>
+    <string name="bangumi_mirror_group">鏡像資料來源</string>
+    <string name="bangumi_mirror_enable">使用伺服器鏡像資料來源</string>
+    <string name="bangumi_mirror_desc">條目資料（搜尋/詳情/集數）改為從 %1$s 獲取，中國大陸可直連無需代理；伺服器定期快取，資料可能有最多 7 天滯後，搜尋未命中時伺服器自動回源官方。帳號登入與收藏同步仍走官方 API，可配合反向代理使用</string>
     <string name="bangumi_proxy_reverse_group">Bangumi 反向代理</string>
     <string name="bangumi_proxy_enable_reverse">啟用反向代理</string>
     <string name="bangumi_proxy_set_address_first">請先設定代理地址</string>
     <string name="bangumi_proxy_reverse_desc">透過 %1$s 代理存取 api.bgm.tv，解決直連不可達問題</string>
-    <string name="bangumi_proxy_http_group">HTTP 代理</string>
-    <string name="bangumi_proxy_enable_http">啟用 HTTP 代理</string>
-    <string name="bangumi_proxy_http_desc">透過 %1$s:%2$d 代理所有網路請求（修改後需重啟應用生效）</string>
+    <string name="bangumi_proxy_http_group">網路代理</string>
+    <string name="bangumi_proxy_enable_http">啟用網路代理</string>
+    <string name="bangumi_proxy_http_desc">透過 %1$s 代理存取網路，儲存後新請求立即生效</string>
+    <string name="bangumi_proxy_protocol_web">WEB 代理</string>
+    <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT 通道，相容性最好</string>
+    <string name="bangumi_proxy_protocol_socks5">SOCKS5 代理</string>
+    <string name="bangumi_proxy_protocol_socks5_desc">支援帳號密碼認證，網域由代理側解析</string>
+    <string name="bangumi_proxy_server">伺服器</string>
+    <string name="bangumi_proxy_username">帳號（可選）</string>
+    <string name="bangumi_proxy_password">密碼（可選）</string>
+    <string name="bangumi_proxy_port_invalid">連接埠需為 1-65535</string>
+    <string name="bangumi_proxy_share">分享代理設定</string>
     <string name="bangumi_proxy_dialog_title">代理地址</string>
     <string name="bangumi_proxy_domain">網域</string>
-    <string name="bangumi_proxy_address">地址</string>
     <string name="bangumi_proxy_port">連接埠</string>
     <string name="bangumi_proxy_domain_label">代理網域</string>
-    <string name="bangumi_proxy_address_label">代理地址</string>
     <string name="bangumi_proxy_modify">修改</string>
 
     <!-- BangumiLoginScreen -->

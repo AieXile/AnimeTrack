@@ -51,19 +51,29 @@
 
     <!-- BangumiProxyScreen -->
     <string name="bangumi_proxy_title">代理设置</string>
+    <string name="bangumi_mirror_group">镜像数据源</string>
+    <string name="bangumi_mirror_enable">使用服务器镜像数据源</string>
+    <string name="bangumi_mirror_desc">条目数据（搜索/详情/集数）从 %1$s 直连获取，免代理，最多滞后 7 天；登录与收藏仍走官方，可配合反向代理</string>
     <string name="bangumi_proxy_reverse_group">Bangumi 反向代理</string>
     <string name="bangumi_proxy_enable_reverse">启用反向代理</string>
     <string name="bangumi_proxy_set_address_first">请先设置代理地址</string>
     <string name="bangumi_proxy_reverse_desc">通过 %1$s 代理访问 api.bgm.tv，解决直连不可达问题</string>
-    <string name="bangumi_proxy_http_group">HTTP 代理</string>
-    <string name="bangumi_proxy_enable_http">启用 HTTP 代理</string>
-    <string name="bangumi_proxy_http_desc">通过 %1$s:%2$d 代理所有网络请求（修改后需重启应用生效）</string>
+    <string name="bangumi_proxy_http_group">网络代理</string>
+    <string name="bangumi_proxy_enable_http">启用网络代理</string>
+    <string name="bangumi_proxy_http_desc">通过 %1$s 代理访问网络，保存后新请求立即生效</string>
+    <string name="bangumi_proxy_protocol_web">WEB 代理</string>
+    <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT 隧道，兼容性最好</string>
+    <string name="bangumi_proxy_protocol_socks5">SOCKS5 代理</string>
+    <string name="bangumi_proxy_protocol_socks5_desc">支持用户名密码认证，域名由代理侧解析</string>
+    <string name="bangumi_proxy_server">服务器</string>
+    <string name="bangumi_proxy_username">用户名（可选）</string>
+    <string name="bangumi_proxy_password">密码（可选）</string>
+    <string name="bangumi_proxy_port_invalid">端口需为 1-65535</string>
+    <string name="bangumi_proxy_share">分享代理配置</string>
     <string name="bangumi_proxy_dialog_title">代理地址</string>
     <string name="bangumi_proxy_domain">域名</string>
-    <string name="bangumi_proxy_address">地址</string>
     <string name="bangumi_proxy_port">端口</string>
     <string name="bangumi_proxy_domain_label">代理域名</string>
-    <string name="bangumi_proxy_address_label">代理地址</string>
     <string name="bangumi_proxy_modify">修改</string>
 
     <!-- BangumiLoginScreen -->
