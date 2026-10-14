@@ -1,7 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import com.aiexile.animetrack.ui.components.SquircleShape
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -171,7 +168,6 @@ fun FeaturesScreen(
                             description = stringResource(R.string.features_series_stack_desc),
                             checked = seriesStackEnabled,
                             onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
-                            badge = stringResource(R.string.features_series_stack_badge),
                             itemKey = "series_stack",
                             highlightKey = highlightKey
                         )
@@ -246,7 +242,6 @@ private fun SwitchItem(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    badge: String? = null,
     itemKey: String? = null,
     highlightKey: String? = null
 ) {
@@ -258,29 +253,12 @@ private fun SwitchItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                badge?.let {
-                    Spacer(modifier = Modifier.size(6.dp))
-                    Text(
-                        text = it,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                                shape = SquircleShape(4.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                    )
-                }
-            }
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = description,
