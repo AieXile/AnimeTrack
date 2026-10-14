@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +30,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -70,6 +73,7 @@ import kotlinx.coroutines.launch
 // ==========================================
 // 自定义页 1: 主题外观（选择即时生效，整个向导界面即实时预览）
 // ==========================================
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun OnboardingThemePage(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
@@ -88,12 +92,14 @@ internal fun OnboardingThemePage(settingsRepository: SettingsRepository) {
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        // 主题配色：点选后整个向导界面立即变色预览
+        // 主题配色：点选后整个向导界面立即变色预览；
+        // FlowRow 在窄屏（小 dpi）上自动换行，避免末尾色卡被挤压出界
         SectionLabel(text = stringResource(R.string.onboarding_theme_preset_label))
         Spacer(modifier = Modifier.height(12.dp))
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             ThemePreset.entries.forEach { preset ->
                 ThemePresetOption(
@@ -133,7 +139,12 @@ internal fun OnboardingThemePage(settingsRepository: SettingsRepository) {
 // 自定义页 2: 导航定制（迷你手机预览框实时渲染所选效果）
 // ==========================================
 @Composable
-internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
+internal fun OnboardingNavPage(
+    settingsRepository: SettingsRepository,
+    onAdvancePage: () -> Unit,
+    onNotice: (String) -> Unit,
+    registerNextAction: (((() -> Unit)?) -> Unit)
+) {
     val scope = rememberCoroutineScope()
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.CAPSULE)
     val labelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
@@ -143,10 +154,30 @@ internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
     val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
 
-    // 子步：0=导航样式，1=导航内容。初次进入样式步为未选中态，点选样式后才进入内容步；
-    // 顶部步骤标签让首次使用者一眼看到有两步可选，并可点击来回切换。
+    // 子步：0=导航样式，1=导航内容。点选样式后停留在本步，预览框实时展示效果，
+    // 可自由切换对比；由「下一步」或顶部步骤标签进入内容步。
     var navStep by rememberSaveable { mutableIntStateOf(0) }
     var styleChosen by rememberSaveable { mutableStateOf(false) }
+    var contentChosen by rememberSaveable { mutableStateOf(false) }
+
+    val styleRequiredText = stringResource(R.string.onboarding_nav_style_required)
+    val contentRequiredText = stringResource(R.string.onboarding_nav_content_required)
+
+    // 「下一步」按钮的校验推进：未选当前步内容则上报外层横幅提示，已选则进入下一子步/翻页
+    val handleNextAction = {
+        when {
+            navStep == 0 && !styleChosen -> onNotice(styleRequiredText)
+            navStep == 0 -> navStep = 1
+            navStep == 1 && !contentChosen -> onNotice(contentRequiredText)
+            else -> onAdvancePage()
+        }
+    }
+
+    // 向外层「下一步」按钮注册校验入口，离开本页时注销
+    DisposableEffect(Unit) {
+        registerNextAction(handleNextAction)
+        onDispose { registerNextAction(null) }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -170,6 +201,8 @@ internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
             StepChip(
                 label = stringResource(R.string.onboarding_nav_content_label),
                 active = navStep == 1,
+                // 先选定导航样式，才能进入导航内容步
+                enabled = styleChosen,
                 onClick = { navStep = 1 }
             )
         }
@@ -195,7 +228,7 @@ internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (navStep == 0) {
-            // 第一步：导航样式，初次进入未选中，点选后才高亮并自动进入内容步
+            // 第一步：导航样式，初次进入未选中，点选后高亮并留在本步展示效果
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -205,11 +238,8 @@ internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
                         style = style,
                         isSelected = styleChosen && navigationStyle == style,
                         onClick = {
-                            scope.launch {
-                                settingsRepository.setNavigationStyle(style)
-                                styleChosen = true
-                                navStep = 1
-                            }
+                            styleChosen = true
+                            scope.launch { settingsRepository.setNavigationStyle(style) }
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -221,7 +251,10 @@ internal fun OnboardingNavPage(settingsRepository: SettingsRepository) {
                 NavigationLabelMode.entries.forEachIndexed { index, mode ->
                     SegmentedButton(
                         selected = labelMode == mode,
-                        onClick = { scope.launch { settingsRepository.setNavigationLabelMode(mode) } },
+                        onClick = {
+                            contentChosen = true
+                            scope.launch { settingsRepository.setNavigationLabelMode(mode) }
+                        },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = NavigationLabelMode.entries.size),
                         icon = {},
                         label = {
@@ -331,15 +364,20 @@ internal fun SectionLabel(text: String) {
 
 /** 步骤标签：导航样式 / 导航内容，当前步高亮，可点击切换，提示首次使用者有多个步骤 */
 @Composable
-private fun StepChip(label: String, active: Boolean, onClick: () -> Unit) {
+private fun StepChip(label: String, active: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        active -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Text(
         text = label,
         fontSize = 13.sp,
         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
-        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        color = contentColor,
         modifier = Modifier
             .clip(CircleShape)
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .background(
                 if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 else MaterialTheme.colorScheme.surfaceContainer
