@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- debug 构建专属覆盖：桌面图标与最近任务中显示的名称加 Debug 后缀，便于与正式版区分 -->
+<resources>
+    <string name="app_name" translatable="false">AnimeTrack Debug</string>
+</resources>

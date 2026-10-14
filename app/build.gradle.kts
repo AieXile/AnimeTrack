@@ -67,6 +67,16 @@ android {
     }
 
     buildTypes {
+        // debug 包名加 .debug 后缀：与正式版共存于同一设备，避免 Android Studio 运行时
+        // 覆盖安装/卸载正式版导致数据丢失（Room/DataStore 均按包名隔离，互不影响）
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            // 极光 AAR（jcore/push-internal）用 JPUSH_PKGNAME 生成 signature 级权限与 provider
+            // authority；defaultConfig 赋的值不含 debug 后缀，会与正式版同名冲突（签名不同），
+            // 触发"存在不兼容，无法同时安装"。此处让 placeholder 跟随 debug 包名。
+            manifestPlaceholders["JPUSH_PKGNAME"] = defaultConfig.applicationId + applicationIdSuffix
+        }
         // benchmark 构建类型：继承 release 配置，供 macrobenchmark / baseline profile 录制使用。
         // 可调试、不混淆，与正式包隔离，不影响正式 release 产物。
         create("benchmark") {
