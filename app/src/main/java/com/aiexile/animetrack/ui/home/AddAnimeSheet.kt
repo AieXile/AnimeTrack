@@ -1,16 +1,20 @@
 package com.aiexile.animetrack.ui.home
 
-import android.graphics.Bitmap
+import android.graphics.Bitmap
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -55,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -81,7 +86,7 @@ import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun AddAnimeBottomSheet(
     sheetState: SheetState,
@@ -102,202 +107,261 @@ internal fun AddAnimeBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        // 容器透明化:面板做成浮岛卡片自绘背景,
+        // 周围透出被 scrim 暗化的主界面内容
+        containerColor = Color.Transparent,
         shape = SquircleShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                androidx.compose.material3.BottomSheetDefaults.DragHandle(
-                    width = 32.dp,
-                    height = 4.dp,
-                    shape = SquircleShape(2.dp),
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-        }
+        dragHandle = null
     ) {
         val keyboardController = LocalSoftwareKeyboardController.current
 
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-        ) {
-            Text(
-                text = stringResource(R.string.home_add_new_anime),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                modifier = Modifier
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.home_search_anime_hint),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                },
-                singleLine = true,
-                shape = SquircleShape(28.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
-                leadingIcon = {
-                    Icon(
-                        painter = rememberAppIconPainter(AppIcon.SEARCH),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    SearchSourceDropdown(
-                        selectedSource = searchSource,
-                        onSourceChange = onSearchSourceChange,
-                        onSearch = {
-                            keyboardController?.hide()
-                            onSearch()
-                        },
-                        onClear = { onSearchQueryChange("") },
-                        hasQuery = searchQuery.isNotBlank()
-                    )
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    keyboardController?.hide()
-                    onSearch()
-                })
-            )
-
-            if (searchError != null) {
-                Text(
-                    text = searchError,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                )
-            }
-
-            if (isSearching) {
-                Box(
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                // 浮岛面板:内容少时自适应高度,搜索结果多时撑满剩余空间(fill = false)
+                // 底部留 16.dp 冗余,避免面板贴死屏幕底边
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    contentAlignment = Alignment.Center
+                        .weight(1f, fill = false)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                        .clip(SquircleShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerLowest)
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                    // 顶部拖拽指示条（自绘，随浮岛背景）
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .size(width = 32.dp, height = 4.dp)
+                            .align(Alignment.CenterHorizontally)
+                            .clip(SquircleShape(2.dp))
+                            .background(MaterialTheme.colorScheme.outline)
+                    )
+
+                    Text(
+                        text = stringResource(R.string.home_add_new_anime),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                    )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.home_search_anime_hint),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    },
+                    singleLine = true,
+                    shape = SquircleShape(28.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    leadingIcon = {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.SEARCH),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    trailingIcon = {
+                        SearchSourceDropdown(
+                            selectedSource = searchSource,
+                            onSourceChange = onSearchSourceChange,
+                            onSearch = {
+                                keyboardController?.hide()
+                                onSearch()
+                            },
+                            onClear = { onSearchQueryChange("") },
+                            hasQuery = searchQuery.isNotBlank()
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        keyboardController?.hide()
+                        onSearch()
+                    })
+                )
+
+                if (searchError != null) {
+                    Text(
+                        text = searchError,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
                     )
                 }
-            }
 
-            if (searchResults.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val lazyListState = rememberLazyListState()
-                val coroutineScope = rememberCoroutineScope()
-                val flingBehavior = ScrollableDefaults.flingBehavior()
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .pointerInput(Unit) {
-                            val velocityTracker = VelocityTracker()
-                            detectVerticalDragGestures(
-                                onDragStart = {
-                                    velocityTracker.resetTracking()
-                                },
-                                onDragEnd = {
-                                    val velocity = velocityTracker.calculateVelocity().y
-                                    coroutineScope.launch {
-                                        lazyListState.scroll {
-                                            with(flingBehavior) {
-                                                performFling(-velocity)
-                                            }
-                                        }
-                                    }
-                                    velocityTracker.resetTracking()
-                                },
-                                onDragCancel = {
-                                    velocityTracker.resetTracking()
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                    coroutineScope.launch {
-                                        lazyListState.scroll { scrollBy(-dragAmount) }
-                                    }
-                                }
-                            )
-                        }
-                ) {
-                    LazyColumn(
-                        state = lazyListState,
-                        userScrollEnabled = false,
+                if (isSearching) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(
-                            count = searchResults.size,
-                            key = { "${searchResults[it].source}_${searchResults[it].sourceId}" },
-                            contentType = { "search_result" }
-                        ) { index ->
-                            SearchResultItem(
-                                result = searchResults[index],
-                                onClick = { onSearchResultSelect(searchResults[index]) }
-                            )
-                        }
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
-            } else if (hasSearched && !isSearching && searchResults.isEmpty() && searchError == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_no_anime_found),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
+
+                if (searchResults.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val lazyListState = rememberLazyListState()
+                    val coroutineScope = rememberCoroutineScope()
+                    val flingBehavior = ScrollableDefaults.flingBehavior()
+
+                    // 列表撑满面板剩余空间,「手动添加」按钮悬浮叠在列表底部居中,
+                    // 列表内容延伸到按钮四周保持可见
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .pointerInput(Unit) {
+                                val velocityTracker = VelocityTracker()
+                                detectVerticalDragGestures(
+                                    onDragStart = {
+                                        velocityTracker.resetTracking()
+                                    },
+                                    onDragEnd = {
+                                        val velocity = velocityTracker.calculateVelocity().y
+                                        coroutineScope.launch {
+                                            lazyListState.scroll {
+                                                with(flingBehavior) {
+                                                    performFling(-velocity)
+                                                }
+                                            }
+                                        }
+                                        velocityTracker.resetTracking()
+                                    },
+                                    onDragCancel = {
+                                        velocityTracker.resetTracking()
+                                    },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                        coroutineScope.launch {
+                                            lazyListState.scroll { scrollBy(-dragAmount) }
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        LazyColumn(
+                            state = lazyListState,
+                            userScrollEnabled = false,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            // 底部留出悬浮按钮高度,保证最后一项能滚出按钮遮挡区
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 68.dp)
+                        ) {
+                            items(
+                                count = searchResults.size,
+                                key = { "${searchResults[it].source}_${searchResults[it].sourceId}" },
+                                contentType = { "search_result" }
+                            ) { index ->
+                                SearchResultItem(
+                                    result = searchResults[index],
+                                    onClick = { onSearchResultSelect(searchResults[index]) }
+                                )
+                            }
+                        }
+
+                        // 悬浮「手动添加」按钮:叠在列表之上,不截断列表
+                        ManualAddFloatingButton(
+                            onClick = onManualAdd,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                        )
+                    }
+                } else if (hasSearched && !isSearching && searchResults.isEmpty() && searchError == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.home_no_anime_found),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                // 「手动添加」按钮:无搜索结果时在面板底部正常排布;
+                // 有结果时改为悬浮在列表之上(见上方),不占独立排位
+                if (searchResults.isEmpty()) {
+                    ManualAddFloatingButton(
+                        onClick = onManualAdd,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(top = 12.dp, bottom = 16.dp)
                     )
                 }
+                }
             }
-
-            TextButton(
-                onClick = onManualAdd,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.home_manual_add),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+/**
+ * 底部「手动添加番剧」按钮(悬浮于列表之上,底部居中,包裹文字):
+ * surfaceContainer 实底 + 细描边,无阴影;实底用于压住下方列表内容保证可读。
+ * Dialog 窗口内玻璃/模糊的 GraphicsLayer 内容采样会触发设备级 native 崩溃
+ * (主窗口正常),sheet 内不做玻璃效果。
+ */
+@Composable
+private fun ManualAddFloatingButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val shape = SquircleShape(12.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(40.dp)
+            .clip(shape)
+            .background(colorScheme.surfaceContainer)
+            .border(width = 1.dp, color = colorScheme.outline, shape = shape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Text(
+            text = stringResource(R.string.home_manual_add),
+            color = colorScheme.primary,
+            fontSize = 14.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        )
     }
 }
 
