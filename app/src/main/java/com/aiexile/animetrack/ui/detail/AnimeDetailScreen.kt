@@ -148,6 +148,8 @@ import coil.Coil
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayRequest
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayResult
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerId
@@ -236,7 +238,12 @@ fun AnimeDetailScreen(
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
-            Toast.makeText(context, context.getString(R.string.detail_completed_celebration), Toast.LENGTH_SHORT).show()
+            // 完结庆祝横幅：随机附一条内置庆祝语（不走网络，即时出现）
+            AppContainer.showTopNotice(
+                TopNoticeType.CELEBRATION,
+                context.getString(R.string.detail_completed_celebration),
+                context.resources.getStringArray(R.array.completed_celebration_lines).random()
+            )
             viewModel.dismissCompletedToast()
         }
     }
@@ -2710,7 +2717,9 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
             resolver.update(uri, contentValues, null, null)
         }
 
-        withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_cover_saved_to_gallery), Toast.LENGTH_SHORT).show() }
+        withContext(Dispatchers.Main) {
+            AppContainer.showTopNotice(TopNoticeType.SUCCESS, context.getString(R.string.detail_cover_saved_to_gallery))
+        }
     } catch (e: Exception) {
         Log.e("AnimeDetailScreen", "saveCoverToGallery failed", e)
         withContext(Dispatchers.Main) { Toast.makeText(context, context.getString(R.string.detail_save_failed_with_reason_format, e.message ?: ""), Toast.LENGTH_SHORT).show() }

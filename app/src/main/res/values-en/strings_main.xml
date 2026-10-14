@@ -2,6 +2,13 @@
 <resources>
     <!-- HomeScreen -->
     <string name="home_completed_celebration">Series completed!</string>
+    <string-array name="completed_celebration_lines">
+        <item>Another one completed! See you in the next one!</item>
+        <item>One more series down, countless memories gained</item>
+        <item>The end is just the start of a new journey</item>
+        <item>Moments like these are what tracking is for</item>
+        <item>Take a break, then pick your next favorite!</item>
+    </string-array>
     <string name="home_anime_already_exists">Anime already exists</string>
     <string name="home_search_anime">Search anime</string>
     <string name="home_close_search">Close search</string>
@@ -157,6 +164,8 @@
     <string name="onboarding_glass_effect_label">Glass effect</string>
     <string name="onboarding_nav_style_label">Bar style</string>
     <string name="onboarding_nav_content_label">Bar content</string>
+    <string name="onboarding_nav_style_required">Choose a bar style first</string>
+    <string name="onboarding_nav_content_required">Choose bar content first</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_start">Get Started</string>
     <string name="onboarding_next">Next</string>

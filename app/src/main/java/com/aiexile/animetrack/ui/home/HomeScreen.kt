@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.data.sse.SseEventTypes
+import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.data.SettingsRepository
@@ -97,6 +99,34 @@ fun HomeScreen(
     val statusBarMode by (settingsRepository?.statusBarMode
         ?.collectAsState(settingsRepository.cachedStatusBarMode())
         ?: remember { mutableStateOf(StatusBarMode.SCRIM) })
+    // 「手动添加番剧」悬浮 FAB 的玻璃效果（与悬浮胶囊/顶栏 FAB 共用同一组开关，液态玻璃优先；
+    // 初始值取同步缓存防闪变，高级模糊共用胶囊的模糊自定义参数）
+    val liquidGlassEnabled by (settingsRepository?.capsuleLiquidGlassEnabled
+        ?.collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+        ?: remember { mutableStateOf(false) })
+    val advancedBlurEnabled by (settingsRepository?.capsuleAdvancedBlurEnabled
+        ?.collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
+        ?: remember { mutableStateOf(false) })
+    val blurRadius by (settingsRepository?.advancedBlurRadius
+        ?.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+        ?: remember { mutableStateOf(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS) })
+    val blurBackgroundAlpha by (settingsRepository?.advancedBlurBackgroundAlpha
+        ?.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+        ?: remember { mutableStateOf(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA) })
+    val blurTintAlpha by (settingsRepository?.advancedBlurTintAlpha
+        ?.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+        ?: remember { mutableStateOf(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA) })
+    val blurNoise by (settingsRepository?.advancedBlurNoise
+        ?.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+        ?: remember { mutableStateOf(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE) })
+    val advancedBlurConfig = remember(blurRadius, blurBackgroundAlpha, blurTintAlpha, blurNoise) {
+        AdvancedBlurConfig(
+            blurRadius = blurRadius.dp,
+            backgroundColorAlpha = blurBackgroundAlpha,
+            tintAlpha = blurTintAlpha,
+            noiseFactor = blurNoise
+        )
+    }
     val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
     val seriesStackTopIndices by viewModel.seriesStackTopIndices.collectAsState()
     val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
@@ -151,7 +181,12 @@ fun HomeScreen(
 
     LaunchedEffect(uiState.showCompletedToast) {
         if (uiState.showCompletedToast) {
-            Toast.makeText(context, context.getString(R.string.home_completed_celebration), Toast.LENGTH_SHORT).show()
+            // 完结庆祝横幅：随机附一条内置庆祝语（不走网络，即时出现）
+            AppContainer.showTopNotice(
+                TopNoticeType.CELEBRATION,
+                context.getString(R.string.home_completed_celebration),
+                context.resources.getStringArray(R.array.completed_celebration_lines).random()
+            )
             viewModel.dismissCompletedToast()
         }
     }

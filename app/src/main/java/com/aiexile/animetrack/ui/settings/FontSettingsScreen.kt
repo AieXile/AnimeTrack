@@ -42,6 +42,8 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AppLanguage
 import com.aiexile.animetrack.data.FontFamilyType
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -121,7 +123,7 @@ fun FontSettingsScreen(
             if (success != null) {
                 settingsRepository.setCustomFontPath(success)
                 settingsRepository.setFontFamily(FontFamilyType.CUSTOM)
-                Toast.makeText(context, context.getString(R.string.font_import_success), Toast.LENGTH_SHORT).show()
+                AppContainer.showTopNotice(TopNoticeType.SUCCESS, context.getString(R.string.font_import_success))
             } else {
                 Toast.makeText(context, context.getString(R.string.font_import_failed), Toast.LENGTH_SHORT).show()
             }

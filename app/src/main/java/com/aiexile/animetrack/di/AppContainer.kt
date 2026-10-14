@@ -32,6 +32,28 @@ data class ImportBannerState(
     val isError: Boolean = false
 )
 
+/**
+ * 通用顶部横幅通知类型：AppContainer 层无法解析主题色，
+ * 渲染时由 AnimeTrackApp 按类型映射图标与颜色。
+ */
+enum class TopNoticeType {
+    /** 操作成功（对勾图标） */
+    SUCCESS,
+
+    /** 庆祝时刻（星光图标，与彩蛋语录横幅同家族） */
+    CELEBRATION
+}
+
+/**
+ * 通用顶部横幅通知状态：各界面通过 [AppContainer.showTopNotice] 发起，
+ * AnimeTrackApp 顶层统一渲染，展示 4 秒自动消失，切换界面不丢失。
+ */
+data class TopNoticeState(
+    val type: TopNoticeType,
+    val text: String,
+    val secondaryText: String? = null
+)
+
 object AppContainer {
     
     private var context: Context? = null
@@ -70,6 +92,18 @@ object AppContainer {
     // AnimeTrackApp 顶层收集并渲染(进行中不自动消失,结果 4 秒自动消失),
     // 导入任务挂在 applicationScope,退出数据管理界面后进度与结果提示不中断。
     val importBanner: MutableStateFlow<ImportBannerState?> = MutableStateFlow(null)
+
+    // 通用顶部横幅通知:任何界面/协程通过 showTopNotice() 发起,
+    // AnimeTrackApp 顶层收集并渲染(4 秒自动消失),切换界面不丢失。
+    val topNotice: MutableStateFlow<TopNoticeState?> = MutableStateFlow(null)
+
+    /**
+     * 通用顶部横幅通知统一入口:非 Compose 上下文(普通函数/协程)也可调用。
+     * 连续调用时后一条覆盖前一条(横幅为单条位,不做排队)。
+     */
+    fun showTopNotice(type: TopNoticeType, text: String, secondaryText: String? = null) {
+        topNotice.value = TopNoticeState(type, text, secondaryText)
+    }
 
     // 应用级协程作用域:承载需要脱离界面生命周期的任务(如 Markdown 导入),
     // 随单例常驻,任务完成即结束。

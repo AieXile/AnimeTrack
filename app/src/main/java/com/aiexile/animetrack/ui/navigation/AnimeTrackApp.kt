@@ -82,6 +82,8 @@ import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.TopNoticeState
+import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.model.AuthSource
 import com.aiexile.animetrack.push.PushRegistrationHelper
@@ -600,6 +602,19 @@ fun AnimeTrackApp(
         }
         val importBannerForDisplay = importBanner ?: lastImportBanner
 
+        // 通用顶部通知横幅：任何界面经 AppContainer.showTopNotice() 发起，
+        // 展示 4 秒后自动消失；缓存最近一条，退出动画期间内容不闪空
+        val topNotice by AppContainer.topNotice.collectAsState()
+        var lastTopNotice by remember { mutableStateOf<TopNoticeState?>(null) }
+        LaunchedEffect(topNotice) {
+            if (topNotice != null) {
+                lastTopNotice = topNotice
+                delay(4000)
+                AppContainer.topNotice.value = null
+            }
+        }
+        val topNoticeForDisplay = topNotice ?: lastTopNotice
+
         // 启动时自动补全元数据缺失的番剧（如导入时未挂代理导致 Bangumi 匹配失败），
         // 24 小时节流（见 AnimeRepository.triggerCoverBackfillIfNeeded）
         LaunchedEffect(Unit) {
@@ -607,7 +622,9 @@ fun AnimeTrackApp(
         }
 
         // 顶部横幅纵向堆叠（Token 失效与彩蛋同时出现概率极低）
-        Column {
+        // statusBarsPadding 统一加在堆叠容器上：各横幅组件内部不带状态栏 padding，
+        // 避免多条横幅同时显示时每条重复叠加状态栏高度导致间距过大
+        Column(modifier = Modifier.statusBarsPadding()) {
             TokenExpiredBanner(
                 visible = bannerActuallyVisible,
                 text = bannerText,
@@ -643,6 +660,18 @@ fun AnimeTrackApp(
                 text = importBannerForDisplay?.text.orEmpty(),
                 loading = importBannerForDisplay?.loading == true,
                 onDismiss = { AppContainer.importBanner.value = null }
+            )
+            TopNoticeBanner(
+                visible = topNotice != null,
+                icon = when (topNoticeForDisplay?.type) {
+                    TopNoticeType.SUCCESS -> AppIcon.CHECK_CIRCLE
+                    TopNoticeType.CELEBRATION -> AppIcon.STAR_SHINE
+                    null -> AppIcon.STAR_SHINE
+                },
+                iconTint = MaterialTheme.colorScheme.primary,
+                text = topNoticeForDisplay?.text.orEmpty(),
+                secondaryText = topNoticeForDisplay?.secondaryText,
+                onDismiss = { AppContainer.topNotice.value = null }
             )
         }
 

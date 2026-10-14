@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -38,6 +37,9 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
  *
  * TokenExpiredBanner 与彩蛋语录横幅共用此组件。
  * loading=true 时图标位置展示转圈进度且不显示关闭按钮(任务进行中,不可取消)。
+ *
+ * 注意:组件自身不带 statusBarsPadding,由调用方(AnimeTrackApp 顶层横幅堆叠 Column)
+ * 统一加一次,避免多条横幅堆叠时每条各自重复添加状态栏高度导致间距过大。
  */
 @Composable
 fun TopNoticeBanner(
@@ -60,7 +62,6 @@ fun TopNoticeBanner(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .shadow(
                     elevation = 4.dp,

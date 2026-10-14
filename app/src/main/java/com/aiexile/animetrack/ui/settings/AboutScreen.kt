@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.settings
 
-import android.content.ClipData
+import android.content.ClipData
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import android.content.ClipboardManager
@@ -87,6 +88,7 @@ import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.HitokotoRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.ui.components.MarkdownText
 import com.aiexile.animetrack.ui.components.UsageStatsDialog
 import com.aiexile.animetrack.ui.update.UpdateDialog
@@ -212,7 +214,11 @@ fun AboutScreen(
                                 avatarTapCount = 0
                                 scope.launch {
                                     settingsRepository.setDeveloperMode(true)
-                                    Toast.makeText(context, context.getString(R.string.about_dev_mode_enabled), Toast.LENGTH_SHORT).show()
+                                    // 与彩蛋语录横幅同家族：星光庆祝横幅
+                                    AppContainer.showTopNotice(
+                                        TopNoticeType.CELEBRATION,
+                                        context.getString(R.string.about_dev_mode_enabled)
+                                    )
                                 }
                             }
                             avatarTapCount == 3 && !developerMode -> {
@@ -742,7 +748,7 @@ private fun saveDrawableToGallery(context: Context, drawableRes: Int, label: Str
             resolver.update(uri, contentValues, null, null)
         }
 
-        Toast.makeText(context, context.getString(R.string.about_saved_to_album), Toast.LENGTH_SHORT).show()
+        AppContainer.showTopNotice(TopNoticeType.SUCCESS, context.getString(R.string.about_saved_to_album))
     } catch (e: Exception) {
         Toast.makeText(context, context.getString(R.string.about_save_failed_with_msg, e.message ?: ""), Toast.LENGTH_SHORT).show()
     }

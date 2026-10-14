@@ -2,6 +2,13 @@
 <resources>
     <!-- HomeScreen -->
     <string name="home_completed_celebration">完結撒花！</string>
+    <string-array name="completed_celebration_lines">
+        <item>又一部補完，下一部再見！</item>
+        <item>追番之路 +1，收穫滿滿的感動</item>
+        <item>完結不是結束，是開新坑的起點</item>
+        <item>見證完結的瞬間，就是追番的意義</item>
+        <item>休息一下，去挑下一部好番吧</item>
+    </string-array>
     <string name="home_anime_already_exists">番劇已存在</string>
     <string name="home_search_anime">搜尋番劇</string>
     <string name="home_close_search">關閉搜尋</string>
@@ -157,6 +164,8 @@
     <string name="onboarding_glass_effect_label">玻璃效果</string>
     <string name="onboarding_nav_style_label">導航樣式</string>
     <string name="onboarding_nav_content_label">導航內容</string>
+    <string name="onboarding_nav_style_required">請先選擇導航樣式</string>
+    <string name="onboarding_nav_content_required">請先選擇導航內容</string>
     <string name="onboarding_skip">跳過</string>
     <string name="onboarding_start">開始體驗</string>
     <string name="onboarding_next">下一步</string>
