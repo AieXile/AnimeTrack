@@ -143,11 +143,16 @@ class SettingsRepository(private val context: Context) {
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
         private val BANGUMI_MIRROR_ENABLED_KEY = booleanPreferencesKey("bangumi_mirror_enabled")
+        /** 镜像数据源解锁标记：关于页彩蛋触发后置 true，开关才可操作 */
+        private val BANGUMI_MIRROR_UNLOCKED_KEY = booleanPreferencesKey("bangumi_mirror_unlocked")
 
         const val DEFAULT_BANGUMI_PROXY_HOST = ""
 
         /** Bangumi 镜像数据源：与账号同步服务器同源，服务器侧含搜索回源兜底 */
         const val BANGUMI_MIRROR_HOST = "www.aiexile.top"
+
+        /** 镜像数据源开启密码：关于页彩蛋解锁入口后，开启时仍需校验 */
+        const val BANGUMI_MIRROR_PASSWORD = "aiexile666"
 
         private val HTTP_PROXY_ENABLED_KEY = booleanPreferencesKey("http_proxy_enabled")
         private val HTTP_PROXY_HOST_KEY = stringPreferencesKey("http_proxy_host")
@@ -499,7 +504,7 @@ class SettingsRepository(private val context: Context) {
 
     val showSearchButton: Flow<Boolean> = preferenceFlow(SHOW_SEARCH_BUTTON_KEY, true)
 
-    /** 多季番剧是否堆叠显示，默认关闭（半成品功能） */
+    /** 多季番剧是否堆叠显示，默认关闭 */
     val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, false)
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
@@ -651,10 +656,16 @@ class SettingsRepository(private val context: Context) {
     // Bangumi 镜像数据源
     val bangumiMirrorEnabledFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_ENABLED_KEY, false)
 
+    /** 镜像数据源解锁状态：false 时代理设置页开关置灰不可操作 */
+    val bangumiMirrorUnlockedFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_UNLOCKED_KEY, false)
+
     suspend fun setBangumiMirrorEnabled(enabled: Boolean) {
         setPreference(BANGUMI_MIRROR_ENABLED_KEY, enabled)
         bangumiMirrorEnabled = enabled
     }
+
+    suspend fun setBangumiMirrorUnlocked(unlocked: Boolean) =
+        setPreference(BANGUMI_MIRROR_UNLOCKED_KEY, unlocked)
 
     // HTTP 普通代理
     val httpProxyEnabledFlow: Flow<Boolean> = preferenceFlow(HTTP_PROXY_ENABLED_KEY, false)

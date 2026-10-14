@@ -53,7 +53,11 @@
     <string name="bangumi_proxy_title">Proxy settings</string>
     <string name="bangumi_mirror_group">Mirror data source</string>
     <string name="bangumi_mirror_enable">Use server mirror data source</string>
-    <string name="bangumi_mirror_desc">Fetch subject data (search/details/episodes) from %1$s instead, directly reachable without proxy; server caches periodically (up to 7 days behind), and falls back to the official API automatically when search misses. Account login and collection sync still use the official API, and can work with reverse proxy</string>
+    <string name="bangumi_mirror_desc">Fetch subject data from the server directly, no proxy needed, up to 7 days behind</string>
+    <string name="bangumi_mirror_locked_desc">Locked</string>
+    <string name="bangumi_mirror_password_title">Verify password</string>
+    <string name="bangumi_mirror_password_label">Password</string>
+    <string name="bangumi_mirror_password_wrong">Wrong password</string>
     <string name="bangumi_proxy_reverse_group">Bangumi reverse proxy</string>
     <string name="bangumi_proxy_enable_reverse">Enable reverse proxy</string>
     <string name="bangumi_proxy_set_address_first">Please set proxy address first</string>

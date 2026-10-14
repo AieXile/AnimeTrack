@@ -53,7 +53,11 @@
     <string name="bangumi_proxy_title">代理设置</string>
     <string name="bangumi_mirror_group">镜像数据源</string>
     <string name="bangumi_mirror_enable">使用服务器镜像数据源</string>
-    <string name="bangumi_mirror_desc">条目数据（搜索/详情/集数）从 %1$s 直连获取，免代理，最多滞后 7 天；登录与收藏仍走官方，可配合反向代理</string>
+    <string name="bangumi_mirror_desc">条目数据从服务器直连获取，免代理，最多滞后 7 天</string>
+    <string name="bangumi_mirror_locked_desc">未解锁</string>
+    <string name="bangumi_mirror_password_title">验证密码</string>
+    <string name="bangumi_mirror_password_label">密码</string>
+    <string name="bangumi_mirror_password_wrong">密码错误</string>
     <string name="bangumi_proxy_reverse_group">Bangumi 反向代理</string>
     <string name="bangumi_proxy_enable_reverse">启用反向代理</string>
     <string name="bangumi_proxy_set_address_first">请先设置代理地址</string>

@@ -199,6 +199,10 @@ fun AboutScreen(
                             !iconFlipped && avatarTapCount >= 5 -> {
                                 avatarTapCount = 0
                                 iconFlipped = true
+                                // 彩蛋即镜像数据源入口的解锁凭证：解锁后代理设置页开关才可操作
+                                scope.launch {
+                                    settingsRepository.setBangumiMirrorUnlocked(true)
+                                }
                                 // 同步写入全局状态（由 AnimeTrackApp 顶层渲染横幅）：
                                 // 优先用进页预取的语录，无预取则内置兜底，保证翻转后即时出现
                                 AppContainer.easterEggQuote.value =
