@@ -8,6 +8,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.aiexile.animetrack.data.crash.CrashReporter
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.Interceptor
+import java.util.concurrent.TimeUnit
 
 class AnimeTrackApp : Application(), ImageLoaderFactory {
 
@@ -122,7 +124,11 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .okHttpClient {
-                okhttp3.OkHttpClient.Builder()
+                // 基于共享基础 client 派生：图片加载与 API 请求共用动态代理
+                // （WEB/SOCKS5、认证、保存即生效），封面下载同样走代理
+                RetrofitClient.baseOkHttpClient.newBuilder()
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.SECONDS)
                     .addInterceptor(bilibiliRefererInterceptor)
                     .addInterceptor(wsrvNlFallbackInterceptor)
                     .build()

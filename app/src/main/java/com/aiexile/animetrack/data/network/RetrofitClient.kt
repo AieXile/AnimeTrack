@@ -6,19 +6,28 @@ import com.aiexile.animetrack.data.auth.AuthInterceptor
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthInterceptor
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.data.remote.GitHubUpdateApi
 import com.aiexile.animetrack.data.remote.HitokotoApi
 import com.aiexile.animetrack.data.remote.UpdateApi
 import com.aiexile.animetrack.di.AppContainer
+import okhttp3.Authenticator
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.Credentials
+import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import java.io.IOException
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.net.ProxySelector
+import java.net.SocketAddress
+import java.net.URI
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
@@ -39,23 +48,87 @@ object RetrofitClient {
     // ===== 共享基础 OkHttpClient（连接池、线程池、超时） =====
 
     internal val baseOkHttpClient: OkHttpClient by lazy {
-        val builder = OkHttpClient.Builder()
+        OkHttpClient.Builder()
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(6, TimeUnit.SECONDS)
             // 网络失败日志：所有派生客户端共享，失败请求进入反馈日志（见 NetworkLogInterceptor）
             .addInterceptor(NetworkLogInterceptor())
+            // 动态代理（保存即生效，新请求立即应用，无需重启）：
+            // - WEB(HTTP) 代理：ProxySelector 返回 HTTP 代理，407 认证由 proxyAuthenticator 应答
+            // - SOCKS5：隧道由 DynamicProxySocketFactory 在 socket 层建立（支持用户名密码认证）
+            .proxySelector(dynamicProxySelector)
+            .proxyAuthenticator(dynamicProxyAuthenticator)
+            .socketFactory(DynamicProxySocketFactory())
+            .dns(dynamicDns)
+            .build()
+    }
 
-        // 应用 HTTP 普通代理（修改后需重启 App 生效）
-        try {
-            val settings = AppContainer.getSettingsRepository()
-            if (settings.httpProxyEnabled && settings.httpProxyHost.isNotBlank() && settings.httpProxyPort > 0) {
-                builder.proxy(
-                    Proxy(Proxy.Type.HTTP, InetSocketAddress(settings.httpProxyHost, settings.httpProxyPort))
-                )
+    /**
+     * 动态代理选择器：每次建连时读取运行时代理配置。
+     * SOCKS5 模式返回 NO_PROXY——让 OkHttp 按"直连"路由传递目标地址，
+     * 实际隧道由 DynamicProxySocketFactory 在 socket 层接管。
+     */
+    private val dynamicProxySelector = object : ProxySelector() {
+        override fun select(uri: URI): List<Proxy> {
+            val settings = try {
+                AppContainer.getSettingsRepository()
+            } catch (_: Exception) {
+                null
             }
-        } catch (_: Exception) {}
 
-        builder.build()
+            return if (settings != null &&
+                settings.httpProxyEnabled &&
+                settings.httpProxyType == ProxyType.HTTP &&
+                settings.httpProxyHost.isNotBlank() &&
+                settings.httpProxyPort in 1..65535
+            ) {
+                listOf(Proxy(Proxy.Type.HTTP, InetSocketAddress(settings.httpProxyHost, settings.httpProxyPort)))
+            } else {
+                listOf(Proxy.NO_PROXY)
+            }
+        }
+
+        override fun connectFailed(uri: URI, sa: SocketAddress, ioe: IOException) {}
+    }
+
+    /**
+     * HTTP 代理认证：代理返回 407 时注入 Proxy-Authorization（Basic）。
+     * 已携带凭据仍被拒（密码错误等）时返回 null 终止，避免认证死循环。
+     */
+    private val dynamicProxyAuthenticator = Authenticator { _, response ->
+        val settings = try {
+            AppContainer.getSettingsRepository()
+        } catch (_: Exception) {
+            null
+        }
+
+        if (settings == null ||
+            !settings.httpProxyEnabled ||
+            settings.httpProxyType != ProxyType.HTTP ||
+            settings.httpProxyUsername.isEmpty() ||
+            response.request.header("Proxy-Authorization") != null
+        ) {
+            return@Authenticator null
+        }
+
+        response.request.newBuilder()
+            .header("Proxy-Authorization", Credentials.basic(settings.httpProxyUsername, settings.httpProxyPassword))
+            .build()
+    }
+
+    /**
+     * SOCKS5 模式下的 DNS 占位：返回保留原始 hostname 的回环地址，
+     * 使 InetSocketAddress.hostString 仍为域名，由代理侧完成真实解析
+     * （socks5h 语义），规避本地 DNS 污染或不可达导致的解析失败。
+     */
+    private val dynamicDns = object : Dns {
+        override fun lookup(hostname: String): List<InetAddress> {
+            return if (currentSocks5Settings() != null) {
+                listOf(InetAddress.getByAddress(hostname, byteArrayOf(127, 0, 0, 1)))
+            } else {
+                Dns.SYSTEM.lookup(hostname)
+            }
+        }
     }
 
     // ===== Interceptors =====
@@ -134,25 +207,48 @@ object RetrofitClient {
         chain.proceed(request)
     }
 
-    // Bangumi 反向代理拦截器：开启后将 api.bgm.tv / bgm.tv 请求重写到代理 host
+    // Bangumi 反向代理/镜像数据源拦截器：
+    // - 镜像开关开启：仅条目数据请求（搜索/详情/关联/集数，api.bgm.tv 非 /v0/users、/v0/me 路径）
+    //   重写到镜像服务器（www.aiexile.top）；账户相关请求（OAuth 换 token、/v0/me、收藏拉取与同步）
+    //   不重写，继续走下方反向代理或直连官方
+    // - 反向代理开启：重写 api.bgm.tv / bgm.tv 到用户自填的代理 host
+    //   （镜像开启时账户请求仍可经反代访问，两者各管各的路径）
     private val bangumiProxyInterceptor = Interceptor { chain ->
         val settings = AppContainer.getSettingsRepository()
+        val originalUrl = chain.request().url
+        val originalHost = originalUrl.host
+        if (originalHost != "api.bgm.tv" && originalHost != "bgm.tv") {
+            return@Interceptor chain.proceed(chain.request())
+        }
+
+        // 镜像数据源：条目数据走镜像服务器；账户路径（/v0/users、/v0/me）与 bgm.tv OAuth 放行
+        if (settings.bangumiMirrorEnabled && originalHost == "api.bgm.tv") {
+            val path = originalUrl.encodedPath
+            val isAccountPath =
+                path.startsWith("/v0/users") || path == "/v0/me" || path.startsWith("/v0/me/")
+            if (!isAccountPath) {
+                val newUrl = originalUrl.newBuilder()
+                    .host(SettingsRepository.BANGUMI_MIRROR_HOST)
+                    .build()
+                val newRequest = chain.request().newBuilder()
+                    .url(newUrl)
+                    .build()
+                return@Interceptor chain.proceed(newRequest)
+            }
+        }
+
+        // 反向代理：账户相关请求在镜像开启时也经此通道回源官方
         if (settings.bangumiProxyEnabled && settings.bangumiProxyHost.isNotBlank()) {
             // 支持完整 URL（提取 host）与裸 host 两种配置；非法配置忽略重写并记录，避免 host() 抛异常
             val proxyHost = normalizeHost(settings.bangumiProxyHost)
             if (proxyHost != null) {
-                val originalUrl = chain.request().url
-                val originalHost = originalUrl.host
-                // 仅重写 Bangumi 相关域名
-                if (originalHost == "api.bgm.tv" || originalHost == "bgm.tv") {
-                    val newUrl = originalUrl.newBuilder()
-                        .host(proxyHost)
-                        .build()
-                    val newRequest = chain.request().newBuilder()
-                        .url(newUrl)
-                        .build()
-                    return@Interceptor chain.proceed(newRequest)
-                }
+                val newUrl = originalUrl.newBuilder()
+                    .host(proxyHost)
+                    .build()
+                val newRequest = chain.request().newBuilder()
+                    .url(newUrl)
+                    .build()
+                return@Interceptor chain.proceed(newRequest)
             } else {
                 com.aiexile.animetrack.data.log.AppLogManager.w(
                     "BangumiProxy",

@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aiexile.animetrack.AnimeTrackApp
 import com.aiexile.animetrack.model.DarkStyle
+import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
@@ -141,15 +142,25 @@ class SettingsRepository(private val context: Context) {
 
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
+        private val BANGUMI_MIRROR_ENABLED_KEY = booleanPreferencesKey("bangumi_mirror_enabled")
 
         const val DEFAULT_BANGUMI_PROXY_HOST = ""
+
+        /** Bangumi 镜像数据源：与账号同步服务器同源，服务器侧含搜索回源兜底 */
+        const val BANGUMI_MIRROR_HOST = "www.aiexile.top"
 
         private val HTTP_PROXY_ENABLED_KEY = booleanPreferencesKey("http_proxy_enabled")
         private val HTTP_PROXY_HOST_KEY = stringPreferencesKey("http_proxy_host")
         private val HTTP_PROXY_PORT_KEY = intPreferencesKey("http_proxy_port")
+        private val HTTP_PROXY_TYPE_KEY = stringPreferencesKey("http_proxy_type")
+        private val HTTP_PROXY_USERNAME_KEY = stringPreferencesKey("http_proxy_username")
+        private val HTTP_PROXY_PASSWORD_KEY = stringPreferencesKey("http_proxy_password")
 
         const val DEFAULT_HTTP_PROXY_HOST = ""
         const val DEFAULT_HTTP_PROXY_PORT = 0
+        const val DEFAULT_HTTP_PROXY_TYPE = "HTTP"
+        const val DEFAULT_HTTP_PROXY_USERNAME = ""
+        const val DEFAULT_HTTP_PROXY_PASSWORD = ""
 
         private val USER_AUTH_BASE_URL_KEY = stringPreferencesKey("user_auth_base_url")
         const val DEFAULT_USER_AUTH_BASE_URL = "https://www.aiexile.top/api"
@@ -205,6 +216,11 @@ class SettingsRepository(private val context: Context) {
     var bangumiProxyHost: String = DEFAULT_BANGUMI_PROXY_HOST
         private set
 
+    // Bangumi 镜像数据源运行时缓存：拦截器直接读取（优先级高于反向代理）
+    @Volatile
+    var bangumiMirrorEnabled: Boolean = false
+        private set
+
     // HTTP 普通代理运行时缓存：OkHttpClient 直接读取
     @Volatile
     var httpProxyEnabled: Boolean = false
@@ -216,6 +232,18 @@ class SettingsRepository(private val context: Context) {
 
     @Volatile
     var httpProxyPort: Int = DEFAULT_HTTP_PROXY_PORT
+        private set
+
+    @Volatile
+    var httpProxyType: ProxyType = ProxyType.HTTP
+        private set
+
+    @Volatile
+    var httpProxyUsername: String = DEFAULT_HTTP_PROXY_USERNAME
+        private set
+
+    @Volatile
+    var httpProxyPassword: String = DEFAULT_HTTP_PROXY_PASSWORD
         private set
 
     @Volatile
@@ -244,9 +272,13 @@ class SettingsRepository(private val context: Context) {
             prefCache.putAll(prefs.asMap())
             bangumiProxyEnabled = prefs[BANGUMI_PROXY_ENABLED_KEY] ?: false
             bangumiProxyHost = prefs[BANGUMI_PROXY_HOST_KEY] ?: DEFAULT_BANGUMI_PROXY_HOST
+            bangumiMirrorEnabled = prefs[BANGUMI_MIRROR_ENABLED_KEY] ?: false
             httpProxyEnabled = prefs[HTTP_PROXY_ENABLED_KEY] ?: false
             httpProxyHost = prefs[HTTP_PROXY_HOST_KEY] ?: DEFAULT_HTTP_PROXY_HOST
             httpProxyPort = prefs[HTTP_PROXY_PORT_KEY] ?: DEFAULT_HTTP_PROXY_PORT
+            httpProxyType = parseProxyType(prefs[HTTP_PROXY_TYPE_KEY] ?: DEFAULT_HTTP_PROXY_TYPE)
+            httpProxyUsername = prefs[HTTP_PROXY_USERNAME_KEY] ?: DEFAULT_HTTP_PROXY_USERNAME
+            httpProxyPassword = prefs[HTTP_PROXY_PASSWORD_KEY] ?: DEFAULT_HTTP_PROXY_PASSWORD
             userAuthBaseUrl = prefs[USER_AUTH_BASE_URL_KEY] ?: DEFAULT_USER_AUTH_BASE_URL
             // 将 DataStore 中的语言设置同步回 SharedPreferences 镜像，保证两者一致
             val lang = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
@@ -616,10 +648,22 @@ class SettingsRepository(private val context: Context) {
         bangumiProxyHost = normalized
     }
 
+    // Bangumi 镜像数据源
+    val bangumiMirrorEnabledFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_ENABLED_KEY, false)
+
+    suspend fun setBangumiMirrorEnabled(enabled: Boolean) {
+        setPreference(BANGUMI_MIRROR_ENABLED_KEY, enabled)
+        bangumiMirrorEnabled = enabled
+    }
+
     // HTTP 普通代理
     val httpProxyEnabledFlow: Flow<Boolean> = preferenceFlow(HTTP_PROXY_ENABLED_KEY, false)
     val httpProxyHostFlow: Flow<String> = preferenceFlow(HTTP_PROXY_HOST_KEY, DEFAULT_HTTP_PROXY_HOST)
     val httpProxyPortFlow: Flow<Int> = preferenceFlow(HTTP_PROXY_PORT_KEY, DEFAULT_HTTP_PROXY_PORT)
+    val httpProxyTypeFlow: Flow<ProxyType> = preferenceFlow(HTTP_PROXY_TYPE_KEY, DEFAULT_HTTP_PROXY_TYPE)
+        .map { parseProxyType(it) }
+    val httpProxyUsernameFlow: Flow<String> = preferenceFlow(HTTP_PROXY_USERNAME_KEY, DEFAULT_HTTP_PROXY_USERNAME)
+    val httpProxyPasswordFlow: Flow<String> = preferenceFlow(HTTP_PROXY_PASSWORD_KEY, DEFAULT_HTTP_PROXY_PASSWORD)
 
     suspend fun setHttpProxyEnabled(enabled: Boolean) {
         setPreference(HTTP_PROXY_ENABLED_KEY, enabled)
@@ -636,6 +680,25 @@ class SettingsRepository(private val context: Context) {
         setPreference(HTTP_PROXY_PORT_KEY, port)
         httpProxyPort = port
     }
+
+    suspend fun setHttpProxyType(type: ProxyType) {
+        setPreference(HTTP_PROXY_TYPE_KEY, type.name)
+        httpProxyType = type
+    }
+
+    suspend fun setHttpProxyUsername(username: String) {
+        setPreference(HTTP_PROXY_USERNAME_KEY, username)
+        httpProxyUsername = username
+    }
+
+    suspend fun setHttpProxyPassword(password: String) {
+        setPreference(HTTP_PROXY_PASSWORD_KEY, password)
+        httpProxyPassword = password
+    }
+
+    /** 存储值解析为 ProxyType，非法值兜底 HTTP */
+    private fun parseProxyType(value: String): ProxyType =
+        try { ProxyType.valueOf(value) } catch (_: IllegalArgumentException) { ProxyType.HTTP }
 
     val userAuthBaseUrlFlow: Flow<String> = preferenceFlow(USER_AUTH_BASE_URL_KEY, DEFAULT_USER_AUTH_BASE_URL)
 
