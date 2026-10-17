@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.background
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
@@ -626,6 +627,7 @@ private fun DateSelectors(
     if (showStartDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showStartDatePicker = false },
+            modifier = Modifier.dialogBlurBehind(),
             confirmButton = {
                 TextButton(
                     onClick = { showStartDatePicker = false }
@@ -651,6 +653,7 @@ private fun DateSelectors(
     if (showFinishDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showFinishDatePicker = false },
+            modifier = Modifier.dialogBlurBehind(),
             confirmButton = {
                 TextButton(
                     onClick = { showFinishDatePicker = false }

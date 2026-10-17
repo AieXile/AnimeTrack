@@ -22,12 +22,13 @@ import com.aiexile.animetrack.util.parseDateToTimestamp
  * 两个入口同时生效——这正是本次抽离的目的。
  *
  * 判定规则链（顺序敏感，勿调整顺序）：
- * 1. '0' 脏行：不入库，顺手清理服务器行（幂等）
- * 2. 三级身份匹配（已落库记录）：bangumiId → remoteSyncId → 标题兜底
- * 3. 同批次内存去重（未落库记录）：pendingInsert 中三级匹配
- * 4. 换键强匹配：服务端迁移映射命中本地旧副本 → 换键合并（不插入）
- * 5. 进度指纹兜底：老服务器无映射时保守拦截（仅跳过插入）
- * 6. 寄生行清理：本地已绑定 bangumiId 但远程残留以其 remoteSyncId 为键的旧行 → 删服务端行
+ * 1. 墓碑行：本地已删但服务端删除尚未确认成功的行键，跳过插入防复活（由补偿重试善后）
+ * 2. '0' 脏行：不入库，顺手清理服务器行（幂等）
+ * 3. 三级身份匹配（已落库记录）：bangumiId → remoteSyncId → 标题兜底
+ * 4. 同批次内存去重（未落库记录）：pendingInsert 中三级匹配
+ * 5. 换键强匹配：服务端迁移映射命中本地旧副本 → 换键合并（不插入）
+ * 6. 进度指纹兜底：老服务器无映射时保守拦截（仅跳过插入）
+ * 7. 寄生行清理：本地已绑定 bangumiId 但远程残留以其 remoteSyncId 为键的旧行 → 删服务端行
  */
 class SubscriptionMerger(
     private val animeDao: AnimeDao,
@@ -43,11 +44,20 @@ class SubscriptionMerger(
      * @param remoteList 后端下发的订阅行（任意顺序，内部按 [remoteMergeOrder] 排序）
      * @param localCandidates 本地记录快照（换键兜底识别的候选集，与调用入口各自
      *   已有的本地列表保持同源即可；合并过程中的 DAO 查询仍为实时查询）
+     * @param pendingDeletionIds 待删除墓碑行键集合（本地已删、服务端删除尚未确认
+     *   成功的行）：本次同步前的补偿重试仍失败，跳过插入防止已删番剧复活
      */
-    suspend fun merge(remoteList: List<Subscription>, localCandidates: List<Anime>): MergeResult {
+    suspend fun merge(
+        remoteList: List<Subscription>,
+        localCandidates: List<Anime>,
+        pendingDeletionIds: Set<String> = emptySet()
+    ): MergeResult {
         var mergedCount = 0
         val pendingInsert = mutableListOf<Anime>()
         for (remote in remoteList.sortedBy { remoteMergeOrder(it) }) {
+            // 墓碑防线：该行键的删除补偿重试仍失败（服务器残留行），跳过插入，
+            // 待下次同步补偿重试成功后，该行从服务端消失
+            if (remote.animeId in pendingDeletionIds) continue
             // 历史 '0' 脏行（旧版 B 站导入上传）：不入库，顺手清理服务器行（幂等）。
             // 不清理会残留旧标题/无元数据记录，标题兜底匹配失败时被当成新番剧插入（幽灵卡片）
             if (remote.animeId == "0") {

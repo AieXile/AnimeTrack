@@ -16,6 +16,7 @@ import com.aiexile.animetrack.data.network.TmdbTvDetail
 import com.aiexile.animetrack.data.network.toApiString
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.model.PendingDeletion
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.data.sync.SubscriptionMerger
@@ -259,6 +260,8 @@ class AnimeRepositoryImpl(
         private const val RELATIONS_FETCH_INTERVAL_MS = 700L
         /** 封面本地化写库合批 flush 延迟：短时间内的多次封面更新合并为一次事务写库 */
         private const val COVER_BATCH_FLUSH_MS = 300L
+        /** 待删除墓碑 TTL：超期未补偿成功则放弃，避免长期失败永久阻断该行键的合并 */
+        private const val PENDING_DELETION_TTL_MS = 30L * 24 * 60 * 60 * 1000
         /** reassignSeriesKeys 防抖 Job（在 appScope 上调度，cancel/replace 安全） */
         @Volatile
         private var reassignSeriesKeysJob: Job? = null
@@ -422,6 +425,9 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun deleteAnime(anime: Anime) {
+        // 墓碑先落盘（挂起写库完成才继续）：网络删除失败或进程在请求发出前被杀时，
+        // 下次同步前按墓碑补偿重试，防止服务器残留行合并时被重新插回本地（复活）
+        recordPendingDeletions(anime)
         // 先同步取消订阅到后端
         syncSubscriptionToServer(anime, isAdd = false)
         animeDao.deleteAnime(anime)
@@ -1005,6 +1011,7 @@ class AnimeRepositoryImpl(
             try {
                 val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
                 if (!userAuthManager.isLoggedIn.first()) return@launch
+                val ownerKey = currentOwnerKey()
 
                 if (isAdd) {
                     // 无 bangumiId 的番剧懒生成稳定远程 ID（首次上传时回存）
@@ -1026,6 +1033,11 @@ class AnimeRepositoryImpl(
                     )
                     if (response.success) {
                         if (BuildConfig.DEBUG) Log.d(TAG, "Subscription added to server: ${anime.title}")
+                        // 重新添加/换键成功：清除对应行键的待删除墓碑，防止
+                        // 「删→删除失败留墓碑→重加」场景下补偿重试把新行误删
+                        if (ownerKey != null) {
+                            animeDao.clearPendingDeletion(ownerKey, animeId)
+                        }
                         // 服务器行标识迁移：条目绑定有效 bangumiId 后，原先以 remoteSyncId
                         // 为 anime_id 的行成为寄生行（sanitize 清洗/早期上传的产物），
                         // 不删会残留旧标题旧元数据，重启合并时可能被当成新番剧插入（幽灵卡片）。
@@ -1036,6 +1048,11 @@ class AnimeRepositoryImpl(
                                 RetrofitClient.userAuthApi.removeSubscription(
                                     RemoveSubscribeRequest(animeId = oldSyncId)
                                 )
+                            }.onSuccess { removed ->
+                                // 旧行键确认删除后，其墓碑一并清除
+                                if (removed.success && ownerKey != null) {
+                                    animeDao.clearPendingDeletion(ownerKey, oldSyncId)
+                                }
                             }.onFailure {
                                 Log.w(TAG, "Remove legacy remoteSyncId row failed (non-fatal): ${anime.title}", it)
                             }
@@ -1051,27 +1068,104 @@ class AnimeRepositoryImpl(
                         anime.bangumiId?.let { add(it.toString()) }
                         anime.remoteSyncId?.let { add(it) }
                     }.distinct()
-                    for (id in stableIds) {
+                    // 服务端确认删除成功（success）才清对应墓碑；
+                    // 失败保留，由 retryPendingDeletions 在下次同步前补偿重试
+                    suspend fun removeRemoteRow(animeId: String) {
                         runCatching {
                             RetrofitClient.userAuthApi.removeSubscription(
-                                RemoveSubscribeRequest(animeId = id)
+                                RemoveSubscribeRequest(animeId = animeId)
                             )
+                        }.onSuccess { removed ->
+                            if (removed.success && ownerKey != null) {
+                                animeDao.clearPendingDeletion(ownerKey, animeId)
+                            }
                         }
+                    }
+                    for (id in stableIds) {
+                        removeRemoteRow(id)
                     }
                     // 旧本地 id（旧版本客户端上传的记录），与稳定 ID 不同才删
                     val legacyId = anime.id.toString()
                     if (legacyId !in stableIds) {
-                        runCatching {
-                            RetrofitClient.userAuthApi.removeSubscription(
-                                RemoveSubscribeRequest(animeId = legacyId)
-                            )
-                        }
+                        removeRemoteRow(legacyId)
                     }
                     if (BuildConfig.DEBUG) Log.d(TAG, "Subscription removed from server: ${anime.title}")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Sync subscription failed (non-fatal): ${anime.title}", e)
             }
+        }
+    }
+
+    /**
+     * 当前登录账号的墓碑归属标识：服务器 user id 优先，回退 username；未登录返回 null。
+     * bangumiId 行键跨账号共享，墓碑必须绑定账号，防止换账号后补偿重试误删新账号的行。
+     */
+    private suspend fun currentOwnerKey(): String? {
+        val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
+        if (!userAuthManager.isLoggedIn.first()) return null
+        return userAuthManager.userId.first()?.let { "user:$it" }
+            ?: userAuthManager.username.first()?.let { "username:$it" }
+    }
+
+    /**
+     * 将番剧的全部服务端行键写入待删除墓碑（仅登录时记录）。
+     * 行键口径与 syncSubscriptionToServer(isAdd=false) 一致：
+     * 当前 bangumiId、remoteSyncId、旧本地自增 id，任一删除失败都能按键补偿。
+     */
+    private suspend fun recordPendingDeletions(anime: Anime) {
+        val ownerKey = currentOwnerKey() ?: return
+        val stableIds = buildList {
+            anime.bangumiId?.let { add(it.toString()) }
+            anime.remoteSyncId?.let { add(it) }
+        }.distinct()
+        val allIds = (stableIds + anime.id.toString()).distinct()
+        val now = System.currentTimeMillis()
+        allIds.forEach { id ->
+            animeDao.insertPendingDeletion(
+                PendingDeletion(animeId = id, ownerKey = ownerKey, createdAt = now)
+            )
+        }
+    }
+
+    /**
+     * 补偿重试待删除墓碑：删除番剧时网络失败/进程被杀遗留的服务端行，
+     * 在拉取订阅列表前先按墓碑重删，防止残留行合并时被重新插回本地（复活）。
+     *
+     * 顺手清理：其他账号遗留的墓碑（换账号后无法安全执行，直接丢弃）、
+     * 超过 TTL 的过期墓碑（长期补偿失败，放弃以防永久阻断该行键的合并）。
+     * 单条失败保留墓碑，下次同步再试，不阻塞其余条目。
+     */
+    private suspend fun retryPendingDeletions() {
+        val ownerKey = currentOwnerKey() ?: return
+        animeDao.clearPendingDeletionsForOtherOwners(ownerKey)
+        animeDao.clearExpiredPendingDeletions(System.currentTimeMillis() - PENDING_DELETION_TTL_MS)
+        val pending = animeDao.getPendingDeletions(ownerKey)
+        if (pending.isEmpty()) return
+        var successCount = 0
+        var consecutiveFailures = 0
+        for (deletion in pending) {
+            try {
+                val response = RetrofitClient.userAuthApi.removeSubscription(
+                    RemoveSubscribeRequest(animeId = deletion.animeId)
+                )
+                if (response.success) {
+                    animeDao.clearPendingDeletion(ownerKey, deletion.animeId)
+                    successCount++
+                    consecutiveFailures = 0
+                }
+            } catch (e: Exception) {
+                AppLogManager.w(TAG, "待删除补偿重试失败（保留，下次同步再试）: animeId=${deletion.animeId}", e)
+                // 连续失败大概率是断网/服务端异常，短路退出避免逐条等待超时拖慢同步；
+                // 墓碑全部保留，下次同步从头再试
+                if (++consecutiveFailures >= 2) {
+                    AppLogManager.w(TAG, "补偿重试连续失败 ${consecutiveFailures} 次，本次跳过剩余 ${pending.size - successCount} 条墓碑")
+                    break
+                }
+            }
+        }
+        if (successCount > 0) {
+            AppLogManager.i(TAG, "补偿删除服务端订阅行 ${successCount}/${pending.size} 条")
         }
     }
 
@@ -1213,6 +1307,10 @@ class AnimeRepositoryImpl(
             // ===== 第零步：清洗历史脏数据（bangumiId<=0），并修正服务端对应记录 =====
             sanitizeDirtyBangumiIds()
 
+            // ===== 第零点五步：补偿重试待删除墓碑（必须在拉取列表前执行，
+            // 否则服务器残留行会先被合并插回本地，导致已删番剧复活） =====
+            retryPendingDeletions()
+
             // ===== 第一步：先拉取后端订阅列表，用于上传前的差异比对 =====
             val response = RetrofitClient.userAuthApi.getSubscriptions()
             val remoteList = response.subscriptions
@@ -1262,7 +1360,12 @@ class AnimeRepositoryImpl(
                 if (BuildConfig.DEBUG) Log.d(TAG, "Sync done: uploaded=$uploadedCount, remote list unavailable")
                 return
             }
-            val result = subscriptionMerger.merge(remoteList, localAnimes)
+            // 墓碑防线：仍带墓碑的行键 = 补偿重试也失败的服务器残留行，合并时跳过防复活
+            val ownerKey = currentOwnerKey()
+            val pendingDeletionIds = ownerKey
+                ?.let { animeDao.getPendingDeletions(it).map { d -> d.animeId }.toSet() }
+                ?: emptySet()
+            val result = subscriptionMerger.merge(remoteList, localAnimes, pendingDeletionIds)
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "Sync subscriptions: uploaded=$uploadedCount, " +
@@ -1334,6 +1437,8 @@ class AnimeRepositoryImpl(
         }
 
         try {
+            // 补偿重试待删除墓碑（必须在拉取列表前执行，防止服务器残留行合并时复活）
+            retryPendingDeletions()
             val response = RetrofitClient.userAuthApi.getSubscriptions()
             if (!response.success || response.subscriptions == null) {
                 if (BuildConfig.DEBUG) Log.d(TAG, "pullSubscriptionsFromServer: remote list unavailable")
@@ -1342,7 +1447,12 @@ class AnimeRepositoryImpl(
 
             // 换键行兜底识别的候选集（本地记录 + 本批次已插入的）
             val localAnimes = animeDao.getAllAnimesList()
-            val result = subscriptionMerger.merge(response.subscriptions, localAnimes)
+            // 墓碑防线：仍带墓碑的行键 = 补偿重试也失败的服务器残留行，合并时跳过防复活
+            val ownerKey = currentOwnerKey()
+            val pendingDeletionIds = ownerKey
+                ?.let { animeDao.getPendingDeletions(it).map { d -> d.animeId }.toSet() }
+                ?: emptySet()
+            val result = subscriptionMerger.merge(response.subscriptions, localAnimes, pendingDeletionIds)
             if (BuildConfig.DEBUG) Log.d(
                 TAG,
                 "pullSubscriptionsFromServer: merged(skipped)=${result.mergedCount}, " +

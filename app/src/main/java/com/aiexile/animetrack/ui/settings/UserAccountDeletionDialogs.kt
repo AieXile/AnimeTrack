@@ -35,6 +35,7 @@ import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.serverMessage
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,6 +74,7 @@ fun DeleteAccountFlowDialogs(
         DeletionStep.VERIFY -> {
             AlertDialog(
                 onDismissRequest = { if (!isSubmitting) onDismiss() },
+                modifier = Modifier.dialogBlurBehind(),
                 shape = SquircleShape(24.dp),
                 title = {
                     Text(
@@ -185,6 +187,7 @@ fun DeleteAccountFlowDialogs(
         DeletionStep.CONFIRM -> {
             AlertDialog(
                 onDismissRequest = { if (!isSubmitting) onDismiss() },
+                modifier = Modifier.dialogBlurBehind(),
                 shape = SquircleShape(24.dp),
                 title = {
                     Text(
@@ -287,6 +290,7 @@ fun DeleteAccountFlowDialogs(
         DeletionStep.RESULT -> {
             AlertDialog(
                 onDismissRequest = {}, // 结果步骤必须做出选择，不允许点外部关闭
+                modifier = Modifier.dialogBlurBehind(),
                 shape = SquircleShape(24.dp),
                 title = {
                     Text(
@@ -349,6 +353,7 @@ fun RestoreAccountDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!isRestoring) onDismiss() },
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

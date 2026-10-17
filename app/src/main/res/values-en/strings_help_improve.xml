@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HelpImproveDialog（first-launch "Help improve the app" dialog) -->
+    <string name="help_improve_dialog_title">Help Improve the App</string>
+    <string name="help_improve_dialog_message">To find and fix issues faster, the app can collect crash reports and error logs.</string>
+    <string name="help_improve_dialog_note">Data is only used to improve stability. You can change this anytime in Settings → Features.</string>
+    <string name="help_improve_crash_toggle">Enable crash tracking</string>
+    <string name="help_improve_crash_toggle_desc">Diagnostic info will be uploaded when a crash occurs</string>
+    <string name="help_improve_confirm">OK</string>
+
+    <!-- FeaturesScreen (Help improve the app group) -->
+    <string name="features_help_improve">Help improve the app</string>
+    <string name="features_crash_report">Crash tracking</string>
+    <string name="features_crash_report_desc">Automatically upload diagnostic info on crashes to help locate issues faster</string>
+</resources>

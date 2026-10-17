@@ -229,6 +229,15 @@ fun HomeScreen(
         }
     }
     
+    // 添加成功后请求关闭面板：播放 hide() 动画，动画完成后经上方
+    // currentValue == Hidden 链路统一收尾，避免直接移除组合导致
+    // SheetState 残留锚点、下次打开面板位置偏高
+    LaunchedEffect(uiState.pendingSheetDismiss) {
+        if (uiState.pendingSheetDismiss && uiState.isBottomSheetVisible) {
+            bottomSheetState.hide()
+        }
+    }
+    
     LaunchedEffect(uiState.shouldScrollToTop) {
         if (uiState.shouldScrollToTop) {
             gridState.animateScrollToItem(index = 0)
@@ -354,6 +363,7 @@ fun HomeScreen(
                     },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
+                    onClearSelection = { viewModel.clearSelection() },
                     onTogglePin = { anime -> viewModel.togglePin(anime) },
                     onFilterSelected = { viewModel.setFilter(it) },
                     onSortModeSelected = { viewModel.setListSortMode(it) },

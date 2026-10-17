@@ -30,6 +30,7 @@ enum class AppIcon(
     BOTTOM_NAVIGATION(R.drawable.sym_bottom_navigation, R.drawable.lucide_panel_bottom),
     BRIGHTNESS_HIGH(R.drawable.sym_brightness_high, R.drawable.lucide_sun),
     BRIGHTNESS_LOW(R.drawable.sym_brightness_low, R.drawable.lucide_sun_dim),
+    BUG_REPORT(R.drawable.sym_bug_report, R.drawable.lucide_bug),
     CALENDAR_CLOCK(R.drawable.sym_calendar_clock, R.drawable.lucide_calendar_clock),
     CALENDAR_MONTH(R.drawable.sym_calendar_month, R.drawable.lucide_calendar),
     CALENDAR_VIEW_DAY(R.drawable.sym_calendar_view_day, R.drawable.lucide_timeline),

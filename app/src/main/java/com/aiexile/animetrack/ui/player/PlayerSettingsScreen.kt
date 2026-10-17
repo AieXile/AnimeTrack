@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.player
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -367,6 +369,7 @@ private fun SpeedSelectionDialog(
 ) {
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

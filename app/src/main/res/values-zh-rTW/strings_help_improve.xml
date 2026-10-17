@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HelpImproveDialog（首啟「幫助改進應用」彈窗） -->
+    <string name="help_improve_dialog_title">幫助改進應用</string>
+    <string name="help_improve_dialog_message">為快速發現並修復問題，應用可收集崩潰報告與錯誤日誌。</string>
+    <string name="help_improve_dialog_note">資料僅用於改善穩定性，之後可隨時在「設定 → 功能」中調整。</string>
+    <string name="help_improve_crash_toggle">啟用崩潰追蹤</string>
+    <string name="help_improve_crash_toggle_desc">開啟後將在崩潰時上傳診斷資訊</string>
+    <string name="help_improve_confirm">確定</string>
+
+    <!-- FeaturesScreen（幫助改進應用分組） -->
+    <string name="features_help_improve">幫助改進應用</string>
+    <string name="features_crash_report">崩潰追蹤</string>
+    <string name="features_crash_report_desc">崩潰時自動上傳診斷資訊，幫助快速定位問題</string>
+</resources>

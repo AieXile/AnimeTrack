@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.announcement
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContent
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -95,6 +97,7 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
 
     AlertDialog(
         onDismissRequest = { viewModel.dismiss() },
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = null,
         text = {

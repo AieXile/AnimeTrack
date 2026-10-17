@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HelpImproveDialog（首启「帮助改进应用」弹窗） -->
+    <string name="help_improve_dialog_title">帮助改进应用</string>
+    <string name="help_improve_dialog_message">为快速发现并修复问题，应用可收集崩溃报告与错误日志。</string>
+    <string name="help_improve_dialog_note">数据仅用于改善稳定性，之后可随时在「设置 → 功能」中调整。</string>
+    <string name="help_improve_crash_toggle">启用崩溃追踪</string>
+    <string name="help_improve_crash_toggle_desc">开启后将在崩溃时上传诊断信息</string>
+    <string name="help_improve_confirm">确定</string>
+
+    <!-- FeaturesScreen（帮助改进应用分组） -->
+    <string name="features_help_improve">帮助改进应用</string>
+    <string name="features_crash_report">崩溃追踪</string>
+    <string name="features_crash_report_desc">崩溃时自动上传诊断信息，帮助快速定位问题</string>
+</resources>

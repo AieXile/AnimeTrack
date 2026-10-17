@@ -39,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -542,6 +543,7 @@ fun FeedbackChatInput(
                     if (showLogDialog) {
                         AlertDialog(
                             onDismissRequest = { showLogDialog = false },
+                            modifier = Modifier.dialogBlurBehind(),
                             title = { Text(stringResource(R.string.feedback_log_dialog_title)) },
                             text = { Text(stringResource(R.string.feedback_log_dialog_message)) },
                             confirmButton = {

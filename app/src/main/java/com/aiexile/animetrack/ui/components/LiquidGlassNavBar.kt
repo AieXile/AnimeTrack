@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -106,7 +107,13 @@ internal fun LiquidGlassNavBar(
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
         // 胶囊总高 54dp，左右各留 4dp 边距 → 浮块/Tab 宽 = (总宽 - 8dp) / Tab 数
-        val tabWidth = with(density) {
+        // tabWidth 状态化：切页时外层「导航栏旁」reserveEndWidth 动画 300ms 内宽度逐帧
+        // 变化，若作为 remember key 会让浮块交互状态机（DampedDragAnimation /
+        // InteractiveHighlight）每帧级联重建，拖拽/吸附/跟随动画全部被重置打断
+        //（浮块拖不动、切页浮块瞬移）。交互闭包与渲染 lambda 改读 State 最新值，
+        // 宽度只参与像素换算不参与身份判定；旋转/可见 Tab 数变化仍由 itemCount key 兜住
+        val tabWidthState = remember { mutableStateOf(0f) }
+        tabWidthState.value = with(density) {
             (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / itemCount.coerceAtLeast(1)
         }
         val offsetAnimation = remember { Animatable(0f) }
@@ -126,9 +133,9 @@ internal fun LiquidGlassNavBar(
         // 处理（更新索引 + 浮块动画），避免重置绕过动画导致浮块不动
         var currentIndex by remember { mutableIntStateOf(selectedIndex) }
 
-        // key 包含 tabWidth/itemCount/isLtr：布局或可见 Tab 变化时重建，
-        // 避免拖拽回调闭包捕获过期的尺寸与索引范围（旋转/改设置后拖拽失准）
-        val dampedDragAnimation = remember(animationScope, tabWidth, itemCount, isLtr, touchSlopPx) {
+        // key 仅含 itemCount/isLtr（tabWidth 已状态化，见上）：可见 Tab 数/布局
+        // 方向变化时重建，避免拖拽回调闭包捕获过期的索引范围（旋转/改设置后拖拽失准）
+        val dampedDragAnimation = remember(animationScope, itemCount, isLtr, touchSlopPx) {
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = selectedIndex.toFloat(),
@@ -158,7 +165,7 @@ internal fun LiquidGlassNavBar(
                         // 途中会盖住相邻 Tab（如设置），点按事件到不了下层 Tab 的
                         // clickable（此前直接吞掉，导致滑动途中点「设置」无反应、
                         // Pager 按自身惯性停在看板）。按点按落点换算 Tab 并导航
-                        val tapIndex = (value + change.position.x / tabWidth)
+                        val tapIndex = (value + change.position.x / tabWidthState.value)
                             .toInt().coerceIn(0, itemCount - 1)
                         AppLogManager.i("LiquidNav", "blob TAP -> navigate tapIndex=$tapIndex value=$value")
                         if (tapIndex in visibleItems.indices) {
@@ -177,7 +184,7 @@ internal fun LiquidGlassNavBar(
                 },
                 onDrag = { _, dragAmount, _ ->
                     updateValue(
-                        (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
+                        (targetValue + dragAmount.x / tabWidthState.value * if (isLtr) 1f else -1f)
                             .fastCoerceIn(0f, (itemCount - 1).toFloat())
                     )
                     animationScope.launch {
@@ -212,13 +219,13 @@ internal fun LiquidGlassNavBar(
         }
 
         // key 包含 dampedDragAnimation：指示器动画对象重建后高亮跟随新实例
-        val interactiveHighlight = remember(dampedDragAnimation, tabWidth, isLtr) {
+        val interactiveHighlight = remember(dampedDragAnimation, isLtr) {
             InteractiveHighlight(
                 animationScope = animationScope,
                 position = { size, offset ->
                     Offset(
-                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset,
+                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidthState.value + panelOffset
+                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidthState.value + panelOffset,
                         size.height / 2f
                     )
                 }
@@ -422,8 +429,8 @@ internal fun LiquidGlassNavBar(
                 .padding(horizontal = 4f.dp)
                 .graphicsLayer {
                     translationX =
-                        if (isLtr) dampedDragAnimation.value * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 1f) * tabWidth + panelOffset
+                        if (isLtr) dampedDragAnimation.value * tabWidthState.value + panelOffset
+                        else size.width - (dampedDragAnimation.value + 1f) * tabWidthState.value + panelOffset
                 }
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)

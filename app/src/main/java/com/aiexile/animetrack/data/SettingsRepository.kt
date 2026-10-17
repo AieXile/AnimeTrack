@@ -108,6 +108,8 @@ class SettingsRepository(private val context: Context) {
         private val WEBDAV_MEDIA_PATH_KEY = stringPreferencesKey("webdav_media_path")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
         private val PRIVACY_POLICY_ACCEPTED_KEY = booleanPreferencesKey("privacy_policy_accepted")
+        private val CRASH_REPORT_ENABLED_KEY = booleanPreferencesKey("crash_report_enabled")
+        private val HELP_IMPROVE_DIALOG_SHOWN_KEY = booleanPreferencesKey("help_improve_dialog_shown")
         private val DEVELOPER_MODE_KEY = booleanPreferencesKey("developer_mode")
         private val SHARE_BUTTON_ENABLED_KEY = booleanPreferencesKey("share_button_enabled")
         private val TMDB_API_KEY_KEY = stringPreferencesKey("tmdb_api_key")
@@ -358,9 +360,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNavigationStyle(style: NavigationStyle) = setPreference(NAVIGATION_STYLE_KEY, style.name)
 
-    val fabLocation: Flow<FabLocation> = preferenceFlow(FAB_LOCATION_KEY, FabLocation.BOTTOM_RIGHT.name)
+    val fabLocation: Flow<FabLocation> = preferenceFlow(FAB_LOCATION_KEY, FabLocation.NAV_BAR.name)
         .map { locationString ->
-            try { FabLocation.valueOf(locationString) } catch (_: IllegalArgumentException) { FabLocation.BOTTOM_RIGHT }
+            try { FabLocation.valueOf(locationString) } catch (_: IllegalArgumentException) { FabLocation.NAV_BAR }
         }
 
     suspend fun setFabLocation(location: FabLocation) = setPreference(FAB_LOCATION_KEY, location.name)
@@ -618,6 +620,21 @@ class SettingsRepository(private val context: Context) {
         (prefCache[PRIVACY_POLICY_ACCEPTED_KEY] as? Boolean)?.let { return it }
         return privacyPrefs.getBoolean(PRIVACY_ACCEPTED_PREF, false)
     }
+
+    // ========== 帮助改进应用（崩溃上报开关 + 首启弹窗标记） ==========
+
+    /**
+     * 崩溃上报是否开启（默认开启）。仅控制 tombstone 静默上传，
+     * xCrash 本地捕获落盘不受影响（本地文件有保留上限，可用于用户主动导出反馈）
+     */
+    val crashReportEnabled: Flow<Boolean> = preferenceFlow(CRASH_REPORT_ENABLED_KEY, true)
+
+    suspend fun setCrashReportEnabled(enabled: Boolean) = setPreference(CRASH_REPORT_ENABLED_KEY, enabled)
+
+    /** 首启「帮助改进应用」弹窗是否已展示（展示过即不再弹） */
+    val helpImproveDialogShown: Flow<Boolean> = preferenceFlow(HELP_IMPROVE_DIALOG_SHOWN_KEY, false)
+
+    suspend fun setHelpImproveDialogShown(shown: Boolean) = setPreference(HELP_IMPROVE_DIALOG_SHOWN_KEY, shown)
 
     val developerMode: Flow<Boolean> = preferenceFlow(DEVELOPER_MODE_KEY, false)
 

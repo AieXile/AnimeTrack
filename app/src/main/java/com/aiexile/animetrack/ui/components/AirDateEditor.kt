@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clickable
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
@@ -151,7 +152,8 @@ fun AirDatePickerDialog(
         Surface(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
-                .widthIn(min = 328.dp, max = 360.dp),
+                .widthIn(min = 328.dp, max = 360.dp)
+                .dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             color = MaterialTheme.colorScheme.surface
         ) {

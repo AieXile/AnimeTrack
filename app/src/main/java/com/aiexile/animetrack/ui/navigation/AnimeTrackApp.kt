@@ -13,6 +13,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
@@ -98,6 +100,10 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.TokenExpiredBanner
 import com.aiexile.animetrack.ui.components.TopNoticeBanner
 import com.aiexile.animetrack.ui.components.isCompactWidth
+import com.aiexile.animetrack.ui.home.BesideNavFabSize
+import com.aiexile.animetrack.ui.home.BesideNavFabSlot
+import com.aiexile.animetrack.ui.home.BesideNavFabSlotWidth
+import com.aiexile.animetrack.ui.home.besideNavFabSquish
 import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
 import com.aiexile.animetrack.ui.home.HomeTopBar
@@ -109,6 +115,7 @@ import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.EmailBindDialog
+import com.aiexile.animetrack.ui.settings.HelpImproveDialog
 import com.aiexile.animetrack.ui.settings.PrivacyConsentDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
@@ -144,10 +151,12 @@ fun AnimeTrackApp(
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
     // 大屏适配：Medium/Expanded 宽度使用左侧导航栏（覆盖导航样式设置），Compact 保持原底部导航/胶囊导航
     val useSideNavigation = !isCompactWidth()
-    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
+    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.NAV_BAR)
     val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsState(null)
     // 隐私同意状态：null = 加载中；false = 未同意（首启弹窗模态覆盖）；true = 已同意
     val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsState(null)
+    // 首启「帮助改进应用」弹窗：隐私同意后展示一次（崩溃追踪开关选择）
+    val helpImproveDialogShown by settingsRepository.helpImproveDialogShown.collectAsState(null)
 
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
     val hazeState = rememberHazeState()
@@ -399,6 +408,18 @@ fun AnimeTrackApp(
             )
         }
         return
+    }
+
+    // ===== 首启「帮助改进应用」弹窗（崩溃追踪开关） =====
+    // 隐私同意后展示一次；splash 未退出前不显示（同隐私弹窗：Dialog 独立 Window 会盖住 splash 遮罩）。
+    // null = 加载中，不弹；点击「确定」标记已展示，之后在「设置 → 功能」中调整
+    if (privacyAccepted == true && helpImproveDialogShown == false && splashDismissed) {
+        HelpImproveDialog(
+            settingsRepository = settingsRepository,
+            onConfirm = {
+                appScope.launch { settingsRepository.setHelpImproveDialogShown(true) }
+            }
+        )
     }
 
     // 等待初始路由确定
@@ -1129,6 +1150,14 @@ private fun MainOverlay(
                 }
             )
         } else if (isCapsuleNav) {
+            // 「导航栏旁」FAB：主页时胶囊右端预留按钮槽宽度，离开主页预留动画归零、
+            // 胶囊平滑回位重新居中（加号仅主页显示，与右下角 FAB 行为一致）
+            val fabBesideNav = fabLocation == FabLocation.NAV_BAR
+            val navFabReserve by animateDpAsState(
+                targetValue = if (fabBesideNav && isHomePage) BesideNavFabSlotWidth else 0.dp,
+                animationSpec = tween(300, easing = FastOutSlowInEasing),
+                label = "navFabReserve"
+            )
             // 液态玻璃「导航栏背景模糊」：在胶囊下层渲染四周磨砂区域（类 iOS Tab Bar）。
             // 胶囊自身采样 Pager 内容层（navBackdrop 不含本层），不受模糊层影响，保持清晰玻璃
             if (capsuleLiquidGlassEnabled && capsuleLiquidGlassBackdropBlurEnabled) {
@@ -1153,8 +1182,47 @@ private fun MainOverlay(
                     advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
                     blurConfig = advancedBlurConfig,
                     liquidGlassEnabled = capsuleLiquidGlassEnabled,
-                    backdrop = navBackdrop
+                    backdrop = navBackdrop,
+                    reserveEndWidth = navFabReserve,
+                    // 底边锁定 Box 底边：按钮槽（含回到顶部）比胶囊高会撑大本 Box，
+                    // 不锁定则胶囊默认贴顶边、跟随按钮槽显隐上下浮动
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
+                // 「导航栏旁」按钮槽：加号 52dp（略小于胶囊高 54dp），
+                // bottom padding 25dp = 胶囊边距 24dp + 半高差 (54-52)/2，与胶囊中心对齐，
+                // 右端 32dp 边距与胶囊一致。滑入滑出由 navFabReserve 同一动画源驱动：
+                // 进主页时按钮从屏幕右缘外随胶囊让位同步滑入，离主页时同步滑出，
+                // 任意时刻与胶囊的间距从 32dp 平滑收窄至设计间隔 12dp，
+                // 机制上杜绝「按钮先出现遮挡正在让位的胶囊」
+                if (fabBesideNav) {
+                    // 按钮完全滑出屏幕所需位移：右端边距 32dp + 按钮宽 52dp
+                    val besideNavFabSlideOut = BesideNavFabSize + 32.dp
+                    BesideNavFabSlot(
+                        showScrollToTop = showScrollToTop,
+                        onScrollToTop = {
+                            // 点击后立即隐藏按钮，不等滚动完成
+                            showScrollToTop = false
+                            homeViewModel.scrollToTop()
+                        },
+                        onAddClick = onAddAnimeClick,
+                        hazeState = hazeState,
+                        advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                        blurConfig = advancedBlurConfig,
+                        liquidGlassEnabled = capsuleLiquidGlassEnabled,
+                        backdrop = navBackdrop,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            // 与胶囊同一基准避让系统手势条，再叠加 25dp 底边距
+                            .navigationBarsPadding()
+                            .padding(end = 32.dp, bottom = 25.dp)
+                            .offset(
+                                x = besideNavFabSlideOut *
+                                    (1f - navFabReserve / BesideNavFabSlotWidth)
+                            )
+                            // 挤压形变：随滑入进度压扁→回弹，与滑移同源无独立时序
+                            .besideNavFabSquish(navFabReserve)
+                    )
+                }
             }
         } else {
             BottomNavigationBar(

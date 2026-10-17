@@ -77,6 +77,7 @@
     <string name="nav_custom_fab_title">Add Anime Button Position</string>
     <string name="nav_custom_fab_bottom_right_desc">Floating at bottom right, classic Material style</string>
     <string name="nav_custom_fab_top_bar_desc">Embedded in top bar right, more minimal</string>
+    <string name="nav_custom_fab_nav_bar_desc">Beside the nav capsule as a centered group, capsule style only</string>
     <string name="nav_custom_content_title">Navigation Content</string>
     <string name="nav_custom_content_subtitle">Choose entries shown in navigation</string>
     <string name="nav_custom_show_favorites">Show Favorites</string>

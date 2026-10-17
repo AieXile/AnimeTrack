@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -140,6 +141,7 @@ private fun UpdateAvailableDialog(
     AlertDialog(
         // 强制更新或下载进行中时禁止关闭（点击外部 / 返回键）
         onDismissRequest = if (isForceUpdate || isDownloading) ({}) else onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = null,
         text = {
@@ -348,6 +350,7 @@ private fun UpToDateDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(
@@ -373,6 +376,7 @@ private fun ErrorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

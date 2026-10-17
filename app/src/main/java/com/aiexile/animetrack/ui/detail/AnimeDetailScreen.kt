@@ -160,6 +160,7 @@ import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AirDateEditor
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.components.rememberShrinkOnScrollTopAppBarBehavior
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.util.coverMemoryCacheKey
@@ -522,6 +523,7 @@ fun AnimeDetailScreen(
         if (showDiscardDialog) {
             AlertDialog(
                 onDismissRequest = { showDiscardDialog = false },
+                modifier = Modifier.dialogBlurBehind(),
                 shape = SquircleShape(24.dp),
                 title = { Text(stringResource(R.string.detail_discard_changes)) },
                 text = { Text(stringResource(R.string.detail_discard_changes_message)) },
@@ -540,6 +542,7 @@ fun AnimeDetailScreen(
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
+                modifier = Modifier.dialogBlurBehind(),
                 shape = SquircleShape(24.dp),
                 title = { Text(stringResource(R.string.detail_delete_anime)) },
                 text = { Text(stringResource(R.string.detail_delete_confirm_format, uiState.anime?.title ?: "")) },
@@ -2113,6 +2116,7 @@ private fun StatusCard(
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
+            modifier = Modifier.dialogBlurBehind(),
             confirmButton = {
                 TextButton(
                     onClick = { showDatePicker = false }
@@ -2343,7 +2347,7 @@ private fun AiringStatusPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier.width(360.dp),
+            modifier = Modifier.width(360.dp).dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             color = MaterialTheme.colorScheme.surface
         ) {
@@ -2416,6 +2420,7 @@ private fun ShareNotesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(
@@ -2478,6 +2483,7 @@ private fun MatchDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

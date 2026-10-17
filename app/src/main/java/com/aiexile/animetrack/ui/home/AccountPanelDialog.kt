@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -114,6 +115,7 @@ fun AccountPanelDialog(
     if (showUserActions) {
         AlertDialog(
             onDismissRequest = { showUserActions = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_anime_track_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, userUsername ?: unknownUserText)) },
@@ -143,6 +145,7 @@ fun AccountPanelDialog(
     if (showBilibiliActions) {
         AlertDialog(
             onDismissRequest = { showBilibiliActions = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_bilibili_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, bilibiliNickname ?: unknownUserText)) },
@@ -172,6 +175,7 @@ fun AccountPanelDialog(
     if (showBangumiActions) {
         AlertDialog(
             onDismissRequest = { showBangumiActions = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_bangumi_account)) },
             text = { Text(stringResource(R.string.account_panel_logged_in_as, bangumiNickname ?: unknownUserText)) },
@@ -201,6 +205,7 @@ fun AccountPanelDialog(
     if (showAvatarActions) {
         AlertDialog(
             onDismissRequest = { showAvatarActions = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.account_panel_change_avatar)) },
             text = {
@@ -229,6 +234,7 @@ fun AccountPanelDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         title = null,

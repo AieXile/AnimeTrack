@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastCoerceIn
@@ -83,6 +84,8 @@ fun CapsuleNavigationBar(
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     liquidGlassEnabled: Boolean = false,
     backdrop: Backdrop? = null,
+    /** 「导航栏旁」FAB 预留的右侧宽度（含按钮宽 + 间隔）：胶囊在剩余空间内 fillMaxWidth 让位 */
+    reserveEndWidth: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
@@ -95,6 +98,7 @@ fun CapsuleNavigationBar(
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp)
                 .padding(bottom = 24.dp)
+                .padding(end = reserveEndWidth)
         ) {
             LiquidGlassNavBar(
                 currentRoute = currentRoute,
@@ -124,6 +128,7 @@ fun CapsuleNavigationBar(
             .fillMaxWidth()
             .padding(horizontal = 32.dp)
             .padding(bottom = 24.dp)
+            .padding(end = reserveEndWidth)
             .pointerInput(pagerState) {
                 if (pagerState == null) return@pointerInput
                 detectHorizontalDragGestures(

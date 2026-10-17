@@ -70,6 +70,7 @@ fun UsageStatsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

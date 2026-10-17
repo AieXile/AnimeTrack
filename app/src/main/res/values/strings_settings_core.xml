@@ -81,6 +81,7 @@
     <string name="nav_custom_fab_title">添加番剧按钮位置</string>
     <string name="nav_custom_fab_bottom_right_desc">悬浮在页面右下角，经典 Material 风格</string>
     <string name="nav_custom_fab_top_bar_desc">嵌入顶部标题栏右侧，更极简紧凑</string>
+    <string name="nav_custom_fab_nav_bar_desc">置于导航胶囊右侧成组居中，仅胶囊样式生效</string>
     <string name="nav_custom_content_title">导航栏内容</string>
     <string name="nav_custom_content_subtitle">选择在导航栏中显示的入口</string>
     <string name="nav_custom_show_favorites">显示收藏</string>

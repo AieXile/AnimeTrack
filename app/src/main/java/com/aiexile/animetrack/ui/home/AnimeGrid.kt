@@ -58,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -66,9 +67,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
@@ -88,8 +92,13 @@ import coil.request.ImageRequest
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.AnimeCardStack
+import com.aiexile.animetrack.ui.components.CardPixelBounds
+import com.aiexile.animetrack.ui.components.DeletionBurstOverlay
 import com.aiexile.animetrack.ui.components.animateEnter
+import com.aiexile.animetrack.ui.components.findActivityWindow
+import com.aiexile.animetrack.ui.components.launchDeletionBurst
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
+import com.aiexile.animetrack.ui.components.rememberDeletionBurstState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import sh.calvin.reorderable.ReorderableItem
@@ -317,6 +326,8 @@ internal fun AnimeGrid(
     onAnimeLongPress: (Anime) -> Unit,
     onStatusChange: (Anime, com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: (Anime) -> Unit,
+    /** 截图前清理选中态（隐藏卡片上的操作按钮），保证消散像素不含按钮 */
+    onClearSelection: () -> Unit = {},
     onTogglePin: (Anime) -> Unit,
     onFilterSelected: (AnimeFilter) -> Unit,
     onSortModeSelected: (ListSortMode) -> Unit = {},
@@ -351,6 +362,43 @@ internal fun AnimeGrid(
     // 使用普通 HashMap 而非 mutableStateMapOf：写入不触发重组（避免滚动时持续写入引发重组），
     // 读取处用 remember 缓存，保证 ExpandedSeriesCard 拿到 Series 渲染时最后一次布局位置。
     val seriesPositionMap = remember { HashMap<String, Offset>() }
+
+    // 删除消散特效：卡片位置表（root 坐标系用于绘制、window 坐标系用于 PixelCopy 截图）+ burst 状态。
+    // 与 seriesPositionMap 同模式用普通 HashMap，滚动期持续写入不触发重组；
+    // 删除触发时取出对应 bounds 后即移除条目。
+    val cardBoundsMap = remember { HashMap<Int, CardPixelBounds>() }
+    val deletionBurstState = rememberDeletionBurstState()
+
+    // 消散中的卡片 id：特效播放期间隐藏原卡片（粒子层接管显示），数据延迟删除、布局占位不变
+    val dissolvingIds = remember { mutableStateListOf<Int>() }
+
+    // PixelCopy 需要 Activity window；density 用于粉尘物理参数的 dp 归一
+    val context = LocalContext.current
+    val activityWindow = remember(context) { findActivityWindow(context) }
+    val pixelDensity = LocalDensity.current
+
+    // 统一删除入口：先清选中隐藏按钮 → 截图卡片像素触发消散特效 →
+    // 原位消散大半后（launchDeletionBurst 内部延迟）再执行真正的删除与补位
+    val handleAnimeDelete: (Anime) -> Unit = { anime ->
+        val bounds = cardBoundsMap.remove(anime.id)
+        if (bounds != null) {
+            launchDeletionBurst(
+                state = deletionBurstState,
+                window = activityWindow,
+                bounds = bounds,
+                density = pixelDensity,
+                onPrepare = onClearSelection,
+                onBurstStarted = { dissolvingIds.add(anime.id) }
+            ) {
+                // 清选中重组期间 onGloballyPositioned 可能重新写回条目，删除时一并清掉。
+                // dissolvingIds 不在此移除：数据删除是异步的，提前移除会让卡片闪现一帧
+                cardBoundsMap.remove(anime.id)
+                onDelete(anime)
+            }
+        } else {
+            onDelete(anime)
+        }
+    }
 
     // 已播放展开动画的系列 key 集合：避免 LazyGrid 回收 item 后滚回时重播动画，
     // 以及进入详情页再返回时重播动画。
@@ -469,9 +517,11 @@ internal fun AnimeGrid(
         } >= 2
     }
 
+    // 外层 Box 承接外部 modifier，让删除消散特效覆盖层可与网格同坐标系叠放
+    Box(modifier = modifier.fillMaxSize()) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .onGloballyPositioned { coords ->
@@ -573,16 +623,37 @@ internal fun AnimeGrid(
             val item = displayList[index]
             when (item) {
                 is AnimeListItem.Single -> {
+                    val anime = item.anime
                     Box(
-                        modifier = Modifier.animateEnter(
-                            index = index,
-                            key = Unit,
-                            isInitialLoad = isInitialLoad,
-                            animationEnabled = true,
-                            skipAnimation = skipEnterForTransition
-                        )
+                        modifier = Modifier
+                            .animateItem(
+                                // 进入由 animateEnter 负责、移除由消散特效掩盖，此处只管补位
+                                fadeInSpec = null,
+                                fadeOutSpec = null,
+                                placementSpec = spring(
+                                    dampingRatio = 0.7f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
+                            .graphicsLayer {
+                                // 消散特效接管显示期间隐藏原卡片，避免与粉尘叠加
+                                alpha = if (anime.id in dissolvingIds) 0f else 1f
+                            }
+                            .animateEnter(
+                                index = index,
+                                key = Unit,
+                                isInitialLoad = isInitialLoad,
+                                animationEnabled = true,
+                                skipAnimation = skipEnterForTransition
+                            )
+                            .onGloballyPositioned { coords ->
+                                // 记录卡片位置（root 用于绘制、window 用于截图），删除时作为消散特效的爆发区域
+                                cardBoundsMap[anime.id] = CardPixelBounds(
+                                    root = coords.boundsInRoot(),
+                                    window = coords.boundsInWindow()
+                                )
+                            }
                     ) {
-                        val anime = item.anime
                         val isNew = anime.id.toLong() == state.newlyAddedAnimeId
                         val isSelected = anime.id.toLong() == state.selectedAnimeId
                         val isHighlighted = anime.id.toLong() in state.highlightedAnimeIds
@@ -595,7 +666,7 @@ internal fun AnimeGrid(
                                 onLongPress = { onAnimeLongPress(anime) },
                                 isSelected = isSelected,
                                 onStatusChange = { onStatusChange(anime, it) },
-                                onDelete = { onDelete(anime) },
+                                onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
@@ -608,7 +679,7 @@ internal fun AnimeGrid(
                                 isSelected = isSelected,
                                 isHighlighted = isHighlighted,
                                 onStatusChange = { onStatusChange(anime, it) },
-                                onDelete = { onDelete(anime) },
+                                onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
@@ -619,6 +690,15 @@ internal fun AnimeGrid(
                 is AnimeListItem.Series -> {
                     Box(
                         modifier = Modifier
+                            .animateItem(
+                                // 堆叠卡无删除入口，仅跟随补位
+                                fadeInSpec = null,
+                                fadeOutSpec = null,
+                                placementSpec = spring(
+                                    dampingRatio = 0.7f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
                             .animateEnter(
                                 index = index,
                                 key = Unit,
@@ -694,14 +774,24 @@ internal fun AnimeGrid(
                         modifier = Modifier
                             .animateItem(
                                 fadeInSpec = null,
-                                fadeOutSpec = tween(200),
+                                // 移除由消散特效掩盖，不做淡出
+                                fadeOutSpec = null,
                                 placementSpec = spring(
                                     dampingRatio = 0.7f,
                                     stiffness = Spring.StiffnessMediumLow
                                 )
                             )
+                            .graphicsLayer {
+                                // 消散特效接管显示期间隐藏原卡片，避免与粉尘叠加
+                                alpha = if (anime.id in dissolvingIds) 0f else 1f
+                            }
                             .onGloballyPositioned { coords ->
                                 targetPosition = coords.positionInWindow()
+                                // 记录卡片位置（root 用于绘制、window 用于截图），删除时作为消散特效的爆发区域
+                                cardBoundsMap[anime.id] = CardPixelBounds(
+                                    root = coords.boundsInRoot(),
+                                    window = coords.boundsInWindow()
+                                )
                             }
                             .graphicsLayer {
                                 val scale = 0.9f + 0.1f * enterProgress
@@ -724,7 +814,7 @@ internal fun AnimeGrid(
                                 },
                                 isSelected = false,
                                 onStatusChange = { onStatusChange(anime, it) },
-                                onDelete = { onDelete(anime) },
+                                onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
@@ -739,7 +829,7 @@ internal fun AnimeGrid(
                                 },
                                 isHighlighted = isHighlighted,
                                 onStatusChange = { onStatusChange(anime, it) },
-                                onDelete = { onDelete(anime) },
+                                onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
@@ -783,6 +873,13 @@ internal fun AnimeGrid(
             }
         }
         }
+    }
+
+    // 删除消散特效覆盖层：纯绘制无 pointerInput，不拦截下层触摸
+    DeletionBurstOverlay(
+        state = deletionBurstState,
+        modifier = Modifier.matchParentSize()
+    )
     }
 }
 

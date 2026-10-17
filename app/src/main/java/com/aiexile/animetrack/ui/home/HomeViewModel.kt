@@ -61,6 +61,9 @@ data class HomeUiState(
     val selectedFilter: AnimeFilter = AnimeFilter.ALL,
     val isLoading: Boolean = true,
     val isBottomSheetVisible: Boolean = false,
+    /** 请求关闭添加面板：由 UI 层执行 bottomSheetState.hide() 动画后再走统一收尾，
+     *  避免 SheetState 残留 Expanded 锚点导致下次打开面板位置偏高 */
+    val pendingSheetDismiss: Boolean = false,
     val formState: AddAnimeFormState = AddAnimeFormState(),
     val formError: String? = null,
     val newlyAddedAnimeId: Long? = null,
@@ -426,6 +429,7 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = true,
+                pendingSheetDismiss = false,
                 showFormDialog = false,
                 formState = AddAnimeFormState(),
                 formError = null,
@@ -443,6 +447,7 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = false,
+                pendingSheetDismiss = false,
                 showFormDialog = false,
                 formState = AddAnimeFormState(),
                 formError = null
@@ -724,7 +729,9 @@ class HomeViewModel(
                 
                 _uiState.update { 
                     it.copy(
-                        isBottomSheetVisible = false,
+                        // 不直接移除面板，改由 UI 层播放 hide() 动画后统一收尾，
+                        // 防止 SheetState 残留 Expanded 锚点导致下次打开位置偏高
+                        pendingSheetDismiss = true,
                         showFormDialog = false,
                         formState = AddAnimeFormState(),
                         formError = null,

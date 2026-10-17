@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
+import com.aiexile.animetrack.model.PendingDeletion
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -106,6 +107,27 @@ interface AnimeDao {
 
     @Query("DELETE FROM anime")
     suspend fun deleteAllAnimes()
+
+    // ========== 待删除墓碑（服务端订阅删除补偿） ==========
+
+    /** 记录待删除行键（ownerKey+animeId 唯一，重复删除同键幂等） */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPendingDeletion(pending: PendingDeletion)
+
+    @Query("SELECT * FROM pending_deletions WHERE ownerKey = :ownerKey")
+    suspend fun getPendingDeletions(ownerKey: String): List<PendingDeletion>
+
+    /** 删除确认成功后清除对应墓碑 */
+    @Query("DELETE FROM pending_deletions WHERE ownerKey = :ownerKey AND animeId = :animeId")
+    suspend fun clearPendingDeletion(ownerKey: String, animeId: String)
+
+    /** 清理其他账号遗留的墓碑（换账号后无法安全执行，直接丢弃） */
+    @Query("DELETE FROM pending_deletions WHERE ownerKey != :ownerKey")
+    suspend fun clearPendingDeletionsForOtherOwners(ownerKey: String)
+
+    /** 清理超过 TTL 的过期墓碑（长期补偿失败，放弃以防永久阻断该行合并） */
+    @Query("DELETE FROM pending_deletions WHERE createdAt < :threshold")
+    suspend fun clearExpiredPendingDeletions(threshold: Long)
 
     @Query("SELECT * FROM anime WHERE airWeekday = :weekday AND status IN ('WATCHING', 'PLANNED') AND isFinished = 0 ORDER BY title ASC")
     suspend fun getAiringAnimesByWeekday(weekday: Int): List<Anime>

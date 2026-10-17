@@ -24,6 +24,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -146,6 +147,7 @@ fun UpdateNotificationScreen(
         )
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = {
                 Text(

@@ -25,6 +25,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -347,6 +348,7 @@ fun BangumiProxyScreen(
     if (showBangumiHostDialog) {
         AlertDialog(
             onDismissRequest = { showBangumiHostDialog = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.bangumi_proxy_dialog_title)) },
             text = {
@@ -379,6 +381,7 @@ fun BangumiProxyScreen(
     if (showMirrorPasswordDialog) {
         AlertDialog(
             onDismissRequest = { showMirrorPasswordDialog = false },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.bangumi_mirror_password_title)) },
             text = {

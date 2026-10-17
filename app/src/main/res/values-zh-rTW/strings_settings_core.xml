@@ -77,6 +77,7 @@
     <string name="nav_custom_fab_title">新增番劇按鈕位置</string>
     <string name="nav_custom_fab_bottom_right_desc">懸浮在頁面右下角，經典 Material 風格</string>
     <string name="nav_custom_fab_top_bar_desc">嵌入頂部標題欄右側，更極簡緊湊</string>
+    <string name="nav_custom_fab_nav_bar_desc">置於導航膠囊右側成組居中，僅膠囊樣式生效</string>
     <string name="nav_custom_content_title">導航欄內容</string>
     <string name="nav_custom_content_subtitle">選擇在導航欄中顯示的入口</string>
     <string name="nav_custom_show_favorites">顯示收藏</string>

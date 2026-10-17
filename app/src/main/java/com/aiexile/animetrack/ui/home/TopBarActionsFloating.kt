@@ -7,6 +7,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -506,7 +508,17 @@ private fun CombinedActionsFab(
             )
     ) {
         if (showSearch) {
-            IconButton(onClick = onSearchClick) {
+            // 无涟漪点击（FAB 玻璃底上不叠加涟漪遮罩），触控区域与原 IconButton 一致（48dp）
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onSearchClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.SEARCH),
                     contentDescription = stringResource(R.string.common_search),
@@ -525,7 +537,16 @@ private fun CombinedActionsFab(
             }
         }
         if (showAdd) {
-            IconButton(onClick = onAddClick) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onAddClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.ADD),
                     contentDescription = stringResource(R.string.home_add_anime),

@@ -73,6 +73,7 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.runtime.LaunchedEffect
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -968,6 +969,7 @@ fun UserLoginScreen(
             onDismissRequest = {
                 if (!isChangingPassword) showChangePasswordDialog = false
             },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = {
                 Text(
@@ -1126,6 +1128,7 @@ fun UserLoginScreen(
             onDismissRequest = {
                 if (!isChangingEmail) showChangeEmailDialog = false
             },
+            modifier = Modifier.dialogBlurBehind(),
             shape = SquircleShape(24.dp),
             title = {
                 Text(

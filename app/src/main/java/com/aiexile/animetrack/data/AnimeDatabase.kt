@@ -8,10 +8,11 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aiexile.animetrack.model.Anime
+import com.aiexile.animetrack.model.PendingDeletion
 
 @Database(
-    entities = [Anime::class],
-    version = 23,
+    entities = [Anime::class, PendingDeletion::class],
+    version = 24,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -344,6 +345,28 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 23→24 迁移：新增 pending_deletions 表（待删除墓碑）。
+         *
+         * 番剧本地删除后、服务端订阅行删除确认成功前的行键记录，
+         * 用于网络失败/进程被杀后的补偿重试，防止已删番剧经服务器合并复活。
+         */
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pending_deletions` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`animeId` TEXT NOT NULL, " +
+                        "`ownerKey` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_pending_deletions_ownerKey_animeId` " +
+                        "ON `pending_deletions` (`ownerKey`, `animeId`)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -359,7 +382,8 @@ abstract class AnimeDatabase : RoomDatabase() {
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
                         MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
                         MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
-                        MIGRATION_22_23
+                        MIGRATION_22_23,
+                        MIGRATION_23_24
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()

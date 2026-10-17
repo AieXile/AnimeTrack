@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 import java.util.concurrent.TimeUnit
@@ -112,7 +113,11 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         }
         appScope.launch {
             delay(reportTombstoneDelayMs)
-            CrashReporter.reportPendingTombstones()
+            // 「帮助改进应用」崩溃上报开关：关闭时跳过本次上报（tombstone 保留本地，
+            // 受 xCrash 份数上限控制；开关打开后下次启动恢复上报）
+            if (AppContainer.getSettingsRepository().crashReportEnabled.first()) {
+                CrashReporter.reportPendingTombstones()
+            }
         }
     }
 

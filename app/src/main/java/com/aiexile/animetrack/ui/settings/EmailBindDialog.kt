@@ -36,6 +36,7 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -224,6 +225,7 @@ fun EmailBindDialog(
         onDismissRequest = {
             // 强制绑定不允许点外部关闭；请求中/成功后也不可关闭
         },
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

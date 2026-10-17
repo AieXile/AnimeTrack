@@ -242,6 +242,11 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         titleRes = R.string.features_rating_standard_source, descRes = R.string.features_rating_standard_source_desc,
         keywords = listOf("评分标准", "评分来源", "手动评分", "tmdb", "rating")
     ),
+    SearchableSetting(
+        route = Routes.FEATURES, key = "crash_report",
+        titleRes = R.string.features_crash_report, descRes = R.string.features_crash_report_desc,
+        keywords = listOf("崩溃", "崩溃追踪", "上报", "诊断", "帮助改进", "稳定性", "crash")
+    ),
 
     // ---- 代理 ----
     SearchableSetting(

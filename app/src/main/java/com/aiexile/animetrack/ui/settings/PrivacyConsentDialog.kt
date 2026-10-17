@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 
 /**
  * 首启隐私政策同意弹窗（合规：未同意前不得收集个人信息 / 申请权限 / 初始化上报组件）
@@ -72,6 +73,7 @@ fun PrivacyConsentDialog(
     if (showDeclineConfirm) {
         AlertDialog(
             onDismissRequest = { showDeclineConfirm = false },
+            modifier = Modifier.dialogBlurBehind(),
             title = {
                 Text(
                     text = stringResource(R.string.privacy_consent_decline_title),
@@ -109,7 +111,7 @@ fun PrivacyConsentDialog(
         Surface(
             shape = SquircleShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().dialogBlurBehind()
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),

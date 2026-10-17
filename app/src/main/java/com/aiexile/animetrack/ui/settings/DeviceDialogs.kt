@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.icons.AppIcon
@@ -145,6 +146,7 @@ fun DevicePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(
@@ -234,6 +236,7 @@ fun DeviceManageDialog(
     var revealedSessionId by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = {
             Text(

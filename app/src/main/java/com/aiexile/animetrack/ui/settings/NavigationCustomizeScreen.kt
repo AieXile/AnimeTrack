@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.settings
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.BackHandler
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.background
@@ -87,7 +88,7 @@ fun NavigationCustomizeScreen(
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
     val showSchedule by settingsRepository.showSchedule.collectAsState(true)
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
-    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.BOTTOM_RIGHT)
+    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.NAV_BAR)
     val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
@@ -295,6 +296,12 @@ fun NavigationCustomizeScreen(
                                 location = FabLocation.TOP_BAR,
                                 isSelected = fabLocation == FabLocation.TOP_BAR,
                                 onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
+                            )
+                            FabLocationCard(
+                                modifier = Modifier.weight(1f),
+                                location = FabLocation.NAV_BAR,
+                                isSelected = fabLocation == FabLocation.NAV_BAR,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.NAV_BAR) } }
                             )
                         }
                     }
@@ -597,6 +604,53 @@ private fun FabLocationCard(
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
+            } else if (location == FabLocation.NAV_BAR) {
+                // 悬浮胶囊（收窄居左）+ 右侧圆形加号，成组底部居中
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(16.dp)
+                            .clip(SquircleShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // 胶囊 Tab 示意点
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            repeat(3) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(SquircleShape(2.dp))
+                                        .background(
+                                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                                        )
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(SquircleShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.ADD),
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
             } else {
                 // 顶部标题栏（左侧标题块）+ 顶栏右侧添加按钮
                 Box(
@@ -632,6 +686,7 @@ private fun FabLocationCard(
             text = when (location) {
                 FabLocation.BOTTOM_RIGHT -> stringResource(R.string.nav_custom_fab_bottom_right_desc)
                 FabLocation.TOP_BAR -> stringResource(R.string.nav_custom_fab_top_bar_desc)
+                FabLocation.NAV_BAR -> stringResource(R.string.nav_custom_fab_nav_bar_desc)
             },
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

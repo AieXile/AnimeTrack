@@ -64,6 +64,7 @@ fun FeaturesScreen(
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
     val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
+    val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsState(true)
 
     // 搜索定位：高亮目标项并滚动到所在分组
     val highlightKey = rememberSettingsHighlight(Routes.FEATURES)
@@ -76,7 +77,8 @@ fun FeaturesScreen(
         "series_stack" to 3,
         "auto_complete" to 4,
         "celebration" to 4,
-        "rating" to 5
+        "rating" to 5,
+        "crash_report" to 6
     )
     // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
     val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
@@ -226,6 +228,21 @@ fun FeaturesScreen(
                             lineHeight = 16.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsGroup(title = stringResource(R.string.features_help_improve)) {
+                    Column {
+                        SwitchItem(
+                            title = stringResource(R.string.features_crash_report),
+                            description = stringResource(R.string.features_crash_report_desc),
+                            checked = crashReportEnabled,
+                            onCheckedChange = { scope.launch { settingsRepository.setCrashReportEnabled(it) } },
+                            itemKey = "crash_report",
+                            highlightKey = highlightKey
                         )
                     }
                 }

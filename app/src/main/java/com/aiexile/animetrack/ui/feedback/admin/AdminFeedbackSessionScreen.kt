@@ -65,6 +65,7 @@ import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.feedback.FeedbackChatMessage
 import com.aiexile.animetrack.ui.feedback.FeedbackMessageBubble
 import com.aiexile.animetrack.ui.feedback.FeedbackSendButton
@@ -620,6 +621,7 @@ private fun AdminGrantLevelDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.dialogBlurBehind(),
         title = { Text(stringResource(R.string.admin_feedback_grant_level)) },
         text = {
             Column {
