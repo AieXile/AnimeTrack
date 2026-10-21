@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.data.backup
 
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.thegrizzlylabs.sardineandroid.Sardine
 import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
 import kotlinx.coroutines.Dispatchers
@@ -8,6 +9,8 @@ import java.io.File
 import java.io.FileOutputStream
 
 object WebDAVClient {
+
+    private const val TAG = "WebDAV"
 
     private fun createSardine(username: String, password: String): Sardine {
         val sardine = OkHttpSardine()
@@ -46,13 +49,17 @@ object WebDAVClient {
 
             try {
                 sardine.createDirectory(remoteDir)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                // 目录已存在是最常见的情况，只在详细日志里留痕
+                AppLogManager.d(TAG, "创建远程目录忽略异常: $remoteDir, ${e.message}")
             }
 
             val remotePath = buildRemotePath(url, strategy)
             sardine.put(remotePath, file, "application/octet-stream")
+            AppLogManager.i(TAG, "备份上传成功: $remotePath (${file.length()}B)")
             Result.success(Unit)
         } catch (e: Exception) {
+            AppLogManager.e(TAG, "备份上传失败: ${buildRemotePath(url, strategy)} (${file.length()}B)", e)
             Result.failure(e)
         }
     }
@@ -73,8 +80,10 @@ object WebDAVClient {
                     input.copyTo(fos)
                 }
             }
+            AppLogManager.i(TAG, "备份下载成功: $remotePath (${destFile.length()}B)")
             Result.success(Unit)
         } catch (e: Exception) {
+            AppLogManager.e(TAG, "备份下载失败: ${buildRemotePath(url, strategy)}", e)
             Result.failure(e)
         }
     }
@@ -91,6 +100,7 @@ object WebDAVClient {
             Result.success(true)
         } catch (e: Exception) {
             val msg = e.message ?: ""
+            AppLogManager.w(TAG, "WebDAV 连接检测失败: $url, ${e.javaClass.simpleName}: $msg")
             if (msg.contains("403", ignoreCase = true)) {
                 Result.failure(Exception("连接失败：403 Forbidden，请检查用户名和密码是否正确"))
             } else if (msg.contains("401", ignoreCase = true)) {
@@ -115,6 +125,7 @@ object WebDAVClient {
             val exists = sardine.exists(remotePath)
             Result.success(exists)
         } catch (e: Exception) {
+            AppLogManager.w(TAG, "检查远程备份是否存在失败: ${buildRemotePath(url, strategy)}", e)
             Result.failure(e)
         }
     }

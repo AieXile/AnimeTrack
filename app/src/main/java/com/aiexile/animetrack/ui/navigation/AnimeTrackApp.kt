@@ -1,6 +1,5 @@
 package com.aiexile.animetrack.ui.navigation
 
-import android.util.Log
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.AnimatedVisibility
@@ -11,7 +10,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
@@ -67,15 +65,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
@@ -94,12 +90,16 @@ import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
+import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
 import com.aiexile.animetrack.ui.components.SideNavigationRail
-import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.TokenExpiredBanner
 import com.aiexile.animetrack.ui.components.TopNoticeBanner
+import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.drawLiquidGlass
+import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.components.isCompactWidth
+import com.aiexile.animetrack.ui.components.liquidGlassSpec
 import com.aiexile.animetrack.ui.home.BesideNavFabSize
 import com.aiexile.animetrack.ui.home.BesideNavFabSlot
 import com.aiexile.animetrack.ui.home.BesideNavFabSlotWidth
@@ -111,6 +111,8 @@ import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.home.TopBarActionsCombinedWidth
 import com.aiexile.animetrack.ui.home.TopBarActionsFloating
 import com.aiexile.animetrack.ui.home.TopBarActionsSingleWidth
+import com.aiexile.animetrack.ui.home.TopBarMorphCircleCorner
+import com.aiexile.animetrack.ui.home.TopBarMorphCorner
 import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
@@ -118,7 +120,6 @@ import com.aiexile.animetrack.ui.settings.EmailBindDialog
 import com.aiexile.animetrack.ui.settings.HelpImproveDialog
 import com.aiexile.animetrack.ui.settings.PrivacyConsentDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
@@ -127,9 +128,6 @@ import dev.chrisbanes.haze.hazeSource
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.vibrancy
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -751,6 +749,7 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             hazeState = hazeState,
+            navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -774,6 +773,7 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             hazeState = hazeState,
+            navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -801,22 +801,28 @@ private fun CapsuleNavLayout(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    // 条件挂载 backdrop 源：仅实际有消费者时才录制内容层，
+    // 条件挂载采样源：仅实际有消费者时才录制内容层，
     // 避免无消费者时的全屏 layer 录制开销（滚动时内容每帧变化会触发重录）。
-    // - layerBackdrop 消费方（胶囊/搜索条/FAB/状态栏玻璃条）全部由液态玻璃开关控制
-    // - hazeSource 消费方（胶囊毛玻璃/FAB/顶栏毛玻璃）全部由高级模糊开关控制。
-    //   两开关由设置层互斥（NavigationCustomizeScreen 开其一自动关另一），
-    //   但顶栏毛玻璃条件（topBarBlurEnabled）未带液态玻璃排除，
-    //   故此处条件保持不带排除，与其一致以防互斥被绕过时顶栏采样到空 haze
-    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
-    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
+    // - layerBackdrop 消费方（胶囊/搜索条/FAB/状态栏玻璃条）仅在液态玻璃档挂载
+    // - hazeSource 消费方（胶囊毛玻璃/FAB/顶栏毛玻璃）仅在高级模糊档挂载
+    val chromeStyle = LocalChromeStyle.current
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(if (capsuleLiquidGlassEnabled) Modifier.layerBackdrop(navBackdrop) else Modifier)
-            .then(if (capsuleAdvancedBlurEnabled) Modifier.hazeSource(state = hazeState) else Modifier)
+            .then(
+                if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
+                    Modifier.layerBackdrop(navBackdrop)
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (chromeStyle == ChromeStyle.HAZE) {
+                    Modifier.hazeSource(state = hazeState)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         HorizontalPager(
             state = pagerState,
@@ -851,14 +857,14 @@ private fun BottomNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    // 与 CapsuleNavLayout 一致：高级模糊开启时为内容挂 hazeSource，
-    // 否则 MainOverlay 中 FAB/顶栏的 hazeEffect 无采样源，毛玻璃渲染异常
-    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
+    // 与 CapsuleNavLayout 一致：玻璃档为内容挂对应采样源，否则 MainOverlay 中
+    // FAB/顶栏的玻璃无采样源，毛玻璃/折射渲染异常
+    val chromeStyle = LocalChromeStyle.current
     Scaffold(
         bottomBar = {
             // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
@@ -875,7 +881,20 @@ private fun BottomNavLayout(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = paddingValues.calculateBottomPadding())
-                .then(if (capsuleAdvancedBlurEnabled) Modifier.hazeSource(state = hazeState) else Modifier)
+                .then(
+                    if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
+                        Modifier.layerBackdrop(navBackdrop)
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(
+                    if (chromeStyle == ChromeStyle.HAZE) {
+                        Modifier.hazeSource(state = hazeState)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -999,31 +1018,16 @@ private fun MainOverlay(
 ) {
     val isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE
     val isHomePage = currentRoute == "home"
+    val chromeStyle = LocalChromeStyle.current
     // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现默认「图标+文字」
     val navigationLabelMode by settingsRepository.navigationLabelMode
         .collectAsState(settingsRepository.cachedNavigationLabelMode())
-    // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现普通/高级模糊旧胶囊
-    val capsuleAdvancedBlurEnabled by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
-    val capsuleLiquidGlassEnabled by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
     // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
     val capsuleLiquidGlassBackdropBlurEnabled by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
 
-    // 高级模糊（毛玻璃）自定义参数：悬浮胶囊、主页顶栏与悬浮按钮共用
-    val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
-    val blurBackgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
-    val blurTintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
-    val blurNoise by settingsRepository.advancedBlurNoise.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
-    val advancedBlurConfig = remember(blurRadius, blurBackgroundAlpha, blurTintAlpha, blurNoise) {
-        AdvancedBlurConfig(
-            blurRadius = blurRadius.dp,
-            backgroundColorAlpha = blurBackgroundAlpha,
-            tintAlpha = blurTintAlpha,
-            noiseFactor = blurNoise
-        )
-    }
+    // 高级模糊（毛玻璃）自定义参数由 MainActivity 统一下发，悬浮胶囊、主页顶栏与悬浮按钮共用
+    val advancedBlurConfig = LocalAdvancedBlurConfig.current
 
     // 从 settingsRepository 读取 HomeTopBar 所需状态；初始值取同步缓存：
     // MainOverlay 随路由切换销毁重建，collectAsState 默认值会使欢迎语瞬态解析为
@@ -1160,7 +1164,7 @@ private fun MainOverlay(
             )
             // 液态玻璃「导航栏背景模糊」：在胶囊下层渲染四周磨砂区域（类 iOS Tab Bar）。
             // 胶囊自身采样 Pager 内容层（navBackdrop 不含本层），不受模糊层影响，保持清晰玻璃
-            if (capsuleLiquidGlassEnabled && capsuleLiquidGlassBackdropBlurEnabled) {
+            if (chromeStyle == ChromeStyle.LIQUID_GLASS && capsuleLiquidGlassBackdropBlurEnabled) {
                 LiquidGlassNavBackdropBlur(
                     backdrop = navBackdrop,
                     modifier = Modifier.align(Alignment.BottomCenter)
@@ -1179,9 +1183,8 @@ private fun MainOverlay(
                     jumpTarget = navJumpTarget,
                     labelMode = navigationLabelMode,
                     hazeState = hazeState,
-                    advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                    style = chromeStyle,
                     blurConfig = advancedBlurConfig,
-                    liquidGlassEnabled = capsuleLiquidGlassEnabled,
                     backdrop = navBackdrop,
                     reserveEndWidth = navFabReserve,
                     // 底边锁定 Box 底边：按钮槽（含回到顶部）比胶囊高会撑大本 Box，
@@ -1190,7 +1193,12 @@ private fun MainOverlay(
                 )
                 // 「导航栏旁」按钮槽：加号 52dp（略小于胶囊高 54dp），
                 // bottom padding 25dp = 胶囊边距 24dp + 半高差 (54-52)/2，与胶囊中心对齐，
-                // 右端 32dp 边距与胶囊一致。滑入滑出由 navFabReserve 同一动画源驱动：
+                // 右端 32dp 边距与胶囊一致。
+                // 注意：本槽与胶囊一样**不能**消费 navigationBars inset——胶囊自身只留
+                // 24dp 底边距（CapsuleNavigationBar 内部无任何 WindowInsets），若此处加
+                // navigationBarsPadding()，加号会按系统上报的手势提示条高度（0～24dp，
+                // 三键导航约 48dp）整体上浮，而胶囊不动，两者中心线随机型不同错开。
+                // 滑入滑出由 navFabReserve 同一动画源驱动：
                 // 进主页时按钮从屏幕右缘外随胶囊让位同步滑入，离主页时同步滑出，
                 // 任意时刻与胶囊的间距从 32dp 平滑收窄至设计间隔 12dp，
                 // 机制上杜绝「按钮先出现遮挡正在让位的胶囊」
@@ -1206,14 +1214,13 @@ private fun MainOverlay(
                         },
                         onAddClick = onAddAnimeClick,
                         hazeState = hazeState,
-                        advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                        style = chromeStyle,
                         blurConfig = advancedBlurConfig,
-                        liquidGlassEnabled = capsuleLiquidGlassEnabled,
                         backdrop = navBackdrop,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            // 与胶囊同一基准避让系统手势条，再叠加 25dp 底边距
-                            .navigationBarsPadding()
+                            // 与胶囊同一基准：胶囊底边距 24dp 只从窗口底算起，不叠系统栏 inset，
+                            // 故此处只叠 25dp 底边距（勿加 navigationBarsPadding，见上方说明）
                             .padding(end = 32.dp, bottom = 25.dp)
                             .offset(
                                 x = besideNavFabSlideOut *
@@ -1248,6 +1255,10 @@ private fun MainOverlay(
             // 顶栏按钮构成决定收拢终点宽度：单按钮 48dp，搜索+添加组合 97dp
             val topBarShowSearch = showSearchButton && hasAnime && hasFilteredItems
             val topBarShowAdd = fabLocation == FabLocation.TOP_BAR || useSideNavigation
+            // 加号 FAB 在胶囊导航旁时，右上角只剩单个搜索 FAB：改为与加号一致的全圆，
+            // 顶栏 morph 终点圆角同步改为圆形，收拢终点与 FAB 轮廓重合（组合 FAB 不适用）
+            val circleTopBarSearchFab = !useSideNavigation && isCapsuleNav &&
+                fabLocation == FabLocation.NAV_BAR && topBarShowSearch && !topBarShowAdd
             // 右上角无任何按钮时无 morph 终点（迁移 FAB 也不会出现），
             // 顶栏不再收缩成按钮形状，改为整体淡出隐藏
             val hasTopBarActions = topBarShowSearch || topBarShowAdd
@@ -1256,8 +1267,8 @@ private fun MainOverlay(
             } else {
                 TopBarActionsSingleWidth
             }
-            // 下滑隐藏 + 高级模糊同时开启：顶栏背景毛玻璃化（与 FAB 参数一致）
-            val topBarBlurEnabled = capsuleAdvancedBlurEnabled && hideTopBarOnScroll
+            // 下滑隐藏 + 高级模糊档：顶栏背景毛玻璃化（与 FAB 参数一致）
+            val topBarBlurEnabled = chromeStyle == ChromeStyle.HAZE && hideTopBarOnScroll
 
             // 完全收拢后移除顶栏（避免透明区域拦截点击）
             if (topBarCollapse < 1f) {
@@ -1293,8 +1304,16 @@ private fun MainOverlay(
                         .padding(end = paneWidth)
                         .then(
                             if (hasTopBarActions) {
-                                // 真 morph：几何连续变形为按钮行位置的 Squircle（问候语早期淡出在 TopBar 内处理）
-                                Modifier.topBarCollapseMorph(topBarCollapse, morphTargetWidth)
+                                // 真 morph：几何连续变形为按钮行位置的 Squircle / 全圆（问候语早期淡出在 TopBar 内处理）
+                                Modifier.topBarCollapseMorph(
+                                    collapseProgress = topBarCollapse,
+                                    targetWidth = morphTargetWidth,
+                                    targetCornerRadius = if (circleTopBarSearchFab) {
+                                        TopBarMorphCircleCorner
+                                    } else {
+                                        TopBarMorphCorner
+                                    }
+                                )
                             } else {
                                 // 无按钮无 morph 终点：整体随收拢进度淡出（问候语已在 TopBar 内先行淡出）
                                 Modifier.graphicsLayer { alpha = 1f - topBarCollapse }
@@ -1312,9 +1331,6 @@ private fun MainOverlay(
             if (hideTopBarOnScroll && topBarCollapse > 0f && statusBarMode != StatusBarMode.FULLSCREEN) {
                 val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val surfaceColor = MaterialTheme.colorScheme.surface
-                val glassBarColor =
-                    if (isAppDarkTheme()) Color(0xFF121212).copy(0.4f)
-                    else Color(0xFFFAFAFA).copy(0.4f)
                 val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
                     Modifier
                         // 渐变略高于状态栏，下缘柔和隐入内容；顶部实色确保状态栏图标易读
@@ -1328,18 +1344,17 @@ private fun MainOverlay(
                                 )
                             )
                         )
-                } else if (capsuleLiquidGlassEnabled) {
-                    // 液态玻璃条：仅模糊+提亮（薄条不做 lens 折射，避免边缘畸变）
+                } else if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
+                    // 液态玻璃条：仅模糊+提亮（Bar 规格不做 lens 折射，避免薄条边缘畸变）；
+                    // 通栏玻璃关闭默认高光/外阴影，避免顶部出现一条白色亮边
                     Modifier
                         .height(statusBarHeight)
-                        .drawBackdrop(
+                        .drawLiquidGlass(
                             backdrop = navBackdrop,
                             shape = { RectangleShape },
-                            effects = {
-                                vibrancy()
-                                blur(8.dp.toPx())
-                            },
-                            onDrawSurface = { drawRect(glassBarColor) }
+                            spec = liquidGlassSpec(LiquidGlassKind.Bar),
+                            highlight = null,
+                            shadow = null
                         )
                 } else {
                     Modifier
@@ -1374,10 +1389,10 @@ private fun MainOverlay(
                 onSearchClick = { homeViewModel.startLocalSearch() },
                 onAddClick = onAddAnimeClick,
                 hazeState = hazeState,
-                advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                style = chromeStyle,
                 blurConfig = advancedBlurConfig,
-                liquidGlassEnabled = capsuleLiquidGlassEnabled,
                 backdrop = navBackdrop,
+                circleFab = circleTopBarSearchFab,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     // 大屏适配：从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
@@ -1403,9 +1418,8 @@ private fun MainOverlay(
                     },
                     onAddClick = onAddAnimeClick,
                     hazeState = hazeState,
-                    advancedBlurEnabled = capsuleAdvancedBlurEnabled && !capsuleLiquidGlassEnabled,
+                    style = chromeStyle,
                     blurConfig = advancedBlurConfig,
-                    liquidGlassEnabled = capsuleLiquidGlassEnabled,
                     backdrop = navBackdrop,
                     modifier = Modifier.align(Alignment.BottomEnd)
                 )

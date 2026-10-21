@@ -1,19 +1,15 @@
 package com.aiexile.animetrack.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
@@ -32,21 +28,23 @@ fun AnimeTrackTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themePreset: ThemePreset = ThemePreset.MONO_BLACK,
     darkStyle: DarkStyle = DarkStyle.BOOST,
-    useDynamicColor: Boolean = false,
     fontFamily: FontFamily = FontFamily.Default,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        themePreset == ThemePreset.MONO_BLACK -> remember(darkTheme, darkStyle) {
+    // 莫奈取色：seed 来自系统壁纸动态配色（Android 12+）。
+    // 取不到时 seedColor 为 null，整体回退「黑白简洁」，不会出现无配色可用的情况。
+    val monetPalette = if (themePreset.seedColor == null) rememberMonetPalette() else null
+    val seedColor: Color? = themePreset.seedColor ?: monetPalette?.seed
+
+    val colorScheme = if (themePreset == ThemePreset.MONO_BLACK || seedColor == null) {
+        remember(darkTheme, darkStyle) {
             if (darkTheme) monoDarkScheme(darkStyle) else monoBlackLightScheme()
         }
-        else -> remember(themePreset, darkTheme, darkStyle) {
+    } else {
+        // 壁纸色只提供色相/彩度，表面明度仍按本应用 duotone + 深色分层规则生成
+        remember(seedColor, darkTheme, darkStyle) {
             seedColorScheme(
-                seedColor = themePreset.seedColor,
+                seedColor = seedColor,
                 isDark = darkTheme,
                 darkStyle = darkStyle,
             )
@@ -56,8 +54,7 @@ fun AnimeTrackTheme(
     // 黑白简洁暗色：封面状态角标改用半透明黑 scrim。
     // 该主题暗色下 primary 为近白（0xFFE0E0E0），实底角标叠在暗色卡片/封面上
     // 明度对比过强显得突兀；scrim 与封面图像融合，任意明暗封面均可读。
-    val useDynamic = useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val monoDarkScrim = darkTheme && !useDynamic && themePreset == ThemePreset.MONO_BLACK
+    val monoDarkScrim = darkTheme && (themePreset == ThemePreset.MONO_BLACK || seedColor == null)
 
     val animeColors = remember(colorScheme, monoDarkScrim) {
         AnimeColors(

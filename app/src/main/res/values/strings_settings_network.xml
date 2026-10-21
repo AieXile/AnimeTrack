@@ -69,6 +69,8 @@
     <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT 隧道，兼容性最好</string>
     <string name="bangumi_proxy_protocol_socks5">SOCKS5 代理</string>
     <string name="bangumi_proxy_protocol_socks5_desc">支持用户名密码认证，域名由代理侧解析</string>
+    <!-- 设置项选项弹层行标题 -->
+    <string name="bangumi_proxy_protocol_title">代理协议</string>
     <string name="bangumi_proxy_server">服务器</string>
     <string name="bangumi_proxy_username">用户名（可选）</string>
     <string name="bangumi_proxy_password">密码（可选）</string>

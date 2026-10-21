@@ -110,6 +110,8 @@ enum class AppIcon(
     STORAGE(R.drawable.sym_storage, R.drawable.lucide_hard_drive),
     SYNC(R.drawable.sym_sync, R.drawable.lucide_refresh_cw),
     TUNE(R.drawable.sym_tune, R.drawable.lucide_sliders_horizontal),
+    /** 上下双箭头：表示「可展开选择」，用于设置项选项行 */
+    UNFOLD_MORE(R.drawable.sym_unfold_more, R.drawable.lucide_chevrons_up_down),
     VERTICAL_ALIGN_TOP(R.drawable.sym_vertical_align_top, R.drawable.lucide_arrow_up_to_line),
     VOLUME_DOWN(R.drawable.sym_volume_down, R.drawable.lucide_volume_1),
     VOLUME_OFF(R.drawable.sym_volume_off, R.drawable.lucide_volume_x),

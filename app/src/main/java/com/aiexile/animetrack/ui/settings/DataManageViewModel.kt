@@ -12,6 +12,7 @@ import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.data.MarkdownParser
 import com.aiexile.animetrack.data.backup.BackupManager
 import com.aiexile.animetrack.data.backup.WebDAVClient
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -89,6 +90,7 @@ class DataManageViewModel(
             saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在测试连接..."
+            AppLogManager.i(TAG, "WebDAV 连接检测: ${webdavUrl.value.trim()}")
             try {
                 val result = WebDAVClient.checkConnection(webdavUrl.value, webdavUsername.value, webdavPassword.value)
                 if (result.isSuccess) {
@@ -97,6 +99,7 @@ class DataManageViewModel(
                     _snackbarMessage.value = "连接失败：${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
+                AppLogManager.e(TAG, "WebDAV 连接检测异常", e)
                 _snackbarMessage.value = "连接失败：${e.message}"
             } finally {
                 _isLoading.value = false
@@ -110,6 +113,7 @@ class DataManageViewModel(
             saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在备份..."
+            AppLogManager.i(TAG, "手动备份开始: strategy=${backupStrategy.value}")
             try {
                 val context = AppContainer.getApplication()
                 val backupFile = BackupManager.backup(context, backupStrategy.value, getAnimeDao())
@@ -126,6 +130,7 @@ class DataManageViewModel(
                     _snackbarMessage.value = "上传失败：${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
+                AppLogManager.e(TAG, "手动备份失败: strategy=${backupStrategy.value}", e)
                 _snackbarMessage.value = "备份失败：${e.message}"
             } finally {
                 _isLoading.value = false
@@ -139,6 +144,10 @@ class DataManageViewModel(
             saveConfig()
             _isLoading.value = true
             _loadingMessage.value = "正在下载..."
+            AppLogManager.i(
+                TAG,
+                "手动恢复开始: strategy=${backupStrategy.value}, mode=${restoreMode.value}"
+            )
             try {
                 val context = AppContainer.getApplication()
                 val strategy = backupStrategy.value
@@ -163,6 +172,7 @@ class DataManageViewModel(
                 // 恢复完成后，防抖触发后端订阅同步（WebDAV 恢复绕过 Repository，需显式补同步）
                 animeRepository.triggerSyncSubscriptionsFromServerDebounced()
             } catch (e: Exception) {
+                AppLogManager.e(TAG, "手动恢复失败: strategy=${backupStrategy.value}, mode=${restoreMode.value}", e)
                 _snackbarMessage.value = "恢复失败：${e.message}"
             } finally {
                 _isLoading.value = false

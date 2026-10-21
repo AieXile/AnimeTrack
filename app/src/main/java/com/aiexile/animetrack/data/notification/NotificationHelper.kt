@@ -6,10 +6,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.aiexile.animetrack.MainActivity
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 
 object NotificationHelper {
+
+    private const val TAG = "Notification"
 
     private const val CHANNEL_ID = "anime_update"
     private const val CHANNEL_NAME = "番剧更新通知"
@@ -32,6 +36,13 @@ object NotificationHelper {
         if (animeList.isEmpty()) return
 
         createChannel(context)
+
+        // 用户关掉通知权限/渠道后，代码仍会走到 notify()（系统静默丢弃），
+        // 「为什么收不到每日更新」在日志里必须能直接看出是权限问题
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            AppLogManager.w(TAG, "通知权限未授予，跳过更新通知（${animeList.size} 部）")
+            return
+        }
 
         val title = "今日番剧更新"
         val contentText = when (animeList.size) {
@@ -71,5 +82,6 @@ object NotificationHelper {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, notification)
+        AppLogManager.i(TAG, "已发送每日更新通知（${animeList.size} 部）")
     }
 }

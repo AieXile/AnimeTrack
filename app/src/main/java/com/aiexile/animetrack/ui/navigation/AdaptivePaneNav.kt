@@ -33,6 +33,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
@@ -42,7 +43,6 @@ import com.aiexile.animetrack.ui.feedback.FeedbackScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
-import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
 import com.aiexile.animetrack.ui.settings.BangumiAccountScreen
@@ -56,7 +56,6 @@ import com.aiexile.animetrack.ui.settings.FontSettingsScreen
 import com.aiexile.animetrack.ui.settings.LoginScreen
 import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
 import com.aiexile.animetrack.ui.settings.PrivacyPolicyScreen
-import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.settings.UpdateNotificationScreen
 import com.aiexile.animetrack.ui.settings.UserLoginScreen
 import com.aiexile.animetrack.ui.settings.UserRegisterScreen
@@ -64,7 +63,9 @@ import com.aiexile.animetrack.ui.settings.EmailBindScreen
 import com.aiexile.animetrack.ui.settings.ForgotPasswordScreen
 import com.aiexile.animetrack.ui.settings.WebDAVAutoSyncScreen
 import com.aiexile.animetrack.ui.settings.WebDAVSyncScreen
-import com.aiexile.animetrack.ui.timeline.TimelineScreen
+import com.aiexile.animetrack.ui.theme.LocalChromeStyle
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
@@ -209,10 +210,12 @@ internal fun SideNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: com.aiexile.animetrack.ui.home.HomeViewModel,
     hazeState: HazeState,
+    navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
+    val chromeStyle = LocalChromeStyle.current
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -223,7 +226,20 @@ internal fun SideNavLayout(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .hazeSource(state = hazeState)
+                .then(
+                    if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
+                        Modifier.layerBackdrop(navBackdrop)
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(
+                    if (chromeStyle == ChromeStyle.HAZE) {
+                        Modifier.hazeSource(state = hazeState)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             HorizontalPager(
                 state = pagerState,

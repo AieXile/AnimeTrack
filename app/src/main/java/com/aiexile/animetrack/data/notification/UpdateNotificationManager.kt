@@ -5,10 +5,13 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.aiexile.animetrack.data.log.AppLogManager
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 object UpdateNotificationManager {
+
+    private const val TAG = "Notification"
 
     private const val WORK_NAME = "update_notification_daily"
     private const val TEST_WORK_NAME = "update_notification_test"
@@ -40,10 +43,16 @@ object UpdateNotificationManager {
             ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
+        AppLogManager.i(
+            TAG,
+            "每日更新通知已排期: $hour:${minute.toString().padStart(2, '0')}，" +
+                "首次延迟 ${initialDelay / 1000}s"
+        )
     }
 
     fun cancelDailyNotification(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        AppLogManager.i(TAG, "每日更新通知已取消")
     }
 
     fun triggerTestNotification(context: Context) {
@@ -56,5 +65,6 @@ object UpdateNotificationManager {
             androidx.work.ExistingWorkPolicy.REPLACE,
             workRequest
         )
+        AppLogManager.i(TAG, "测试更新通知已排期（3s 后执行）")
     }
 }

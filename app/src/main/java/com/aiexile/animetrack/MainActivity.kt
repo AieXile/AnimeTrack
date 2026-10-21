@@ -1,10 +1,13 @@
 package com.aiexile.animetrack
 
 import android.Manifest
+import android.animation.ObjectAnimator
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.animation.ObjectAnimator
+import android.os.Process
+import android.os.SystemClock
+import android.view.Choreographer
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,15 +23,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
+import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
+import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.chrome.chromeSupportsBlur
 import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.icons.LocalIconPack
+import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
@@ -54,7 +63,10 @@ class MainActivity : ComponentActivity() {
     // Android 13+ 通知权限请求（推送通知显示的前提，需在 onCreate 前注册）
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { }
+    ) { granted ->
+        // 用户拒绝通知权限后「推送收不到」会被当成 bug 反馈，先留一条可检索的结论
+        AppLogManager.i("Permission", "通知权限: ${if (granted) "已授予" else "被拒绝"}")
+    }
 
     /** 请求通知权限（已授权或系统不再弹窗时静默跳过）；供冷启动与隐私弹窗同意后复用 */
     fun requestNotificationPermissionIfNeeded() {
@@ -121,6 +133,14 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
+        // 冷启动埋点：进程启动 → 首帧耗时（白屏/启动慢类反馈的第一手数据）
+        if (savedInstanceState == null) {
+            Choreographer.getInstance().postFrameCallback {
+                val costMs = SystemClock.uptimeMillis() - Process.getStartUptimeMillis()
+                AppLogManager.i("App", "首帧完成，冷启动耗时 ${costMs}ms")
+            }
+        }
+
         // 挂起 Splash Screen 直到 DataStore 加载完毕
         val isDataLoaded = java.util.concurrent.atomic.AtomicBoolean(false)
         splashScreen.setKeepOnScreenCondition { !isDataLoaded.get() }
@@ -181,6 +201,26 @@ class MainActivity : ComponentActivity() {
             val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
             val darkStyle by settingsRepository.darkStyle.collectAsState(DarkStyle.BOOST)
             val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
+            // 界面外壳材质：初始值取同步缓存，避免冷启动首帧先渲染默认档再跳变
+            val chromeStyle by settingsRepository.chromeStyle
+                .collectAsState(settingsRepository.cachedChromeStyle())
+            // 高级模糊（HAZE 档）参数：全局下发一次，悬浮胶囊/悬浮按钮/顶栏共用
+            val blurRadius by settingsRepository.advancedBlurRadius
+                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+            val blurBackgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha
+                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+            val blurTintAlpha by settingsRepository.advancedBlurTintAlpha
+                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+            val blurNoise by settingsRepository.advancedBlurNoise
+                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+            val advancedBlurConfig = remember(blurRadius, blurBackgroundAlpha, blurTintAlpha, blurNoise) {
+                AdvancedBlurConfig(
+                    blurRadius = blurRadius.dp,
+                    backgroundColorAlpha = blurBackgroundAlpha,
+                    tintAlpha = blurTintAlpha,
+                    noiseFactor = blurNoise
+                )
+            }
             val systemDarkTheme = isSystemInDarkTheme()
 
             val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
@@ -211,11 +251,15 @@ class MainActivity : ComponentActivity() {
                 fontFamily = currentFontFamily
             ) {
                 // 大屏适配：计算窗口尺寸档位（Compact/Medium/Expanded）并全局下发；
-                // 图标包同步全局下发，切换时整树重组刷新全部图标
+                // 图标包与界面外壳材质同步全局下发，切换时整树重组刷新
+                // 低版本（不支持 RenderEffect）把档位降级为标准，避免玻璃渲染无效果
                 val windowSizeClass = calculateWindowSizeClass(this)
                 CompositionLocalProvider(
                     LocalWindowSizeClass provides windowSizeClass,
-                    LocalIconPack provides iconPack
+                    LocalIconPack provides iconPack,
+                    LocalChromeStyle provides if (chromeSupportsBlur()) chromeStyle else
+                        ChromeStyle.STANDARD,
+                    LocalAdvancedBlurConfig provides advancedBlurConfig
                 ) {
                     val splashDismissed by splashDismissed.collectAsState()
                     AnimeTrackApp(

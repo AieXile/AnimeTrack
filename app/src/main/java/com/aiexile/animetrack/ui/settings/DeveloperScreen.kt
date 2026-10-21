@@ -4,8 +4,6 @@ import android.content.Context
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +24,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -55,10 +56,9 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.announcement.AnnouncementDialog
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -78,9 +78,6 @@ fun DeveloperScreen(
     val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -111,34 +108,18 @@ fun DeveloperScreen(
     AnnouncementDialog(viewModel = announcementViewModel)
     UpdateDialog(viewModel = updateViewModel)
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.developer_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.developer_title),
+        onBack = onBack
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
-                // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
-                .then(
-                    if (liquidGlassEnabled) {
-                        Modifier.padding(
-                            top = paddingValues.calculateTopPadding(),
-                            bottom = paddingValues.calculateBottomPadding()
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
+                // 玻璃档内容视口全高，顶/底内边距由滚动内容自垫
+                .padding(chrome.content)
         ) {
             Spacer(modifier = Modifier.size(16.dp))
 
@@ -552,7 +533,8 @@ private fun AdvancedBlurTuningSection(
     context: Context
 ) {
     val scope = rememberCoroutineScope()
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled.collectAsState(false)
+    val chromeStyle by settingsRepository.chromeStyle
+        .collectAsState(settingsRepository.cachedChromeStyle())
     val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
     val backgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
     val tintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
@@ -586,30 +568,39 @@ private fun AdvancedBlurTuningSection(
 
         Spacer(modifier = Modifier.size(12.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.nav_custom_advanced_blur),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.developer_blur_switch_desc),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Text(
+            text = stringResource(R.string.nav_custom_advanced_blur),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = stringResource(R.string.developer_blur_switch_desc),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.size(8.dp))
+        // 三档界面风格的调试入口：与外观页/引导页天然互斥
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ChromeStyle.entries.forEachIndexed { index, style ->
+                SegmentedButton(
+                    selected = chromeStyle == style,
+                    onClick = { scope.launch { settingsRepository.setChromeStyle(style) } },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = ChromeStyle.entries.size
+                    ),
+                    icon = {},
+                    label = {
+                        Text(
+                            text = stringResource(style.labelRes),
+                            maxLines = 1,
+                            fontSize = 13.sp
+                        )
+                    }
                 )
             }
-            AppSwitch(
-                checked = capsuleAdvancedBlur,
-                onCheckedChange = { enabled ->
-                    scope.launch { settingsRepository.setCapsuleAdvancedBlurEnabled(enabled) }
-                }
-            )
         }
 
         Spacer(modifier = Modifier.size(12.dp))

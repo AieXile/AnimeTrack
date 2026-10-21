@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.aiexile.animetrack.data.log.AppLogManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +26,7 @@ private val Context.authDataStore: DataStore<Preferences> by preferencesDataStor
 class AuthManager(private val context: Context) {
 
     companion object {
+        private const val TAG = "BangumiAuth"
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val EXPIRES_AT_KEY = longPreferencesKey("access_token_expires_at")
@@ -138,6 +140,7 @@ class AuthManager(private val context: Context) {
             // 重新登录成功，清除失效标记
             preferences.remove(TOKEN_EXPIRED_KEY)
         }
+        AppLogManager.i(TAG, "Bangumi 授权成功（有效期 ${expiresIn ?: "未知"}s）")
     }
 
     /**
@@ -151,6 +154,7 @@ class AuthManager(private val context: Context) {
                 preferences[TOKEN_EXPIRED_KEY] = true
             }
         }
+        AppLogManager.w(TAG, "Bangumi 登录状态失效（刷新链无法恢复）")
     }
 
     /**
@@ -240,5 +244,6 @@ class AuthManager(private val context: Context) {
                 File(customPath).takeIf { it.exists() }?.delete()
             }
         }
+        AppLogManager.i(TAG, "Bangumi 已主动退出登录")
     }
 }

@@ -24,12 +24,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.width
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.LiquidGlassKind
+import com.aiexile.animetrack.ui.components.LiquidGlassSpec
+import com.aiexile.animetrack.ui.components.drawLiquidGlass
+import com.aiexile.animetrack.ui.components.liquidGlassSpec
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -52,9 +52,9 @@ import com.aiexile.animetrack.R
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.data.FabLocation
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.advancedHazeEffect
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -74,9 +74,8 @@ fun HomeFloatingActions(
     onScrollToTop: () -> Unit,
     onAddClick: () -> Unit,
     hazeState: HazeState,
-    advancedBlurEnabled: Boolean = false,
+    style: ChromeStyle,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
-    liquidGlassEnabled: Boolean = false,
     backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
@@ -88,10 +87,13 @@ fun HomeFloatingActions(
     // 传统沉底导航下 NAV_BAR 回退为右下角悬浮行为
     if (fabLocation == FabLocation.NAV_BAR && isCapsuleNav) return
 
+    val advancedBlurEnabled = style == ChromeStyle.HAZE
     // 液态玻璃模式优先生效（与悬浮胶囊/顶栏 FAB 一致）
-    val liquidGlass = liquidGlassEnabled && backdrop != null
+    val liquidBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS }
+    // 常规悬浮按钮的玻璃规格：保持轻模糊的通透感（「导航栏旁」按钮槽另用 CapsuleCompanion）
+    val fabGlassSpec = liquidGlassSpec(LiquidGlassKind.Fab)
     val fabContainerColor = if (advancedBlurEnabled) Color.Transparent else colorScheme.surfaceContainer
-    val fabBlur = fabBlurModifier(hazeState, !liquidGlass && advancedBlurEnabled, blurConfig)
+    val fabBlur = fabBlurModifier(hazeState, advancedBlurEnabled && liquidBackdrop == null, blurConfig)
     val fabElevation = if (advancedBlurEnabled) {
         androidx.compose.material3.FloatingActionButtonDefaults.elevation(
             defaultElevation = 0.dp,
@@ -131,22 +133,24 @@ fun HomeFloatingActions(
                         animationSpec = tween(100, easing = FastOutSlowInEasing)
                     )
             ) {
-                if (liquidGlass) {
+                if (liquidBackdrop != null) {
                     LiquidGlassFab(
                         icon = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                         contentDescription = stringResource(R.string.home_scroll_to_top),
-                        backdrop = backdrop!!,
+                        backdrop = liquidBackdrop,
+                        spec = fabGlassSpec,
                         onClick = onScrollToTop
                     )
                 } else {
                     ScrollToTopFab(onClick = onScrollToTop, containerColor = fabContainerColor, blurModifier = fabBlur, elevation = fabElevation)
                 }
             }
-            if (liquidGlass) {
+            if (liquidBackdrop != null) {
                 LiquidGlassFab(
                     icon = rememberAppIconPainter(AppIcon.ADD),
                     contentDescription = stringResource(R.string.home_add_anime),
-                    backdrop = backdrop!!,
+                    backdrop = liquidBackdrop,
+                    spec = fabGlassSpec,
                     onClick = onAddClick
                 )
             } else {
@@ -188,11 +192,12 @@ fun HomeFloatingActions(
                 .navigationBarsPadding()
                 .padding(end = fabEndPadding, bottom = fabBottomPadding)
         ) {
-            if (liquidGlass) {
+            if (liquidBackdrop != null) {
                 LiquidGlassFab(
                     icon = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                     contentDescription = stringResource(R.string.home_scroll_to_top),
-                    backdrop = backdrop!!,
+                    backdrop = liquidBackdrop,
+                    spec = fabGlassSpec,
                     onClick = onScrollToTop
                 )
             } else {
@@ -206,13 +211,15 @@ fun HomeFloatingActions(
  * 液态玻璃 FAB（默认 56dp 方形，与 M3 FAB 同尺寸）：折射玻璃渲染 + LiquidButton 同款
  * 交互物理（按压放大、拖动跟随形变、指尖高光）。lens 仅支持 CornerBasedShape，
  * 故用 16dp 普通圆角（视觉与 Squircle 差异可忽略）。
- * size/shape 可覆写：「导航栏旁」按钮槽用 54dp 全圆与胶囊对齐。
+ * size/shape/spec 可覆写：「导航栏旁」按钮槽用 54dp 全圆与胶囊对齐，并传入
+ * CapsuleCompanion 规格（与胶囊同白度）；其余入口沿用 [LiquidGlassKind.Fab] 的通透感。
  */
 @Composable
 private fun LiquidGlassFab(
     icon: Painter,
     contentDescription: String,
     backdrop: Backdrop,
+    spec: LiquidGlassSpec,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     fabSize: Dp = 56.dp,
@@ -222,23 +229,16 @@ private fun LiquidGlassFab(
     val interactiveHighlight = remember(animationScope) {
         InteractiveHighlight(animationScope)
     }
-    val containerColor =
-        if (isAppDarkTheme()) Color(0xFF121212).copy(0.4f)
-        else Color(0xFFFAFAFA).copy(0.4f)
     val contentColor = MaterialTheme.colorScheme.primary
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(fabSize)
-            .drawBackdrop(
+            .drawLiquidGlass(
                 backdrop = backdrop,
                 shape = { shape },
-                effects = {
-                    vibrancy()
-                    blur(2.dp.toPx())
-                    lens(12.dp.toPx(), 24.dp.toPx())
-                },
+                spec = spec,
                 layerBlock = {
                     // 与顶栏玻璃 FAB 同款交互物理（Kyant0 LiquidButton）
                     val width = size.width
@@ -260,8 +260,7 @@ private fun LiquidGlassFab(
                     scaleY = scale + maxDragScale *
                         abs(sin(offsetAngle) * offset.y / size.maxDimension) *
                         (height / width).fastCoerceAtMost(1f)
-                },
-                onDrawSurface = { drawRect(containerColor) }
+                }
             )
             // 高光层绘制在玻璃之上、图标之下；手势仅观察不消费，不影响点击
             .then(interactiveHighlight.modifier)
@@ -399,6 +398,10 @@ internal fun Modifier.besideNavFabSquish(
  * 加号在下方（52dp，略小于胶囊高 54dp），通过 MainOverlay 侧 bottom
  * padding 与胶囊中心对齐，回到顶部小按钮竖排于加号上方。
  * 普通/高级模糊/液态玻璃三态与右下角 FAB 一致；按钮全圆角 Squircle（视觉即圆形）。
+ *
+ * 基准约定：胶囊导航自身不消费 navigationBars inset（只留 24dp 底边距），
+ * 因此本槽不得再叠 `.navigationBarsPadding()`——否则加号会按机型上报的
+ * 手势提示条高度上浮（浅色机型 0～24dp，三键导航约 48dp），与胶囊错开。
  */
 @Composable
 fun BesideNavFabSlot(
@@ -406,16 +409,19 @@ fun BesideNavFabSlot(
     onScrollToTop: () -> Unit,
     onAddClick: () -> Unit,
     hazeState: HazeState,
-    advancedBlurEnabled: Boolean = false,
+    style: ChromeStyle,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
-    liquidGlassEnabled: Boolean = false,
     backdrop: Backdrop? = null,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val liquidGlass = liquidGlassEnabled && backdrop != null
+    val advancedBlurEnabled = style == ChromeStyle.HAZE
+    val liquidBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS }
+    // 与胶囊同一白度：共用 CapsuleCompanion 规格（同底色 + 同 8dp 模糊），
+    // 折射按 52dp 小面积收敛到 12dp；其余位置的按钮仍为 LiquidGlassKind.Fab 的通透感
+    val slotGlassSpec = liquidGlassSpec(LiquidGlassKind.CapsuleCompanion)
     val containerColor = if (advancedBlurEnabled) Color.Transparent else colorScheme.surfaceContainer
-    val fabBlur = fabBlurModifier(hazeState, !liquidGlass && advancedBlurEnabled, blurConfig, SquircleShape(100.dp))
+    val fabBlur = fabBlurModifier(hazeState, advancedBlurEnabled && liquidBackdrop == null, blurConfig, SquircleShape(100.dp))
     val fabElevation = if (advancedBlurEnabled) {
         androidx.compose.material3.FloatingActionButtonDefaults.elevation(
             defaultElevation = 0.dp,
@@ -447,11 +453,12 @@ fun BesideNavFabSlot(
                     animationSpec = tween(100, easing = FastOutSlowInEasing)
                 )
         ) {
-            if (liquidGlass) {
+            if (liquidBackdrop != null) {
                 LiquidGlassFab(
                     icon = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
                     contentDescription = stringResource(R.string.home_scroll_to_top),
-                    backdrop = backdrop!!,
+                    backdrop = liquidBackdrop,
+                    spec = slotGlassSpec,
                     onClick = onScrollToTop,
                     fabSize = BesideNavFabSize,
                     shape = RoundedCornerShape(BesideNavFabSize / 2)
@@ -467,11 +474,12 @@ fun BesideNavFabSlot(
                 )
             }
         }
-        if (liquidGlass) {
+        if (liquidBackdrop != null) {
             LiquidGlassFab(
                 icon = rememberAppIconPainter(AppIcon.ADD),
                 contentDescription = stringResource(R.string.home_add_anime),
-                backdrop = backdrop!!,
+                backdrop = liquidBackdrop,
+                spec = slotGlassSpec,
                 onClick = onAddClick,
                 fabSize = BesideNavFabSize,
                 shape = RoundedCornerShape(BesideNavFabSize / 2)

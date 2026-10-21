@@ -2,6 +2,7 @@ package com.aiexile.animetrack.data
 
 import android.util.Log
 import com.aiexile.animetrack.BuildConfig
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.DeviceActivityRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
@@ -40,7 +41,7 @@ object ActivityReportHelper {
         val deviceId = try {
             settingsRepository.getOrCreateDeviceId()
         } catch (e: Exception) {
-            Log.e(TAG, "获取设备 ID 失败: ${e.message}")
+            AppLogManager.e(TAG, "获取设备 ID 失败: ${e.message}")
             return
         }
         if (deviceId.isBlank()) return
@@ -60,10 +61,10 @@ object ActivityReportHelper {
                     }
                     settingsRepository.setLastActivityDate(today)
                 } else {
-                    Log.w(TAG, "Device activity report returned success=false")
+                    AppLogManager.w(TAG, "Device activity report returned success=false")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Device activity report failed: ${e.message}")
+                AppLogManager.e(TAG, "Device activity report failed: ${e.message}")
             }
         }
     }

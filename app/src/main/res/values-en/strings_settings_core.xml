@@ -17,6 +17,9 @@
     <string name="font_language_title">Language</string>
     <string name="font_language_subtitle">Switch app language</string>
     <string name="font_restart_to_apply">Restart app to take effect</string>
+    <!-- Settings option menu: row titles (group titles are already "Font / Language") -->
+    <string name="font_family_setting">App font</string>
+    <string name="font_language_setting">App language</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">Settings</string>
@@ -60,9 +63,10 @@
     <string name="appearance_icon_style_subtitle">Choose the visual style of app icons</string>
     <string name="appearance_icon_pack_material">Material Symbols</string>
     <string name="appearance_icon_pack_lucide">Lucide</string>
-    <string name="appearance_glass_effect_title">Glass Effect</string>
-    <string name="appearance_glass_effect_subtitle">Glass effect for the floating capsule and FAB</string>
+    <string name="appearance_glass_effect_title">Interface Style</string>
+    <string name="appearance_glass_effect_subtitle">Material style for the whole app chrome: Standard / Advanced Blur / Liquid Glass</string>
     <string name="appearance_glass_effect_standard">Standard</string>
+    <string name="appearance_glass_effect_unsupported">This device does not support real-time blur; Interface Style will render as Standard</string>
 
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">Customize Navigation</string>
@@ -96,9 +100,9 @@
     <string name="nav_custom_greeting_placeholder">Leave empty for random Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">Text too long may be truncated</string>
     <string name="nav_custom_advanced_blur">Advanced Blur</string>
-    <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the floating capsule and FAB; mutually exclusive with Liquid Glass</string>
+    <string name="nav_custom_advanced_blur_desc">Enable background blur (frosted glass) for the whole app chrome (floating capsule, FABs and top bars)</string>
     <string name="nav_custom_liquid_glass">Liquid Glass</string>
-    <string name="nav_custom_liquid_glass_desc">Render the floating capsule with refraction glass instead of Advanced Blur; mutually exclusive</string>
+    <string name="nav_custom_liquid_glass_desc">Render the whole app chrome with refraction glass instead of Advanced Blur</string>
     <string name="nav_custom_liquid_glass_backdrop_blur">Nav Bar Backdrop Blur</string>
     <string name="nav_custom_liquid_glass_backdrop_blur_desc">In Liquid Glass mode, render a frosted blur area around the floating capsule for better readability</string>
     <string name="nav_custom_topbar_title">Top Bar</string>

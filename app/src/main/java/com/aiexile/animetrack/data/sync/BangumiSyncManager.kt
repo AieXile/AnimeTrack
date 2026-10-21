@@ -66,7 +66,7 @@ class BangumiSyncManager(
             }
             username
         } catch (e: Exception) {
-            Log.e(TAG, "resolveUsername failed", e)
+            AppLogManager.e(TAG, "resolveUsername failed", e)
             ""
         }
     }
@@ -95,7 +95,7 @@ class BangumiSyncManager(
             )
             if (BuildConfig.DEBUG) Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
         } catch (e: Exception) {
-            Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
+            AppLogManager.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
         }
     }
 
@@ -108,7 +108,7 @@ class BangumiSyncManager(
 
         val username = resolveUsername()
         if (username.isBlank()) {
-            Log.e(TAG, "syncRemoteToLocal aborted: username unavailable")
+            AppLogManager.e(TAG, "syncRemoteToLocal aborted: username unavailable")
             return@withContext
         }
 
@@ -284,7 +284,7 @@ class BangumiSyncManager(
             )
             if (BuildConfig.DEBUG) Log.d(TAG, "Pushed status: bangumiId=$bangumiId type=$type")
         } catch (e: Exception) {
-            Log.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
+            AppLogManager.e(TAG, "Push status failed: bangumiId=$bangumiId", e)
         }
     }
 
@@ -317,7 +317,7 @@ class BangumiSyncManager(
             )
             if (BuildConfig.DEBUG) Log.d(TAG, "Pushed progress: bangumiId=$bangumiId ep=$episode")
         } catch (e: Exception) {
-            Log.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
+            AppLogManager.e(TAG, "Push progress failed: bangumiId=$bangumiId", e)
         }
     }
 

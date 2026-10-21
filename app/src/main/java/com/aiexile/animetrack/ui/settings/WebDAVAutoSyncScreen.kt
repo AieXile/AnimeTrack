@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,24 +11,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.rememberCoroutineScope
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.components.settings.SettingsOption
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionHost
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionRow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,9 +37,6 @@ fun WebDAVAutoSyncScreen(
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
     val autoSyncEnabled by settingsRepository.webdavAutoSyncEnabled.collectAsState(false)
     val onDataChange by settingsRepository.webdavAutoSyncOnDataChange.collectAsState(true)
     val onAppOpen by settingsRepository.webdavAutoSyncOnAppOpen.collectAsState(false)
@@ -52,251 +46,199 @@ fun WebDAVAutoSyncScreen(
     val useCustomStrategy by settingsRepository.webdavAutoSyncUseCustomStrategy.collectAsState(false)
     val backupStrategy by settingsRepository.webdavAutoSyncBackupStrategy.collectAsState(0)
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.webdav_auto_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
-                .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+    // 同步间隔 / 备份格式：都是「一行一个当前值」的单选，收成选项弹层
+    val intervalOptions = listOf(
+        SettingsOption(0, stringResource(R.string.webdav_auto_interval_6h)),
+        SettingsOption(1, stringResource(R.string.webdav_auto_interval_12h)),
+        SettingsOption(2, stringResource(R.string.webdav_auto_interval_daily))
+    )
+    val formatOptions = listOf(
+        SettingsOption(
+            value = 0,
+            label = stringResource(R.string.webdav_auto_format_json),
+            supportingText = stringResource(R.string.webdav_auto_format_json_desc)
+        ),
+        SettingsOption(
+            value = 1,
+            label = stringResource(R.string.webdav_auto_format_zip),
+            supportingText = stringResource(R.string.webdav_auto_format_zip_desc)
+        )
+    )
 
-            // 总开关
-            item {
-                SettingsGroup(title = stringResource(R.string.webdav_auto_title)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.webdav_auto_enable))
-                            Text(
-                                text = stringResource(R.string.webdav_auto_enable_desc),
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+    AppScaffold(
+        title = stringResource(R.string.webdav_auto_title),
+        onBack = onBack
+    ) { chrome ->
+        SettingsOptionHost(
+            modifier = Modifier.fillMaxSize(),
+            topInset = chrome.topInset,
+            bottomInset = chrome.bottomInset,
+            sources = chrome.sources
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(chrome.layout)
+                    .padding(horizontal = 16.dp),
+                contentPadding = chrome.content,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
+
+                // 总开关
+                item {
+                    SettingsGroup(title = stringResource(R.string.webdav_auto_title)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(R.string.webdav_auto_enable))
+                                Text(
+                                    text = stringResource(R.string.webdav_auto_enable_desc),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            AppSwitch(
+                                checked = autoSyncEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncEnabled(it) } }
                             )
                         }
-                        AppSwitch(
-                            checked = autoSyncEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncEnabled(it) } }
-                        )
                     }
                 }
-            }
 
-            // 同步触发条件
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.webdav_auto_trigger_section),
-                    subtitle = if (autoSyncEnabled) null else stringResource(R.string.webdav_auto_enable_first)
-                ) {
-                    Column {
-                        // 当番剧数据发生变化时
-                        TriggerItem(
-                            title = stringResource(R.string.webdav_auto_trigger_data_change),
-                            description = stringResource(R.string.webdav_auto_trigger_data_change_desc),
-                            enabled = autoSyncEnabled,
-                            checked = onDataChange,
-                            onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncOnDataChange(it) } }
-                        )
+                // 同步触发条件
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.webdav_auto_trigger_section),
+                        subtitle = if (autoSyncEnabled) null else stringResource(R.string.webdav_auto_enable_first)
+                    ) {
+                        Column {
+                            // 当番剧数据发生变化时
+                            TriggerItem(
+                                title = stringResource(R.string.webdav_auto_trigger_data_change),
+                                description = stringResource(R.string.webdav_auto_trigger_data_change_desc),
+                                enabled = autoSyncEnabled,
+                                checked = onDataChange,
+                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncOnDataChange(it) } }
+                            )
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // 每次打开App时
-                        TriggerItem(
-                            title = stringResource(R.string.webdav_auto_trigger_app_open),
-                            description = stringResource(R.string.webdav_auto_trigger_app_open_desc),
-                            enabled = autoSyncEnabled,
-                            checked = onAppOpen,
-                            onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncOnAppOpen(it) } }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // 定时同步
-                        TriggerItem(
-                            title = stringResource(R.string.webdav_auto_trigger_scheduled),
-                            description = stringResource(R.string.webdav_auto_trigger_scheduled_desc),
-                            enabled = autoSyncEnabled,
-                            checked = scheduled,
-                            onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncScheduled(it) } }
-                        )
-
-                        if (scheduled && autoSyncEnabled) {
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.webdav_auto_sync_interval),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                IntervalOption(
-                                    label = stringResource(R.string.webdav_auto_interval_6h),
-                                    selected = interval == 0,
-                                    enabled = autoSyncEnabled,
-                                    onClick = { scope.launch { settingsRepository.setWebdavAutoSyncInterval(0) } }
-                                )
-                                IntervalOption(
-                                    label = stringResource(R.string.webdav_auto_interval_12h),
-                                    selected = interval == 1,
-                                    enabled = autoSyncEnabled,
-                                    onClick = { scope.launch { settingsRepository.setWebdavAutoSyncInterval(1) } }
-                                )
-                                IntervalOption(
-                                    label = stringResource(R.string.webdav_auto_interval_daily),
-                                    selected = interval == 2,
-                                    enabled = autoSyncEnabled,
-                                    onClick = { scope.launch { settingsRepository.setWebdavAutoSyncInterval(2) } }
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // 仅Wi-Fi下同步
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.webdav_auto_wifi_only),
-                                    color = if (autoSyncEnabled) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
-                                Text(
-                                    text = stringResource(R.string.webdav_auto_wifi_only_desc),
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            AppSwitch(
-                                checked = wifiOnly,
-                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncWifiOnly(it) } },
-                                enabled = autoSyncEnabled
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 同步策略
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.webdav_auto_strategy_section),
-                    subtitle = if (autoSyncEnabled) null else stringResource(R.string.webdav_auto_enable_first)
-                ) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.webdav_auto_custom_strategy),
-                                    color = if (autoSyncEnabled) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
-                                Text(
-                                    text = if (useCustomStrategy) stringResource(R.string.webdav_auto_custom_strategy_on) else stringResource(R.string.webdav_auto_custom_strategy_off),
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            AppSwitch(
-                                checked = useCustomStrategy,
-                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncUseCustomStrategy(it) } },
-                                enabled = autoSyncEnabled
-                            )
-                        }
-
-                        if (useCustomStrategy && autoSyncEnabled) {
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Text(
-                                text = stringResource(R.string.webdav_auto_backup_format),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
+                            // 每次打开App时
+                            TriggerItem(
+                                title = stringResource(R.string.webdav_auto_trigger_app_open),
+                                description = stringResource(R.string.webdav_auto_trigger_app_open_desc),
+                                enabled = autoSyncEnabled,
+                                checked = onAppOpen,
+                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncOnAppOpen(it) } }
                             )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
+                            // 定时同步
+                            TriggerItem(
+                                title = stringResource(R.string.webdav_auto_trigger_scheduled),
+                                description = stringResource(R.string.webdav_auto_trigger_scheduled_desc),
+                                enabled = autoSyncEnabled,
+                                checked = scheduled,
+                                onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncScheduled(it) } }
+                            )
+
+                            if (scheduled && autoSyncEnabled) {
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                SettingsOptionRow(
+                                    title = stringResource(R.string.webdav_auto_sync_interval),
+                                    options = intervalOptions,
+                                    selected = interval,
+                                    onSelected = { value ->
+                                        scope.launch { settingsRepository.setWebdavAutoSyncInterval(value) }
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // 仅Wi-Fi下同步
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RadioButton(
-                                    selected = backupStrategy == 0,
-                                    onClick = { scope.launch { settingsRepository.setWebdavAutoSyncBackupStrategy(0) } }
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { scope.launch { settingsRepository.setWebdavAutoSyncBackupStrategy(0) } }
-                                ) {
-                                    Text(text = stringResource(R.string.webdav_auto_format_json))
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(R.string.webdav_auto_format_json_desc),
+                                        text = stringResource(R.string.webdav_auto_wifi_only),
+                                        color = if (autoSyncEnabled) MaterialTheme.colorScheme.onSurface
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.webdav_auto_wifi_only_desc),
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                RadioButton(
-                                    selected = backupStrategy == 1,
-                                    onClick = { scope.launch { settingsRepository.setWebdavAutoSyncBackupStrategy(1) } }
+                                AppSwitch(
+                                    checked = wifiOnly,
+                                    onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncWifiOnly(it) } },
+                                    enabled = autoSyncEnabled
                                 )
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { scope.launch { settingsRepository.setWebdavAutoSyncBackupStrategy(1) } }
-                                ) {
-                                    Text(text = stringResource(R.string.webdav_auto_format_zip))
-                                    Text(
-                                        text = stringResource(R.string.webdav_auto_format_zip_desc),
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
                             }
                         }
                     }
                 }
-            }
 
-            item { Spacer(modifier = Modifier.height(80.dp)) }
+                // 同步策略
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.webdav_auto_strategy_section),
+                        subtitle = if (autoSyncEnabled) null else stringResource(R.string.webdav_auto_enable_first)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.webdav_auto_custom_strategy),
+                                        color = if (autoSyncEnabled) MaterialTheme.colorScheme.onSurface
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                    Text(
+                                        text = if (useCustomStrategy) stringResource(R.string.webdav_auto_custom_strategy_on) else stringResource(R.string.webdav_auto_custom_strategy_off),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                AppSwitch(
+                                    checked = useCustomStrategy,
+                                    onCheckedChange = { scope.launch { settingsRepository.setWebdavAutoSyncUseCustomStrategy(it) } },
+                                    enabled = autoSyncEnabled
+                                )
+                            }
+
+                            if (useCustomStrategy && autoSyncEnabled) {
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                SettingsOptionRow(
+                                    title = stringResource(R.string.webdav_auto_backup_format),
+                                    options = formatOptions,
+                                    selected = backupStrategy,
+                                    onSelected = { value ->
+                                        scope.launch { settingsRepository.setWebdavAutoSyncBackupStrategy(value) }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(80.dp)) }
+            }
         }
     }
 }
@@ -330,32 +272,6 @@ private fun TriggerItem(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled
-        )
-    }
-}
-
-@Composable
-private fun IntervalOption(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { onClick() },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = { onClick() },
-            enabled = enabled
-        )
-        Text(
-            text = label,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         )
     }
 }

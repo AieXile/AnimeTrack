@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.DeviceInfo
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.BindEmailRequest
 import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.data.network.EmailCodePurpose
@@ -136,12 +137,14 @@ fun EmailBindDialog(
                     // 与登录流程一致：上报推送 ID + 拉取云端订阅
                     try {
                         PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        AppLogManager.w("EmailBind", "绑定后上报推送 registrationId 失败（非致命）", e)
+                    }
                     try {
                         AppContainer.getAnimeRepository()
                             .triggerSyncSubscriptionsFromServer()
                     } catch (e: Exception) {
-                        android.util.Log.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
+                        AppLogManager.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
                     }
                     withContext(Dispatchers.Main) {
                         isLoading = false

@@ -1,11 +1,11 @@
 package com.aiexile.animetrack.data.player
 
 import android.net.Uri
-import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.MediaItem
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -118,7 +118,7 @@ object SubtitleLocator {
             }
 
             if (candidates.isNotEmpty()) {
-                Log.i(
+                AppLogManager.i(
                     TAG,
                     "Candidates in $dirUrl: " +
                         candidates.joinToString(" | ") { "${it.name}(${it.mime}) -> ${it.url}" }
@@ -138,10 +138,10 @@ object SubtitleLocator {
                         )
                         .build()
                 }
-            Log.i(TAG, "Attached ${configurations.size} subtitle configurations")
+            AppLogManager.i(TAG, "Attached ${configurations.size} subtitle configurations")
             configurations
         }.onFailure {
-            Log.w(TAG, "Locate external subtitles failed for $videoUrl", it)
+            AppLogManager.w(TAG, "Locate external subtitles failed for $videoUrl", it)
         }.getOrDefault(emptyList())
     }
 

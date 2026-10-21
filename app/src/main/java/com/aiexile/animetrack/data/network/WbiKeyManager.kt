@@ -1,7 +1,7 @@
 package com.aiexile.animetrack.data.network
 
 import android.content.Context
-import android.util.Log
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -85,7 +85,7 @@ object WbiKeyManager {
                     try {
                         persistToStorage(AppContainer.getApplication())
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to persist Wbi keys", e)
+                        AppLogManager.w(TAG, "Failed to persist Wbi keys", e)
                     }
 
                     Result.success(Pair(imgKey, subKey))
@@ -93,7 +93,7 @@ object WbiKeyManager {
                     Result.failure(Exception("WBI keys not found in nav response"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to refresh Wbi keys", e)
+                AppLogManager.e(TAG, "Failed to refresh Wbi keys", e)
                 Result.failure(e)
             }
         }

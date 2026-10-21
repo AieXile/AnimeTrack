@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,8 +53,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.R
-import com.aiexile.animetrack.data.StatusCount
 import com.aiexile.animetrack.data.auth.DeviceInfo
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.ChangeEmailRequest
 import com.aiexile.animetrack.data.network.ChangePasswordRequest
 import com.aiexile.animetrack.data.network.DeviceSession
@@ -73,13 +71,11 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.runtime.LaunchedEffect
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -99,9 +95,6 @@ fun UserLoginScreen(
     val userAuthManager = remember { AppContainer.getUserAuthManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
     val tokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
@@ -164,8 +157,9 @@ fun UserLoginScreen(
                         deviceCount = response.devices.size
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // 静默失败，个人界面数量显示保持上次结果
+                AppLogManager.e("UserLogin", "获取登录设备列表失败", e)
             }
         }
     }
@@ -195,8 +189,9 @@ fun UserLoginScreen(
                         level = profileUser.level
                     )
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // 静默失败：保留本地缓存资料
+                AppLogManager.e("UserLogin", "刷新用户资料失败", e)
             }
         }
     }
@@ -220,11 +215,13 @@ fun UserLoginScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
+                AppLogManager.e("UserLogin", "发送修改密码验证码失败", e)
                 withContext(Dispatchers.Main) {
                     changePasswordError = e.serverMessage()
                         ?: context.getString(R.string.verification_code_send_failed)
                 }
             } catch (e: Exception) {
+                AppLogManager.e("UserLogin", "发送修改密码验证码失败", e)
                 withContext(Dispatchers.Main) {
                     changePasswordError = context.getString(R.string.user_login_network_error)
                 }
@@ -260,11 +257,13 @@ fun UserLoginScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
+                AppLogManager.e("UserLogin", "发送更换邮箱验证码失败", e)
                 withContext(Dispatchers.Main) {
                     changeEmailError = e.serverMessage()
                         ?: context.getString(R.string.verification_code_send_failed)
                 }
             } catch (e: Exception) {
+                AppLogManager.e("UserLogin", "发送更换邮箱验证码失败", e)
                 withContext(Dispatchers.Main) {
                     changeEmailError = context.getString(R.string.user_login_network_error)
                 }
@@ -337,6 +336,7 @@ fun UserLoginScreen(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    AppLogManager.e("UserLogin", "上传头像失败", e)
                     withContext(Dispatchers.Main) {
                         avatarError = context.getString(R.string.user_login_network_upload_failed)
                     }
@@ -381,19 +381,22 @@ fun UserLoginScreen(
                     level = profileUser.level
                 )
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // 获取 profile 失败不影响登录
+            AppLogManager.w("UserLogin", "登录后获取用户资料失败", e)
         }
         // 登录成功后上报极光推送 registrationId
         try {
             PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            AppLogManager.w("UserLogin", "登录后上报推送 registrationId 失败", e)
+        }
         // 登录成功后拉取后端订阅列表，同步到本地数据库
         // 使用应用级协程，避免登录后 UI 切换导致同步被取消
         try {
             AppContainer.getAnimeRepository().triggerSyncSubscriptionsFromServer()
         } catch (e: Exception) {
-            android.util.Log.w("UserLogin", "Trigger sync subscriptions failed (non-fatal)", e)
+            AppLogManager.w("UserLogin", "登录后触发订阅同步失败（非致命）", e)
         }
     }
 
@@ -455,6 +458,7 @@ fun UserLoginScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
+                AppLogManager.w("UserLogin", "登录失败: HTTP ${e.code()}", e)
                 withContext(Dispatchers.Main) {
                     // errorBody 只能读一次：一次解析后从 JsonObject 取所有字段
                     val errorJson = e.serverErrorJson()
@@ -469,6 +473,7 @@ fun UserLoginScreen(
                     }
                 }
             } catch (e: Exception) {
+                AppLogManager.e("UserLogin", "登录请求异常（网络不可达/解析失败）", e)
                 withContext(Dispatchers.Main) {
                     errorMessage = context.getString(R.string.user_login_network_error)
                 }
@@ -527,10 +532,12 @@ fun UserLoginScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
+                AppLogManager.w("UserLogin", "恢复注销账号失败: HTTP ${e.code()}", e)
                 withContext(Dispatchers.Main) {
                     errorMessage = e.serverMessage() ?: context.getString(R.string.user_login_login_failed)
                 }
             } catch (e: Exception) {
+                AppLogManager.e("UserLogin", "恢复注销账号请求异常", e)
                 withContext(Dispatchers.Main) {
                     errorMessage = context.getString(R.string.user_login_network_error)
                 }
@@ -542,34 +549,18 @@ fun UserLoginScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.user_login_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.user_login_title),
+        onBack = onBack
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
-                // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
-                .then(
-                    if (liquidGlassEnabled) {
-                        Modifier.padding(
-                            top = paddingValues.calculateTopPadding(),
-                            bottom = paddingValues.calculateBottomPadding()
-                        )
-                    } else {
-                        Modifier
-                    }
-                ),
+                // 玻璃档内容视口全高，顶/底内边距由滚动内容自垫
+                .padding(chrome.content),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoggedIn && !tokenExpired) {
@@ -789,12 +780,14 @@ fun UserLoginScreen(
                                         RetrofitClient.userAuthApi.logout(
                                             UserAuthLogoutRequest(refreshToken = refreshToken)
                                         )
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
                                         // 后端 logout 失败也继续本地清除
+                                        AppLogManager.w("UserLogin", "服务端登出失败（本地仍继续清理）", e)
                                     }
                                 }
                                 userAuthManager.logout()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                AppLogManager.e("UserLogin", "登出流程异常（已强制本地清理）", e)
                                 userAuthManager.logout()
                             } finally {
                                 withContext(Dispatchers.Main) {
@@ -940,7 +933,7 @@ fun UserLoginScreen(
                             AppContainer.getAnimeDatabase().animeDao().deleteAllAnimes()
                         }
                     } catch (e: Exception) {
-                        android.util.Log.w("UserLogin", "Clear local data failed (non-fatal)", e)
+                        AppLogManager.w("UserLogin", "注销账号后清理本地数据失败（非致命）", e)
                     } finally {
                         // 服务端已撤销全部会话，本地统一执行登出清理
                         userAuthManager.logout()
@@ -1085,11 +1078,13 @@ fun UserLoginScreen(
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: HttpException) {
+                                AppLogManager.w("UserLogin", "修改密码失败: HTTP ${e.code()}", e)
                                 withContext(Dispatchers.Main) {
                                     changePasswordError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
                                     isChangingPassword = false
                                 }
                             } catch (e: Exception) {
+                                AppLogManager.e("UserLogin", "修改密码请求异常", e)
                                 withContext(Dispatchers.Main) {
                                     changePasswordError = context.getString(R.string.user_login_network_error)
                                     isChangingPassword = false
@@ -1226,11 +1221,13 @@ fun UserLoginScreen(
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: HttpException) {
+                                AppLogManager.w("UserLogin", "更换邮箱失败: HTTP ${e.code()}", e)
                                 withContext(Dispatchers.Main) {
                                     changeEmailError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
                                     isChangingEmail = false
                                 }
                             } catch (e: Exception) {
+                                AppLogManager.e("UserLogin", "更换邮箱请求异常", e)
                                 withContext(Dispatchers.Main) {
                                     changeEmailError = context.getString(R.string.user_login_network_error)
                                     isChangingEmail = false
@@ -1306,6 +1303,7 @@ fun UserLoginScreen(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        AppLogManager.w("UserLogin", "撤销登录设备失败", e)
                         toastMessage = context.getString(R.string.device_manage_revoke_failed)
                     } finally {
                         withContext(Dispatchers.Main) {

@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.remote.UpdateInfo
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -125,7 +126,7 @@ class UpdateViewModel(
                                     if (verified) {
                                         _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFIED)
                                     } else {
-                                        Log.e(TAG, "本地 APK SHA 校验失败，删除损坏文件")
+                                        AppLogManager.e(TAG, "本地 APK SHA 校验失败，删除损坏文件")
                                         apkFile.delete()
                                         cachedApkFile = null
                                         _uiState.value = _uiState.value.copy(
@@ -146,7 +147,7 @@ class UpdateViewModel(
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Check update failed", e)
+                AppLogManager.e(TAG, "Check update failed", e)
                 _uiState.value = _uiState.value.copy(isChecking = false)
             }
         }
@@ -235,7 +236,7 @@ class UpdateViewModel(
                 Log.d(TAG, "Download cancelled")
                 _uiState.value = _uiState.value.copy(isDownloading = false)
             } catch (e: Exception) {
-                Log.e(TAG, "Download failed", e)
+                AppLogManager.e(TAG, "Download failed", e)
                 _uiState.value = _uiState.value.copy(
                     isDownloading = false,
                     error = "下载失败: ${e.message}"
@@ -257,7 +258,7 @@ class UpdateViewModel(
                 response.close()
                 contentLength
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch Content-Length", e)
+                AppLogManager.e(TAG, "Failed to fetch Content-Length", e)
                 0L
             }
         }
@@ -420,7 +421,7 @@ class UpdateViewModel(
                 _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.VERIFIED)
                 installApk(context)
             } else {
-                Log.e(TAG, "SHA-256 校验失败，删除损坏的 APK")
+                AppLogManager.e(TAG, "SHA-256 校验失败，删除损坏的 APK")
                 apkFile.delete()
                 cachedApkFile = null
                 _uiState.value = _uiState.value.copy(
@@ -451,7 +452,7 @@ class UpdateViewModel(
             Log.d(TAG, "SHA-256 verify: expected=$expected, actual=$actual")
             actual == expected
         } catch (e: Exception) {
-            Log.e(TAG, "SHA-256 计算失败", e)
+            AppLogManager.e(TAG, "SHA-256 计算失败", e)
             false
         }
     }
@@ -530,7 +531,7 @@ class UpdateViewModel(
             }
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            Log.e(TAG, "Install APK failed", e)
+            AppLogManager.e(TAG, "Install APK failed", e)
             _uiState.value = _uiState.value.copy(installError = "安装失败: ${e.message}")
         }
     }
@@ -599,7 +600,7 @@ class UpdateViewModel(
             } catch (e: CancellationException) {
                 _uiState.value = _uiState.value.copy(isDownloading = false)
             } catch (e: Exception) {
-                Log.e(TAG, "Resume download failed", e)
+                AppLogManager.e(TAG, "Resume download failed", e)
                 _uiState.value = _uiState.value.copy(
                     isDownloading = false,
                     error = "续传失败: ${e.message}"

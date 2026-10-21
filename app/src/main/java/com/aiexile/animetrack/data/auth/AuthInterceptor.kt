@@ -1,6 +1,6 @@
 package com.aiexile.animetrack.data.auth
 
-import android.util.Log
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.runBlocking
@@ -96,7 +96,7 @@ class AuthInterceptor : Interceptor {
                         try {
                             authManager.markTokenExpired()
                         } catch (e: Exception) {
-                            Log.e(TAG, "markTokenExpired after no-refresh-token failed", e)
+                            AppLogManager.e(TAG, "markTokenExpired after no-refresh-token failed", e)
                         }
                         null
                     } else {
@@ -116,18 +116,22 @@ class AuthInterceptor : Interceptor {
                                 )
                                 newAccess
                             } else {
-                                Log.e(TAG, "Refresh returned empty access_token")
+                                AppLogManager.e(TAG, "Refresh returned empty access_token")
                                 try {
                                     authManager.markTokenExpired()
-                                } catch (_: Exception) { }
+                                } catch (e: Exception) {
+                                    AppLogManager.w(TAG, "标记 Bangumi token 失效失败", e)
+                                }
                                 null
                             }
                         } catch (e: Exception) {
                             // 刷新失败：refresh_token 可能已失效，标记失效避免持续 401
-                            Log.e(TAG, "Refresh bangumi token failed, mark expired", e)
+                            AppLogManager.e(TAG, "Refresh bangumi token failed, mark expired", e)
                             try {
                                 authManager.markTokenExpired()
-                            } catch (_: Exception) { }
+                            } catch (e2: Exception) {
+                                AppLogManager.w(TAG, "标记 Bangumi token 失效失败", e2)
+                            }
                             null
                         }
                     }

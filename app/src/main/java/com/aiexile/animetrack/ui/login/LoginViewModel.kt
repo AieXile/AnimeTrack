@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.Dispatchers
@@ -59,12 +60,12 @@ class LoginViewModel(
                     )
                     Log.d(TAG, "Profile fetched: nickname=${profile.nickname}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to fetch profile", e)
+                    AppLogManager.e(TAG, "Failed to fetch profile", e)
                 }
 
                 _uiState.value = _uiState.value.copy(isLoading = false, isLoginSuccess = true)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch access token", e)
+                AppLogManager.e(TAG, "Failed to fetch access token", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "登录失败：${e.message}"

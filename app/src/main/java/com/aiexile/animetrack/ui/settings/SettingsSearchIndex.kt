@@ -113,7 +113,10 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
     SearchableSetting(
         route = Routes.APPEARANCE, key = "color",
         titleRes = R.string.appearance_color_title, descRes = R.string.appearance_color_subtitle,
-        keywords = listOf("配色", "颜色", "主题色", "色彩", "color")
+        keywords = listOf(
+            "配色", "颜色", "主题色", "色彩", "color",
+            "莫奈", "莫奈取色", "取色", "壁纸", "动态取色", "monet", "material you", "dynamic"
+        )
     ),
     SearchableSetting(
         route = Routes.APPEARANCE, key = "icon_pack",
@@ -123,18 +126,18 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
     SearchableSetting(
         route = Routes.APPEARANCE, key = "advanced_blur",
         titleRes = R.string.nav_custom_advanced_blur, descRes = R.string.nav_custom_advanced_blur_desc,
-        keywords = listOf("毛玻璃", "模糊", "玻璃效果", "blur")
+        keywords = listOf("毛玻璃", "模糊", "玻璃效果", "界面风格", "chrome", "blur")
     ),
     SearchableSetting(
         route = Routes.APPEARANCE, key = "liquid_glass",
         titleRes = R.string.nav_custom_liquid_glass, descRes = R.string.nav_custom_liquid_glass_desc,
-        keywords = listOf("液态玻璃", "玻璃", "玻璃效果", "glass")
+        keywords = listOf("液态玻璃", "玻璃", "玻璃效果", "界面风格", "chrome", "glass")
     ),
     SearchableSetting(
         route = Routes.APPEARANCE, key = "liquid_glass_backdrop_blur",
         titleRes = R.string.nav_custom_liquid_glass_backdrop_blur,
         descRes = R.string.nav_custom_liquid_glass_backdrop_blur_desc,
-        keywords = listOf("背景模糊", "导航栏模糊", "磨砂", "模糊", "backdrop", "blur")
+        keywords = listOf("背景模糊", "导航栏模糊", "磨砂", "模糊", "界面风格", "backdrop", "blur")
     ),
 
     // ---- 字体 ----

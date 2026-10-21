@@ -11,12 +11,14 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aiexile.animetrack.AnimeTrackApp
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.ui.theme.ThemePreset
+import com.aiexile.animetrack.ui.theme.isMonetColorSupported
 import com.aiexile.animetrack.ui.icons.IconPack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,8 +54,11 @@ enum class RatingStandard {
 
 /**
  * 主界面列表排序方式：
- * - [RECENT_PROGRESS] 按最近更新进度时间降序（默认，历史行为）
- * - [MANUAL] 按用户手动拖拽保存的顺序（manualOrder），不再跟随进度自动重排
+ * - [RECENT_PROGRESS] 自动排序（默认）：按状态区块排列——正在观看 → 计划观看 → 未放送 →
+ *   已看完 → 已弃番，区块内部再按各自规则排序（在追 / 计划 / 未放送 / 已弃番按最近修改，
+ *   已看完按看完日期）。枚举名沿用历史值，避免已持久化的 DataStore 值需要迁移
+ * - [MANUAL] 按用户手动拖拽保存的顺序（manualOrder），不再跟随进度自动重排；
+ *   未参与过手动排序的新条目（manualOrder 为 null）视为最新，排在置顶之后、手动顺序之前
  */
 enum class ListSortMode {
     RECENT_PROGRESS,
@@ -63,6 +68,7 @@ enum class ListSortMode {
 class SettingsRepository(private val context: Context) {
 
     companion object {
+        private const val TAG = "Settings"
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         private val THEME_PRESET_KEY = stringPreferencesKey("theme_preset")
         private val DARK_STYLE_KEY = stringPreferencesKey("dark_style")
@@ -73,9 +79,12 @@ class SettingsRepository(private val context: Context) {
         private val NAVIGATION_STYLE_KEY = stringPreferencesKey("navigation_style")
         private val FAB_LOCATION_KEY = stringPreferencesKey("fab_location")
         private val NAVIGATION_LABEL_MODE_KEY = stringPreferencesKey("navigation_label_mode")
+        // 旧「双布尔」key：仅用于一次性迁移读取，不再作为活跃设置写入
         private val CAPSULE_ADVANCED_BLUR_KEY = booleanPreferencesKey("capsule_advanced_blur")
         private val CAPSULE_LIQUID_GLASS_KEY = booleanPreferencesKey("capsule_liquid_glass")
         private val CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY = booleanPreferencesKey("capsule_liquid_glass_backdrop_blur")
+        // 界面外壳材质档位（ChromeStyle.name），替代上面两个互斥布尔
+        private val CHROME_STYLE_KEY = stringPreferencesKey("chrome_style")
         private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
         private val STATUS_BAR_MODE_KEY = stringPreferencesKey("status_bar_mode")
         private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
@@ -207,7 +216,13 @@ class SettingsRepository(private val context: Context) {
 
     private suspend fun <T> setPreference(key: Preferences.Key<T>, value: T) {
         prefCache[key] = value
-        context.dataStore.edit { it[key] = value }
+        try {
+            context.dataStore.edit { it[key] = value }
+        } catch (e: Exception) {
+            // 内存缓存已改而磁盘未写：本次会话表现正常、重启后回退，
+            // 是「设置不保存 / 开关自己变回去」类反馈的唯一线索
+            AppLogManager.e(TAG, "偏好写入失败: key=${key.name}", e)
+        }
     }
 
     @Volatile
@@ -265,31 +280,61 @@ class SettingsRepository(private val context: Context) {
     // 决定 JPush、崩溃上报等个人信息收集组件是否初始化（DataStore 首读是异步的，来不及）
     private val privacyPrefs = context.getSharedPreferences("privacy_prefs", Context.MODE_PRIVATE)
 
+    /**
+     * 一次性迁移：旧的「高级模糊 / 液态玻璃」互斥布尔 → 新 [ChromeStyle] 枚举。
+     *
+     * 必须在 init 首读协程的 `prefCache.putAll(...)` 之前完成：否则冷启动首帧
+     * `cachedChromeStyle()` 读不到新 key，会先渲染 STANDARD 再跳变为持久化档位。
+     * 迁移结果立即写入 prefCache，保证迁移完成与缓存填充之间也不闪变。
+     */
+    private suspend fun migrateChromeStyleIfNeeded() {
+        var migrated: String? = null
+        context.dataStore.edit { prefs ->
+            if (prefs[CHROME_STYLE_KEY] == null) {
+                val legacy = chromeStyleFromLegacy(
+                    liquidGlass = prefs[CAPSULE_LIQUID_GLASS_KEY] == true,
+                    advancedBlur = prefs[CAPSULE_ADVANCED_BLUR_KEY] == true
+                )
+                prefs[CHROME_STYLE_KEY] = legacy.name
+                migrated = legacy.name
+            }
+        }
+        migrated?.let { prefCache[CHROME_STYLE_KEY] = it }
+    }
+
     init {
         // 复用 Application 级协程作用域（替代 GlobalScope）加载缓存；
         // Application 未就绪时兜底自建一次性作用域，保证初始化任务仍能执行。
         val scope = (context.applicationContext as? AnimeTrackApp)?.appScope
             ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope.launch {
-            val key = context.dataStore.data.first()[TMDB_API_KEY_KEY]
-            currentTmdbApiKey = key ?: DEFAULT_TMDB_API_KEY
+            // 首读失败（文件损坏 / IO 异常）不能拖垮整个应用：记录后保留默认值。
+            // 此前异常直接逃逸会导致偏好缓存全空，表现为「设置全部失效 / 开关闪回」且无任何线索
+            try {
+                // 旧双布尔 → ChromeStyle 迁移必须先于缓存填充与任何首读
+                migrateChromeStyleIfNeeded()
 
-            val prefs = context.dataStore.data.first()
-            // 填充偏好内存缓存：此后所有 preferenceFlow 首个发射即为持久化值
-            prefCache.putAll(prefs.asMap())
-            bangumiProxyEnabled = prefs[BANGUMI_PROXY_ENABLED_KEY] ?: false
-            bangumiProxyHost = prefs[BANGUMI_PROXY_HOST_KEY] ?: DEFAULT_BANGUMI_PROXY_HOST
-            bangumiMirrorEnabled = prefs[BANGUMI_MIRROR_ENABLED_KEY] ?: false
-            httpProxyEnabled = prefs[HTTP_PROXY_ENABLED_KEY] ?: false
-            httpProxyHost = prefs[HTTP_PROXY_HOST_KEY] ?: DEFAULT_HTTP_PROXY_HOST
-            httpProxyPort = prefs[HTTP_PROXY_PORT_KEY] ?: DEFAULT_HTTP_PROXY_PORT
-            httpProxyType = parseProxyType(prefs[HTTP_PROXY_TYPE_KEY] ?: DEFAULT_HTTP_PROXY_TYPE)
-            httpProxyUsername = prefs[HTTP_PROXY_USERNAME_KEY] ?: DEFAULT_HTTP_PROXY_USERNAME
-            httpProxyPassword = prefs[HTTP_PROXY_PASSWORD_KEY] ?: DEFAULT_HTTP_PROXY_PASSWORD
-            userAuthBaseUrl = prefs[USER_AUTH_BASE_URL_KEY] ?: DEFAULT_USER_AUTH_BASE_URL
-            // 将 DataStore 中的语言设置同步回 SharedPreferences 镜像，保证两者一致
-            val lang = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
-            localePrefs.edit().putString(APP_LANGUAGE_PREF, lang).apply()
+                val prefs = context.dataStore.data.first()
+                currentTmdbApiKey = prefs[TMDB_API_KEY_KEY] ?: DEFAULT_TMDB_API_KEY
+                // 填充偏好内存缓存：此后所有 preferenceFlow 首个发射即为持久化值
+                prefCache.putAll(prefs.asMap())
+                bangumiProxyEnabled = prefs[BANGUMI_PROXY_ENABLED_KEY] ?: false
+                bangumiProxyHost = prefs[BANGUMI_PROXY_HOST_KEY] ?: DEFAULT_BANGUMI_PROXY_HOST
+                bangumiMirrorEnabled = prefs[BANGUMI_MIRROR_ENABLED_KEY] ?: false
+                httpProxyEnabled = prefs[HTTP_PROXY_ENABLED_KEY] ?: false
+                httpProxyHost = prefs[HTTP_PROXY_HOST_KEY] ?: DEFAULT_HTTP_PROXY_HOST
+                httpProxyPort = prefs[HTTP_PROXY_PORT_KEY] ?: DEFAULT_HTTP_PROXY_PORT
+                httpProxyType = parseProxyType(prefs[HTTP_PROXY_TYPE_KEY] ?: DEFAULT_HTTP_PROXY_TYPE)
+                httpProxyUsername = prefs[HTTP_PROXY_USERNAME_KEY] ?: DEFAULT_HTTP_PROXY_USERNAME
+                httpProxyPassword = prefs[HTTP_PROXY_PASSWORD_KEY] ?: DEFAULT_HTTP_PROXY_PASSWORD
+                userAuthBaseUrl = prefs[USER_AUTH_BASE_URL_KEY] ?: DEFAULT_USER_AUTH_BASE_URL
+                // 将 DataStore 中的语言设置同步回 SharedPreferences 镜像，保证两者一致
+                val lang = prefs[APP_LANGUAGE_KEY] ?: AppLanguage.SIMPLIFIED_CHINESE.name
+                localePrefs.edit().putString(APP_LANGUAGE_PREF, lang).apply()
+                AppLogManager.i(TAG, "偏好加载完成: ${prefs.asMap().size} 项，语言 $lang")
+            } catch (e: Exception) {
+                AppLogManager.e(TAG, "偏好加载失败（本次全部使用默认值，设置可能不生效）", e)
+            }
         }
     }
 
@@ -298,12 +343,18 @@ class SettingsRepository(private val context: Context) {
             try { ThemeMode.valueOf(modeString) } catch (_: IllegalArgumentException) { ThemeMode.SYSTEM }
         }
 
-    suspend fun setThemeMode(mode: ThemeMode) = setPreference(THEME_MODE_KEY, mode.name)
+    suspend fun setThemeMode(mode: ThemeMode) {
+        AppLogManager.i(TAG, "主题模式切换: $mode")
+        setPreference(THEME_MODE_KEY, mode.name)
+    }
 
     val themePreset: Flow<ThemePreset> = preferenceFlow(THEME_PRESET_KEY, ThemePreset.MONO_BLACK.name)
         .map { presetString ->
             try { ThemePreset.valueOf(presetString) } catch (_: IllegalArgumentException) { ThemePreset.MONO_BLACK }
         }
+        // 莫奈取色的 seed 来自 Android 12+ 系统动态配色：
+        // 备份恢复到低版本设备后回退默认主题，避免界面显示为莫奈取色却实际渲染黑白简洁
+        .map { if (it.seedColor == null && !isMonetColorSupported()) ThemePreset.MONO_BLACK else it }
 
     suspend fun setThemePreset(preset: ThemePreset) = setPreference(THEME_PRESET_KEY, preset.name)
 
@@ -313,7 +364,10 @@ class SettingsRepository(private val context: Context) {
             try { DarkStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { DarkStyle.BOOST }
         }
 
-    suspend fun setDarkStyle(style: DarkStyle) = setPreference(DARK_STYLE_KEY, style.name)
+    suspend fun setDarkStyle(style: DarkStyle) {
+        AppLogManager.i(TAG, "深色风格切换: $style")
+        setPreference(DARK_STYLE_KEY, style.name)
+    }
 
     /** 主题模式的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
     fun cachedThemeMode(): ThemeMode {
@@ -381,21 +435,24 @@ class SettingsRepository(private val context: Context) {
         return try { NavigationLabelMode.valueOf(cached) } catch (_: IllegalArgumentException) { NavigationLabelMode.ICON_AND_TEXT }
     }
 
-    /** 悬浮胶囊高级模糊（毛玻璃背景），默认关闭。主页顶栏与悬浮按钮随此开关一并生效 */
-    val capsuleAdvancedBlurEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_ADVANCED_BLUR_KEY, false)
+    /** 界面外壳材质档位：标准 / 高级模糊（haze 毛玻璃）/ 液态玻璃（backdrop 折射），默认标准 */
+    val chromeStyle: Flow<ChromeStyle> = preferenceFlow(CHROME_STYLE_KEY, ChromeStyle.STANDARD.name)
+        .map { styleString ->
+            ChromeStyle.entries.firstOrNull { it.name == styleString } ?: ChromeStyle.STANDARD
+        }
 
-    suspend fun setCapsuleAdvancedBlurEnabled(enabled: Boolean) = setPreference(CAPSULE_ADVANCED_BLUR_KEY, enabled)
+    suspend fun setChromeStyle(style: ChromeStyle) {
+        AppLogManager.i(TAG, "界面材质切换: $style")
+        setPreference(CHROME_STYLE_KEY, style.name)
+    }
 
-    /** 悬浮胶囊高级模糊的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
-    fun cachedCapsuleAdvancedBlur(): Boolean = prefCache[CAPSULE_ADVANCED_BLUR_KEY] as? Boolean ?: false
+    /** 界面风格的同步缓存值：作为 CompositionLocal 初值，避免冷启动首帧闪变 */
+    fun cachedChromeStyle(): ChromeStyle {
+        val cached = prefCache[CHROME_STYLE_KEY] as? String ?: return ChromeStyle.STANDARD
+        return ChromeStyle.entries.firstOrNull { it.name == cached } ?: ChromeStyle.STANDARD
+    }
 
-    /** 悬浮胶囊液态玻璃效果（折射玻璃质感），默认关闭。开启后替代普通模糊，尺寸与布局不变 */
-    val capsuleLiquidGlassEnabled: Flow<Boolean> = preferenceFlow(CAPSULE_LIQUID_GLASS_KEY, false)
-    suspend fun setCapsuleLiquidGlassEnabled(enabled: Boolean) = setPreference(CAPSULE_LIQUID_GLASS_KEY, enabled)
-    /** 液态玻璃的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
-    fun cachedCapsuleLiquidGlass(): Boolean = prefCache[CAPSULE_LIQUID_GLASS_KEY] as? Boolean ?: false
-
-    /** 液态玻璃导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启。仅液态玻璃模式下生效 */
+    /** 液态玻璃导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启。仅液态玻璃档位下生效 */
     val capsuleLiquidGlassBackdropBlurEnabled: Flow<Boolean> =
         preferenceFlow(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, true)
     suspend fun setCapsuleLiquidGlassBackdropBlurEnabled(enabled: Boolean) =
@@ -511,13 +568,25 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
 
-    /** 主界面列表排序方式（默认按最近更新进度，与历史行为一致） */
+    /** 主界面列表排序方式（默认为自动排序，历史持久化值沿用 RECENT_PROGRESS） */
     val listSortMode: Flow<ListSortMode> = preferenceFlow(LIST_SORT_MODE_KEY, ListSortMode.RECENT_PROGRESS.name)
         .map { modeString ->
             try { ListSortMode.valueOf(modeString) } catch (_: IllegalArgumentException) { ListSortMode.RECENT_PROGRESS }
         }
 
-    suspend fun setListSortMode(mode: ListSortMode) = setPreference(LIST_SORT_MODE_KEY, mode.name)
+    suspend fun setListSortMode(mode: ListSortMode) {
+        AppLogManager.i(TAG, "列表排序方式切换: $mode")
+        setPreference(LIST_SORT_MODE_KEY, mode.name)
+    }
+
+    /**
+     * 排序方式的同步缓存值：反馈日志的运行时快照在 IO 线程现算，
+     * 不能等 DataStore 首读，故与 [cachedChromeStyle] 一样读 prefCache。
+     */
+    fun cachedListSortMode(): ListSortMode =
+        (prefCache[LIST_SORT_MODE_KEY] as? String)
+            ?.let { runCatching { ListSortMode.valueOf(it) }.getOrNull() }
+            ?: ListSortMode.RECENT_PROGRESS
 
     /**
      * 堆叠卡片顶层页码记忆：系列 stableKey（"series_<第一季id>"）→ 顶层索引。
@@ -629,7 +698,13 @@ class SettingsRepository(private val context: Context) {
      */
     val crashReportEnabled: Flow<Boolean> = preferenceFlow(CRASH_REPORT_ENABLED_KEY, true)
 
-    suspend fun setCrashReportEnabled(enabled: Boolean) = setPreference(CRASH_REPORT_ENABLED_KEY, enabled)
+    suspend fun setCrashReportEnabled(enabled: Boolean) {
+        AppLogManager.i(TAG, "崩溃上报开关: $enabled")
+        setPreference(CRASH_REPORT_ENABLED_KEY, enabled)
+    }
+
+    /** 崩溃上报开关的内存缓存值（导出诊断快照时同步读取） */
+    fun cachedCrashReportEnabled(): Boolean = prefCache[CRASH_REPORT_ENABLED_KEY] as? Boolean ?: true
 
     /** 首启「帮助改进应用」弹窗是否已展示（展示过即不再弹） */
     val helpImproveDialogShown: Flow<Boolean> = preferenceFlow(HELP_IMPROVE_DIALOG_SHOWN_KEY, false)
@@ -660,12 +735,14 @@ class SettingsRepository(private val context: Context) {
     val bangumiProxyHostFlow: Flow<String> = preferenceFlow(BANGUMI_PROXY_HOST_KEY, DEFAULT_BANGUMI_PROXY_HOST)
 
     suspend fun setBangumiProxyEnabled(enabled: Boolean) {
+        AppLogManager.i(TAG, "Bangumi 反向代理开关: $enabled")
         setPreference(BANGUMI_PROXY_ENABLED_KEY, enabled)
         bangumiProxyEnabled = enabled
     }
 
     suspend fun setBangumiProxyHost(host: String) {
         val normalized = host.trim()
+        AppLogManager.i(TAG, "Bangumi 反向代理地址: $normalized")
         setPreference(BANGUMI_PROXY_HOST_KEY, normalized)
         bangumiProxyHost = normalized
     }
@@ -677,6 +754,7 @@ class SettingsRepository(private val context: Context) {
     val bangumiMirrorUnlockedFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_UNLOCKED_KEY, false)
 
     suspend fun setBangumiMirrorEnabled(enabled: Boolean) {
+        AppLogManager.i(TAG, "Bangumi 镜像数据源开关: $enabled")
         setPreference(BANGUMI_MIRROR_ENABLED_KEY, enabled)
         bangumiMirrorEnabled = enabled
     }
@@ -694,17 +772,20 @@ class SettingsRepository(private val context: Context) {
     val httpProxyPasswordFlow: Flow<String> = preferenceFlow(HTTP_PROXY_PASSWORD_KEY, DEFAULT_HTTP_PROXY_PASSWORD)
 
     suspend fun setHttpProxyEnabled(enabled: Boolean) {
+        AppLogManager.i(TAG, "HTTP 代理开关: $enabled")
         setPreference(HTTP_PROXY_ENABLED_KEY, enabled)
         httpProxyEnabled = enabled
     }
 
     suspend fun setHttpProxyHost(host: String) {
         val normalized = host.trim()
+        AppLogManager.i(TAG, "HTTP 代理地址: $normalized")
         setPreference(HTTP_PROXY_HOST_KEY, normalized)
         httpProxyHost = normalized
     }
 
     suspend fun setHttpProxyPort(port: Int) {
+        AppLogManager.i(TAG, "HTTP 代理端口: $port")
         setPreference(HTTP_PROXY_PORT_KEY, port)
         httpProxyPort = port
     }
@@ -782,7 +863,14 @@ class SettingsRepository(private val context: Context) {
 
     val updateNotificationEnabled: Flow<Boolean> = preferenceFlow(UPDATE_NOTIFICATION_ENABLED_KEY, false)
 
-    suspend fun setUpdateNotificationEnabled(enabled: Boolean) = setPreference(UPDATE_NOTIFICATION_ENABLED_KEY, enabled)
+    suspend fun setUpdateNotificationEnabled(enabled: Boolean) {
+        AppLogManager.i(TAG, "每日更新通知开关: $enabled")
+        setPreference(UPDATE_NOTIFICATION_ENABLED_KEY, enabled)
+    }
+
+    /** 每日更新通知开关的内存缓存值（导出诊断快照时同步读取） */
+    fun cachedUpdateNotificationEnabled(): Boolean =
+        prefCache[UPDATE_NOTIFICATION_ENABLED_KEY] as? Boolean ?: false
 
     val updateNotificationHour: Flow<Int> = preferenceFlow(UPDATE_NOTIFICATION_HOUR_KEY, 9)
 
@@ -855,6 +943,7 @@ class SettingsRepository(private val context: Context) {
     val appLanguageFlow: Flow<String> = preferenceFlow(APP_LANGUAGE_KEY, AppLanguage.SIMPLIFIED_CHINESE.name)
 
     suspend fun setAppLanguage(language: AppLanguage) {
+        AppLogManager.i(TAG, "语言切换: $language")
         setPreference(APP_LANGUAGE_KEY, language.name)
         // 同步写入 SharedPreferences 镜像，保证下次冷启动 attachBaseContext 能立即读到
         localePrefs.edit().putString(APP_LANGUAGE_PREF, language.name).apply()

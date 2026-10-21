@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,10 +25,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,7 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -65,6 +61,7 @@ import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.feedback.FeedbackChatMessage
 import com.aiexile.animetrack.ui.feedback.FeedbackMessageBubble
@@ -359,116 +356,109 @@ fun AdminFeedbackSessionScreen(
     val isTerminal = session?.status == FEEDBACK_STATUS_CLOSED ||
         session?.status == FEEDBACK_STATUS_RESOLVED
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = session?.username
-                                ?: stringResource(R.string.admin_feedback_unknown_user),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Lv.${session?.level ?: 0}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = stringResource(statusLabel(session?.status)),
-                                fontSize = 12.sp,
-                                color = statusColor(session?.status)
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.feedback_back)
-                        )
-                    }
-                },
-                actions = {
-                    if (session != null) {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(
-                                painter = rememberAppIconPainter(AppIcon.MORE_VERT),
-                                contentDescription = stringResource(R.string.admin_feedback_actions)
-                            )
-                        }
-                        // ===== 操作菜单：状态流转 + 授予等级 =====
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            if (!isTerminal) {
-                                if (session.status != FEEDBACK_STATUS_PENDING) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.admin_feedback_mark_pending)) },
-                                        onClick = {
-                                            menuOpen = false
-                                            viewModel.updateStatus(FEEDBACK_STATUS_PENDING)
-                                        }
-                                    )
-                                }
-                                if (session.status != FEEDBACK_STATUS_RESOLVED) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.admin_feedback_mark_resolved)) },
-                                        onClick = {
-                                            menuOpen = false
-                                            viewModel.updateStatus(FEEDBACK_STATUS_RESOLVED)
-                                        }
-                                    )
-                                }
-                                if (session.status != FEEDBACK_STATUS_CLOSED) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.admin_feedback_mark_closed)) },
-                                        onClick = {
-                                            menuOpen = false
-                                            viewModel.updateStatus(FEEDBACK_STATUS_CLOSED)
-                                        }
-                                    )
-                                }
-                                if (session.status != FEEDBACK_STATUS_OPEN) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.admin_feedback_mark_open)) },
-                                        onClick = {
-                                            menuOpen = false
-                                            viewModel.updateStatus(FEEDBACK_STATUS_OPEN)
-                                        }
-                                    )
-                                }
-                            } else {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            stringResource(R.string.admin_feedback_status_terminal_hint),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    onClick = { menuOpen = false }
-                                )
-                            }
+    AppScaffold(
+        title = session?.username
+            ?: stringResource(R.string.admin_feedback_unknown_user),
+        onBack = onBack,
+        titleContent = {
+            Column {
+                Text(
+                    text = session?.username
+                        ?: stringResource(R.string.admin_feedback_unknown_user),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Lv.${session?.level ?: 0}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(statusLabel(session?.status)),
+                        fontSize = 12.sp,
+                        color = statusColor(session?.status)
+                    )
+                }
+            }
+        },
+        actions = {
+            if (session != null) {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.MORE_VERT),
+                        contentDescription = stringResource(R.string.admin_feedback_actions)
+                    )
+                }
+                // ===== 操作菜单：状态流转 + 授予等级 =====
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    if (!isTerminal) {
+                        if (session.status != FEEDBACK_STATUS_PENDING) {
                             DropdownMenuItem(
-                                text = { Text(stringResource(R.string.admin_feedback_grant_level)) },
+                                text = { Text(stringResource(R.string.admin_feedback_mark_pending)) },
                                 onClick = {
                                     menuOpen = false
-                                    levelDialogOpen = true
+                                    viewModel.updateStatus(FEEDBACK_STATUS_PENDING)
                                 }
                             )
                         }
+                        if (session.status != FEEDBACK_STATUS_RESOLVED) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.admin_feedback_mark_resolved)) },
+                                onClick = {
+                                    menuOpen = false
+                                    viewModel.updateStatus(FEEDBACK_STATUS_RESOLVED)
+                                }
+                            )
+                        }
+                        if (session.status != FEEDBACK_STATUS_CLOSED) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.admin_feedback_mark_closed)) },
+                                onClick = {
+                                    menuOpen = false
+                                    viewModel.updateStatus(FEEDBACK_STATUS_CLOSED)
+                                }
+                            )
+                        }
+                        if (session.status != FEEDBACK_STATUS_OPEN) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.admin_feedback_mark_open)) },
+                                onClick = {
+                                    menuOpen = false
+                                    viewModel.updateStatus(FEEDBACK_STATUS_OPEN)
+                                }
+                            )
+                        }
+                    } else {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(R.string.admin_feedback_status_terminal_hint),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            onClick = { menuOpen = false }
+                        )
                     }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.admin_feedback_grant_level)) },
+                        onClick = {
+                            menuOpen = false
+                            levelDialogOpen = true
+                        }
+                    )
                 }
-            )
+            }
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
+                // 玻璃档把导航栏内边距留在视口内，输入区不被系统手势条遮挡
+                .padding(bottom = chrome.content.calculateBottomPadding())
                 .background(MaterialTheme.colorScheme.background)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -501,7 +491,13 @@ fun AdminFeedbackSessionScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                            // 玻璃档在原有 12dp 内边距上叠加顶栏空间，消息可滚到顶栏下方
+                            contentPadding = PaddingValues(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = 12.dp + chrome.content.calculateTopPadding(),
+                                bottom = 12.dp
+                            ),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             items(uiState.messages, key = { it.id }) { message ->

@@ -10,7 +10,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +38,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
@@ -68,13 +66,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.util.QrCodeGenerator
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -90,9 +88,6 @@ fun BilibiliLoginScreen(
     val bilibiliSyncManager = remember { AppContainer.getBilibiliSyncManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     val isLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
     val tokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
@@ -221,7 +216,10 @@ fun BilibiliLoginScreen(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                // 扫码轮询失败（网络抖动/被限流）：继续下一轮，但留痕便于排查「扫码没反应」
+                AppLogManager.w("BilibiliLogin", "扫码状态轮询失败", e)
+            }
         }
     }
 
@@ -270,35 +268,19 @@ fun BilibiliLoginScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.bilibili_login_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.bilibili_login_title),
+        onBack = onBack
+    ) { chrome ->
         if (isLoggedIn && !tokenExpired) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                    .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                    .then(chrome.layout)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
-                    // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），顶/底 padding 移到滚动内容内
-                    .then(
-                        if (liquidGlassEnabled) {
-                            Modifier.padding(
-                                top = paddingValues.calculateTopPadding(),
-                                bottom = paddingValues.calculateBottomPadding()
-                            )
-                        } else {
-                            Modifier
-                        }
-                    ),
+                    // 玻璃档内容视口全高，顶/底内边距由内容层自垫
+                    .padding(chrome.content),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
@@ -480,18 +462,8 @@ fun BilibiliLoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                    .then(
-                        // 玻璃模式下内容视口全高，顶/底 inset 等效替换原 padding
-                        if (liquidGlassEnabled) {
-                            Modifier.padding(
-                                top = paddingValues.calculateTopPadding(),
-                                bottom = paddingValues.calculateBottomPadding()
-                            )
-                        } else {
-                            Modifier.padding(paddingValues)
-                        }
-                    )
+                    .then(chrome.layout)
+                    .padding(chrome.content)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center

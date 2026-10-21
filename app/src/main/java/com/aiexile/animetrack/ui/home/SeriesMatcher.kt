@@ -227,8 +227,8 @@ object SeriesMatcher {
         val groupedIds = mutableSetOf<Int>()
 
         // 处理 seriesKey 分组（已持久化识别的系列）
-        // 组内不排序，保留进入时的主排序顺序（WATCHING 在前 + lastProgressAt 降序）；
-        // 季数排序推迟到 displayList，仅在多季堆叠开启时应用
+        // 组内不排序，保留进入时的主排序顺序（自动排序区块：正在观看 → 计划观看 → 未放送 →
+        // 已看完 → 已弃番，区块内部按各自时间键）；季数排序推迟到 displayList，仅在多季堆叠开启时应用
         for ((key, animes) in seriesKeyMap) {
             if (animes.size >= 2) {
                 result.add(AnimeListItem.Series(key, animes))

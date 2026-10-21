@@ -17,7 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,11 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.DeviceInfo
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.BindEmailRequest
 import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.data.network.EmailCodePurpose
@@ -44,8 +43,7 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -138,12 +136,14 @@ fun EmailBindScreen(
                     // 与登录流程一致：上报推送 ID + 拉取云端订阅
                     try {
                         PushRegistrationHelper.reportRegistrationIdIfNeeded(context)
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) {
+                        AppLogManager.w("EmailBind", "绑定后上报推送 registrationId 失败（非致命）", e)
+                    }
                     try {
                         AppContainer.getAnimeRepository()
                             .triggerSyncSubscriptionsFromServer()
                     } catch (e: Exception) {
-                        android.util.Log.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
+                        AppLogManager.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)
                     }
                     withContext(Dispatchers.Main) {
                         message = context.getString(R.string.email_bind_success)
@@ -221,35 +221,15 @@ fun EmailBindScreen(
         }
     }
 
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
-
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.email_bind_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.email_bind_title),
+        onBack = onBack
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(
-                    // 玻璃模式下内容视口全高，顶/底 inset 等效替换原 padding
-                    if (liquidGlassEnabled) {
-                        Modifier.padding(
-                            top = paddingValues.calculateTopPadding(),
-                            bottom = paddingValues.calculateBottomPadding()
-                        )
-                    } else {
-                        Modifier.padding(paddingValues)
-                    }
-                )
+                .then(chrome.layout)
+                .padding(chrome.content)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center

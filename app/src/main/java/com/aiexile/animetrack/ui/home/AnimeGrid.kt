@@ -173,32 +173,38 @@ private fun FilterMenu(
                     expanded = false
                 }
             )
-            FilterMenuRow(
-                label = stringResource(R.string.home_sort_adjust),
-                isSelected = false,
-                leadingIcon = AppIcon.LIST_ARROW,
-                enabled = sortEditEnabled,
-                onClick = {
-                    onAdjustOrderClick()
-                    expanded = false
-                }
-            )
+            // 「调整顺序」只在手动排序档出现：其它排序下拖拽保存的顺序没有语义，
+            // 出现即按当前可见列表快照进入编辑（保存后自动切到手动顺序）。
+            if (listSortMode == ListSortMode.MANUAL) {
+                FilterMenuRow(
+                    label = stringResource(R.string.home_sort_adjust),
+                    isSelected = false,
+                    trailingIcon = AppIcon.LIST_ARROW,
+                    enabled = sortEditEnabled,
+                    onClick = {
+                        onAdjustOrderClick()
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }
 
 /**
- * 筛选/排序菜单行：选中态带主色胶囊背景 + 对勾；未选中可带前缀图标（如「调整顺序」）。
- * 无涟漪点击（选中背景 + 对勾已作为视觉指示），视觉与原筛选行完全一致。
+ * 筛选/排序菜单行：文字统一左对齐，选中标记收进行尾槽位（对齐 iOS UIMenu 的单选样式），
+ * 不再把对勾插在文字前面、把选中行文字整体推右。未选中行行尾留空或显示提示图标。
+ * 无涟漪点击（选中背景 + 行尾标记已作为视觉指示）。
  */
 @Composable
 private fun FilterMenuRow(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    leadingIcon: AppIcon? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    trailingIcon: AppIcon? = null
 ) {
+    // 点击热区保持整行（含左右 8dp 外边距），胶囊背景与文字内边距在内层 Row
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -210,7 +216,7 @@ private fun FilterMenuRow(
             )
             .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CircleShape)
@@ -220,35 +226,33 @@ private fun FilterMenuRow(
                     ) else Modifier
                 )
                 .padding(horizontal = 12.dp, vertical = 6.dp),
-            contentAlignment = Alignment.CenterStart
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (isSelected) {
-                    Icon(
-                        painter = rememberAppIconPainter(AppIcon.CHECK),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+            Text(
+                text = label,
+                modifier = Modifier.weight(1f),
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = if (enabled) 1f else 0.45f
                     )
-                } else if (leadingIcon != null) {
-                    Icon(
-                        painter = rememberAppIconPainter(leadingIcon),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                Text(
-                    text = label,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    fontSize = 14.sp,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary
+            )
+            // 行尾标记槽：选中显示对勾，否则显示可选提示图标；同槽位保证各行文字起点一致
+            val tailIcon = if (isSelected) AppIcon.CHECK else trailingIcon
+            if (tailIcon != null) {
+                Icon(
+                    painter = rememberAppIconPainter(tailIcon),
+                    contentDescription = null,
+                    tint = if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(
                             alpha = if (enabled) 1f else 0.45f
-                        )
+                        ),
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(16.dp)
                 )
             }
         }

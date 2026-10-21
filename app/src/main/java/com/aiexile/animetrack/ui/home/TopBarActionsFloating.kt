@@ -58,15 +58,15 @@ import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.rectangle
 import androidx.graphics.shapes.toPath
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.LiquidGlassKind
+import com.aiexile.animetrack.ui.components.LiquidGlassSpec
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.drawLiquidGlass
+import com.aiexile.animetrack.ui.components.liquidGlassSpec
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -84,7 +84,10 @@ internal val TopBarActionsSingleWidth = 48.dp
 internal val TopBarActionsCombinedWidth = 97.dp
 
 /** morph 终点圆角（与 FAB SquircleShape 一致） */
-private val TopBarMorphCorner = 14.dp
+internal val TopBarMorphCorner = 14.dp
+
+/** morph 终点为圆形时的圆角（= 按钮半高）；「导航栏旁」加号状态下与圆形搜索 FAB 一致 */
+internal val TopBarMorphCircleCorner = TopBarActionsHeight / 2
 
 /** 悬浮搜索条最大宽度（向左展开） */
 private val FloatingSearchMaxWidth = 320.dp
@@ -105,20 +108,23 @@ private val FloatingSearchMaxWidth = 320.dp
  * @param collapseProgress 收拢进度：0 = 顶栏完全展开，1 = 完全收拢为 FAB
  * @param targetWidth 收拢终点宽度（单按钮 48dp / 组合 97dp），由顶栏按钮构成决定
  * @param endInset 终点右缘距顶栏右缘的距离（与顶栏 horizontal padding 一致，默认 20dp）
+ * @param targetCornerRadius 收拢终点圆角：常规为 [TopBarMorphCorner]；
+ *   迁移 FAB 为圆形时传 [TopBarMorphCircleCorner]，与圆形 FAB 轮廓重合
  */
 @Composable
 fun Modifier.topBarCollapseMorph(
     collapseProgress: Float,
     targetWidth: Dp,
-    endInset: Dp = 20.dp
+    endInset: Dp = 20.dp,
+    targetCornerRadius: Dp = TopBarMorphCorner
 ): Modifier {
     val density = LocalDensity.current
-    val morphShape = remember(density, targetWidth, endInset) {
+    val morphShape = remember(density, targetWidth, endInset, targetCornerRadius) {
         with(density) {
             TopBarMorphShape(
                 targetWidthPx = targetWidth.toPx(),
                 targetHeightPx = TopBarActionsHeight.toPx(),
-                cornerRadiusPx = TopBarMorphCorner.toPx(),
+                cornerRadiusPx = targetCornerRadius.toPx(),
                 endInsetPx = endInset.toPx()
             )
         }
@@ -203,7 +209,9 @@ private class TopBarMorphShape(
  *
  * @param collapseProgress 顶栏收拢进度（与顶栏侧共用同一动画值，保证 morph 连续）：
  * 0 = 顶栏展开（FAB 不存在），1 = 顶栏完全收拢（FAB 完全显示）
- * @param liquidGlassEnabled 液态玻璃模式：FAB/搜索条改为折射玻璃渲染（需 backdrop）
+ * @param circleFab 「导航栏旁」加号 FAB 状态下，仅搜索的单个 FAB 改用全圆
+ * （与加号 FAB 同为圆形，统一风格）；组合 FAB 与展开后的搜索条保持原圆角
+ * @param style 界面外壳材质档位：标准实色 / HAZE 毛玻璃 / LIQUID_GLASS 折射玻璃（需 backdrop）
  * @param backdrop 液态玻璃折射内容来源（页面内容层）
  */
 @Composable
@@ -218,25 +226,26 @@ fun TopBarActionsFloating(
     onSearchClick: () -> Unit,
     onAddClick: () -> Unit,
     hazeState: HazeState,
-    advancedBlurEnabled: Boolean = false,
+    style: ChromeStyle,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
-    liquidGlassEnabled: Boolean = false,
     backdrop: Backdrop? = null,
+    circleFab: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // 顶栏本身无按钮时无需迁移（搜索激活时除外——搜索条需常驻可编辑）；顶栏展开时 FAB 不存在
     if ((!showSearch && !showAdd && !isSearchActive) || collapseProgress <= 0f) return
 
     val colorScheme = MaterialTheme.colorScheme
+    val advancedBlurEnabled = style == ChromeStyle.HAZE
     // 液态玻璃模式优先生效（与悬浮胶囊导航栏一致）
-    val liquidGlass = liquidGlassEnabled && backdrop != null
-    // 跟随应用内主题选择（而非系统暗色），保证 app 切暗色时玻璃底色同步切换
-    val isLightTheme = !isAppDarkTheme()
-    val glassContainerColor =
-        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
-        else Color(0xFF121212).copy(0.4f)
+    val liquidGlass = style == ChromeStyle.LIQUID_GLASS && backdrop != null
+    // 仅「只有搜索」的单个 FAB 用圆形；组合 FAB 仍是按钮行，保持原圆角
+    val singleCircleFab = circleFab && !showAdd
+    // 玻璃规格统一出处：顶栏 FAB/搜索条属于常规悬浮按钮，保持轻模糊的通透感
+    //（只有「导航栏旁」按钮槽用 CapsuleCompanion 与胶囊对齐白度）
+    val fabGlassSpec = liquidGlassSpec(LiquidGlassKind.Fab)
     val fabContainerColor = when {
-        liquidGlass -> glassContainerColor
+        liquidGlass -> fabGlassSpec.containerColor
         advancedBlurEnabled -> Color.Transparent
         else -> colorScheme.surfaceContainer
     }
@@ -247,8 +256,21 @@ fun TopBarActionsFloating(
     } else {
         SquircleShape(TopBarMorphCorner)
     }
-    // 模糊 shape 与 FAB 圆角一致（14dp），避免 haze 层与背景层圆角不匹配产生的边缘白圈
+    // 「导航栏旁」加号 FAB 状态：单个搜索 FAB 与加号同为 48dp 全圆（保留顶栏按钮行尺寸，
+    // 与 topBarCollapseMorph 的圆形终点重合）；玻璃模式用 CornerBasedShape 供 lens 采样
+    val circleFabShape = if (liquidGlass) {
+        RoundedCornerShape(TopBarActionsHeight / 2)
+    } else {
+        SquircleShape(100.dp)
+    }
+    val collapsedFabShape = if (singleCircleFab) circleFabShape else fabShape
+    // 模糊 shape 与 FAB 圆角一致（14dp / 全圆），避免 haze 层与背景层圆角不匹配产生的边缘白圈
     val fabBlur = fabBlurModifier(hazeState, !liquidGlass && advancedBlurEnabled, blurConfig, shape = fabShape)
+    val collapsedFabBlur = if (singleCircleFab) {
+        fabBlurModifier(hazeState, !liquidGlass && advancedBlurEnabled, blurConfig, shape = collapsedFabShape)
+    } else {
+        fabBlur
+    }
     val shadowElevation = if (liquidGlass || advancedBlurEnabled) 0.dp else 6.dp
 
     // morph 出现：顶栏收拢后期（0.75→1）原位淡入，位置/尺寸与顶栏收拢终点完全重合
@@ -288,6 +310,7 @@ fun TopBarActionsFloating(
                         advancedBlurEnabled = advancedBlurEnabled,
                         liquidGlassEnabled = liquidGlass,
                         glassBackdrop = backdrop,
+                        glassSpec = fabGlassSpec,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -298,12 +321,13 @@ fun TopBarActionsFloating(
                             onSearchClick = onSearchClick,
                             onAddClick = onAddClick,
                             containerColor = fabContainerColor,
-                            shape = fabShape,
-                            blurModifier = fabBlur,
+                            shape = collapsedFabShape,
+                            blurModifier = collapsedFabBlur,
                             shadowElevation = shadowElevation,
                             advancedBlurEnabled = advancedBlurEnabled,
                             liquidGlassEnabled = liquidGlass,
                             glassBackdrop = backdrop,
+                            glassSpec = fabGlassSpec,
                             // 收缩过渡期间容器比 FAB 宽，FAB 始终贴右缘（右边框不动）
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
@@ -331,6 +355,7 @@ private fun FloatingSearchBar(
     advancedBlurEnabled: Boolean,
     liquidGlassEnabled: Boolean = false,
     glassBackdrop: Backdrop? = null,
+    glassSpec: LiquidGlassSpec,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -341,16 +366,11 @@ private fun FloatingSearchBar(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.then(
             if (liquidGlassEnabled && glassBackdrop != null) {
-                // 液态玻璃：折射玻璃渲染（参数与 Kyant0 LiquidButton 一致）
-                Modifier.drawBackdrop(
+                // 液态玻璃：折射玻璃渲染（规格见 ui/components/LiquidGlassSpec.kt）
+                Modifier.drawLiquidGlass(
                     backdrop = glassBackdrop,
                     shape = { shape },
-                    effects = {
-                        vibrancy()
-                        blur(2.dp.toPx())
-                        lens(12.dp.toPx(), 24.dp.toPx())
-                    },
-                    onDrawSurface = { drawRect(containerColor) }
+                    spec = glassSpec
                 )
             } else {
                 Modifier
@@ -444,6 +464,7 @@ private fun CombinedActionsFab(
     advancedBlurEnabled: Boolean,
     liquidGlassEnabled: Boolean = false,
     glassBackdrop: Backdrop? = null,
+    glassSpec: LiquidGlassSpec,
     modifier: Modifier = Modifier
 ) {
     val contentColor = MaterialTheme.colorScheme.primary
@@ -460,14 +481,10 @@ private fun CombinedActionsFab(
             .then(
                 if (liquidGlassEnabled && glassBackdrop != null) {
                     Modifier
-                        .drawBackdrop(
+                        .drawLiquidGlass(
                             backdrop = glassBackdrop,
                             shape = { shape },
-                            effects = {
-                                vibrancy()
-                                blur(2.dp.toPx())
-                                lens(12.dp.toPx(), 24.dp.toPx())
-                            },
+                            spec = glassSpec,
                             layerBlock = {
                                 val width = size.width
                                 val height = size.height
@@ -488,8 +505,7 @@ private fun CombinedActionsFab(
                                 scaleY = scale + maxDragScale *
                                     abs(sin(offsetAngle) * offset.y / size.maxDimension) *
                                     (height / width).fastCoerceAtMost(1f)
-                            },
-                            onDrawSurface = { drawRect(containerColor) }
+                            }
                         )
                         // 高光层绘制在玻璃之上、图标之下；手势仅观察不消费，不影响内部按钮点击
                         .then(interactiveHighlight.modifier)

@@ -64,7 +64,10 @@ data class Anime(
      * 用于详情页编辑界面允许用户手动修正系统自动判定的完结状态。
      */
     val airingStatusOverride: Boolean? = null,
-    /** 最近一次更新观看进度的时间戳。用于主界面排序（最近更新进度的排前面）。null 表示从未更新过。 */
+    /**
+     * 最近一次修改进度 / 状态的时间戳（添加番剧时也写入，作为「最近修改」排序键）。
+     * 用于主界面自动排序的区块内部排序（最近修改的排前面）；null 表示从未更新过。
+     */
     val lastProgressAt: Long? = null,
     /** 用户手动置顶。置顶的卡片固定排在列表最前，不受筛选/排序影响。 */
     val isPinned: Boolean = false,
@@ -80,8 +83,9 @@ data class Anime(
      */
     val bangumiMatchHintShown: Boolean = false,
     /**
-     * 用户手动排序的全局位置（0 起，越小越靠前）。null 表示从未参与过手动排序，
-     * 排序时排在已设置条目之后并按默认排序键（lastProgressAt/startDate）回退。
+     * 用户手动排序的全局位置（0 起，越小越靠前）。null 表示从未参与过手动排序
+     * （手动添加 / 同步新增 / 备份恢复的条目），排序时视为最新条目排在最前
+     * （置顶之后、已设置条目之前），同组按 lastProgressAt/startDate 降序兜底。
      * 仅本地有效，不参与服务器订阅同步。
      */
     val manualOrder: Int? = null

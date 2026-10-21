@@ -17,20 +17,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aiexile.animetrack.data.ChromeStyle
+import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.IconPack
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
@@ -40,6 +38,9 @@ import com.kyant.backdrop.effects.vibrancy
 import com.kyant.shapes.Capsule
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+
+/** 预览胶囊高 22dp / 真实胶囊高 54dp：折射半径按同一比例缩小 */
+private const val GlassPreviewCapsuleScale = 22f / 54f
 
 /**
  * 外观选项预览卡：供外观设置页与首次启动向导共用，
@@ -137,24 +138,21 @@ fun GlassEffectPreviewCard(
 }
 
 /**
- * 玻璃效果预览：背景彩色内容条延伸至胶囊下方，
- * 高级模糊与液态玻璃均直接调用真实渲染库，预览即实际导航栏观感：
+ * 界面风格预览：背景彩色内容条延伸至胶囊下方，
+ * 三档均直接调用真实渲染库与唯一规格源，预览即实际导航栏观感：
  * - 标准：实色胶囊 + 细描边
- * - 高级模糊：haze 毛玻璃（与真实胶囊同参数 [AdvancedBlurConfig.DEFAULT]）+ 描边
- * - 液态玻璃：kyant backdrop 真实折射（vibrancy + blur + lens），容器底色与真实同源
+ * - 高级模糊：haze 毛玻璃（参数取 [LocalAdvancedBlurConfig]，与真实胶囊一致）+ 描边
+ * - 液态玻璃：kyant backdrop 真实折射（规格取 [liquidGlassSpec] 的 Capsule 档，半径按预览高度等比缩小）
  */
 @Composable
 fun GlassEffectPreviewContent(
-    advancedBlur: Boolean,
-    liquidGlass: Boolean,
+    style: ChromeStyle,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    when {
-        liquidGlass -> {
-            val isDark = isAppDarkTheme()
-            val containerColor = if (isDark) Color(0xFF121212).copy(alpha = 0.4f)
-            else Color(0xFFFAFAFA).copy(alpha = 0.4f)
+    when (style) {
+        ChromeStyle.LIQUID_GLASS -> {
+            val spec = liquidGlassSpec(LiquidGlassKind.Capsule)
             val backdrop = rememberLayerBackdrop()
             Box(modifier = modifier.fillMaxSize()) {
                 // 背景层：登记为折射采样源
@@ -166,7 +164,7 @@ fun GlassEffectPreviewContent(
                 ) {
                     GlassPreviewBackground()
                 }
-                // 液态玻璃胶囊：lens 半径按 22dp 胶囊高度等比缩小（真实 54dp 胶囊用 24dp）
+                // 液态玻璃胶囊：胶囊尺寸按真实 54dp 等比缩到 22dp
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -177,11 +175,16 @@ fun GlassEffectPreviewContent(
                             backdrop = backdrop,
                             shape = { Capsule() },
                             effects = {
-                                vibrancy()
-                                blur(8f.dp.toPx())
-                                lens(10f.dp.toPx(), 10f.dp.toPx())
+                                if (spec.vibrancy) vibrancy()
+                                if (spec.blurRadius > 0.dp) blur(spec.blurRadius.toPx())
+                                if (spec.lensRefractionHeight > 0.dp) {
+                                    lens(
+                                        spec.lensRefractionHeight.toPx() * GlassPreviewCapsuleScale,
+                                        spec.lensRefractionAmount.toPx() * GlassPreviewCapsuleScale
+                                    )
+                                }
                             },
-                            onDrawSurface = { drawRect(containerColor) }
+                            onDrawSurface = { drawRect(spec.containerColor) }
                         ),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
@@ -190,7 +193,7 @@ fun GlassEffectPreviewContent(
                 }
             }
         }
-        advancedBlur -> {
+        ChromeStyle.HAZE -> {
             val hazeState = rememberHazeState()
             Box(modifier = modifier.fillMaxSize()) {
                 // 背景层：登记为毛玻璃采样源
@@ -209,7 +212,13 @@ fun GlassEffectPreviewContent(
                         .padding(bottom = 10.dp)
                         .fillMaxWidth(0.86f)
                         .height(22.dp)
-                        .then(advancedHazeEffect(hazeState, AdvancedBlurConfig.DEFAULT, CircleShape))
+                        .then(
+                            advancedHazeEffect(
+                                hazeState,
+                                LocalAdvancedBlurConfig.current,
+                                CircleShape
+                            )
+                        )
                         .border(
                             0.5.dp,
                             colorScheme.outlineVariant.copy(alpha = 0.4f),

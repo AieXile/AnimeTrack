@@ -24,7 +24,7 @@
     <string name="home_ongoing">連載中</string>
     <string name="home_watched_exceeds_total">已看集數不能超過總集數</string>
     <string name="home_filter">篩選</string>
-    <string name="home_sort_recent">最近更新優先</string>
+    <string name="home_sort_recent">自動排序</string>
     <string name="home_sort_manual">手動順序</string>
     <string name="home_sort_adjust">調整順序</string>
     <string name="home_sort_hint">長按卡片拖動調整順序，置頂卡片固定在最前</string>
@@ -153,7 +153,7 @@
     <string name="onboarding_theme_title">主題外觀</string>
     <string name="onboarding_theme_description">選擇喜歡的主題配色與深淺模式\n目前介面會即時預覽效果</string>
     <string name="onboarding_icon_effect_title">圖標與效果</string>
-    <string name="onboarding_icon_effect_description">選擇應用內圖標的視覺風格\n以及懸浮膠囊的玻璃質感</string>
+    <string name="onboarding_icon_effect_description">選擇應用內圖標的視覺風格\n以及整套介面的材質風格</string>
     <string name="onboarding_nav_title">導航訂製</string>
     <string name="onboarding_nav_description">選擇底部導航欄樣式與顯示內容\n預覽框即時展示效果</string>
     <string name="onboarding_ready_title">一切就緒</string>
@@ -161,7 +161,7 @@
     <string name="onboarding_theme_preset_label">主題配色</string>
     <string name="onboarding_theme_mode_label">深淺模式</string>
     <string name="onboarding_icon_style_label">圖標風格</string>
-    <string name="onboarding_glass_effect_label">玻璃效果</string>
+    <string name="onboarding_glass_effect_label">介面風格</string>
     <string name="onboarding_nav_style_label">導航樣式</string>
     <string name="onboarding_nav_content_label">導航內容</string>
     <string name="onboarding_nav_style_required">請先選擇導航樣式</string>

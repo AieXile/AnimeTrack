@@ -34,14 +34,14 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.SquircleShape
 
 /**
- * 设置页搜索模式顶栏：返回按钮 + 关键词输入框 + 清空按钮。
- * 输入框样式与主界面搜索一致：无边框、surfaceContainer 填充底、圆角。
+ * 设置页搜索模式的输入框（无边框、surfaceContainer 填充底、圆角，与主界面搜索一致）。
+ * 返回按钮由外层 [com.aiexile.animetrack.ui.components.chrome.AppTopBar] 的
+ * navigationIcon 统一提供（三档外观一致），此组件只负责输入与清空。
  */
 @Composable
 fun SettingsSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -58,13 +58,6 @@ fun SettingsSearchBar(
             .heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onClose) {
-            Icon(
-                painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                contentDescription = stringResource(R.string.common_back),
-                tint = MaterialTheme.colorScheme.onBackground
-            )
-        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

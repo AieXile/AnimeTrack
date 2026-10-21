@@ -23,7 +23,9 @@ import java.util.zip.ZipOutputStream
  * - 单线程异步写入 files/logs/app-yyyyMMdd.log，按天轮转，仅保留最近 [RETAIN_DAYS] 天
  * - 单日文件超过 [MAX_LOG_FILE_BYTES] 后停止写入，防止异常刷屏占满磁盘
  * - 捕获未处理崩溃，崩溃堆栈同步落盘（进程即将退出，不能依赖异步队列）
- * - [exportFeedbackLog] 将环境信息 + 最近日志打包为 zip，供反馈界面以 log 类型附件上传
+ * - 详细日志（[d]）默认仅 debug 构建落盘；正式版只镜像 logcat，避免高频诊断日志挤占单日配额
+ * - [exportFeedbackLog] 将环境信息 + 诊断快照 + 最近日志 + 最近一份 tombstone 打包为 zip，
+ *   供反馈界面以 log 类型附件上传
  *
  * 日志仅记录运行行为与错误信息，不写入用户反馈内容、账号凭证等敏感数据。
  */
@@ -49,6 +51,16 @@ object AppLogManager {
     private const val EXPORT_FILE = "app_log.zip"
     private const val EXPORT_ENTRY = "app_log.txt"
 
+    /** xCrash tombstone 目录与打包条目（Native 崩溃/ANR 不在本日志内） */
+    private const val TOMBSTONE_DIR = "tombstones"
+    private const val EXPORT_TOMBSTONE_ENTRY = "crash_tombstone.txt"
+
+    /** 单个 tombstone 打包上限，与崩溃上报通道一致（超出截断，堆栈在文件头部） */
+    private const val MAX_TOMBSTONE_BYTES = 1L * 1024 * 1024
+
+    /** xCrash tombstone 主文件后缀（emergency/trace 等附属文件不打包） */
+    private val TOMBSTONE_SUFFIXES = listOf(".java.xcrash", ".native.xcrash", ".anr.xcrash")
+
     private val lineTimeFormat = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS")
     private val headerTimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
@@ -69,6 +81,29 @@ object AppLogManager {
 
     @Volatile
     private var initialized = false
+
+    /**
+     * 详细日志（[d]）是否落盘：默认仅 debug 构建开启。
+     * 正式版关闭可避免调试级日志挤占单日 2MB 配额，把配额让给用户操作与错误日志；
+     * [d] 仍镜像 logcat 供 adb 调试。
+     */
+    @Volatile
+    private var verboseEnabled = BuildConfig.DEBUG
+
+    /**
+     * 环境快照提供方：由 Application 在依赖容器就绪后注入，汇总登录态、数据规模、关键开关等
+     * 运行时状态写入导出头部，避免 AppLogManager 反向依赖业务层（它可能在容器之前初始化）。
+     */
+    @Volatile
+    private var diagnosticsProvider: (() -> String)? = null
+
+    fun setVerboseEnabled(enabled: Boolean) {
+        verboseEnabled = enabled
+    }
+
+    fun setDiagnosticsProvider(provider: (() -> String)?) {
+        diagnosticsProvider = provider
+    }
 
     /** Application.onCreate 中调用，须早于其他组件使用；幂等 */
     fun init(context: Context) {
@@ -96,6 +131,8 @@ object AppLogManager {
     private fun write(level: String, tag: String, message: String, throwable: Throwable?) {
         if (!initialized) return
         mirrorToLogcat(level, tag, message, throwable)
+        // 详细日志在正式版只进 logcat、不落盘（见 verboseEnabled），保证关键日志的配额
+        if (level == "D" && !verboseEnabled) return
         val line = formatLine(level, tag, message, throwable)
         executor.execute { appendLocked(line) }
     }
@@ -119,7 +156,8 @@ object AppLogManager {
     // ===== 导出（反馈日志附件） =====
 
     /**
-     * 导出反馈日志附件：环境信息 + 最近日志 → cacheDir/feedback_log/app_log.zip。
+     * 导出反馈日志附件：环境信息 + 运行时快照 + 最近日志 + 最近一份 tombstone
+     * → cacheDir/feedback_log/app_log.zip。
      * 超过 [MAX_EXPORT_RAW_BYTES] 时从最旧的文件开始舍弃（优先保留最新日志）。
      * 每次导出覆盖上一次产物；失败或无日志时返回 null。
      */
@@ -145,15 +183,24 @@ object AppLogManager {
                 total += bytes.size
             }
 
+            val tombstone = readLatestTombstone()
+
             val outDir = File(appContext.cacheDir, EXPORT_DIR)
             outDir.mkdirs()
             outDir.listFiles()?.forEach { it.delete() }
             val outFile = File(outDir, EXPORT_FILE)
             ZipOutputStream(FileOutputStream(outFile)).use { zip ->
                 zip.putNextEntry(ZipEntry(EXPORT_ENTRY))
-                zip.write(environmentHeader())
+                zip.write(environmentHeader(tombstone?.first))
                 for (bytes in chunks) zip.write(bytes)
                 zip.closeEntry()
+                // 最近一份 xCrash tombstone：Native 崩溃/ANR 不在文本日志内，
+                // 未同意崩溃上报或上报失败时，这是反馈里唯一的堆栈线索
+                if (tombstone != null) {
+                    zip.putNextEntry(ZipEntry(EXPORT_TOMBSTONE_ENTRY))
+                    zip.write(tombstone.second.toByteArray())
+                    zip.closeEntry()
+                }
             }
             outFile.takeIf { it.length() > 0 }
         } catch (_: Throwable) {
@@ -161,17 +208,61 @@ object AppLogManager {
         }
     }
 
-    /** 导出日志头部：设备与应用环境信息，便于服务端定位问题 */
-    private fun environmentHeader(): ByteArray = buildString {
+    /** 导出日志头部：设备与应用环境信息 + 运行时快照，便于服务端定位问题 */
+    private fun environmentHeader(tombstoneName: String?): ByteArray = buildString {
         appendLine("===== AnimeTrack App Log =====")
         appendLine("导出时间: ${LocalDateTime.now().format(headerTimeFormat)}")
         appendLine("应用版本: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
         appendLine("系统版本: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         appendLine("设备: ${Build.BRAND} ${Build.MODEL}")
         appendLine("日志范围: 最近 $RETAIN_DAYS 天")
+        appendLine("崩溃 tombstone: ${tombstoneName ?: "无"}")
+        // 运行时快照由 Application 注入：反馈里用户常说不清登录态/数据规模/开关状态
+        val snapshot = diagnosticsProvider?.let { provider ->
+            runCatching { provider() }.getOrNull()?.takeIf { it.isNotBlank() }
+        }
+        if (snapshot != null) {
+            appendLine()
+            appendLine("----- 运行时快照 -----")
+            appendLine(snapshot.trimEnd())
+        }
         appendLine("===============================")
         appendLine()
     }.toByteArray()
+
+    /**
+     * 读取最近一份 xCrash tombstone（文件名含 20 位时间戳，按名字取最新），
+     * 超过 [MAX_TOMBSTONE_BYTES] 截断（崩溃堆栈位于文件头部）。
+     * @return 原始文件名 to 内容；无文件或读取失败返回 null
+     */
+    private fun readLatestTombstone(): Pair<String, String>? {
+        val file = File(appContext.filesDir, TOMBSTONE_DIR)
+            .listFiles()
+            ?.filter { it.isFile && TOMBSTONE_SUFFIXES.any { suffix -> it.name.endsWith(suffix) } }
+            ?.maxByOrNull { it.name }
+            ?: return null
+        return try {
+            val content = if (file.length() > MAX_TOMBSTONE_BYTES) {
+                val buffer = ByteArray(MAX_TOMBSTONE_BYTES.toInt())
+                val read = file.inputStream().use { input ->
+                    var offset = 0
+                    while (offset < buffer.size) {
+                        val count = input.read(buffer, offset, buffer.size - offset)
+                        if (count <= 0) break
+                        offset += count
+                    }
+                    offset
+                }
+                String(buffer, 0, read, Charsets.UTF_8) +
+                    "\n\n[AppLogManager] tombstone 超过 1MB 已截断"
+            } else {
+                file.readBytes().toString(Charsets.UTF_8)
+            }
+            file.name to content
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     // ===== 内部实现 =====
 

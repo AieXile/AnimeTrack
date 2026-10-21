@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import io.github.peerless2012.ass.media.AssHandlerConfig
 import io.github.peerless2012.ass.media.kt.buildWithAssSupport
@@ -75,7 +76,7 @@ class PlaybackService : MediaSessionService() {
         } catch (t: Throwable) {
             // libass 桥接层基于 media3 1.8 开发，与 1.10.1 存在版本兼容风险：
             // 构建失败时回退普通播放器保证视频可看，并留下完整堆栈供定位
-            Log.e(TAG, "LibAss player build failed, fallback to plain player", t)
+            AppLogManager.e(TAG, "LibAss player build failed, fallback to plain player", t)
             buildPlainPlayer(this, startup.allowHardware, startup.autoPlayNext)
         }
 

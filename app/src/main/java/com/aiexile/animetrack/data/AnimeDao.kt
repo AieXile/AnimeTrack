@@ -20,6 +20,18 @@ interface AnimeDao {
 
     @Query("SELECT * FROM anime ORDER BY id DESC")
     suspend fun getAllAnimesList(): List<Anime>
+
+    /** 番剧总数（导出诊断快照用，避免为此拉全表） */
+    @Query("SELECT COUNT(*) FROM anime")
+    suspend fun countAnimes(): Int
+
+    /** 置顶番剧数（导出诊断快照用） */
+    @Query("SELECT COUNT(*) FROM anime WHERE isPinned = 1")
+    suspend fun countPinnedAnimes(): Int
+
+    /** 未参与过手动排序的条目数（manualOrder 为 null，即新条目；导出诊断快照用） */
+    @Query("SELECT COUNT(*) FROM anime WHERE manualOrder IS NULL")
+    suspend fun countUnorderedAnimes(): Int
     
     @Query("SELECT * FROM anime WHERE id = :id")
     suspend fun getAnimeById(id: Int): Anime?

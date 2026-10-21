@@ -8,20 +8,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +27,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.foundation.shape.CircleShape
@@ -170,50 +166,41 @@ fun SettingsScreen(
         )
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp)
-            ) {
-                if (searchActive) {
-                    SettingsSearchBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        onClose = {
-                            searchActive = false
-                            searchQuery = ""
-                        }
+    // 搜索态返回按钮：与顶栏 navigationIcon 共用，收起搜索而不退出设置页
+    val closeSearch: (() -> Unit)? = if (searchActive) {
+        {
+            searchActive = false
+            searchQuery = ""
+        }
+    } else {
+        null
+    }
+
+    AppScaffold(
+        title = stringResource(R.string.settings_title),
+        onBack = closeSearch,
+        titleContent = if (searchActive) {
+            {
+                SettingsSearchBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it }
+                )
+            }
+        } else {
+            null
+        },
+        actions = {
+            if (!searchActive) {
+                IconButton(onClick = { searchActive = true }) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.SEARCH),
+                        contentDescription = stringResource(R.string.common_search),
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_title),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        IconButton(onClick = { searchActive = true }) {
-                            Icon(
-                                painter = rememberAppIconPainter(AppIcon.SEARCH),
-                                contentDescription = stringResource(R.string.common_search),
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
                 }
             }
         },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 BottomNavigationBar(
@@ -221,8 +208,8 @@ fun SettingsScreen(
                     onNavigate = onNavigate
                 )
             }
-        },
-    ) { paddingValues ->
+        }
+    ) { chrome ->
         // ---- 登录状态（登录卡片副标题） ----
         val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
         val authManager = remember { AppContainer.getAuthManager() }
@@ -343,8 +330,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(top = 16.dp)
+                .then(chrome.layout)
         ) {
             LazyColumn(
                 // 大屏适配：限制内容最大宽度并居中，避免平板上表单拉伸过宽（手机宽度 <720dp 不受影响）
@@ -353,7 +339,11 @@ fun SettingsScreen(
                     .widthIn(max = 720.dp)
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(bottom = 100.dp)
+                // 玻璃档由内容层垫出顶栏/底栏空间；原有 16/100dp 内边距叠加其上
+                contentPadding = PaddingValues(
+                    top = 16.dp + chrome.content.calculateTopPadding(),
+                    bottom = 100.dp + chrome.content.calculateBottomPadding()
+                )
             ) {
                 if (searchActive) {
                     // ---- 搜索模式：展示具体设置项结果（空查询不显示推荐列表） ----

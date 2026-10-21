@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.feedback
 
 import androidx.compose.foundation.background
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -21,12 +18,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,6 +47,7 @@ import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSessionsPage
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -158,31 +152,14 @@ fun FeedbackHistoryScreen(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.feedback_history),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.feedback_back)
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.feedback_history),
+        onBack = onBack
+    ) { chrome ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
         ) {
             when {
                 uiState.loadFailed -> HistoryStatusText(
@@ -195,7 +172,13 @@ fun FeedbackHistoryScreen(
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    // 玻璃档在原有 10dp 内边距上叠加顶栏/导航栏空间
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 10.dp + chrome.content.calculateTopPadding(),
+                        bottom = 10.dp + chrome.content.calculateBottomPadding()
+                    ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(uiState.sessions, key = { it.sessionId }) { session ->

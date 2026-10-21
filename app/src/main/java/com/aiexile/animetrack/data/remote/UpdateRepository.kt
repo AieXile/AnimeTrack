@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.remote
 
 import android.util.Log
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 
 class UpdateRepository {
@@ -58,7 +59,7 @@ class UpdateRepository {
                     val fromGithub = checkForUpdateFromGithub(currentVersion)
                     if (fromGithub != null) return fromGithub
                     // App 直连 GitHub 失败（如国内网络受限），退回服务器转发的 GitHub 数据保底
-                    Log.w(TAG, "Direct GitHub check unavailable, using server-forwarded GitHub data")
+                    AppLogManager.w(TAG, "Direct GitHub check unavailable, using server-forwarded GitHub data")
                     return server.toUpdateInfo(DownloadSource.GITHUB)
                 }
                 return server.toUpdateInfo(DownloadSource.SERVER)
@@ -66,7 +67,7 @@ class UpdateRepository {
             Log.d(TAG, "App is up to date (server)")
             return null
         } catch (e: Exception) {
-            Log.e(TAG, "Update server check failed, fallback to GitHub", e)
+            AppLogManager.e(TAG, "Update server check failed, fallback to GitHub", e)
         }
 
         // 2. 服务器整体不可达 → GitHub 兜底
@@ -85,12 +86,12 @@ class UpdateRepository {
                 return server.notes
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Fetch changelog from server failed, fallback to GitHub", e)
+            AppLogManager.e(TAG, "Fetch changelog from server failed, fallback to GitHub", e)
         }
         return try {
             RetrofitClient.githubUpdateApi.getReleaseByTag(currentVersion).body.ifBlank { null }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch changelog for $currentVersion", e)
+            AppLogManager.e(TAG, "Failed to fetch changelog for $currentVersion", e)
             null
         }
     }
@@ -128,7 +129,7 @@ class UpdateRepository {
                 null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to check for update on GitHub", e)
+            AppLogManager.e(TAG, "Failed to check for update on GitHub", e)
             null
         }
     }
@@ -160,7 +161,7 @@ class UpdateRepository {
                 .toLocalDate()
                 .toString()
         } catch (e: Exception) {
-            Log.w(TAG, "Unparseable date: $raw")
+            AppLogManager.w(TAG, "Unparseable date: $raw")
             raw
         }
     }

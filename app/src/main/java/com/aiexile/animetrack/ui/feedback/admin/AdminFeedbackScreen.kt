@@ -20,12 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,9 +53,8 @@ import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.sse.SseEvent
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.feedback.formatFeedbackTime
-import com.aiexile.animetrack.ui.icons.AppIcon
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -183,36 +178,21 @@ fun AdminFeedbackScreen(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.admin_feedback_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.feedback_back)
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.admin_feedback_title),
+        onBack = onBack
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
         ) {
             // ===== 状态筛选 chips =====
             AdminStatusFilterRow(
                 selected = uiState.statusFilter,
-                onSelect = { viewModel.setStatusFilter(it) }
+                onSelect = { viewModel.setStatusFilter(it) },
+                // 玻璃档筛选行需避开顶栏（固定表头不随列表滚动）
+                modifier = Modifier.padding(top = chrome.content.calculateTopPadding())
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -227,7 +207,13 @@ fun AdminFeedbackScreen(
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        // 玻璃档在原有 10dp 内边距上叠加导航栏空间
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 10.dp,
+                            bottom = 10.dp + chrome.content.calculateBottomPadding()
+                        ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.sessions, key = { it.sessionId }) { session ->
@@ -260,7 +246,8 @@ fun AdminFeedbackScreen(
 @Composable
 private fun AdminStatusFilterRow(
     selected: String?,
-    onSelect: (String?) -> Unit
+    onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val filters = listOf(
         null to R.string.admin_feedback_filter_all,
@@ -270,6 +257,7 @@ private fun AdminStatusFilterRow(
         "closed" to R.string.feedback_status_closed
     )
     LazyRow(
+        modifier = modifier,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {

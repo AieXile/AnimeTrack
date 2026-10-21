@@ -3,7 +3,6 @@ package com.aiexile.animetrack.ui.player
 import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -17,6 +16,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.player.PlaybackService
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.SubtitleLocator
@@ -160,7 +160,7 @@ class PlayerViewModel(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            Log.e(TAG, "Playback error", error)
+            AppLogManager.e(TAG, "Playback error", error)
             _uiState.update { it.copy(error = error.message ?: "播放出错") }
         }
 
@@ -233,7 +233,7 @@ class PlayerViewModel(
             } catch (e: java.util.concurrent.CancellationException) {
                 // onCleared 已取消连接（快速退出页面），controller 由 future 内部释放
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to connect to PlaybackService", e)
+                AppLogManager.e(TAG, "Failed to connect to PlaybackService", e)
                 _uiState.update { it.copy(error = "无法启动播放服务: ${e.message}") }
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
@@ -291,7 +291,7 @@ class PlayerViewModel(
                     .build()
                 startPlayback(mediaItem, mediaId)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to play WebDAV URL", e)
+                AppLogManager.e(TAG, "Failed to play WebDAV URL", e)
                 _uiState.update { it.copy(error = "无法播放: ${e.message}") }
             }
         }
@@ -372,7 +372,7 @@ class PlayerViewModel(
         return try {
             playerRepository.getPlaybackPosition(mediaId)?.coerceAtLeast(0L) ?: 0L
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to read saved position", e)
+            AppLogManager.w(TAG, "Failed to read saved position", e)
             0L
         }
     }
@@ -441,7 +441,7 @@ class PlayerViewModel(
             try {
                 playerRepository.savePlaybackPosition(mediaId, position, duration)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save playback position", e)
+                AppLogManager.e(TAG, "Failed to save playback position", e)
             }
         }
     }

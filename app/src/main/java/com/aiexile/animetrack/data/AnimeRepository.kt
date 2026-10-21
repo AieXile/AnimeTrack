@@ -303,6 +303,15 @@ class AnimeRepositoryImpl(
         }
         val id = animeDao.insertAnime(animeToInsert)
         if (BuildConfig.DEBUG) Log.d(TAG, "insertAnime: Inserted with id=$id")
+        // 用户操作时间线：新增是否落库、是否带 Bangumi 绑定，直接决定后续同步行为
+        if (id > 0) {
+            AppLogManager.i(
+                TAG,
+                "新增番剧: ${animeToInsert.title} (id=$id, bangumiId=${animeToInsert.bangumiId})"
+            )
+        } else {
+            AppLogManager.w(TAG, "新增番剧写入失败（返回 id=$id）: ${animeToInsert.title}")
+        }
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
         if (id > 0) {
             com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementAddedAnime()
@@ -383,6 +392,11 @@ class AnimeRepositoryImpl(
         val oldAnime = updateAnimeInternal(anime)
         // 仅当用户可见字段变化时才同步到后端，避免封面/简介等内部回填触发无谓的 POST
         if (shouldSyncToServer(oldAnime, anime)) {
+            AppLogManager.i(
+                TAG,
+                "更新并同步: ${anime.title}, 进度 ${oldAnime?.watchedEpisodes}→${anime.watchedEpisodes}, " +
+                    "状态 ${oldAnime?.status}→${anime.status}"
+            )
             syncSubscriptionToServer(anime, isAdd = true, oldAnime = oldAnime)
         }
     }
@@ -427,6 +441,7 @@ class AnimeRepositoryImpl(
     override suspend fun deleteAnime(anime: Anime) {
         // 墓碑先落盘（挂起写库完成才继续）：网络删除失败或进程在请求发出前被杀时，
         // 下次同步前按墓碑补偿重试，防止服务器残留行合并时被重新插回本地（复活）
+        AppLogManager.i(TAG, "删除番剧: ${anime.title} (id=${anime.id}, bangumiId=${anime.bangumiId})")
         recordPendingDeletions(anime)
         // 先同步取消订阅到后端
         syncSubscriptionToServer(anime, isAdd = false)
@@ -538,14 +553,14 @@ class AnimeRepositoryImpl(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Bangumi search failed in searchAll", e)
+            AppLogManager.e(TAG, "Bangumi search failed in searchAll", e)
             emptyList()
         }
 
         val tmdbResults = try {
             searchTmdb(query)
         } catch (e: Exception) {
-            Log.e(TAG, "TMDB search failed in searchAll", e)
+            AppLogManager.e(TAG, "TMDB search failed in searchAll", e)
             emptyList()
         }
 
@@ -560,7 +575,7 @@ class AnimeRepositoryImpl(
         return try {
             RetrofitClient.bangumiApi.getSubjectDetail(bangumiId)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch Bangumi detail for bangumiId: $bangumiId", e)
+            AppLogManager.e(TAG, "Failed to fetch Bangumi detail for bangumiId: $bangumiId", e)
             null
         }
     }
@@ -789,7 +804,7 @@ class AnimeRepositoryImpl(
             Log.i(TAG, "Local cover file missing, recovering from remoteCoverUrl: animeId=$animeId")
         } else {
             animeDao.updateCoverUrl(animeId, null)
-            Log.w(TAG, "Local cover file missing and no remote source, reset coverUrl to null: animeId=$animeId")
+            AppLogManager.w(TAG, "Local cover file missing and no remote source, reset coverUrl to null: animeId=$animeId")
         }
     }
 
@@ -949,7 +964,7 @@ class AnimeRepositoryImpl(
 
                     delay(800)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Background sync failed for: ${anime.title}", e)
+                    AppLogManager.e(TAG, "Background sync failed for: ${anime.title}", e)
                 }
             }
 
@@ -1054,11 +1069,11 @@ class AnimeRepositoryImpl(
                                     animeDao.clearPendingDeletion(ownerKey, oldSyncId)
                                 }
                             }.onFailure {
-                                Log.w(TAG, "Remove legacy remoteSyncId row failed (non-fatal): ${anime.title}", it)
+                                AppLogManager.w(TAG, "Remove legacy remoteSyncId row failed (non-fatal): ${anime.title}", it)
                             }
                         }
                     } else {
-                        Log.w(TAG, "Subscription add failed: ${anime.title}, message=${response.message}")
+                        AppLogManager.w(TAG, "Subscription add failed: ${anime.title}, message=${response.message}")
                     }
                 } else {
                     // 稳定 ID 各删一次：换绑 bangumiId 后 copy 仍保留 remoteSyncId，
@@ -1092,7 +1107,7 @@ class AnimeRepositoryImpl(
                     if (BuildConfig.DEBUG) Log.d(TAG, "Subscription removed from server: ${anime.title}")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Sync subscription failed (non-fatal): ${anime.title}", e)
+                AppLogManager.w(TAG, "Sync subscription failed (non-fatal): ${anime.title}", e)
             }
         }
     }
@@ -1298,7 +1313,7 @@ class AnimeRepositoryImpl(
         val userAuthManager = com.aiexile.animetrack.di.AppContainer.getUserAuthManager()
         val loggedIn = userAuthManager.isLoggedIn.first()
         if (!loggedIn) {
-            Log.w(TAG, "syncSubscriptionsFromServer: skipped, user not logged in")
+            AppLogManager.w(TAG, "syncSubscriptionsFromServer: skipped, user not logged in")
             return
         }
         if (BuildConfig.DEBUG) Log.d(TAG, "syncSubscriptionsFromServer: user logged in, proceeding")
@@ -1346,9 +1361,9 @@ class AnimeRepositoryImpl(
                     val errorBody = try {
                         e.response()?.errorBody()?.string()
                     } catch (_: Exception) { null }
-                    Log.w(TAG, "syncSubscriptionsFromServer: upload failed for ${anime.title}, code=${e.code()}, error=$errorBody", e)
+                    AppLogManager.w(TAG, "syncSubscriptionsFromServer: upload failed for ${anime.title}, code=${e.code()}, error=$errorBody", e)
                 } catch (e: Exception) {
-                    Log.w(TAG, "syncSubscriptionsFromServer: upload failed for ${anime.title}", e)
+                    AppLogManager.w(TAG, "syncSubscriptionsFromServer: upload failed for ${anime.title}", e)
                 }
                 // 限流：每条上传后间隔，避免短时间内大量请求导致后端拒绝
                 delay(UPLOAD_THROTTLE_MS)
@@ -1373,7 +1388,7 @@ class AnimeRepositoryImpl(
                     "remote total=${remoteList.size}"
             )
         } catch (e: Exception) {
-            Log.w(TAG, "Sync subscriptions from server failed (non-fatal)", e)
+            AppLogManager.w(TAG, "Sync subscriptions from server failed (non-fatal)", e)
         }
     }
 
@@ -1459,7 +1474,7 @@ class AnimeRepositoryImpl(
                     "inserted=${result.insertedCount}, remote total=${response.subscriptions.size}"
             )
         } catch (e: Exception) {
-            Log.w(TAG, "pullSubscriptionsFromServer failed (non-fatal)", e)
+            AppLogManager.w(TAG, "pullSubscriptionsFromServer failed (non-fatal)", e)
         }
     }
 }

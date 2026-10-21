@@ -163,8 +163,8 @@
     <string name="developer_open_onboarding">Open Onboarding</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
     <string name="developer_advanced_blur">Advanced Blur (Frosted Glass)</string>
-    <string name="developer_advanced_blur_desc">Tune the frosted glass parameters for the floating capsule and FAB</string>
-    <string name="developer_blur_switch_desc">Synced with the advanced blur switch in navigation customization</string>
+    <string name="developer_advanced_blur_desc">Applies when Interface Style is Advanced Blur; tune its blur parameters</string>
+    <string name="developer_blur_switch_desc">Synced with Interface Style in Appearance</string>
     <string name="developer_blur_radius">Blur Radius</string>
     <string name="developer_blur_background_alpha">Background Opacity</string>
     <string name="developer_blur_tint_alpha">Tint Opacity</string>

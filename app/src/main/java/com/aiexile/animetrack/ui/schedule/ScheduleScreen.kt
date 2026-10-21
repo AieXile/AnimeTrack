@@ -1,6 +1,6 @@
 package com.aiexile.animetrack.ui.schedule
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.core.spring
@@ -30,15 +30,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,7 +78,6 @@ import com.aiexile.animetrack.util.coverMemoryCacheKey
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.statusBarsPadding
 
 @Composable
 private fun weekdayLabels(): List<String> = listOf(
@@ -138,44 +136,42 @@ fun ScheduleScreen(
             }
     }
 
-    Scaffold(
+    AppScaffold(
+        title = stringResource(R.string.schedule_board_title),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.schedule_board_title),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = stringResource(R.string.schedule_weekly_overview),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                },
-                actions = {
-                    if (showCalendarButton) {
-                        IconButton(onClick = { showScheduleSheet = true }) {
-                            Icon(
-                                painter = rememberAppIconPainter(AppIcon.CALENDAR_DAYS),
-                                contentDescription = stringResource(R.string.schedule_preview),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+        titleContent = {
+            Column {
+                Text(
+                    text = stringResource(R.string.schedule_board_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = stringResource(R.string.schedule_weekly_overview),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        },
+        actions = {
+            if (showCalendarButton) {
+                IconButton(onClick = { showScheduleSheet = true }) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.CALENDAR_DAYS),
+                        contentDescription = stringResource(R.string.schedule_preview),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            )
+            }
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
+                .padding(chrome.content)
         ) {
             WeekdaySelector(
                 selectedWeekday = pagerState.currentPage,
@@ -187,7 +183,7 @@ fun ScheduleScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
             )
 
             HorizontalPager(
@@ -434,7 +430,7 @@ private fun AnimeCoverGrid(
                 // 实测容器宽度：pane 压缩/展开时列数随之自适应
                 containerWidth = with(density) { coords.size.width.toDp() }
             },
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 100.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {

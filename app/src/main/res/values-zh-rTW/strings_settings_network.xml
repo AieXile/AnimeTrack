@@ -69,6 +69,8 @@
     <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT 通道，相容性最好</string>
     <string name="bangumi_proxy_protocol_socks5">SOCKS5 代理</string>
     <string name="bangumi_proxy_protocol_socks5_desc">支援帳號密碼認證，網域由代理側解析</string>
+    <!-- 設定項選項彈層列標題 -->
+    <string name="bangumi_proxy_protocol_title">代理協定</string>
     <string name="bangumi_proxy_server">伺服器</string>
     <string name="bangumi_proxy_username">帳號（可選）</string>
     <string name="bangumi_proxy_password">密碼（可選）</string>

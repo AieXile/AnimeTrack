@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +23,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -52,9 +50,8 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,9 +65,6 @@ fun DataManageScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     val importResult by viewModel.importResult.collectAsState()
     val duplicateCount by viewModel.duplicateCount.collectAsState()
@@ -181,15 +175,9 @@ fun DataManageScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.data_manage_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        },
+    AppScaffold(
+        title = stringResource(R.string.data_manage_title),
+        onBack = onBack,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -199,12 +187,11 @@ fun DataManageScreen(
                 )
             }
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
         ) {
             // 搜索定位：高亮目标项并滚动到所在分组
             val highlightKey = rememberSettingsHighlight(Routes.DATA_MANAGE)
@@ -212,10 +199,11 @@ fun DataManageScreen(
             val highlightAnchors = mapOf(
                 "import" to 1, "export" to 1, "webdav" to 2
             )
-            // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-            val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
+            // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
             LaunchedEffect(highlightKey) {
-                highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
+                highlightAnchors[highlightKey]?.let {
+                    listState.animateScrollToItem(it, chrome.scrollCompensation)
+                }
             }
 
             LazyColumn(
@@ -223,15 +211,7 @@ fun DataManageScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-                contentPadding = if (liquidGlassEnabled) {
-                    PaddingValues(
-                        top = paddingValues.calculateTopPadding(),
-                        bottom = paddingValues.calculateBottomPadding()
-                    )
-                } else {
-                    PaddingValues(0.dp)
-                },
+                contentPadding = chrome.content,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(4.dp)) }

@@ -69,6 +69,8 @@
     <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT tunnel, best compatibility</string>
     <string name="bangumi_proxy_protocol_socks5">SOCKS5 proxy</string>
     <string name="bangumi_proxy_protocol_socks5_desc">Supports username/password auth, domains resolved by proxy</string>
+    <!-- Settings option menu row title -->
+    <string name="bangumi_proxy_protocol_title">Proxy protocol</string>
     <string name="bangumi_proxy_server">Server</string>
     <string name="bangumi_proxy_username">Username (optional)</string>
     <string name="bangumi_proxy_password">Password (optional)</string>

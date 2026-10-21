@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +20,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
@@ -46,15 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.notification.UpdateNotificationManager
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.UpdatePushSettingsRequest
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.util.TimeZoneHelper
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,9 +65,6 @@ fun UpdateNotificationScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
     val enabled by settingsRepository.updateNotificationEnabled.collectAsState(false)
     val hour by settingsRepository.updateNotificationHour.collectAsState(9)
     val minute by settingsRepository.updateNotificationMinute.collectAsState(0)
@@ -83,11 +78,6 @@ fun UpdateNotificationScreen(
     val highlightKey = rememberSettingsHighlight(Routes.UPDATE_NOTIFICATION)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf("toggle" to 1, "time" to 2)
-    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
-    LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
-    }
 
     // 登录后从后端拉取推送设置
     LaunchedEffect(isLoggedIn) {
@@ -108,7 +98,10 @@ fun UpdateNotificationScreen(
                         UpdateNotificationManager.scheduleDailyNotification(context, beijingHour, settings.preferredMinute)
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                // 拉取失败时页面停留在本地设置：留痕以区分「服务端没存」与「本地没拉下来」
+                AppLogManager.w("Notification", "拉取服务端推送设置失败", e)
+            }
         }
     }
 
@@ -134,7 +127,10 @@ fun UpdateNotificationScreen(
                         preferredMinute = beijingMinute
                     )
                 )
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                // 不同步到服务端意味着「换机后推送时间对不上」，必须留痕
+                AppLogManager.w("Notification", "同步推送设置到服务端失败", e)
+            }
         }
     }
 
@@ -201,32 +197,23 @@ fun UpdateNotificationScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.update_notif_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
+    AppScaffold(
+        title = stringResource(R.string.update_notif_title),
+        onBack = onBack
+    ) { chrome ->
+        // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+        LaunchedEffect(highlightKey) {
+            highlightAnchors[highlightKey]?.let {
+                listState.animateScrollToItem(it, chrome.scrollCompensation)
+            }
         }
-    ) { paddingValues ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
                 .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
+            contentPadding = chrome.content,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }

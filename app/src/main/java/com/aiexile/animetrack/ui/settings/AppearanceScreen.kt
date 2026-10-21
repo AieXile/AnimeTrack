@@ -11,8 +11,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
@@ -22,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -40,18 +37,15 @@ import com.aiexile.animetrack.ui.components.bouncyClickable
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
@@ -60,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
@@ -67,12 +62,14 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
 import com.aiexile.animetrack.ui.components.IconPackPreviewCard
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.components.chrome.chromeSupportsBlur
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.aiexile.animetrack.ui.theme.availableThemePresets
+import com.aiexile.animetrack.ui.theme.rememberMonetPalette
 import kotlinx.coroutines.launch
 
 private val TopLeftTriangleShape = GenericShape { size, _ ->
@@ -112,9 +109,6 @@ fun AppearanceScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
     val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
     // 用同步缓存值作初始值，避免首帧渲染默认值、随后跳变为持久化值
     // （否则 showDarkStyleSelector 会经历一次 false→true，深色风格选择器的展开动画被误触发）
@@ -125,54 +119,40 @@ fun AppearanceScreen(
     val showDarkStyleSelector = currentThemeMode == ThemeMode.DARK ||
             (currentThemeMode == ThemeMode.SYSTEM && systemDarkTheme)
     val currentIconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
-    // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
-    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    // 界面外壳材质档位：初始值取同步缓存，避免首帧闪变
+    val chromeStyle by settingsRepository.chromeStyle.collectAsState(settingsRepository.cachedChromeStyle())
     // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
     val capsuleLiquidGlassBackdropBlur by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
+    // 低版本设备不支持实时模糊：档位会由 MainActivity 降级为标准，此处给出说明
+    val blurSupported = chromeSupportsBlur()
 
     // 搜索定位：高亮目标区块并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.APPEARANCE)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf(
-        "mode" to 2, "dark_style" to 2, "color" to 4, "icon_pack" to 6,
-        "advanced_blur" to 8, "liquid_glass" to 8, "liquid_glass_backdrop_blur" to 8
+        "mode" to 2, "dark_style" to 2, "color" to 6, "icon_pack" to 8,
+        "advanced_blur" to 4, "liquid_glass" to 4, "liquid_glass_backdrop_blur" to 4
     )
-    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
-    LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
-    }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.appearance_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
+    AppScaffold(
+        title = stringResource(R.string.appearance_title),
+        onBack = onBack
+    ) { chrome ->
+        // 玻璃档内容视口全高，滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+        LaunchedEffect(highlightKey) {
+            highlightAnchors[highlightKey]?.let {
+                listState.animateScrollToItem(it, chrome.scrollCompensation)
+            }
         }
-    ) { paddingValues ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
                 .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
+            // 玻璃档由内容层垫出顶栏与导航栏空间（内容可滚到顶栏下方形成模糊背景）
+            contentPadding = chrome.content,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item { Spacer(modifier = Modifier.height(4.dp)) }
@@ -222,24 +202,23 @@ fun AppearanceScreen(
                             AutoPreviewContent()
                         }
                     }
-                    // 深色风格：仅深色模式、或自动模式且系统当前处于深色时显示，
-                    // 从上方弹性弹出/平滑收回（负偏移 = 起始/目标位置在上方）；
-                    // clipToBounds 裁掉越界部分，避免滑入/滑出时飘到模式预览卡上方
+                    // 深色风格：仅深色模式、或自动模式且系统当前处于深色时显示。
+                    // 高度必须与内容一起动画（与 ExpandableSettingsGroup 同一套时序）：
+                    // 此前只做 slide + fade，行占位在整个进出场期间保持不变——
+                    // 展开时下方「界面风格」分组瞬间跳下，收起时要等退场动画结束才补位，
+                    // 表现为底下内容慢半拍才回来。改为 expand/shrink 后占位随内容连续变化，
+                    // 内容固定贴合槽位底边，滑入/收回与下方内容同步位移，无空档无跳动
                     AnimatedVisibility(
                         visible = showDarkStyleSelector,
-                        modifier = Modifier.clipToBounds(),
-                        enter = slideInVertically(
+                        enter = expandVertically(
                             animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                dampingRatio = Spring.DampingRatioLowBouncy,
                                 stiffness = Spring.StiffnessMediumLow
                             )
-                        ) { -it } + fadeIn(),
-                        exit = slideOutVertically(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            )
-                        ) { -it } + fadeOut()
+                        ) + fadeIn(),
+                        exit = shrinkVertically(
+                            animationSpec = androidx.compose.animation.core.tween(200)
+                        ) + fadeOut(animationSpec = androidx.compose.animation.core.tween(200))
                     ) {
                         Column {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -254,63 +233,7 @@ fun AppearanceScreen(
 
             item { Spacer(modifier = Modifier.height(12.dp)) }
 
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.appearance_color_title),
-                    subtitle = stringResource(R.string.appearance_color_subtitle),
-                    modifier = rememberHighlightModifier("color", highlightKey)
-                ) {
-                    // 7 个预设色块（4 + 3 两行居中），行数随主题色增减自适应
-                    @OptIn(ExperimentalLayoutApi::class)
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        maxItemsInEachRow = 4
-                    ) {
-                        ThemePreset.entries.forEach { preset ->
-                            ColorSwatch(
-                                preset = preset,
-                                isSelected = preset == currentPreset,
-                                onClick = { scope.launch { settingsRepository.setThemePreset(preset) } }
-                            )
-                        }
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.appearance_icon_style_title),
-                    subtitle = stringResource(R.string.appearance_icon_style_subtitle),
-                    modifier = rememberHighlightModifier("icon_pack", highlightKey)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        IconPackPreviewCard(
-                            modifier = Modifier.weight(1f),
-                            pack = IconPack.MATERIAL_SYMBOLS,
-                            label = stringResource(R.string.appearance_icon_pack_material),
-                            selected = currentIconPack == IconPack.MATERIAL_SYMBOLS,
-                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.MATERIAL_SYMBOLS) } }
-                        )
-                        IconPackPreviewCard(
-                            modifier = Modifier.weight(1f),
-                            pack = IconPack.LUCIDE,
-                            label = stringResource(R.string.appearance_icon_pack_lucide),
-                            selected = currentIconPack == IconPack.LUCIDE,
-                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.LUCIDE) } }
-                        )
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
+            // 界面风格：整套界面外壳的材质档位（紧跟明暗模式，与「主题」同层级）
             item {
                 SettingsGroup(
                     title = stringResource(R.string.appearance_glass_effect_title),
@@ -323,52 +246,41 @@ fun AppearanceScreen(
                         GlassEffectPreviewCard(
                             modifier = Modifier.weight(1f),
                             label = stringResource(R.string.appearance_glass_effect_standard),
-                            selected = !capsuleAdvancedBlur && !capsuleLiquidGlass,
+                            selected = chromeStyle == ChromeStyle.STANDARD,
                             onClick = {
-                                scope.launch {
-                                    settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                                    settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                                }
+                                scope.launch { settingsRepository.setChromeStyle(ChromeStyle.STANDARD) }
                             }
                         ) {
-                            GlassEffectPreviewContent(advancedBlur = false, liquidGlass = false)
+                            GlassEffectPreviewContent(style = ChromeStyle.STANDARD)
                         }
                         GlassEffectPreviewCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .then(rememberHighlightModifier("advanced_blur", highlightKey)),
                             label = stringResource(R.string.nav_custom_advanced_blur),
-                            selected = capsuleAdvancedBlur,
+                            selected = chromeStyle == ChromeStyle.HAZE,
                             onClick = {
-                                scope.launch {
-                                    // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
-                                    settingsRepository.setCapsuleAdvancedBlurEnabled(true)
-                                    settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                                }
+                                scope.launch { settingsRepository.setChromeStyle(ChromeStyle.HAZE) }
                             }
                         ) {
-                            GlassEffectPreviewContent(advancedBlur = true, liquidGlass = false)
+                            GlassEffectPreviewContent(style = ChromeStyle.HAZE)
                         }
                         GlassEffectPreviewCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .then(rememberHighlightModifier("liquid_glass", highlightKey)),
                             label = stringResource(R.string.nav_custom_liquid_glass),
-                            selected = capsuleLiquidGlass,
+                            selected = chromeStyle == ChromeStyle.LIQUID_GLASS,
                             onClick = {
-                                scope.launch {
-                                    // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
-                                    settingsRepository.setCapsuleLiquidGlassEnabled(true)
-                                    settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                                }
+                                scope.launch { settingsRepository.setChromeStyle(ChromeStyle.LIQUID_GLASS) }
                             }
                         ) {
-                            GlassEffectPreviewContent(advancedBlur = false, liquidGlass = true)
+                            GlassEffectPreviewContent(style = ChromeStyle.LIQUID_GLASS)
                         }
                     }
-                    // 液态玻璃「导航栏背景模糊」：仅液态玻璃选中时显示，动画展开/收起
+                    // 液态玻璃「导航栏背景模糊」：仅液态玻璃档选中时显示，动画展开/收起
                     AnimatedVisibility(
-                        visible = capsuleLiquidGlass,
+                        visible = chromeStyle == ChromeStyle.LIQUID_GLASS,
                         enter = expandVertically(
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioNoBouncy,
@@ -409,6 +321,72 @@ fun AppearanceScreen(
                                 }
                             )
                         }
+                    }
+                    // 低版本设备不支持实时模糊：档位由 MainActivity 降级为标准
+                    if (!blurSupported) {
+                        Text(
+                            text = stringResource(R.string.appearance_glass_effect_unsupported),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.appearance_color_title),
+                    subtitle = stringResource(R.string.appearance_color_subtitle),
+                    modifier = rememberHighlightModifier("color", highlightKey)
+                ) {
+                    // 预设色块（4 + 4 两行居中，莫奈取色在 Android 12+ 才出现），行数随主题色增减自适应
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        maxItemsInEachRow = 4
+                    ) {
+                        availableThemePresets.forEach { preset ->
+                            ColorSwatch(
+                                preset = preset,
+                                isSelected = preset == currentPreset,
+                                onClick = { scope.launch { settingsRepository.setThemePreset(preset) } }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                SettingsGroup(
+                    title = stringResource(R.string.appearance_icon_style_title),
+                    subtitle = stringResource(R.string.appearance_icon_style_subtitle),
+                    modifier = rememberHighlightModifier("icon_pack", highlightKey)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        IconPackPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            pack = IconPack.MATERIAL_SYMBOLS,
+                            label = stringResource(R.string.appearance_icon_pack_material),
+                            selected = currentIconPack == IconPack.MATERIAL_SYMBOLS,
+                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.MATERIAL_SYMBOLS) } }
+                        )
+                        IconPackPreviewCard(
+                            modifier = Modifier.weight(1f),
+                            pack = IconPack.LUCIDE,
+                            label = stringResource(R.string.appearance_icon_pack_lucide),
+                            selected = currentIconPack == IconPack.LUCIDE,
+                            onClick = { scope.launch { settingsRepository.setIconPack(IconPack.LUCIDE) } }
+                        )
                     }
                 }
             }
@@ -674,6 +652,9 @@ private fun ColorSwatch(
         animationSpec = SpringSpec(stiffness = Spring.StiffnessMedium),
         label = "swatchCheckScale"
     )
+    // 莫奈取色：色卡用壁纸动态配色的多色渐变（取色感），固定预设仍用单色 seed
+    val monetSwatchBrush = if (preset.seedColor == null) rememberMonetPalette()?.swatchBrush else null
+    val swatchColor = preset.seedColor ?: MaterialTheme.colorScheme.primary
 
     Column(
         modifier = Modifier.bouncyClickable { onClick() },
@@ -688,7 +669,7 @@ private fun ColorSwatch(
                     .clip(CircleShape)
                     .border(
                         width = 2.dp,
-                        color = preset.seedColor.copy(alpha = ringAlpha),
+                        color = swatchColor.copy(alpha = ringAlpha),
                         shape = CircleShape
                     )
             )
@@ -697,7 +678,10 @@ private fun ColorSwatch(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(preset.seedColor)
+                    .then(
+                        if (monetSwatchBrush != null) Modifier.background(monetSwatchBrush)
+                        else Modifier.background(swatchColor)
+                    )
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),

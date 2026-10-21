@@ -3,6 +3,7 @@ package com.aiexile.animetrack.data.network
 import android.content.Context
 import android.util.Log
 import com.aiexile.animetrack.BuildConfig
+import com.aiexile.animetrack.data.log.AppLogManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -100,11 +101,11 @@ object CoverDownloader {
                 if (BuildConfig.DEBUG) Log.d(TAG, "Cover downloaded: $tag")
                 destFile.absolutePath
             } else {
-                Log.w(TAG, "Cover download produced empty file: $tag")
+                AppLogManager.w(TAG, "Cover download produced empty file: $tag")
                 coverUrl
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Cover download failed: $tag url=$coverUrl", e)
+            AppLogManager.e(TAG, "Cover download failed: $tag url=$coverUrl", e)
             coverUrl
         }
     }

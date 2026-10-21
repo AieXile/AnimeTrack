@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.domain.SearchUseCase
 import com.aiexile.animetrack.model.Anime
@@ -345,7 +346,7 @@ class AnimeDetailViewModel(
 
                 Log.d(TAG, "Detail fetched and updated: summary=${detail.summary?.take(50)}...")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch detail", e)
+                AppLogManager.e(TAG, "Failed to fetch detail", e)
                 // 获取失败不标记 summaryFetched，下次进入详情页（或恢复网络后）可重试
                 _detailSync.value = _detailSync.value.copy(
                     error = resolveDetailError(e, NetworkErrorUtils.HOST_BANGUMI)
@@ -399,7 +400,7 @@ class AnimeDetailViewModel(
 
                 Log.d(TAG, "TMDB detail fetched and updated: overview=${detail.overview?.take(50)}...")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch TMDB detail", e)
+                AppLogManager.e(TAG, "Failed to fetch TMDB detail", e)
                 _detailSync.value = _detailSync.value.copy(
                     error = resolveDetailError(e, NetworkErrorUtils.HOST_TMDB)
                 )
@@ -524,16 +525,19 @@ class AnimeDetailViewModel(
                 updatedAnime = updatedAnime.copy(
                     status = AnimeStatus.COMPLETED,
                     isFinished = override?.let { !it } ?: true,
-                    finishDate = System.currentTimeMillis()
+                    // 已有看完日期时保留原值：补满进度触发自动完结（或切走状态后又补满）
+                    // 不应把用户记录的历史日期覆盖成今天；仅首次看完才写入当天
+                    finishDate = anime.finishDate ?: System.currentTimeMillis()
                 )
                 if (completedToastEnabled.value) {
                     _showCompletedToast.value = true
                 }
             } else if (newCount < anime.totalEpisodes && anime.status == AnimeStatus.COMPLETED) {
+                // 状态退回正在观看时不清空 finishDate：看完日期作为历史记录保留，
+                // 之后再次切回已看完 / 补满进度时沿用原日期（只有用户手动清除才置空）
                 updatedAnime = updatedAnime.copy(
                     status = AnimeStatus.WATCHING,
-                    isFinished = override?.let { !it } ?: false,
-                    finishDate = null
+                    isFinished = override?.let { !it } ?: false
                 )
             }
         }
@@ -701,7 +705,7 @@ class AnimeDetailViewModel(
             try {
                 repository.updateAnime(updatedAnime)
             } catch (e: Exception) {
-                Log.e(TAG, "updateAnime failed in selectMatchResult", e)
+                AppLogManager.e(TAG, "updateAnime failed in selectMatchResult", e)
                 _showDuplicateToast.value = true
                 return@launch
             }
@@ -774,7 +778,7 @@ class AnimeDetailViewModel(
                     _editState.value = _editState.value.copy(localCoverUri = savedPath)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to copy cover image", e)
+                AppLogManager.e(TAG, "Failed to copy cover image", e)
             }
         }
     }
@@ -794,7 +798,7 @@ class AnimeDetailViewModel(
 
             destFile.absolutePath
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to copy cover to internal storage", e)
+            AppLogManager.e(TAG, "Failed to copy cover to internal storage", e)
             null
         }
     }
@@ -807,7 +811,7 @@ class AnimeDetailViewModel(
                 file.delete()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete old cover file", e)
+            AppLogManager.e(TAG, "Failed to delete old cover file", e)
         }
     }
 
@@ -860,7 +864,7 @@ class AnimeDetailViewModel(
             try {
                 repository.updateAnime(updatedAnime)
             } catch (e: Exception) {
-                Log.e(TAG, "updateAnime failed in saveEditChanges", e)
+                AppLogManager.e(TAG, "updateAnime failed in saveEditChanges", e)
                 _showDuplicateToast.value = true
             }
             _editState.value = EditState()
@@ -887,6 +891,8 @@ class AnimeDetailViewModel(
         val updatedAnime = anime.copy(
             status = newStatus,
             isFinished = isFinished,
+            // 看完日期一旦有值就作为历史记录保留：切到其他状态再切回已看完时不重置为今天，
+            // 只有首次变为已看完（finishDate 为空）或用户在日期弹窗里手动清除才会变更
             finishDate = if (newStatus == AnimeStatus.COMPLETED && anime.finishDate == null) {
                 System.currentTimeMillis()
             } else {
@@ -1100,7 +1106,7 @@ class AnimeDetailViewModel(
                         try {
                             repository.updateAnime(updatedAnime)
                         } catch (e: Exception) {
-                            Log.e(TAG, "updateAnime failed in selectCoverResult (Bangumi)", e)
+                            AppLogManager.e(TAG, "updateAnime failed in selectCoverResult (Bangumi)", e)
                             _showDuplicateToast.value = true
                             return@launch
                         }
@@ -1142,7 +1148,7 @@ class AnimeDetailViewModel(
                         try {
                             repository.updateAnime(updatedAnime)
                         } catch (e: Exception) {
-                            Log.e(TAG, "updateAnime failed in selectCoverResult (TMDB)", e)
+                            AppLogManager.e(TAG, "updateAnime failed in selectCoverResult (TMDB)", e)
                             _showDuplicateToast.value = true
                             return@launch
                         }
@@ -1179,7 +1185,7 @@ class AnimeDetailViewModel(
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, "分享番剧"))
             } catch (e: Exception) {
-                Log.e(TAG, "分享失败", e)
+                AppLogManager.e(TAG, "分享失败", e)
             }
         }
     }

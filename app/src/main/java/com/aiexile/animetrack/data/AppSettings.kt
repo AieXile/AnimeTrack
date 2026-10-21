@@ -33,6 +33,31 @@ enum class StatusBarMode(@param:StringRes val labelRes: Int) {
     SOLID(R.string.statusbar_mode_solid),
 }
 
+/**
+ * 界面外壳（chrome）材质档位：整套界面（悬浮导航、主页顶栏/FAB、二级页顶栏）共用一档。
+ *
+ * - [STANDARD]：实色 / M3 TopAppBar，旧「两个开关都关」的行为
+ * - [HAZE]：haze 毛玻璃（沿用 [com.aiexile.animetrack.ui.components.AdvancedBlurConfig]）
+ * - [LIQUID_GLASS]：backdrop 折射玻璃（沿用 [com.aiexile.animetrack.ui.components.LiquidGlassSpec]）
+ *
+ * 低版本设备（不支持 RenderEffect）由 MainActivity 统一降级为 STANDARD 下发。
+ */
+enum class ChromeStyle(@param:StringRes val labelRes: Int) {
+    STANDARD(R.string.appearance_glass_effect_standard),
+    HAZE(R.string.nav_custom_advanced_blur),
+    LIQUID_GLASS(R.string.nav_custom_liquid_glass),
+}
+
+/**
+ * 旧数据迁移映射：液态玻璃优先于高级模糊（旧 UI 保证互斥，此处只做防御）。
+ * 抽成纯函数便于单元测试。
+ */
+internal fun chromeStyleFromLegacy(liquidGlass: Boolean, advancedBlur: Boolean): ChromeStyle = when {
+    liquidGlass -> ChromeStyle.LIQUID_GLASS
+    advancedBlur -> ChromeStyle.HAZE
+    else -> ChromeStyle.STANDARD
+}
+
 /** 欢迎语入场效果：关闭 / 打字机逐字 / 乱码逐渐解码 */
 enum class GreetingEffectStyle(@param:StringRes val labelRes: Int) {
     NONE(R.string.greeting_effect_none),

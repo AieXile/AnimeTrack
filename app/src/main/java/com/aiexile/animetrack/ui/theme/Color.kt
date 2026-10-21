@@ -9,8 +9,11 @@ import androidx.compose.ui.graphics.Color
  * 彩色主题的背景/表面为近纯中性（不带 seed 色调），主题色只作用于
  * primary/secondary/tertiary 等强调角色，与「黑白简洁」观感一致。
  * seed 色为柔和中间调（chroma 38~56），避免高饱和荧光感，保证优雅观感。
+ *
+ * [MONET] 为特例：seed 由系统壁纸动态配色（Monet）提供，因此 [seedColor] 为 null，
+ * 取色失败或系统不支持时由 [AnimeTrackTheme] 回退「黑白简洁」。
  */
-enum class ThemePreset(val displayName: String, val seedColor: Color) {
+enum class ThemePreset(val displayName: String, val seedColor: Color?) {
     BLUE("晨雾蓝", Color(0xFF4D7FE8)),
     CYAN("湖水青", Color(0xFF2C9BB5)),
     GREEN("苔原绿", Color(0xFF45A374)),
@@ -18,7 +21,14 @@ enum class ThemePreset(val displayName: String, val seedColor: Color) {
     PURPLE("雾霭紫", Color(0xFF8066C9)),
     PINK("蔷薇粉", Color(0xFFD96A85)),
     MONO_BLACK("黑白简洁", Color(0xFF000000)),
+
+    /** 莫奈取色：色相来自系统壁纸，需 Android 12+（动态配色） */
+    MONET("莫奈取色", null),
 }
+
+/** 当前设备可用的主题预设：莫奈取色依赖 Android 12+ 的系统动态配色，低版本直接不展示。 */
+val availableThemePresets: List<ThemePreset>
+    get() = ThemePreset.entries.filter { it.seedColor != null || isMonetColorSupported() }
 
 data class AnimeColors(
     val starFilled: Color,

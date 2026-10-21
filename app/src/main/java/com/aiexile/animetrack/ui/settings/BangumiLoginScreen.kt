@@ -2,7 +2,9 @@ package com.aiexile.animetrack.ui.settings
 
 import android.net.Uri
 import android.webkit.CookieManager
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
@@ -11,11 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,16 +28,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.login.LoginViewModel
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,9 +47,6 @@ fun BangumiLoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var webView by remember { mutableStateOf<WebView?>(null) }
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     LaunchedEffect(uiState.isLoginSuccess) {
         if (uiState.isLoginSuccess) {
@@ -60,33 +56,21 @@ fun BangumiLoginScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.bangumi_login_title),
-                onBack = {
-                    // 与原返回逻辑一致：先销毁 WebView 再返回
-                    webView?.destroy()
-                    webView = null
-                    onBack()
-                },
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
+    AppScaffold(
+        title = stringResource(R.string.bangumi_login_title),
+        onBack = {
+            // 与原返回逻辑一致：先销毁 WebView 再返回
+            webView?.destroy()
+            webView = null
+            onBack()
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(
-                    // 玻璃模式下内容视口全高（WebView 延伸到顶栏下方供模糊采样），底部保留导航栏 inset
-                    if (liquidGlassEnabled) {
-                        Modifier.padding(bottom = paddingValues.calculateBottomPadding())
-                    } else {
-                        Modifier.padding(paddingValues)
-                    }
-                )
+                .then(chrome.layout)
+                // 玻璃档 WebView 延伸到顶栏下方供模糊采样，仅底部保留导航栏 inset
+                .padding(bottom = chrome.content.calculateBottomPadding())
         ) {
             if (uiState.isLoading) {
                 Box(
@@ -172,8 +156,44 @@ fun BangumiLoginScreen(
                                             viewModel.fetchAccessToken(code)
                                             return true
                                         }
+                                        // 回调缺少 code：多为用户在授权页取消/服务端 4xx，
+                                        // 不记录完整 URL（含 code/state 等凭据）
+                                        AppLogManager.w("BangumiLogin", "OAuth 回调缺少 code，登录未完成")
                                     }
                                     return false
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    AppLogManager.i("BangumiLogin", "登录页加载完成: $url")
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?
+                                ) {
+                                    // 只记主框架失败：子资源失败与登录无关，避免噪声
+                                    if (request?.isForMainFrame == true) {
+                                        AppLogManager.w(
+                                            "BangumiLogin",
+                                            "登录页加载失败: ${request.url} " +
+                                                "code=${error?.errorCode} ${error?.description}"
+                                        )
+                                    }
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    errorResponse: WebResourceResponse?
+                                ) {
+                                    if (request?.isForMainFrame == true) {
+                                        AppLogManager.w(
+                                            "BangumiLogin",
+                                            "登录页 HTTP 错误: ${request.url} " +
+                                                "status=${errorResponse?.statusCode}"
+                                        )
+                                    }
                                 }
                             }
 

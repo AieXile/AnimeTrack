@@ -52,13 +52,17 @@ import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.NavigationStyle
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
-import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavItem
+import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.advancedHazeEffect
+import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.liquidGlassSpec
 import com.aiexile.animetrack.ui.theme.ThemePreset
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
+import com.aiexile.animetrack.ui.theme.availableThemePresets
+import com.aiexile.animetrack.ui.theme.rememberMonetPalette
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
@@ -101,7 +105,7 @@ internal fun OnboardingThemePage(settingsRepository: SettingsRepository) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            ThemePreset.entries.forEach { preset ->
+            availableThemePresets.forEach { preset ->
                 ThemePresetOption(
                     preset = preset,
                     isSelected = themePreset == preset,
@@ -149,10 +153,8 @@ internal fun OnboardingNavPage(
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.CAPSULE)
     val labelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
     // 玻璃设置：胶囊预览跟随真实效果渲染（初始值取同步缓存避免首帧闪变）
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
-    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    val chromeStyle by settingsRepository.chromeStyle
+        .collectAsState(settingsRepository.cachedChromeStyle())
 
     // 子步：0=导航样式，1=导航内容。点选样式后停留在本步，预览框实时展示效果，
     // 可自由切换对比；由「下一步」或顶部步骤标签进入内容步。
@@ -218,8 +220,7 @@ internal fun OnboardingNavPage(
             MiniPhonePreview(
                 navigationStyle = navigationStyle,
                 labelMode = labelMode,
-                advancedBlur = capsuleAdvancedBlur,
-                liquidGlass = capsuleLiquidGlass,
+                chromeStyle = chromeStyle,
                 height = maxHeight.coerceIn(200.dp, 240.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -280,11 +281,9 @@ internal fun OnboardingNavPage(
 internal fun OnboardingReadyPage(settingsRepository: SettingsRepository) {
     val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.CAPSULE)
     val labelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
-    // 玻璃设置：完成页综合预览同样跟随真实玻璃效果
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
-    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    // 玻璃设置：完成页综合预览同样跟随真实界面风格
+    val chromeStyle by settingsRepository.chromeStyle
+        .collectAsState(settingsRepository.cachedChromeStyle())
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -301,8 +300,7 @@ internal fun OnboardingReadyPage(settingsRepository: SettingsRepository) {
             MiniPhonePreview(
                 navigationStyle = navigationStyle,
                 labelMode = labelMode,
-                advancedBlur = capsuleAdvancedBlur,
-                liquidGlass = capsuleLiquidGlass,
+                chromeStyle = chromeStyle,
                 height = (maxHeight - 24.dp).coerceIn(200.dp, 280.dp),
                 modifier = Modifier.fillMaxWidth(),
                 content = { MiniHomeContentPreview() }
@@ -399,12 +397,18 @@ private fun ThemePresetOption(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    // 莫奈取色用壁纸动态配色的多色渐变（取色感），固定预设用单色 seed
+    val monetSwatchBrush = if (preset.seedColor == null) rememberMonetPalette()?.swatchBrush else null
+    val swatchColor = preset.seedColor ?: MaterialTheme.colorScheme.primary
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(preset.seedColor)
+                .then(
+                    if (monetSwatchBrush != null) Modifier.background(monetSwatchBrush)
+                    else Modifier.background(swatchColor)
+                )
                 .border(
                     width = if (isSelected) 3.dp else 1.dp,
                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
@@ -542,18 +546,19 @@ private val CapsulePreviewHeight = 40.dp
 internal fun MiniPhonePreview(
     navigationStyle: NavigationStyle,
     labelMode: NavigationLabelMode,
-    advancedBlur: Boolean = false,
-    liquidGlass: Boolean = false,
+    chromeStyle: ChromeStyle = ChromeStyle.STANDARD,
     height: Dp = 240.dp,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit = { MiniDefaultContentPreview() }
 ) {
+    val advancedBlur = chromeStyle == ChromeStyle.HAZE
+    val liquidGlass = chromeStyle == ChromeStyle.LIQUID_GLASS
     // 玻璃采样状态：高级模糊 haze / 液态玻璃 backdrop
     val hazeState = rememberHazeState()
     val glassBackdrop = rememberLayerBackdrop()
-    // 液态玻璃容器底色（与真实 LiquidGlassNavBar 同源）
-    val glassContainerColor = if (isAppDarkTheme()) Color(0xFF121212).copy(alpha = 0.4f)
-    else Color(0xFFFAFAFA).copy(alpha = 0.4f)
+    // 液态玻璃规格与真实胶囊同源（Capsule 档），折射按预览高度等比缩小
+    val glassSpec = liquidGlassSpec(LiquidGlassKind.Capsule)
+    val glassScale = CapsulePreviewHeight.value / 54f
 
     Column(
         modifier = modifier
@@ -663,12 +668,16 @@ internal fun MiniPhonePreview(
                                 backdrop = glassBackdrop,
                                 shape = { Capsule() },
                                 effects = {
-                                    vibrancy()
-                                    blur(8f.dp.toPx())
-                                    // lens 半径按胶囊高度等比缩小（真实 54dp 胶囊用 24dp）
-                                    lens(18f.dp.toPx(), 18f.dp.toPx())
+                                    if (glassSpec.vibrancy) vibrancy()
+                                    if (glassSpec.blurRadius > 0.dp) blur(glassSpec.blurRadius.toPx())
+                                    if (glassSpec.lensRefractionHeight > 0.dp) {
+                                        lens(
+                                            glassSpec.lensRefractionHeight.toPx() * glassScale,
+                                            glassSpec.lensRefractionAmount.toPx() * glassScale
+                                        )
+                                    }
                                 },
-                                onDrawSurface = { drawRect(glassContainerColor) }
+                                onDrawSurface = { drawRect(glassSpec.containerColor) }
                             )
                             .padding(horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -679,7 +688,13 @@ internal fun MiniPhonePreview(
                             .align(Alignment.Center)
                             .fillMaxWidth()
                             .height(CapsulePreviewHeight)
-                            .then(advancedHazeEffect(hazeState, AdvancedBlurConfig.DEFAULT, CircleShape))
+                            .then(
+                                advancedHazeEffect(
+                                    hazeState,
+                                    LocalAdvancedBlurConfig.current,
+                                    CircleShape
+                                )
+                            )
                             .border(
                                 0.5.dp,
                                 MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),

@@ -1,11 +1,11 @@
 package com.aiexile.animetrack.ui.player
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.player.PlayerWebDavHttpClient
 import com.aiexile.animetrack.data.player.WebDavDirectoryCache
 import com.aiexile.animetrack.di.AppContainer
@@ -142,7 +142,7 @@ class WebDAVBrowseViewModel(
                     currentPath = targetPath
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to browse directory: $targetPath", e)
+                AppLogManager.e(TAG, "Failed to browse directory: $targetPath", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "未知错误"

@@ -1,32 +1,23 @@
 package com.aiexile.animetrack.ui.settings
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
-import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,13 +25,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.components.settings.SettingsOption
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionHost
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionRow
 import com.aiexile.animetrack.ui.navigation.Routes
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,9 +45,6 @@ fun FeaturesScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     val autoCompleteEnabled by settingsRepository.autoCompleteEnabled.collectAsState(true)
     val completedToastEnabled by settingsRepository.completedToastEnabled.collectAsState(true)
@@ -65,6 +55,20 @@ fun FeaturesScreen(
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
     val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
     val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsState(true)
+
+    // 评分标准候选：两项互斥单选，改用选项弹层后两行收成一行
+    val ratingOptions = listOf(
+        SettingsOption(
+            value = RatingStandard.SOURCE,
+            label = stringResource(R.string.features_rating_standard_source),
+            supportingText = stringResource(R.string.features_rating_standard_source_desc)
+        ),
+        SettingsOption(
+            value = RatingStandard.MANUAL,
+            label = stringResource(R.string.features_rating_standard_manual),
+            supportingText = stringResource(R.string.features_rating_standard_manual_desc)
+        )
+    )
 
     // 搜索定位：高亮目标项并滚动到所在分组
     val highlightKey = rememberSettingsHighlight(Routes.FEATURES)
@@ -80,175 +84,159 @@ fun FeaturesScreen(
         "rating" to 5,
         "crash_report" to 6
     )
-    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
-    LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
-    }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.features_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
-                .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+    AppScaffold(
+        title = stringResource(R.string.features_title),
+        onBack = onBack
+    ) { chrome ->
+        SettingsOptionHost(
+            modifier = Modifier.fillMaxSize(),
+            topInset = chrome.topInset,
+            bottomInset = chrome.bottomInset,
+            sources = chrome.sources
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
-
-            item {
-                SettingsGroup(title = stringResource(R.string.common_search)) {
-                    Column {
-                        SwitchItem(
-                            title = stringResource(R.string.features_search_button),
-                            description = stringResource(R.string.features_search_button_desc),
-                            checked = showSearchButton,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } },
-                            itemKey = "search_button",
-                            highlightKey = highlightKey
-                        )
-                    }
+            LaunchedEffect(highlightKey) {
+                highlightAnchors[highlightKey]?.let {
+                    listState.animateScrollToItem(it, chrome.scrollCompensation)
                 }
             }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(chrome.layout)
+                    .padding(horizontal = 16.dp),
+                contentPadding = chrome.content,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            item {
-                SettingsGroup(title = stringResource(R.string.features_update_reminder)) {
-                    Column {
-                        SwitchItem(
-                            title = stringResource(R.string.features_today_update_reminder),
-                            description = stringResource(R.string.features_today_update_reminder_desc),
-                            checked = showUpdateBanner,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } },
-                            itemKey = "update_reminder",
-                            highlightKey = highlightKey
-                        )
-                        SwitchItem(
-                            title = stringResource(R.string.features_feedback_reply_reminder),
-                            description = stringResource(R.string.features_feedback_reply_reminder_desc),
-                            checked = feedbackReplyPillEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setFeedbackReplyPillEnabled(it) } },
-                            itemKey = "feedback_reply_reminder",
-                            highlightKey = highlightKey
-                        )
-                        SwitchItem(
-                            title = stringResource(R.string.features_calendar_preview_button),
-                            description = stringResource(R.string.features_calendar_preview_button_desc),
-                            checked = showCalendarButton,
-                            onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } },
-                            itemKey = "calendar_button",
-                            highlightKey = highlightKey
-                        )
+                item {
+                    SettingsGroup(title = stringResource(R.string.common_search)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_search_button),
+                                description = stringResource(R.string.features_search_button_desc),
+                                checked = showSearchButton,
+                                onCheckedChange = { scope.launch { settingsRepository.setShowSearchButton(it) } },
+                                itemKey = "search_button",
+                                highlightKey = highlightKey
+                            )
+                        }
                     }
                 }
-            }
 
-            item {
-                SettingsGroup(title = stringResource(R.string.features_anime_display)) {
-                    Column {
-                        SwitchItem(
-                            title = stringResource(R.string.features_series_stack),
-                            description = stringResource(R.string.features_series_stack_desc),
-                            checked = seriesStackEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
-                            itemKey = "series_stack",
-                            highlightKey = highlightKey
-                        )
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_update_reminder)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_today_update_reminder),
+                                description = stringResource(R.string.features_today_update_reminder_desc),
+                                checked = showUpdateBanner,
+                                onCheckedChange = { scope.launch { settingsRepository.setShowUpdateBanner(it) } },
+                                itemKey = "update_reminder",
+                                highlightKey = highlightKey
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.features_feedback_reply_reminder),
+                                description = stringResource(R.string.features_feedback_reply_reminder_desc),
+                                checked = feedbackReplyPillEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setFeedbackReplyPillEnabled(it) } },
+                                itemKey = "feedback_reply_reminder",
+                                highlightKey = highlightKey
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.features_calendar_preview_button),
+                                description = stringResource(R.string.features_calendar_preview_button_desc),
+                                checked = showCalendarButton,
+                                onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } },
+                                itemKey = "calendar_button",
+                                highlightKey = highlightKey
+                            )
+                        }
                     }
                 }
-            }
 
-            item {
-                SettingsGroup(title = stringResource(R.string.features_watching)) {
-                    Column {
-                        SwitchItem(
-                            title = stringResource(R.string.features_auto_complete),
-                            description = stringResource(R.string.features_auto_complete_desc),
-                            checked = autoCompleteEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } },
-                            itemKey = "auto_complete",
-                            highlightKey = highlightKey
-                        )
-                        SwitchItem(
-                            title = stringResource(R.string.features_completed_celebration),
-                            description = stringResource(R.string.features_completed_celebration_desc),
-                            checked = completedToastEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } },
-                            itemKey = "celebration",
-                            highlightKey = highlightKey
-                        )
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_anime_display)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_series_stack),
+                                description = stringResource(R.string.features_series_stack_desc),
+                                checked = seriesStackEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
+                                itemKey = "series_stack",
+                                highlightKey = highlightKey
+                            )
+                        }
                     }
                 }
-            }
 
-            item {
-                SettingsGroup(title = stringResource(R.string.features_rating)) {
-                    Column {
-                        RadioButtonItem(
-                            title = stringResource(R.string.features_rating_standard_source),
-                            description = stringResource(R.string.features_rating_standard_source_desc),
-                            selected = ratingStandard == RatingStandard.SOURCE,
-                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.SOURCE) } },
-                            itemKey = "rating",
-                            highlightKey = highlightKey
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(vertical = 2.dp)
-                        )
-                        RadioButtonItem(
-                            title = stringResource(R.string.features_rating_standard_manual),
-                            description = stringResource(R.string.features_rating_standard_manual_desc),
-                            selected = ratingStandard == RatingStandard.MANUAL,
-                            onClick = { scope.launch { settingsRepository.setRatingStandard(RatingStandard.MANUAL) } }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.features_rating_standard_notice),
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_watching)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_auto_complete),
+                                description = stringResource(R.string.features_auto_complete_desc),
+                                checked = autoCompleteEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setAutoCompleteEnabled(it) } },
+                                itemKey = "auto_complete",
+                                highlightKey = highlightKey
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.features_completed_celebration),
+                                description = stringResource(R.string.features_completed_celebration_desc),
+                                checked = completedToastEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } },
+                                itemKey = "celebration",
+                                highlightKey = highlightKey
+                            )
+                        }
                     }
                 }
-            }
 
-            item {
-                SettingsGroup(title = stringResource(R.string.features_help_improve)) {
-                    Column {
-                        SwitchItem(
-                            title = stringResource(R.string.features_crash_report),
-                            description = stringResource(R.string.features_crash_report_desc),
-                            checked = crashReportEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setCrashReportEnabled(it) } },
-                            itemKey = "crash_report",
-                            highlightKey = highlightKey
-                        )
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_rating)) {
+                        Column {
+                            SettingsOptionRow(
+                                title = stringResource(R.string.features_rating_standard),
+                                options = ratingOptions,
+                                selected = ratingStandard,
+                                onSelected = { standard ->
+                                    scope.launch { settingsRepository.setRatingStandard(standard) }
+                                },
+                                modifier = rememberHighlightModifier("rating", highlightKey)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.features_rating_standard_notice),
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
-            }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_help_improve)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_crash_report),
+                                description = stringResource(R.string.features_crash_report_desc),
+                                checked = crashReportEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setCrashReportEnabled(it) } },
+                                itemKey = "crash_report",
+                                highlightKey = highlightKey
+                            )
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
         }
     }
 }
@@ -287,55 +275,5 @@ private fun SwitchItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
-    }
-}
-
-@Composable
-private fun RadioButtonItem(
-    title: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    itemKey: String? = null,
-    highlightKey: String? = null
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(rememberHighlightModifier(itemKey, highlightKey))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            interactionSource = interactionSource,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }

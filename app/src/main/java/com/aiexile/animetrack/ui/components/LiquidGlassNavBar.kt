@@ -56,7 +56,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
@@ -96,9 +95,9 @@ internal fun LiquidGlassNavBar(
     // 折射强调色跟随应用主题（与普通胶囊选中色同源），不写死示例的蓝色，
     // 保证浮块中选项颜色与用户所选主题一致
     val accentColor = MaterialTheme.colorScheme.primary
-    val containerColor =
-        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
-        else Color(0xFF121212).copy(0.4f)
+    // 玻璃参数统一出处（ui/components/LiquidGlassSpec.kt）：「导航栏旁」按钮用
+    // CapsuleCompanion 复用同一底色与模糊，故两者白度一致
+    val glassSpec = liquidGlassSpec(LiquidGlassKind.Capsule)
 
     val selectedIndex = visibleItems.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
     val itemCount = visibleItems.size
@@ -247,22 +246,17 @@ internal fun LiquidGlassNavBar(
         Row(
             Modifier
                 .graphicsLayer { translationX = panelOffset }
-                .drawBackdrop(
+                .drawLiquidGlass(
                     backdrop = backdrop,
                     shape = { Capsule() },
-                    effects = {
-                        vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(24f.dp.toPx(), 24f.dp.toPx())
-                    },
+                    spec = glassSpec,
                     layerBlock = {
                         // 按压浮块时整条胶囊轻微放大（与浮块放大联动）
                         val progress = dampedDragAnimation.pressProgress
                         val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
                         scaleX = scale
                         scaleY = scale
-                    },
-                    onDrawSurface = { drawRect(containerColor) }
+                    }
                 )
                 .then(interactiveHighlight.modifier)
                 .height(54f.dp)
@@ -303,9 +297,9 @@ internal fun LiquidGlassNavBar(
                 backdrop = backdrop,
                 shape = { Capsule() },
                 effects = {
-                    blur(8f.dp.toPx(), TileMode.Decal)
+                    blur(glassSpec.blurRadius.toPx(), TileMode.Decal)
                 },
-                onDrawSurface = { drawRect(containerColor) }
+                onDrawSurface = { drawRect(glassSpec.containerColor) }
             )
         } else {
             Modifier

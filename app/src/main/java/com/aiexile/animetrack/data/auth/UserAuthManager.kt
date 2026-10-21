@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.aiexile.animetrack.data.log.AppLogManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,6 +22,7 @@ private val Context.userAuthDataStore: DataStore<Preferences> by preferencesData
 class UserAuthManager(private val context: Context) {
 
     companion object {
+        private const val TAG = "UserAuth"
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         private val USER_ID_KEY = intPreferencesKey("user_id")
@@ -121,6 +123,8 @@ class UserAuthManager(private val context: Context) {
             // 新会话需重新上报 registrationId 绑定（服务端按会话级存储，用于被踢实时通知）
             preferences.remove(REGISTRATION_ID_REPORTED_KEY)
         }
+        // 账号时间线：反馈里「登录状态自己掉了」需要能对上登录/失效/退出的先后顺序（不记账号与 token）
+        AppLogManager.i(TAG, "账号登录成功: userId=$userId")
     }
 
     /**
@@ -156,6 +160,7 @@ class UserAuthManager(private val context: Context) {
                 if (kicked) preferences[TOKEN_KICKED_KEY] = true
             }
         }
+        AppLogManager.w(TAG, if (kicked) "账号被其他端下线（kicked）" else "账号登录状态失效（token 过期）")
     }
 
     /** 更新头像路径（上传成功后调用） */
@@ -197,6 +202,7 @@ class UserAuthManager(private val context: Context) {
             preferences.remove(TOKEN_KICKED_KEY)
             preferences.remove(REGISTRATION_ID_REPORTED_KEY)
         }
+        AppLogManager.i(TAG, "账号已主动退出登录")
     }
 
     /** 获取已上报的 registrationId，用于判断是否需要重新上报 */

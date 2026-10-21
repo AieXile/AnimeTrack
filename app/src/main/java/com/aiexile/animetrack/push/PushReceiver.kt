@@ -1,9 +1,9 @@
 package com.aiexile.animetrack.push
 
 import android.content.Context
-import android.util.Log
 import cn.jpush.android.api.NotificationMessage
 import cn.jpush.android.service.JPushMessageReceiver
+import com.aiexile.animetrack.data.log.AppLogManager
 
 /**
  * JPush 消息接收器：仅保留每日番剧更新推送（通知栏消息）相关回调。
@@ -17,21 +17,21 @@ class PushReceiver : JPushMessageReceiver() {
 
     override fun onConnected(context: Context, isConnected: Boolean) {
         super.onConnected(context, isConnected)
-        Log.d(TAG, "JPush connected: $isConnected")
+        AppLogManager.i(TAG, "JPush connected: $isConnected")
     }
 
     override fun onRegister(context: Context, registrationId: String) {
         super.onRegister(context, registrationId)
-        Log.d(TAG, "JPush registrationId: $registrationId")
+        AppLogManager.i(TAG, "JPush registrationId: $registrationId")
     }
 
     override fun onNotifyMessageArrived(context: Context, message: NotificationMessage) {
         super.onNotifyMessageArrived(context, message)
-        Log.d(TAG, "Notification arrived: ${message.notificationContent}")
+        AppLogManager.i(TAG, "Notification arrived: ${message.notificationContent}")
     }
 
     override fun onNotifyMessageOpened(context: Context, message: NotificationMessage) {
         super.onNotifyMessageOpened(context, message)
-        Log.d(TAG, "Notification opened: ${message.notificationContent}")
+        AppLogManager.i(TAG, "Notification opened: ${message.notificationContent}")
     }
 }

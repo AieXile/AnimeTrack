@@ -1,8 +1,8 @@
 package com.aiexile.animetrack.push
 
 import android.content.Context
-import android.util.Log
 import cn.jpush.android.api.JPushInterface
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RegistrationIdRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
@@ -30,7 +30,7 @@ object PushRegistrationHelper {
             registrationId = JPushInterface.getRegistrationID(context)
         }
         if (registrationId.isNullOrBlank()) {
-            Log.w(TAG, "JPush registrationId is still null after retry")
+            AppLogManager.w(TAG, "JPush registrationId is still null after retry")
             return
         }
 
@@ -44,12 +44,12 @@ object PushRegistrationHelper {
                 )
                 if (response.success) {
                     userAuthManager.setRegistrationIdReported(registrationId)
-                    Log.d(TAG, "RegistrationId reported: $registrationId")
+                    AppLogManager.i(TAG, "RegistrationId reported: $registrationId")
                 } else {
-                    Log.w(TAG, "Report failed: ${response.message}")
+                    AppLogManager.w(TAG, "Report failed: ${response.message}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Report error: ${e.message}")
+                AppLogManager.e(TAG, "Report error: ${e.message}")
             }
         }
     }

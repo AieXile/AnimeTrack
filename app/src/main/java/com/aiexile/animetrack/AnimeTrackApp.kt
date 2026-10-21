@@ -17,6 +17,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import java.util.concurrent.TimeUnit
 
@@ -68,6 +70,8 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         AppContainer.initialize(this)
         // 文件日志系统：须在其他组件写日志前初始化（崩溃捕获自此刻生效）
         AppLogManager.init(this)
+        // 反馈日志的运行时快照：导出附件时汇总登录态/数据规模/开关状态
+        AppLogManager.setDiagnosticsProvider(::buildDiagnosticsSnapshot)
         // xCrash 崩溃捕获（Java/Native/ANR tombstone）：须晚于 AppLogManager 初始化，
         // 保证 rethrow 链为 xCrash 写 tombstone → AppLogManager 写崩溃日志 → 系统默认处理
         // （本地捕获落盘，不上传，可在隐私同意前初始化；上报见 initPrivacyGatedComponents）
@@ -124,6 +128,62 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
     /** 用户在首启隐私政策弹窗点击同意后调用：补初始化被延后的上报组件 */
     fun onPrivacyAccepted() {
         initPrivacyGatedComponents()
+    }
+
+    /**
+     * 反馈日志的运行时快照（导出时由 AppLogManager 调用，运行在 IO 线程）：
+     * 登录态、数据规模、排序方式、界面与网络/通知开关 —— 用户描述「同步不上 / 设置失效 / 数据没了 /
+     * 列表顺序不对」时，这些状态决定排查方向，但日志正文里往往看不出来。
+     * 只记录开关与规模，不写入 token、账号、密码等凭证。
+     */
+    private fun buildDiagnosticsSnapshot(): String {
+        val settings = AppContainer.getSettingsRepository()
+        // 导出附件时不能因数据库被长事务占用而卡住反馈发送：超时则省略规模信息
+        val counts = runCatching {
+            runBlocking {
+                withTimeoutOrNull(2_000L) {
+                    val dao = AppContainer.getAnimeDatabase().animeDao()
+                    Triple(
+                        dao.countAnimes(),
+                        dao.countPinnedAnimes(),
+                        dao.countUnorderedAnimes()
+                    )
+                }
+            }
+        }.getOrNull()
+        val appLoggedIn = runCatching {
+            AppContainer.getUserAuthManager().getCachedAccessToken() != null
+        }.getOrDefault(false)
+        val bangumiLoggedIn = runCatching {
+            AppContainer.getAuthManager().getCachedAccessToken() != null
+        }.getOrDefault(false)
+        val bilibiliLoggedIn = runCatching {
+            AppContainer.getBilibiliAuthManager().getCachedSessData() != null
+        }.getOrDefault(false)
+        return buildString {
+            appendLine("登录: 应用=$appLoggedIn, Bangumi=$bangumiLoggedIn, Bilibili=$bilibiliLoggedIn")
+            appendLine("数据: 番剧 ${counts?.first ?: -1} 部, 置顶 ${counts?.second ?: -1} 部")
+            // 排序方式与「未参与手动排序」条数：新条目落位、改状态不移动等问题全靠这两项定位
+            appendLine(
+                "排序: 模式=${settings.cachedListSortMode()}, " +
+                    "未参与手动排序=${counts?.third ?: -1} 部"
+            )
+            appendLine(
+                "界面: 材质=${settings.cachedChromeStyle()}, 主题=${settings.cachedThemeMode()}, " +
+                    "深色=${settings.cachedDarkStyle()}, 语言=${settings.getAppLanguageBlocking()}"
+            )
+            appendLine(
+                "网络: Bangumi反代=${settings.bangumiProxyEnabled}(${settings.bangumiProxyHost}), " +
+                    "镜像=${settings.bangumiMirrorEnabled}, " +
+                    "HTTP代理=${settings.httpProxyEnabled}(${settings.httpProxyType} " +
+                    "${settings.httpProxyHost}:${settings.httpProxyPort})"
+            )
+            appendLine(
+                "通知: 每日更新=${settings.cachedUpdateNotificationEnabled()}, " +
+                    "崩溃上报=${settings.cachedCrashReportEnabled()}, " +
+                    "隐私同意=${settings.isPrivacyPolicyAcceptedBlocking()}"
+            )
+        }
     }
 
     override fun newImageLoader(): ImageLoader {

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.aiexile.animetrack.data.log.AppLogManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,6 +22,7 @@ private val Context.bilibiliAuthDataStore: DataStore<Preferences> by preferences
 class BilibiliAuthManager(private val context: Context) {
 
     companion object {
+        private const val TAG = "BilibiliAuth"
         private val SESSDATA_KEY = stringPreferencesKey("bilibili_sessdata")
         private val BILI_JCT_KEY = stringPreferencesKey("bilibili_bili_jct")
         private val MID_KEY = longPreferencesKey("bilibili_mid")
@@ -108,6 +110,7 @@ class BilibiliAuthManager(private val context: Context) {
             if (avatar != null) preferences[USER_AVATAR_KEY] = avatar
             if (nickname != null) preferences[USER_NICKNAME_KEY] = nickname
         }
+        AppLogManager.i(TAG, "Bilibili 登录成功")
     }
 
     /**
@@ -121,6 +124,7 @@ class BilibiliAuthManager(private val context: Context) {
                 preferences[TOKEN_EXPIRED_KEY] = true
             }
         }
+        AppLogManager.w(TAG, "Bilibili 会话失效（-101/-111），需要重新登录")
     }
 
     suspend fun saveUserProfile(avatar: String? = null, nickname: String? = null, mid: Long? = null) {
@@ -159,5 +163,6 @@ class BilibiliAuthManager(private val context: Context) {
             preferences.remove(USER_NICKNAME_KEY)
             preferences.remove(LAST_SYNC_TIME_KEY)
         }
+        AppLogManager.i(TAG, "Bilibili 已主动退出登录")
     }
 }

@@ -117,7 +117,7 @@
     <string name="player_settings_title">Player Settings</string>
     <string name="player_settings_default_speed">Default Playback Speed</string>
     <string name="player_settings_long_press_speed">Long Press Speed</string>
-    <string name="player_settings_long_press_speed_hint">Long press to play at %1$sx, release to resume</string>
+    <string name="player_settings_long_press_speed_hint">Play accelerated while holding the screen, release to resume</string>
     <string name="player_settings_hardware_acceleration">Hardware Acceleration</string>
     <string name="player_settings_hardware_acceleration_hint">Use hardware decoder for better performance</string>
     <string name="player_settings_remember_position">Remember Position</string>
@@ -157,4 +157,8 @@
     <string name="update_dialog_failed">Update Failed</string>
     <string name="update_dialog_install_failed_permission">Installation failed, please manually enable install permission</string>
     <string name="update_dialog_retry_install">Retry Install</string>
+
+    <!-- Settings option menu (SettingsOptionRow / SettingsOptionMenu) -->
+    <string name="settings_option_expand">Expand options</string>
+    <string name="settings_option_current">Current: %1$s</string>
 </resources>

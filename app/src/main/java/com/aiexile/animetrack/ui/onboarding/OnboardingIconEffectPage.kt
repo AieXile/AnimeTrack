@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
@@ -32,10 +33,8 @@ internal fun OnboardingIconEffectPage(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认态后跳变的闪变
     val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
-    val capsuleAdvancedBlur by settingsRepository.capsuleAdvancedBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleAdvancedBlur())
-    val capsuleLiquidGlass by settingsRepository.capsuleLiquidGlassEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlass())
+    val chromeStyle by settingsRepository.chromeStyle
+        .collectAsState(settingsRepository.cachedChromeStyle())
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -84,43 +83,32 @@ internal fun OnboardingIconEffectPage(settingsRepository: SettingsRepository) {
             GlassEffectPreviewCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.appearance_glass_effect_standard),
-                selected = !capsuleAdvancedBlur && !capsuleLiquidGlass,
+                selected = chromeStyle == ChromeStyle.STANDARD,
                 onClick = {
-                    scope.launch {
-                        settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                        settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                    }
+                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.STANDARD) }
                 }
             ) {
-                GlassEffectPreviewContent(advancedBlur = false, liquidGlass = false)
+                GlassEffectPreviewContent(style = ChromeStyle.STANDARD)
             }
             GlassEffectPreviewCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.nav_custom_advanced_blur),
-                selected = capsuleAdvancedBlur,
+                selected = chromeStyle == ChromeStyle.HAZE,
                 onClick = {
-                    scope.launch {
-                        // 与液态玻璃互斥：开启高级模糊时关闭液态玻璃
-                        settingsRepository.setCapsuleAdvancedBlurEnabled(true)
-                        settingsRepository.setCapsuleLiquidGlassEnabled(false)
-                    }
+                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.HAZE) }
                 }
             ) {
-                GlassEffectPreviewContent(advancedBlur = true, liquidGlass = false)
+                GlassEffectPreviewContent(style = ChromeStyle.HAZE)
             }
             GlassEffectPreviewCard(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.nav_custom_liquid_glass),
-                selected = capsuleLiquidGlass,
+                selected = chromeStyle == ChromeStyle.LIQUID_GLASS,
                 onClick = {
-                    scope.launch {
-                        // 与高级模糊互斥：开启液态玻璃时关闭高级模糊
-                        settingsRepository.setCapsuleLiquidGlassEnabled(true)
-                        settingsRepository.setCapsuleAdvancedBlurEnabled(false)
-                    }
+                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.LIQUID_GLASS) }
                 }
             ) {
-                GlassEffectPreviewContent(advancedBlur = false, liquidGlass = true)
+                GlassEffectPreviewContent(style = ChromeStyle.LIQUID_GLASS)
             }
         }
     }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -65,9 +63,8 @@ import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -80,9 +77,6 @@ fun NavigationCustomizeScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
     // 「显示收藏」开关暂时隐藏，功能本身保留，后续视收藏页完善情况恢复
     // val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
@@ -115,46 +109,32 @@ fun NavigationCustomizeScreen(
         put("content", i); i++
         put("greeting", i); put("typing_effect", i)
     }
-    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
-    LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
-    }
+    // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
     // 欢迎语分组索引：聚焦输入框时整组滚动到顶栏下缘，为下方超限提示留出键盘上方冗余
     val greetingGroupIndex = highlightAnchors["greeting"] ?: 0
     // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
     val expandNavStyleGroup = highlightKey == "nav_style"
     val expandFabGroup = highlightKey == "fab"
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.nav_custom_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        },
+    AppScaffold(
+        title = stringResource(R.string.nav_custom_title),
+        onBack = onBack,
         // 键盘弹出时把 IME 边衬并入内容区域：标准模式收缩列表视口、
         // 玻璃模式抬高 contentPadding 驻留区，输入框区域随键盘抬升
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.ime)
-    ) { paddingValues ->
+    ) { chrome ->
+        LaunchedEffect(highlightKey) {
+            highlightAnchors[highlightKey]?.let {
+                listState.animateScrollToItem(it, chrome.scrollCompensation)
+            }
+        }
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
+                .then(chrome.layout)
                 .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
+            contentPadding = chrome.content,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "spacer_top") { Spacer(modifier = Modifier.height(4.dp)) }
@@ -378,7 +358,7 @@ fun NavigationCustomizeScreen(
                                     // 略延迟避开键盘弹出动画与输入框自带 bringIntoView 的滚动竞争，
                                     // 最终以整组（含超限提示）完整露出在键盘上方为准
                                     delay(250)
-                                    listState.animateScrollToItem(greetingGroupIndex, glassScrollCompensation)
+                                    listState.animateScrollToItem(greetingGroupIndex, chrome.scrollCompensation)
                                 }
                             }
                         )

@@ -53,7 +53,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,7 +76,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -92,11 +90,10 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.ui.components.MarkdownText
 import com.aiexile.animetrack.ui.components.UsageStatsDialog
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.util.AppNavigator
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 private const val GITHUB_URL = "https://github.com/AieXile/AnimeTrack"
@@ -117,9 +114,6 @@ fun AboutScreen(
     val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val scope = rememberCoroutineScope()
     val developerMode by settingsRepository.developerMode.collectAsState(initial = false)
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     var avatarTapCount by remember { mutableStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
@@ -150,33 +144,17 @@ fun AboutScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.about_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
+        AppScaffold(
+            title = stringResource(R.string.about_title),
+            onBack = onBack
+        ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(
-                    // 玻璃模式下内容视口全高：顶部用 Spacer 垫出顶栏空间，底部保留导航栏 inset
-                    if (liquidGlassEnabled) {
-                        Modifier.padding(bottom = paddingValues.calculateBottomPadding())
-                    } else {
-                        Modifier.padding(paddingValues)
-                    }
-                ),
+                .then(chrome.layout)
+                .padding(chrome.content),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (liquidGlassEnabled) {
-                Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
-            }
             Column(
                 modifier = Modifier
                     .weight(1f)

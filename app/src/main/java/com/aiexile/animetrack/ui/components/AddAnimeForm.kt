@@ -163,10 +163,11 @@ fun AddAnimeForm(
                     }
                     AnimeStatus.WATCHING, AnimeStatus.PLANNED -> {
                         if (formState.status == AnimeStatus.COMPLETED) {
+                            // 不清空 finishDate：用户挑好的完成日期先留在表单里，
+                            // 切回「已看完」时沿用，而不是被重置成今天
                             formState.copy(
                                 status = newStatus,
-                                watchedEpisodes = 0,
-                                finishDate = null
+                                watchedEpisodes = 0
                             )
                         } else {
                             formState.copy(status = newStatus)

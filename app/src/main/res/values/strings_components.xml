@@ -117,7 +117,7 @@
     <string name="player_settings_title">播放器设置</string>
     <string name="player_settings_default_speed">默认播放速度</string>
     <string name="player_settings_long_press_speed">长按加速速度</string>
-    <string name="player_settings_long_press_speed_hint">长按屏幕时以 %1$sx 播放，松手恢复</string>
+    <string name="player_settings_long_press_speed_hint">长按屏幕时加速播放，松手恢复</string>
     <string name="player_settings_hardware_acceleration">硬件加速</string>
     <string name="player_settings_hardware_acceleration_hint">使用硬件解码器提升播放性能</string>
     <string name="player_settings_remember_position">记忆播放位置</string>
@@ -157,4 +157,8 @@
     <string name="update_dialog_failed">更新失败</string>
     <string name="update_dialog_install_failed_permission">安装失败，请手动开启安装权限</string>
     <string name="update_dialog_retry_install">重试安装</string>
+
+    <!-- 设置项选项弹层（SettingsOptionRow / SettingsOptionMenu） -->
+    <string name="settings_option_expand">展开选项</string>
+    <string name="settings_option_current">当前：%1$s</string>
 </resources>

@@ -58,14 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
-import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.NavigationLabelMode
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
-import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -80,19 +77,20 @@ fun CapsuleNavigationBar(
     jumpTarget: Int? = null,
     labelMode: NavigationLabelMode = NavigationLabelMode.ICON_AND_TEXT,
     hazeState: HazeState,
-    advancedBlurEnabled: Boolean = false,
+    style: ChromeStyle,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
-    liquidGlassEnabled: Boolean = false,
     backdrop: Backdrop? = null,
     /** 「导航栏旁」FAB 预留的右侧宽度（含按钮宽 + 间隔）：胶囊在剩余空间内 fillMaxWidth 让位 */
     reserveEndWidth: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
+    val advancedBlur = style == ChromeStyle.HAZE
+    val liquidBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS }
 
     // 液态玻璃模式：与普通模式共用外部布局（水平 32dp / 底部 24dp 边距 + 全宽），
     // 内部由 LiquidGlassNavBar 按液态玻璃渲染（胶囊高 54dp，浮块交互）
-    if (liquidGlassEnabled && backdrop != null && visibleItems.isNotEmpty()) {
+    if (liquidBackdrop != null && visibleItems.isNotEmpty()) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
@@ -106,7 +104,7 @@ fun CapsuleNavigationBar(
                 visibleItems = visibleItems,
                 pagerState = pagerState,
                 labelMode = labelMode,
-                backdrop = backdrop,
+                backdrop = liquidBackdrop,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -145,7 +143,7 @@ fun CapsuleNavigationBar(
             }
     ) {
         val colorScheme = MaterialTheme.colorScheme
-        val capsuleColor = if (advancedBlurEnabled) {
+        val capsuleColor = if (advancedBlur) {
             Color.Transparent
         } else {
             colorScheme.surfaceContainer
@@ -160,7 +158,7 @@ fun CapsuleNavigationBar(
                 )
                 .clip(SquircleShape(100.dp))
                 .then(
-                    if (advancedBlurEnabled) {
+                    if (advancedBlur) {
                         advancedHazeEffect(
                             hazeState = hazeState,
                             config = blurConfig,
@@ -422,7 +420,7 @@ internal fun CapsuleNavItem(
 /** 屏幕内可见的模糊区高度：底部 24dp 边距 + 接近胶囊顶部（78dp），顶部为渐隐区 */
 private val NavBackdropBlurVisibleHeight = 72.dp
 
-/** 上边缘渐隐区间占比：0.3 × 72dp ≈ 21.6dp 内由透明过渡到完整磨砂 */
+/** 上边缘渐隐区间占比：0.3 × 72dp ≈ 21.6dp 内由透明过渡到完整磨砂（沿用重构前参数） */
 private const val NavBackdropBlurFadeFraction = 0.3f
 
 /**
@@ -448,10 +446,9 @@ internal fun LiquidGlassNavBackdropBlur(
     backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
-    // 淡底色（与胶囊/状态栏玻璃条同源）：提升磨砂区域实感，避免纯模糊在亮色内容下发透
-    val scrimColor =
-        if (isAppDarkTheme()) Color(0xFF121212).copy(0.3f)
-        else Color(0xFFFAFAFA).copy(0.3f)
+    // 淡底色（LiquidGlassKind.Scrim 与胶囊/状态栏玻璃条同源，仅低一档 alpha）：
+    // 提升磨砂区域实感，避免纯模糊在亮色内容下发透
+    val scrimSpec = liquidGlassSpec(LiquidGlassKind.Scrim)
     // 父节点：尺寸定位 + 离屏合成 + DstIn 渐隐遮罩（不出模糊）
     Box(
         modifier
@@ -459,6 +456,8 @@ internal fun LiquidGlassNavBackdropBlur(
             .height(NavBackdropBlurVisibleHeight)
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .drawWithCache {
+                // 沿用重构前已调好的参数：自 30% 高度处起保留完整磨砂，
+                // 上缘 21.6dp 内柔和渐显；底边与屏幕底边齐平保持模糊不消失
                 val fadeBrush = Brush.verticalGradient(
                     0f to Color.Transparent,
                     NavBackdropBlurFadeFraction to Color.Black,
@@ -471,23 +470,17 @@ internal fun LiquidGlassNavBackdropBlur(
                 }
             }
     ) {
-        // 子节点：采样页面内容层出 8dp 磨砂模糊 + 淡底色
+        // 子节点：采样页面内容层出 8dp 磨砂模糊 + 淡底色（Scrim 规格：无 vibrancy、
+        // 无 lens、无边缘高光/外阴影，规避 GPU 水平细线与矩形四边白亮线）
         Box(
             Modifier
                 .fillMaxSize()
-                .drawBackdrop(
+                .drawLiquidGlass(
                     backdrop = backdrop,
                     shape = { RectangleShape },
-                    effects = {
-                        // 仅保留 blur：vibrancy(ColorFilterEffect) 与胶囊/浮块的 drawBackdrop
-                        // 叠加在本项目设备上会触发水平细线 GPU 伪影（与镜像层规避方案一致）
-                        blur(8.dp.toPx())
-                    },
-                    // 关闭默认边缘高光与外阴影：drawBackdrop 默认给 shape 描玻璃高光边，
-                    // 矩形模糊层四边的白色亮线即来源于此（暗色下尤为明显）
+                    spec = scrimSpec,
                     highlight = null,
-                    shadow = null,
-                    onDrawSurface = { drawRect(scrimColor) }
+                    shadow = null
                 )
         )
     }

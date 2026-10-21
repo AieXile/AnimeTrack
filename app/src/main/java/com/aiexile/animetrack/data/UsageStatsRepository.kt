@@ -2,11 +2,13 @@ package com.aiexile.animetrack.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.aiexile.animetrack.data.log.AppLogManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +25,18 @@ class UsageStatsRepository(private val context: Context) {
     private val monthFormatter = DateTimeFormatter.ofPattern("yyyyMM")
     private val yearFormatter = DateTimeFormatter.ofPattern("yyyy")
 
+    /**
+     * 统计写入：失败不影响主流程（统计是附属功能），但要落一条 E 级日志 ——
+     * 「使用时长/打开次数不增加」类反馈目前完全无从排查。
+     */
+    private suspend fun updateStats(action: String, block: (MutablePreferences) -> Unit) {
+        try {
+            context.statsDataStore.edit(block)
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "使用统计写入失败: $action", e)
+        }
+    }
+
     // 获取当前日期的键
     private fun getDayKey(): String = LocalDate.now().format(dayFormatter)
     private fun getMonthKey(): String = YearMonth.now().format(monthFormatter)
@@ -34,9 +48,13 @@ class UsageStatsRepository(private val context: Context) {
     private fun addedAnimeKey(period: String, dateKey: String) = intPreferencesKey("stats_${period}_${dateKey}_added")
     private fun completedAnimeKey(period: String, dateKey: String) = intPreferencesKey("stats_${period}_${dateKey}_completed")
 
+    private companion object {
+        const val TAG = "UsageStats"
+    }
+
     // 增量更新方法：同时更新日/月/年三个维度
     suspend fun incrementOpenCount() = withContext(Dispatchers.IO) {
-        context.statsDataStore.edit { prefs ->
+        updateStats("open") { prefs ->
             val dayKey = getDayKey()
             val monthKey = getMonthKey()
             val yearKey = getYearKey()
@@ -48,7 +66,7 @@ class UsageStatsRepository(private val context: Context) {
 
     suspend fun addUsageSeconds(seconds: Long) = withContext(Dispatchers.IO) {
         if (seconds < 5) return@withContext // 低于5秒不计
-        context.statsDataStore.edit { prefs ->
+        updateStats("seconds") { prefs ->
             val dayKey = getDayKey()
             val monthKey = getMonthKey()
             val yearKey = getYearKey()
@@ -59,7 +77,7 @@ class UsageStatsRepository(private val context: Context) {
     }
 
     suspend fun incrementAddedAnime() = withContext(Dispatchers.IO) {
-        context.statsDataStore.edit { prefs ->
+        updateStats("added") { prefs ->
             val dayKey = getDayKey()
             val monthKey = getMonthKey()
             val yearKey = getYearKey()
@@ -70,7 +88,7 @@ class UsageStatsRepository(private val context: Context) {
     }
 
     suspend fun incrementCompletedAnime() = withContext(Dispatchers.IO) {
-        context.statsDataStore.edit { prefs ->
+        updateStats("completed") { prefs ->
             val dayKey = getDayKey()
             val monthKey = getMonthKey()
             val yearKey = getYearKey()

@@ -24,7 +24,7 @@
     <string name="home_ongoing">Ongoing</string>
     <string name="home_watched_exceeds_total">Watched episodes cannot exceed total</string>
     <string name="home_filter">Filter</string>
-    <string name="home_sort_recent">Recently updated first</string>
+    <string name="home_sort_recent">Auto sort</string>
     <string name="home_sort_manual">Manual order</string>
     <string name="home_sort_adjust">Adjust order</string>
     <string name="home_sort_hint">Long-press and drag cards to reorder. Pinned cards stay on top</string>
@@ -153,7 +153,7 @@
     <string name="onboarding_theme_title">Appearance</string>
     <string name="onboarding_theme_description">Pick a theme color and light/dark mode\nThis screen previews changes in real time</string>
     <string name="onboarding_icon_effect_title">Icons &amp; Effects</string>
-    <string name="onboarding_icon_effect_description">Choose the app icon style\nand the glass effect of the floating capsule</string>
+    <string name="onboarding_icon_effect_description">Choose the app icon style\nand the material style of the whole interface</string>
     <string name="onboarding_nav_title">Navigation</string>
     <string name="onboarding_nav_description">Choose the bottom bar style and content\nThe preview updates instantly</string>
     <string name="onboarding_ready_title">All Set</string>
@@ -161,7 +161,7 @@
     <string name="onboarding_theme_preset_label">Theme color</string>
     <string name="onboarding_theme_mode_label">Light / Dark</string>
     <string name="onboarding_icon_style_label">Icon style</string>
-    <string name="onboarding_glass_effect_label">Glass effect</string>
+    <string name="onboarding_glass_effect_label">Interface Style</string>
     <string name="onboarding_nav_style_label">Bar style</string>
     <string name="onboarding_nav_content_label">Bar content</string>
     <string name="onboarding_nav_style_required">Choose a bar style first</string>

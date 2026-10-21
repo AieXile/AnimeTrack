@@ -125,7 +125,7 @@ class WebDAVAutoSyncManager(
             val password = settingsRepository.webdavPassword.first()
 
             if (url.isBlank()) {
-                Log.w(TAG, "WebDAV 地址为空，跳过自动同步")
+                AppLogManager.w(TAG, "WebDAV 地址为空，跳过自动同步（触发原因：$reason）")
                 return false
             }
 

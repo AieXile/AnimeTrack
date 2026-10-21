@@ -17,7 +17,6 @@ import android.provider.MediaStore
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
-import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import coil.Coil
 import coil.request.ImageRequest
@@ -25,6 +24,7 @@ import coil.request.SuccessResult
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FontFamilyType
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.ThemeMode
@@ -663,7 +663,7 @@ object ShareCardRenderer {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "封面加载失败: ${anime.coverUrl}", e)
+            AppLogManager.e(TAG, "封面加载失败: ${anime.coverUrl}", e)
             null
         }
     }
@@ -706,7 +706,7 @@ object ShareCardRenderer {
                 }
                 uri
             } catch (e: Exception) {
-                Log.e(TAG, "保存分享图片到媒体库失败", e)
+                AppLogManager.e(TAG, "保存分享图片到媒体库失败", e)
                 null
             }
         }

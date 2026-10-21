@@ -7,6 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.PendingDeletion
 
@@ -21,8 +22,34 @@ abstract class AnimeDatabase : RoomDatabase() {
     abstract fun animeDao(): AnimeDao
     
     companion object {
+        private const val TAG = "Database"
+
         @Volatile
         private var INSTANCE: AnimeDatabase? = null
+
+        /**
+         * 迁移包装：记录每次 schema 迁移的版本区间与耗时。
+         * 迁移失败仍抛给 Room（保持原有崩溃行为），但同时落一条 E 级日志 ——
+         * 「升级后打不开 / 数据异常」是最难复现的一类反馈，没有版本线索就只能靠猜。
+         */
+        private class LoggingMigration(private val delegate: Migration) :
+            Migration(delegate.startVersion, delegate.endVersion) {
+
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val startMs = System.currentTimeMillis()
+                try {
+                    delegate.migrate(db)
+                } catch (e: Exception) {
+                    AppLogManager.e(TAG, "数据库迁移失败: ${delegate.startVersion} → ${delegate.endVersion}", e)
+                    throw e
+                }
+                AppLogManager.i(
+                    TAG,
+                    "数据库迁移完成: ${delegate.startVersion} → ${delegate.endVersion} " +
+                        "(${System.currentTimeMillis() - startMs}ms)"
+                )
+            }
+        }
 
         /**
          * 1→2 迁移：早期开发版（未公开发布），schema 与 v2、v3 相同（基础 10 字段）。
@@ -275,9 +302,9 @@ abstract class AnimeDatabase : RoomDatabase() {
         }
 
         /**
-         * 17→18 迁移：新增 lastProgressAt 列（最近更新观看进度的时间戳，可空）。
+         * 17→18 迁移：新增 lastProgressAt 列（最近修改进度/状态的时间戳，可空）。
          *
-         * 用于主界面排序：最近更新进度的番剧排前面。
+         * 用于主界面自动排序：区块内部按最近修改优先。
          * 因字段可空，使用 ALTER TABLE ADD COLUMN 不带 NOT NULL / DEFAULT，
          * 与实体定义 `Long? = null` 一致，避免 Room schema 校验失败。
          */
@@ -367,6 +394,35 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
+        private val MIGRATIONS: Array<Migration> = arrayOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+            MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+            MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+            MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
+            MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
+            MIGRATION_22_23, MIGRATION_23_24
+        ).map { LoggingMigration(it) }.toTypedArray()
+
+        /**
+         * 打开回调：记录 schema 版本与番剧条数。
+         * 降级安装会触发 [RoomDatabase.Builder.fallbackToDestructiveMigrationOnDowngrade] 清库，
+         * 该行为无法被钩子拦截，但「打开后 0 部」这一行日志足以确认「数据没了」的原因。
+         */
+        private val OPEN_CALLBACK = object : RoomDatabase.Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                val count = runCatching {
+                    db.query("SELECT COUNT(*) FROM anime").use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getInt(0) else -1
+                    }
+                }.getOrDefault(-1)
+                AppLogManager.i(TAG, "数据库已打开: schema v${db.version}, 番剧 $count 部")
+            }
+        }
+
         fun getDatabase(context: Context): AnimeDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -374,17 +430,8 @@ abstract class AnimeDatabase : RoomDatabase() {
                     AnimeDatabase::class.java,
                     "anime_database"
                 )
-                    .addMigrations(
-                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-                        MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
-                        MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
-                        MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
-                        MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
-                        MIGRATION_22_23,
-                        MIGRATION_23_24
-                    )
+                    .addMigrations(*MIGRATIONS)
+                    .addCallback(OPEN_CALLBACK)
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                 INSTANCE = instance

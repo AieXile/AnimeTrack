@@ -13,6 +13,7 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ListSortMode
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.TmdbTvDetail
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.data.sse.SseEventTypes
@@ -48,6 +49,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 
 sealed class AutoSyncState {
@@ -108,6 +112,15 @@ class HomeViewModel(
     
     companion object {
         private const val TAG = "AnimeTrack"
+        /**
+         * 排序诊断日志的 tag：走 [AppLogManager] 落盘，正式版同样生效，
+         * 反馈界面勾选「附带 App 日志」后可在 app_log.txt 里按 "Sort" 检索。
+         */
+        private const val SORT_LOG_TAG = "Sort"
+        /** 排序明细条数上限：只打前 N 条，避免长列表把日志撑大 */
+        private const val SORT_LOG_TOP_N = 8
+        /** 单条日志里标题的最大长度，防止超长标题撑爆单行 */
+        private const val SORT_LOG_TITLE_MAX = 20
         private val greetingPrefixes = listOf("Hi", "Hey", "Hello")
     }
     
@@ -169,7 +182,7 @@ class HomeViewModel(
         initialValue = 0
     )
 
-    /** 主界面列表排序方式（最近更新优先 / 手动顺序），持久化到 DataStore */
+    /** 主界面列表排序方式（自动排序 / 手动顺序），持久化到 DataStore */
     val listSortMode: StateFlow<ListSortMode> = settingsRepository.listSortMode
         .stateIn(
             scope = viewModelScope,
@@ -232,11 +245,13 @@ class HomeViewModel(
     val filteredAnimeListItems: StateFlow<List<AnimeListItem>> =
         combine(animeList, listParams, seriesStackEnabled) { animes, params, stackEnabled ->
             val filtered = getFilteredAnimeList(animes, params.filter, params.searchQuery, params.pinnedIds, params.sortMode)
-            if (stackEnabled) {
+            val items = if (stackEnabled) {
                 SeriesMatcher.groupAnimeList(filtered)
             } else {
                 filtered.map { AnimeListItem.Single(it) }
             }
+            logGrouping(stackEnabled, items)
+            items
         }.flowOn(Dispatchers.Default)
             .distinctUntilChanged()
             .stateIn(
@@ -272,9 +287,23 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * 清除「今日更新」的临时状态：发光高亮与列表临时置顶必须成对清除。
+     * 若只清高亮，todayUpdatePinnedIds 会残留整个会话，当天的卡将长期钉在
+     * 列表最前（压在正在观看卡之上），且后续改状态也不会归位。
+     */
     fun clearHighlight() {
-        if (_uiState.value.highlightedAnimeIds.isNotEmpty()) {
-            _uiState.update { it.copy(highlightedAnimeIds = emptySet()) }
+        val clearedPins = _uiState.value.todayUpdatePinnedIds.size
+        if (clearedPins > 0) {
+            AppLogManager.i(SORT_LOG_TAG, "清除今日更新临时置顶: $clearedPins 部，列表按当前排序方式恢复")
+        }
+        if (_uiState.value.highlightedAnimeIds.isNotEmpty() || clearedPins > 0) {
+            _uiState.update {
+                it.copy(
+                    highlightedAnimeIds = emptySet(),
+                    todayUpdatePinnedIds = emptySet()
+                )
+            }
         }
     }
 
@@ -393,7 +422,7 @@ class HomeViewModel(
                 _autoSyncState.value = if (result.isSuccess) {
                     AutoSyncState.Completed(result.getOrDefault(0))
                 } else {
-                    Log.e(TAG, "Auto sync failed: ${result.exceptionOrNull()?.message}")
+                    AppLogManager.e(TAG, "Auto sync failed: ${result.exceptionOrNull()?.message}")
                     AutoSyncState.Failed(result.exceptionOrNull()?.message ?: "同步失败")
                 }
 
@@ -401,7 +430,7 @@ class HomeViewModel(
                 delay(3000)
                 _autoSyncState.value = AutoSyncState.Idle
             } catch (e: Exception) {
-                Log.e(TAG, "Auto sync error", e)
+                AppLogManager.e(TAG, "Auto sync error", e)
                 _autoSyncState.value = AutoSyncState.Failed(e.message ?: "同步失败")
                 delay(3000)
                 _autoSyncState.value = AutoSyncState.Idle
@@ -475,10 +504,12 @@ class HomeViewModel(
                     status = newStatus,
                     isFinished = true,
                     watchedEpisodes = newWatchedEpisodes,
+                    // 看完日期已有值则保留，切走状态再切回已看完时不被今天的日期覆盖
                     finishDate = if (anime.finishDate == null) System.currentTimeMillis() else anime.finishDate,
                     lastProgressAt = System.currentTimeMillis()
                 )
             } else {
+                // 非已看完状态同样保留 finishDate（历史看完日期，仅用户手动清除才置空）
                 anime.copy(
                     status = newStatus,
                     isFinished = false,
@@ -486,7 +517,11 @@ class HomeViewModel(
                 )
             }
             repository.updateAnime(updatedAnime)
-            if (BuildConfig.DEBUG) Log.d(TAG, "Updated anime status: ${anime.title} -> $newStatus")
+            AppLogManager.i(
+                SORT_LOG_TAG,
+                "卡片改状态: ${anime.title} ${anime.status.sortLogLabel()} -> ${newStatus.sortLogLabel()}，" +
+                    "时间键已刷新（模式=${listSortMode.value}；自动排序会重新分段，手动顺序不移动）"
+            )
 
             if (anime.bangumiId != null) {
                 val syncManager = AppContainer.getSyncManager()
@@ -525,7 +560,7 @@ class HomeViewModel(
     fun togglePin(anime: Anime) {
         viewModelScope.launch {
             repository.setPinned(anime.id, !anime.isPinned)
-            if (BuildConfig.DEBUG) Log.d(TAG, "Toggled pin: ${anime.title} -> ${!anime.isPinned}")
+            AppLogManager.i(SORT_LOG_TAG, "置顶${if (!anime.isPinned) "开启" else "关闭"}: ${anime.title}")
             clearSelection()
         }
     }
@@ -543,6 +578,11 @@ class HomeViewModel(
             }
         }
         if (snapshot.size < 2) return
+        AppLogManager.i(
+            SORT_LOG_TAG,
+            "进入手动排序编辑: filter=${_uiState.value.selectedFilter} 快照=${snapshot.size} 条" +
+                " 置顶=${snapshot.count { it.isPinned }} 未排序=${snapshot.count { it.manualOrder == null }}"
+        )
         // 排序编辑前清空本地搜索，避免搜索过滤子集造成排序语义混乱
         _uiState.update {
             it.copy(
@@ -606,10 +646,15 @@ class HomeViewModel(
                         if (anime.manualOrder != index) anime.id to index else null
                     }
                     repository.updateManualOrders(updates)
+                    AppLogManager.i(
+                        SORT_LOG_TAG,
+                        "保存手动排序: 快照 ${presentEdited.size} 条，写入 ${updates.size} 条；" +
+                            "排序方式 -> MANUAL"
+                    )
                 }
                 settingsRepository.setListSortMode(ListSortMode.MANUAL)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save manual sort order", e)
+                AppLogManager.e(TAG, "Failed to save manual sort order", e)
             } finally {
                 cancelSortEditMode()
             }
@@ -618,8 +663,10 @@ class HomeViewModel(
 
     /** 切换排序方式（筛选菜单内单选） */
     fun setListSortMode(mode: ListSortMode) {
+        val previous = listSortMode.value
         viewModelScope.launch {
             settingsRepository.setListSortMode(mode)
+            AppLogManager.i(SORT_LOG_TAG, "排序方式切换: $previous -> $mode")
         }
     }
 
@@ -726,6 +773,11 @@ class HomeViewModel(
             try {
                 val id = repository.insertAnime(anime)
                 if (BuildConfig.DEBUG) Log.d(TAG, "Anime inserted successfully with id: $id")
+                AppLogManager.i(
+                    SORT_LOG_TAG,
+                    "新增番剧: ${anime.title} 状态=${anime.status.sortLogLabel()}" +
+                        "（manualOrder 为空：手动顺序下排在置顶之后、手动区之前；自动排序按区块分段）"
+                )
                 
                 _uiState.update { 
                     it.copy(
@@ -772,12 +824,12 @@ class HomeViewModel(
                             repository.updateAnimeInternal(updated)
                             if (BuildConfig.DEBUG) Log.d(TAG, "Backfilled detail for animeId=$id")
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to backfill detail for animeId=$id", e)
+                            AppLogManager.e(TAG, "Failed to backfill detail for animeId=$id", e)
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to insert anime", e)
+                AppLogManager.e(TAG, "Failed to insert anime", e)
             }
         }
     }
@@ -820,8 +872,12 @@ class HomeViewModel(
                 }
                 if (progressChanged) {
                     // 手动排序模式下列表不随进度重排，跳顶反而打断用户浏览，跳过
-                    if (listSortMode.value != ListSortMode.MANUAL) {
+                    val mode = listSortMode.value
+                    if (mode != ListSortMode.MANUAL) {
+                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 自动排序重排并滚回顶部（mode=$mode）")
                         gridState.scrollToItem(index = 0)
+                    } else {
+                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 手动顺序保持位置、不跳顶（mode=$mode）")
                     }
                 }
             }
@@ -833,13 +889,205 @@ class HomeViewModel(
     }
     
     /**
-     * 手动排序模式的排序键：置顶优先 → manualOrder 升序（null 未排序的排最后）→ 默认键回退。
-     * 不再跟随 lastProgressAt 自动重排（用户手动排序后顺序完全由拖拽结果决定）。
+     * 手动排序模式的排序键：置顶优先 → 未参与排序的新条目（manualOrder 为 null）在最前 →
+     * 已设位置条目按 manualOrder 升序 → 最近修改时间降序兜底。
+     *
+     * 新条目（手动添加 / 同步新增 / 备份恢复）从不写 manualOrder：若按 Int.MAX_VALUE
+     * 排在末尾，会全部沉到最后一页；这里把「未设位置」视为最新条目，排在置顶区之后、
+     * 手动区之前，同组按 lastProgressAt 降序（最近添加的在最上面）。
+     * 已设位置条目不再跟随 lastProgressAt 自动重排（顺序完全由拖拽结果决定）。
      */
     private val manualOrderComparator: Comparator<Anime> =
         compareBy<Anime> { !it.isPinned }
-            .thenBy { it.manualOrder ?: Int.MAX_VALUE }
+            .thenBy { it.manualOrder != null }
+            .thenBy { it.manualOrder ?: 0 }
             .thenByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
+
+    // ===== 排序诊断日志 =====
+    // 走 AppLogManager 落盘（正式版同样生效），反馈界面勾选「附带 App 日志」后，
+    // 可在导出的 app_log.txt 中按 "Sort" 检索。仅记录排序键，不写用户隐私数据。
+
+    /** 排序/分组日志的互斥锁与去重签名：仅在结果变化时写一条，避免同序重复刷屏 */
+    private val sortLogLock = Any()
+    private var lastSortLogSignature: String? = null
+    private var lastGroupingLogSignature: String? = null
+
+    private val sortLogTimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm")
+
+    /** 排序日志里的时间键：null 表示 lastProgressAt 与 startDate 都缺失（自动排序会沉到段底） */
+    private fun formatSortLogTime(timestamp: Long?): String =
+        timestamp?.let {
+            Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(sortLogTimeFormat)
+        } ?: "无时间键"
+
+    /** 排序日志里的状态简称 */
+    private fun AnimeStatus.sortLogLabel(): String = when (this) {
+        AnimeStatus.WATCHING -> "在追"
+        AnimeStatus.COMPLETED -> "已看完"
+        AnimeStatus.PLANNED -> "计划"
+        AnimeStatus.DROPPED -> "已弃番"
+    }
+
+    /**
+     * 记录一次排序结果，分两行：
+     * - 摘要：模式 / 筛选 / 输入输出条数 / 置顶 / 今日临时置顶 / 未排序新条目 / 状态分布 / 区块分布；
+     * - 明细：前 [SORT_LOG_TOP_N] 条的排序键（状态、置顶、manualOrder、区块、时间键）。
+     *
+     * 用于排查「新加的番为什么在最前/沉到最后一页」「改状态为什么不掉下去」「未放送为什么
+     * 排在计划观看后面」这类问题：自动模式看区块与时间键，手动模式看 manualOrder 与
+     * 「未排序新条目」的落位。
+     */
+    private fun logSortResult(
+        sortMode: ListSortMode,
+        filter: AnimeFilter,
+        searchQuery: String,
+        totalInput: Int,
+        filtered: List<Anime>,
+        result: List<Anime>,
+        pinnedIds: Set<Long>
+    ) {
+        val signature = buildString {
+            append(sortMode).append('|').append(filter).append('|')
+            append(searchQuery).append('|').append(pinnedIds.size).append('|')
+            result.forEach { append(it.id).append(',') }
+        }
+        synchronized(sortLogLock) {
+            if (signature == lastSortLogSignature) return
+            lastSortLogSignature = signature
+        }
+
+        val summary = buildString {
+            append("排序计算 mode=").append(sortMode)
+            append(" filter=").append(filter)
+            append(" 输入=").append(totalInput)
+            append(" 输出=").append(result.size)
+            append(" 置顶=").append(result.count { it.isPinned })
+            append(" 今日临时置顶=").append(pinnedIds.size)
+            append(" 未排序新条目=").append(filtered.count { it.manualOrder == null })
+            if (searchQuery.isNotBlank()) append(" 搜索=").append(searchQuery)
+            append(" 状态分布=")
+            append(
+                AnimeStatus.entries.joinToString("/") { status ->
+                    "${status.sortLogLabel()}${filtered.count { it.status == status }}"
+                }
+            )
+            append(" 区块分布=")
+            append(
+                AutoSortBlock.entries.joinToString("/") { block ->
+                    "${block.displayName}${filtered.count { it.autoSortBlock() == block }}"
+                }
+            )
+        }
+        val detail = buildString {
+            append("排序前").append(minOf(result.size, SORT_LOG_TOP_N)).append("条: ")
+            append(
+                result.take(SORT_LOG_TOP_N).mapIndexed { index, anime ->
+                    buildString {
+                        append('#').append(index + 1).append(' ')
+                        append(anime.title.take(SORT_LOG_TITLE_MAX))
+                        append('[').append(anime.status.sortLogLabel())
+                        if (anime.isPinned) append("/置顶")
+                        append("/手动=").append(anime.manualOrder?.toString() ?: "null")
+                        val block = anime.autoSortBlock()
+                        append("/段=").append(block.displayName)
+                        append("/键=").append(formatSortLogTime(anime.recentModifiedAt()))
+                        if (block == AutoSortBlock.COMPLETED) {
+                            append("/看完=").append(formatSortLogTime(anime.finishDate))
+                        }
+                        append(']')
+                    }
+                }.joinToString(" | ")
+            )
+            if (result.size > SORT_LOG_TOP_N) append(" …(共").append(result.size).append("条)")
+        }
+        AppLogManager.i(SORT_LOG_TAG, summary)
+        AppLogManager.i(SORT_LOG_TAG, detail)
+    }
+
+    /** 记录堆叠分组结果：确认新条目是否被并进系列组（系列组位置取排序里先出现的那条） */
+    private fun logGrouping(stackEnabled: Boolean, items: List<AnimeListItem>) {
+        val groups = items.filterIsInstance<AnimeListItem.Series>()
+        val signature = buildString {
+            append(stackEnabled).append('|').append(items.size)
+            groups.forEach { group ->
+                append('|').append(group.stableKey).append(':')
+                append(group.animeList.joinToString(",") { it.id.toString() })
+            }
+        }
+        synchronized(sortLogLock) {
+            if (signature == lastGroupingLogSignature) return
+            lastGroupingLogSignature = signature
+        }
+        val detail = if (groups.isEmpty()) {
+            "无系列组"
+        } else {
+            groups.joinToString(" | ") { group ->
+                group.baseTitle + "(" +
+                    group.animeList.joinToString(",") { "${it.title.take(10)}#${it.id}" } + ")"
+            }
+        }
+        AppLogManager.i(
+            SORT_LOG_TAG,
+            "堆叠分组: 堆叠=${if (stackEnabled) "开" else "关"} 网格项=${items.size} 系列组=${groups.size} $detail"
+        )
+    }
+
+    // ===== 自动排序（状态区块 + 区块内部排序） =====
+    // 区块顺序固定为 正在观看 → 计划观看 → 未放送 → 已看完 → 已弃番，区块内部再按各自规则排序。
+    // 手动顺序模式不经过这里（完全由 manualOrder 决定）。
+
+    /** 自动排序区块：enum 声明顺序即列表里的区块顺序 */
+    private enum class AutoSortBlock(val displayName: String) {
+        WATCHING("正在观看"),
+        PLANNED("计划观看"),
+        UNAIRED("未放送"),
+        COMPLETED("已看完"),
+        DROPPED("已弃番")
+    }
+
+    /**
+     * 判定番剧所属区块：
+     * - 已看完 / 已弃番 按状态归类（即使放送日期在未来也仍属对应状态，避免状态「消失」）；
+     * - 其余条目尚未开播 → 未放送（详情页对未放送番剧隐藏状态组件，等待区不能混进在追段）；
+     * - 否则按 正在观看 / 计划观看。
+     *
+     * 用 [isAirDateInFuture] 而非 isUnaired：无放送日期的条目不算未放送，与「未放送」筛选一致。
+     */
+    private fun Anime.autoSortBlock(): AutoSortBlock = when {
+        status == AnimeStatus.COMPLETED -> AutoSortBlock.COMPLETED
+        status == AnimeStatus.DROPPED -> AutoSortBlock.DROPPED
+        isAirDateInFuture(airDate) -> AutoSortBlock.UNAIRED
+        status == AnimeStatus.PLANNED -> AutoSortBlock.PLANNED
+        else -> AutoSortBlock.WATCHING
+    }
+
+    /** 「最近修改」时间：添加番剧 / 改进度 / 改状态都会刷新 [Anime.lastProgressAt]，旧数据回退 startDate */
+    private fun Anime.recentModifiedAt(): Long? = lastProgressAt ?: startDate
+
+    /** 段内排序键：最近修改降序；缺失时间视为最旧，沉到段底 */
+    private val recentModifiedDesc: Comparator<Anime> =
+        compareByDescending { it.recentModifiedAt() ?: Long.MIN_VALUE }
+
+    /** 已看完段：看完日期降序（最近刚看完在前），看完日期相同则最近修改在前 */
+    private val completedDesc: Comparator<Anime> =
+        compareByDescending<Anime> { it.finishDate ?: Long.MIN_VALUE }
+            .thenByDescending { it.recentModifiedAt() ?: Long.MIN_VALUE }
+
+    /** 区块内部排序：只有已看完段用看完日期，其余段统一最近修改优先 */
+    private fun AutoSortBlock.innerComparator(): Comparator<Anime> =
+        if (this == AutoSortBlock.COMPLETED) completedDesc else recentModifiedDesc
+
+    /**
+     * 自动排序：按 [AutoSortBlock] 切段后逐段排序，段顺序与段内规则互不干扰。
+     * 每部番只判定一次区块（未放送判定需要解析放送日期），避免在 O(n log n) 次比较里重复解析。
+     */
+    private fun autoSortList(animes: List<Anime>): List<Anime> {
+        if (animes.isEmpty()) return animes
+        val byBlock = animes.groupBy { it.autoSortBlock() }
+        return AutoSortBlock.entries.flatMap { block ->
+            byBlock[block]?.sortedWith(block.innerComparator()) ?: emptyList()
+        }
+    }
 
     fun getFilteredAnimeList(
         animeList: List<Anime>,
@@ -848,8 +1096,7 @@ class HomeViewModel(
         pinnedIds: Set<Long> = emptySet(),
         sortMode: ListSortMode = ListSortMode.RECENT_PROGRESS
     ): List<Anime> {
-        if (BuildConfig.DEBUG) Log.d(TAG, "getFilteredAnimeList: ${animeList.size} items, filter: $filter, searchQuery: $searchQuery, sortMode: $sortMode")
-
+        // 排序日志统一由 logSortResult 输出（含模式/筛选/条数/前 N 条排序键），此处不再单独打点
         val filtered = when (filter) {
             AnimeFilter.ALL -> animeList
             AnimeFilter.WATCHING -> animeList.filter { it.status == AnimeStatus.WATCHING }
@@ -859,23 +1106,11 @@ class HomeViewModel(
             AnimeFilter.NOT_AIRED -> animeList.filter { isAirDateInFuture(it.airDate) }
         }
 
-        // 手动排序模式：完全按用户拖拽保存的顺序，忽略状态分组与进度时间键
+        // 手动排序模式：完全按用户拖拽保存的顺序，忽略区块分组与进度时间键
         val sorted = if (sortMode == ListSortMode.MANUAL) {
             filtered.sortedWith(manualOrderComparator)
-        } else when (filter) {
-            AnimeFilter.ALL -> {
-                // WATCHING 在前，COMPLETED 在后；同组内按最近更新进度时间降序（null 回退到 startDate）
-                filtered.sortedWith(
-                    compareBy<Anime> { it.status != AnimeStatus.WATCHING }
-                        .thenByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
-                )
-            }
-            AnimeFilter.COMPLETED -> {
-                filtered.sortedByDescending { it.finishDate ?: Long.MIN_VALUE }
-            }
-            else -> {
-                filtered.sortedByDescending { it.lastProgressAt ?: it.startDate ?: Long.MIN_VALUE }
-            }
+        } else {
+            autoSortList(filtered)
         }
 
         val result = if (searchQuery.isNotBlank()) {
@@ -890,7 +1125,17 @@ class HomeViewModel(
 
         // 用户手动置顶的卡片固定排在最前，不受筛选/排序/搜索影响；
         // sortedBy 为稳定排序，多个置顶之间及其余卡片仍保持上述排序顺序
-        return result.sortedBy { !it.isPinned }
+        val finalList = result.sortedBy { !it.isPinned }
+        logSortResult(
+            sortMode = sortMode,
+            filter = filter,
+            searchQuery = searchQuery,
+            totalInput = animeList.size,
+            filtered = filtered,
+            result = finalList,
+            pinnedIds = pinnedIds
+        )
+        return finalList
     }
 
     fun updateLocalSearchQuery(query: String) {
@@ -934,7 +1179,7 @@ class HomeViewModel(
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Search failed", e)
+                AppLogManager.e(TAG, "Search failed", e)
                 _uiState.update {
                     it.copy(
                         isSearching = false,
@@ -1036,7 +1281,7 @@ class HomeViewModel(
                     SearchSource.ALL -> { /* ALL 模式下结果已标记具体来源，不会走到这里 */ }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch detail for ${result.source}Id: ${result.sourceId}", e)
+                AppLogManager.e(TAG, "Failed to fetch detail for ${result.source}Id: ${result.sourceId}", e)
             }
         }
     }

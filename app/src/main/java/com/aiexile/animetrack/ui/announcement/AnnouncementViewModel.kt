@@ -1,10 +1,10 @@
 package com.aiexile.animetrack.ui.announcement
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.auth.UserAuthManager
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.Announcement
 import com.aiexile.animetrack.data.network.AnnouncementDetail
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -97,7 +97,7 @@ class AnnouncementViewModel(
                 // 拉取当前公告的投票详情
                 loadCurrentDetail()
             } catch (e: Exception) {
-                Log.e(TAG, "Fetch announcements failed: ${e.message}")
+                AppLogManager.e(TAG, "Fetch announcements failed: ${e.message}")
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
@@ -205,7 +205,7 @@ class AnnouncementViewModel(
                     _uiState.update { it.copy(isDetailLoading = false, currentDetail = null) }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Fetch announcement detail failed: ${e.message}")
+                AppLogManager.e(TAG, "Fetch announcement detail failed: ${e.message}")
                 _uiState.update { it.copy(isDetailLoading = false, currentDetail = null) }
             }
         }
@@ -235,7 +235,7 @@ class AnnouncementViewModel(
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Submit vote failed: ${e.message}")
+                AppLogManager.e(TAG, "Submit vote failed: ${e.message}")
                 _uiState.update { it.copy(isVoting = false, voteError = e.message) }
             }
         }
@@ -258,7 +258,7 @@ class AnnouncementViewModel(
                     _uiState.update { it.copy(isVoting = false) }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Refresh announcement detail failed: ${e.message}")
+                AppLogManager.e(TAG, "Refresh announcement detail failed: ${e.message}")
                 _uiState.update { it.copy(isVoting = false) }
             }
         }

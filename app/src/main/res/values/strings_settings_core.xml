@@ -17,6 +17,9 @@
     <string name="font_language_title">语言</string>
     <string name="font_language_subtitle">切换应用语言</string>
     <string name="font_restart_to_apply">需重启应用生效</string>
+    <!-- 设置项选项弹层：行标题（分组标题已是「字体 / 语言」，行标题避免重复） -->
+    <string name="font_family_setting">应用字体</string>
+    <string name="font_language_setting">应用语言</string>
 
     <!-- SettingsScreen -->
     <string name="settings_title">设置</string>
@@ -64,9 +67,10 @@
     <string name="appearance_icon_style_subtitle">选择应用内图标的视觉风格</string>
     <string name="appearance_icon_pack_material">Material Symbols</string>
     <string name="appearance_icon_pack_lucide">Lucide</string>
-    <string name="appearance_glass_effect_title">玻璃效果</string>
-    <string name="appearance_glass_effect_subtitle">悬浮胶囊与悬浮按钮的玻璃质感效果</string>
+    <string name="appearance_glass_effect_title">界面风格</string>
+    <string name="appearance_glass_effect_subtitle">整套界面外壳的材质风格：标准 / 高级模糊 / 液态玻璃</string>
     <string name="appearance_glass_effect_standard">标准</string>
+    <string name="appearance_glass_effect_unsupported">当前设备不支持实时模糊，界面风格将按标准渲染</string>
 
     <!-- NavigationCustomizeScreen -->
     <string name="nav_custom_title">定制导航栏</string>
@@ -100,11 +104,11 @@
     <string name="nav_custom_greeting_placeholder">留空则显示随机 Hi, / Hey, / Hello,</string>
     <string name="nav_custom_greeting_too_long">文案过长可能会被截断</string>
     <string name="nav_custom_advanced_blur">高级模糊</string>
-    <string name="nav_custom_advanced_blur_desc">为悬浮胶囊与悬浮按钮启用背景模糊（毛玻璃）效果，与液态玻璃互斥</string>
+    <string name="nav_custom_advanced_blur_desc">为整套界面外壳（悬浮胶囊、悬浮按钮与顶栏）启用背景模糊（毛玻璃）效果</string>
     <string name="nav_custom_liquid_glass">液态玻璃</string>
-    <string name="nav_custom_liquid_glass_desc">悬浮胶囊使用折射玻璃渲染，替代高级模糊，两者互斥</string>
+    <string name="nav_custom_liquid_glass_desc">整套界面外壳使用折射玻璃渲染，替代高级模糊</string>
     <string name="nav_custom_liquid_glass_backdrop_blur">导航栏背景模糊</string>
-    <string name="nav_custom_liquid_glass_backdrop_blur_desc">液态玻璃模式下，在悬浮胶囊四周渲染磨砂模糊区域，提升导航栏可读性</string>
+    <string name="nav_custom_liquid_glass_backdrop_blur_desc">液态玻璃档位下，在悬浮胶囊四周渲染磨砂模糊区域，提升导航栏可读性</string>
     <string name="nav_custom_topbar_title">顶部栏</string>
     <string name="nav_custom_topbar_subtitle">自定义主页顶部栏行为</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隐藏顶部栏</string>

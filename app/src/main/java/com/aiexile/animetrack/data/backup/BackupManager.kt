@@ -5,6 +5,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import com.aiexile.animetrack.data.AnimeDao
 import com.aiexile.animetrack.data.AnimeDatabase
+import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.google.gson.GsonBuilder
@@ -25,13 +26,17 @@ data class RestoreResult(
 
 object BackupManager {
 
+    private const val TAG = "Backup"
+
     suspend fun backup(context: Context, strategy: Int, animeDao: AnimeDao): File =
         withContext(Dispatchers.IO) {
-            when (strategy) {
+            val file = when (strategy) {
                 0 -> backupJson(context, animeDao)
                 1 -> backupZip(context)
                 else -> throw IllegalArgumentException("Unknown strategy: $strategy")
             }
+            AppLogManager.i(TAG, "备份完成: strategy=$strategy, ${file.name} ${file.length()}B")
+            file
         }
 
     private suspend fun backupJson(context: Context, animeDao: AnimeDao): File {
@@ -119,17 +124,31 @@ object BackupManager {
         file: File,
         animeDao: AnimeDao
     ): RestoreResult = withContext(Dispatchers.IO) {
-        val animes = when (strategy) {
-            0 -> restoreJson(file)
-            1 -> restoreZip(context, file)
-            else -> throw IllegalArgumentException("Unknown strategy: $strategy")
+        val animes = try {
+            when (strategy) {
+                0 -> restoreJson(file)
+                1 -> restoreZip(context, file)
+                else -> throw IllegalArgumentException("Unknown strategy: $strategy")
+            }
+        } catch (e: Exception) {
+            // 备份文件损坏 / 版本不匹配 / 非本应用文件：UI 只会弹一句「恢复失败」，
+            // 这里带上文件大小与策略，便于判断是下载不全还是解析问题
+            AppLogManager.e(TAG, "解析备份文件失败: strategy=$strategy, ${file.name} (${file.length()}B)", e)
+            throw e
         }
+        AppLogManager.i(TAG, "备份文件解析完成: strategy=$strategy, ${animes.size} 部")
 
-        when (mode) {
+        val result = when (mode) {
             0 -> restoreOverwrite(animes, animeDao)
             1 -> restoreMerge(animes, animeDao)
             else -> throw IllegalArgumentException("Unknown mode: $mode")
         }
+        AppLogManager.i(
+            TAG,
+            "恢复完成: mode=$mode, 共 ${result.totalCount} 部，新增 ${result.insertedCount}，" +
+                "跳过 ${result.skippedCount} 部"
+        )
+        result
     }
 
     private fun restoreJson(file: File): List<Anime> {
@@ -197,6 +216,9 @@ object BackupManager {
             tempDbFile.delete()
             tempWalFile.delete()
             tempShmFile.delete()
+        } else {
+            // zip 里没有数据库文件：多为选错文件 / 下载不完整
+            AppLogManager.w(TAG, "备份 zip 内未找到数据库文件: ${file.name} (${file.length()}B)")
         }
 
         return animes

@@ -1,8 +1,6 @@
 package com.aiexile.animetrack.ui.feedback
 
 import androidx.compose.animation.AnimatedVisibility
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,12 +25,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,6 +57,7 @@ import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -303,29 +298,10 @@ fun FeedbackSessionScreen(
     // 已结束/已解决均为终态：隐藏输入、禁用追加并展示对应禁用文案
     val isLocked = isClosed || isResolved
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = uiState.session?.title?.takeIf { it.isNotBlank() }
-                            ?: stringResource(R.string.feedback_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.feedback_back)
-                        )
-                    }
-                }
-            )
-        },
+    AppScaffold(
+        title = uiState.session?.title?.takeIf { it.isNotBlank() }
+            ?: stringResource(R.string.feedback_title),
+        onBack = onBack,
         bottomBar = {
             // 详情页默认无输入框：底部为「追加反馈」按钮，点击后展开输入区
             if (!uiState.isLoading && !uiState.loadFailed) {
@@ -392,11 +368,13 @@ fun FeedbackSessionScreen(
                 }
             }
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
+                // 玻璃档把底栏内边距留在视口内，避免消息从追加按钮/导航栏下透出
+                .padding(bottom = chrome.content.calculateBottomPadding())
         ) {
             when {
                 uiState.isLoading -> Text(
@@ -420,7 +398,13 @@ fun FeedbackSessionScreen(
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    // 玻璃档在原有 16dp 内边距上叠加顶栏空间，消息可滚到顶栏下方
+                    contentPadding = PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 16.dp + chrome.content.calculateTopPadding(),
+                        bottom = 16.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     items(uiState.messages, key = { it.id }) { message ->

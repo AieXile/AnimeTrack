@@ -6,26 +6,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
-import com.aiexile.animetrack.ui.components.AppSwitch
-import com.aiexile.animetrack.ui.components.SquircleShape
-import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,14 +39,18 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ProxyType
+import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.components.dialogBlurBehind
+import com.aiexile.animetrack.ui.components.settings.SettingsOption
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionHost
+import com.aiexile.animetrack.ui.components.settings.SettingsOptionRow
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.navigation.Routes
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,9 +63,6 @@ fun BangumiProxyScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // 液态玻璃顶栏（跟随胶囊导航「液态玻璃」开关）：开启时顶栏背景模糊、返回按钮为玻璃圆钮
-    val liquidGlassEnabled by rememberSettingsLiquidGlassTopBarEnabled()
-    val glassBackdrop = rememberLayerBackdrop()
 
     // Bangumi 镜像数据源：解锁前开关置灰，开启需密码验证
     val mirrorEnabled by settingsRepository.bangumiMirrorEnabledFlow.collectAsState(initial = false)
@@ -108,239 +102,242 @@ fun BangumiProxyScreen(
     val portInvalid = portInput.isNotEmpty() &&
         (portInput.toIntOrNull() == null || portInput.toIntOrNull() !in 1..65535)
 
+    // 代理协议：从两行单选收成一行当前值 + 选项弹层，描述进菜单副文案
+    val proxyTypeOptions = listOf(
+        SettingsOption(
+            value = ProxyType.HTTP,
+            label = stringResource(R.string.bangumi_proxy_protocol_web),
+            supportingText = stringResource(R.string.bangumi_proxy_protocol_web_desc)
+        ),
+        SettingsOption(
+            value = ProxyType.SOCKS5,
+            label = stringResource(R.string.bangumi_proxy_protocol_socks5),
+            supportingText = stringResource(R.string.bangumi_proxy_protocol_socks5_desc)
+        )
+    )
+
     // 搜索定位：高亮目标分组并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.BANGUMI_PROXY)
     val listState = rememberLazyListState()
     val highlightAnchors = mapOf("mirror" to 1, "reverse_proxy" to 2, "http_proxy" to 3)
-    // 玻璃顶栏模式下滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
-    val glassScrollCompensation = rememberGlassTopBarScrollCompensation(liquidGlassEnabled)
-    LaunchedEffect(highlightKey) {
-        highlightAnchors[highlightKey]?.let { listState.animateScrollToItem(it, glassScrollCompensation) }
-    }
 
-    Scaffold(
-        topBar = {
-            GlassSettingsTopBar(
-                title = stringResource(R.string.bangumi_proxy_title),
-                onBack = onBack,
-                liquidGlassEnabled = liquidGlassEnabled,
-                backdrop = glassBackdrop
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (liquidGlassEnabled) Modifier.layerBackdrop(glassBackdrop) else Modifier)
-                .then(if (liquidGlassEnabled) Modifier else Modifier.padding(paddingValues))
-                .padding(horizontal = 16.dp),
-            // 玻璃模式下内容视口全高（滚到顶栏下方形成模糊背景），用 contentPadding 垫出顶栏与导航栏空间
-            contentPadding = if (liquidGlassEnabled) {
-                PaddingValues(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = paddingValues.calculateBottomPadding()
-                )
-            } else {
-                PaddingValues(0.dp)
-            },
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    AppScaffold(
+        title = stringResource(R.string.bangumi_proxy_title),
+        onBack = onBack
+    ) { chrome ->
+        SettingsOptionHost(
+            modifier = Modifier.fillMaxSize(),
+            topInset = chrome.topInset,
+            bottomInset = chrome.bottomInset,
+            sources = chrome.sources
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
+            LaunchedEffect(highlightKey) {
+                highlightAnchors[highlightKey]?.let {
+                    listState.animateScrollToItem(it, chrome.scrollCompensation)
+                }
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(chrome.layout)
+                    .padding(horizontal = 16.dp),
+                contentPadding = chrome.content,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item { Spacer(modifier = Modifier.height(4.dp)) }
 
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.bangumi_mirror_group),
-                    modifier = rememberHighlightModifier("mirror", highlightKey)
-                ) {
-                    SwitchItem(
-                        title = stringResource(R.string.bangumi_mirror_enable),
-                        description = if (mirrorUnlocked) {
-                            stringResource(R.string.bangumi_mirror_desc)
-                        } else {
-                            stringResource(R.string.bangumi_mirror_locked_desc)
-                        },
-                        checked = mirrorEnabled,
-                        enabled = mirrorUnlocked,
-                        onCheckedChange = { target ->
-                            if (target) {
-                                // 开启前先过密码验证，关闭无需验证
-                                mirrorPasswordInput = ""
-                                mirrorPasswordError = false
-                                showMirrorPasswordDialog = true
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.bangumi_mirror_group),
+                        modifier = rememberHighlightModifier("mirror", highlightKey)
+                    ) {
+                        SwitchItem(
+                            title = stringResource(R.string.bangumi_mirror_enable),
+                            description = if (mirrorUnlocked) {
+                                stringResource(R.string.bangumi_mirror_desc)
                             } else {
-                                scope.launch { settingsRepository.setBangumiMirrorEnabled(false) }
+                                stringResource(R.string.bangumi_mirror_locked_desc)
+                            },
+                            checked = mirrorEnabled,
+                            enabled = mirrorUnlocked,
+                            onCheckedChange = { target ->
+                                if (target) {
+                                    // 开启前先过密码验证，关闭无需验证
+                                    mirrorPasswordInput = ""
+                                    mirrorPasswordError = false
+                                    showMirrorPasswordDialog = true
+                                } else {
+                                    scope.launch { settingsRepository.setBangumiMirrorEnabled(false) }
+                                }
                             }
+                        )
+                    }
+                }
+
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.bangumi_proxy_reverse_group),
+                        modifier = rememberHighlightModifier("reverse_proxy", highlightKey)
+                    ) {
+                        Column {
+                            HostItem(
+                                host = proxyHost,
+                                onClick = {
+                                    bangumiHostInput = proxyHost
+                                    showBangumiHostDialog = true
+                                }
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.bangumi_proxy_enable_reverse),
+                                description = if (proxyHost.isBlank()) {
+                                    stringResource(R.string.bangumi_proxy_set_address_first)
+                                } else {
+                                    stringResource(R.string.bangumi_proxy_reverse_desc, proxyHost)
+                                },
+                                checked = proxyEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setBangumiProxyEnabled(it) } }
+                            )
                         }
-                    )
-                }
-            }
-
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.bangumi_proxy_reverse_group),
-                    modifier = rememberHighlightModifier("reverse_proxy", highlightKey)
-                ) {
-                    Column {
-                        HostItem(
-                            host = proxyHost,
-                            onClick = {
-                                bangumiHostInput = proxyHost
-                                showBangumiHostDialog = true
-                            }
-                        )
-                        SwitchItem(
-                            title = stringResource(R.string.bangumi_proxy_enable_reverse),
-                            description = if (proxyHost.isBlank()) {
-                                stringResource(R.string.bangumi_proxy_set_address_first)
-                            } else {
-                                stringResource(R.string.bangumi_proxy_reverse_desc, proxyHost)
-                            },
-                            checked = proxyEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setBangumiProxyEnabled(it) } }
-                        )
                     }
                 }
-            }
 
-            item {
-                SettingsGroup(
-                    title = stringResource(R.string.bangumi_proxy_http_group),
-                    modifier = rememberHighlightModifier("http_proxy", highlightKey)
-                ) {
-                    Column {
-                        ProxyTypeItem(
-                            title = stringResource(R.string.bangumi_proxy_protocol_web),
-                            description = stringResource(R.string.bangumi_proxy_protocol_web_desc),
-                            selected = httpProxyType == ProxyType.HTTP,
-                            onClick = { scope.launch { settingsRepository.setHttpProxyType(ProxyType.HTTP) } }
-                        )
-                        ProxyTypeItem(
-                            title = stringResource(R.string.bangumi_proxy_protocol_socks5),
-                            description = stringResource(R.string.bangumi_proxy_protocol_socks5_desc),
-                            selected = httpProxyType == ProxyType.SOCKS5,
-                            onClick = { scope.launch { settingsRepository.setHttpProxyType(ProxyType.SOCKS5) } }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = serverInput,
-                            onValueChange = { serverInput = it },
-                            label = { Text(stringResource(R.string.bangumi_proxy_server)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focus ->
-                                    if (!focus.isFocused && serverInput != settingsRepository.httpProxyHost) {
-                                        scope.launch { settingsRepository.setHttpProxyHost(serverInput) }
-                                    }
+                item {
+                    SettingsGroup(
+                        title = stringResource(R.string.bangumi_proxy_http_group),
+                        modifier = rememberHighlightModifier("http_proxy", highlightKey)
+                    ) {
+                        Column {
+                            SettingsOptionRow(
+                                title = stringResource(R.string.bangumi_proxy_protocol_title),
+                                options = proxyTypeOptions,
+                                selected = httpProxyType,
+                                onSelected = { type ->
+                                    scope.launch { settingsRepository.setHttpProxyType(type) }
                                 }
-                        )
+                            )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
-                            value = portInput,
-                            onValueChange = { portInput = it.filter(Char::isDigit).take(5) },
-                            label = { Text(stringResource(R.string.bangumi_proxy_port)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            isError = portInvalid,
-                            supportingText = if (portInvalid) {
-                                { Text(stringResource(R.string.bangumi_proxy_port_invalid)) }
-                            } else {
-                                null
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focus ->
-                                    if (!focus.isFocused) {
-                                        val port = portInput.toIntOrNull()
-                                        val newPort = when {
-                                            portInput.isEmpty() -> 0
-                                            port != null && port in 1..65535 -> port
-                                            else -> return@onFocusChanged // 非法非空输入不保存
-                                        }
-                                        if (newPort != settingsRepository.httpProxyPort) {
-                                            scope.launch { settingsRepository.setHttpProxyPort(newPort) }
+                            OutlinedTextField(
+                                value = serverInput,
+                                onValueChange = { serverInput = it },
+                                label = { Text(stringResource(R.string.bangumi_proxy_server)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { focus ->
+                                        if (!focus.isFocused && serverInput != settingsRepository.httpProxyHost) {
+                                            scope.launch { settingsRepository.setHttpProxyHost(serverInput) }
                                         }
                                     }
-                                }
-                        )
+                            )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedTextField(
-                            value = usernameInput,
-                            onValueChange = { usernameInput = it },
-                            label = { Text(stringResource(R.string.bangumi_proxy_username)) },
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focus ->
-                                    if (!focus.isFocused && usernameInput != settingsRepository.httpProxyUsername) {
-                                        scope.launch { settingsRepository.setHttpProxyUsername(usernameInput) }
+                            OutlinedTextField(
+                                value = portInput,
+                                onValueChange = { portInput = it.filter(Char::isDigit).take(5) },
+                                label = { Text(stringResource(R.string.bangumi_proxy_port)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = portInvalid,
+                                supportingText = if (portInvalid) {
+                                    { Text(stringResource(R.string.bangumi_proxy_port_invalid)) }
+                                } else {
+                                    null
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { focus ->
+                                        if (!focus.isFocused) {
+                                            val port = portInput.toIntOrNull()
+                                            val newPort = when {
+                                                portInput.isEmpty() -> 0
+                                                port != null && port in 1..65535 -> port
+                                                else -> return@onFocusChanged // 非法非空输入不保存
+                                            }
+                                            if (newPort != settingsRepository.httpProxyPort) {
+                                                scope.launch { settingsRepository.setHttpProxyPort(newPort) }
+                                            }
+                                        }
                                     }
-                                }
-                        )
+                            )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        OutlinedTextField(
-                            value = passwordInput,
-                            onValueChange = { passwordInput = it },
-                            label = { Text(stringResource(R.string.bangumi_proxy_password)) },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focus ->
-                                    if (!focus.isFocused && passwordInput != settingsRepository.httpProxyPassword) {
-                                        scope.launch { settingsRepository.setHttpProxyPassword(passwordInput) }
+                            OutlinedTextField(
+                                value = usernameInput,
+                                onValueChange = { usernameInput = it },
+                                label = { Text(stringResource(R.string.bangumi_proxy_username)) },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { focus ->
+                                        if (!focus.isFocused && usernameInput != settingsRepository.httpProxyUsername) {
+                                            scope.launch { settingsRepository.setHttpProxyUsername(usernameInput) }
+                                        }
                                     }
-                                }
-                        )
+                            )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        SwitchItem(
-                            title = stringResource(R.string.bangumi_proxy_enable_http),
-                            description = if (httpProxyHost.isBlank() || httpProxyPort !in 1..65535) {
-                                stringResource(R.string.bangumi_proxy_set_address_first)
-                            } else {
-                                stringResource(R.string.bangumi_proxy_http_desc, "${httpProxyHost}:${httpProxyPort}")
-                            },
-                            checked = httpProxyEnabled,
-                            onCheckedChange = { scope.launch { settingsRepository.setHttpProxyEnabled(it) } }
-                        )
-
-                        ShareItem(
-                            enabled = httpProxyHost.isNotBlank() && httpProxyPort in 1..65535,
-                            onClick = {
-                                val scheme = if (httpProxyType == ProxyType.SOCKS5) "socks5" else "http"
-                                val shareText = buildString {
-                                    append(scheme).append("://")
-                                    if (httpProxyUsername.isNotBlank()) {
-                                        append(httpProxyUsername)
-                                        if (httpProxyPassword.isNotBlank()) append(":").append(httpProxyPassword)
-                                        append("@")
+                            OutlinedTextField(
+                                value = passwordInput,
+                                onValueChange = { passwordInput = it },
+                                label = { Text(stringResource(R.string.bangumi_proxy_password)) },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { focus ->
+                                        if (!focus.isFocused && passwordInput != settingsRepository.httpProxyPassword) {
+                                            scope.launch { settingsRepository.setHttpProxyPassword(passwordInput) }
+                                        }
                                     }
-                                    append(httpProxyHost).append(":").append(httpProxyPort)
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            SwitchItem(
+                                title = stringResource(R.string.bangumi_proxy_enable_http),
+                                description = if (httpProxyHost.isBlank() || httpProxyPort !in 1..65535) {
+                                    stringResource(R.string.bangumi_proxy_set_address_first)
+                                } else {
+                                    stringResource(R.string.bangumi_proxy_http_desc, "${httpProxyHost}:${httpProxyPort}")
+                                },
+                                checked = httpProxyEnabled,
+                                onCheckedChange = { scope.launch { settingsRepository.setHttpProxyEnabled(it) } }
+                            )
+
+                            ShareItem(
+                                enabled = httpProxyHost.isNotBlank() && httpProxyPort in 1..65535,
+                                onClick = {
+                                    val scheme = if (httpProxyType == ProxyType.SOCKS5) "socks5" else "http"
+                                    val shareText = buildString {
+                                        append(scheme).append("://")
+                                        if (httpProxyUsername.isNotBlank()) {
+                                            append(httpProxyUsername)
+                                            if (httpProxyPassword.isNotBlank()) append(":").append(httpProxyPassword)
+                                            append("@")
+                                        }
+                                        append(httpProxyHost).append(":").append(httpProxyPort)
+                                    }
+                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, shareText)
+                                    }
+                                    context.startActivity(Intent.createChooser(sendIntent, null))
                                 }
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, shareText)
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, null))
-                            }
-                        )
+                            )
+                        }
                     }
                 }
-            }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
         }
     }
 
@@ -449,54 +446,6 @@ private fun HostItem(
             )
         }
         TextButton(onClick = onClick) { Text(stringResource(R.string.bangumi_proxy_modify)) }
-    }
-}
-
-/** 代理协议单选行：RadioButton 指示器，无 ripple（遵循项目偏好） */
-@Composable
-private fun ProxyTypeItem(
-    title: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            interactionSource = interactionSource,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = MaterialTheme.colorScheme.primary,
-                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
