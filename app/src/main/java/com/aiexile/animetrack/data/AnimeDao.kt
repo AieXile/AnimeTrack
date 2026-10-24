@@ -96,6 +96,10 @@ interface AnimeDao {
     @Query("SELECT * FROM anime WHERE totalEpisodes = 0 AND bangumiId IS NOT NULL")
     suspend fun getAiringAnimesWithBangumiId(): List<Anime>
 
+    /** 组件后台同步的全量更新检查范围：全部连载中且关联 Bangumi 的番剧 */
+    @Query("SELECT * FROM anime WHERE isFinished = 0 AND status IN ('WATCHING', 'PLANNED') AND bangumiId IS NOT NULL")
+    suspend fun getAiringAnimesWithBangumiIdAll(): List<Anime>
+
     @Query("UPDATE anime SET hasNewUpdate = 0 WHERE id = :id")
     suspend fun clearNewUpdate(id: Int)
 

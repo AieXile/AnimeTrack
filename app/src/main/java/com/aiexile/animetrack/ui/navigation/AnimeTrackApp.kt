@@ -130,9 +130,11 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
@@ -140,7 +142,9 @@ import kotlin.math.sqrt
 fun AnimeTrackApp(
     settingsRepository: SettingsRepository,
     isDataLoaded: java.util.concurrent.atomic.AtomicBoolean,
-    splashDismissed: Boolean = true
+    splashDismissed: Boolean = true,
+    widgetEntry: WidgetEntryRequest? = null,
+    onWidgetEntryConsumed: () -> Unit = {}
 ) {
     val showFavorites by settingsRepository.showFavorites.collectAsState(false)
     val showTimeline by settingsRepository.showTimeline.collectAsState(true)
@@ -193,6 +197,52 @@ fun AnimeTrackApp(
     val onboardingRevealRadius = remember { Animatable(0f) }
 
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { mainPages.size })
+
+    // 桌面组件点击入口：首帧导航图就绪后消费一次。
+    // - 行点击 → 番剧详情；
+    // - 头部/空白 → 回到主界面并切到对应页签（页签顺序受「导航自定义」影响，需按当前 mainPages 计算）；
+    // - 首启引导或未同意隐私政策时只打开 app，不越权导航。
+    LaunchedEffect(widgetEntry?.nonce, startRoute, privacyAccepted) {
+        val request = widgetEntry ?: return@LaunchedEffect
+        val route = startRoute ?: return@LaunchedEffect
+        if (privacyAccepted == null) return@LaunchedEffect
+        if (route == Routes.ONBOARDING || privacyAccepted == false) {
+            onWidgetEntryConsumed()
+            return@LaunchedEffect
+        }
+        // NavHost 的图在组合期挂载：给首帧最多约 160ms，避免极早期导航抛 "graph not set"
+        var waitAttempts = 0
+        while (navController.currentDestination == null && waitAttempts < 10) {
+            waitAttempts++
+            delay(16)
+        }
+        if (navController.currentDestination == null) {
+            onWidgetEntryConsumed()
+            return@LaunchedEffect
+        }
+        // 大屏 pane 打开时先收起，避免组件导航与侧栏内容叠加
+        paneState.closePane()
+        when (val entry = request.entry) {
+            is WidgetEntry.AnimeDetail -> {
+                // 组件点击与渲染之间番剧可能已被删除：不进入空详情页，回落首页
+                val exists = withContext(Dispatchers.IO) {
+                    AppContainer.getAnimeDatabase().animeDao().getAnimeById(entry.animeId) != null
+                }
+                if (exists) {
+                    navController.navigate(Routes.animeDetail(entry.animeId, null))
+                } else {
+                    navController.popBackStack(Routes.MAIN, false)
+                }
+            }
+            is WidgetEntry.MainTab -> {
+                // 从详情/设置子页返回主界面后再切页签；已在主界面时该调用为无操作
+                navController.popBackStack(Routes.MAIN, false)
+                val index = mainPages.indexOfFirst { it.route == entry.route }
+                if (index >= 0) pagerState.scrollToPage(index)
+            }
+        }
+        onWidgetEntryConsumed()
+    }
 
     // Tab 点击跳转目标（提升到外层，供 MainScreen 与 MainOverlay 共享）
     var navJumpTarget by remember { mutableStateOf<Int?>(null) }
@@ -968,6 +1018,7 @@ internal fun MainPagerContent(
             onNavigateFeatures = { onNavigateToScreen(Routes.FEATURES) },
             onNavigateDataManage = { onNavigateToScreen(Routes.DATA_MANAGE) },
             onNavigateUpdateNotification = { onNavigateToScreen(Routes.UPDATE_NOTIFICATION) },
+            onNavigateWidgetGuide = { onNavigateToScreen(Routes.WIDGET_GUIDE) },
             onNavigateLogin = { onNavigateToScreen(Routes.LOGIN) },
             onNavigateBangumiProxy = { onNavigateToScreen(Routes.BANGUMI_PROXY) },
             onNavigateFontSettings = { onNavigateToScreen(Routes.FONT_SETTINGS) },

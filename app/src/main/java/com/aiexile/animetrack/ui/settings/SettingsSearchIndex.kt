@@ -297,6 +297,13 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("通知时间", "推送时间", "提醒时间")
     ),
 
+    // ---- 桌面组件 ----
+    SearchableSetting(
+        route = Routes.WIDGET_GUIDE, key = null,
+        titleRes = R.string.settings_widgets, descRes = R.string.settings_widgets_subtitle,
+        keywords = listOf("桌面组件", "小组件", "widget", "放送", "统计", "桌面")
+    ),
+
     // ---- TMDB API Key（设置主页弹窗） ----
     SearchableSetting(
         route = SETTINGS_MAIN_ROUTE, key = "tmdb",

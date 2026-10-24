@@ -78,6 +78,7 @@ fun DeveloperScreen(
     val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val widgetRefreshToast = stringResource(R.string.developer_widget_refresh_toast)
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -312,6 +313,42 @@ fun DeveloperScreen(
                 )
             ) {
                 Text(text = stringResource(R.string.developer_send_test_notification))
+            }
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Text(
+                text = stringResource(R.string.developer_widget_refresh),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.developer_widget_refresh_desc),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Button(
+                onClick = {
+                    com.aiexile.animetrack.data.widget.WidgetSyncScheduler
+                        .requestWidgetUpdates(context)
+                    Toast.makeText(
+                        context,
+                        widgetRefreshToast,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
+                shape = SquircleShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(text = stringResource(R.string.developer_widget_refresh_button))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

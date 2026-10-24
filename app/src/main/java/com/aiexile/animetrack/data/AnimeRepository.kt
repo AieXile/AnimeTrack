@@ -137,6 +137,9 @@ interface AnimeRepository {
 
     suspend fun getAiringAnimesWithBangumiId(): List<Anime>
 
+    /** 全部连载中且关联 Bangumi 的番剧（组件后台同步的全量更新检查入口） */
+    suspend fun getAiringAnimesWithBangumiIdAll(): List<Anime>
+
     suspend fun clearNewUpdate(id: Int)
 
     /**
@@ -598,6 +601,10 @@ class AnimeRepositoryImpl(
 
     override suspend fun getAiringAnimesWithBangumiId(): List<Anime> {
         return animeDao.getAiringAnimesWithBangumiId()
+    }
+
+    override suspend fun getAiringAnimesWithBangumiIdAll(): List<Anime> {
+        return animeDao.getAiringAnimesWithBangumiIdAll()
     }
 
     override suspend fun clearNewUpdate(id: Int) {

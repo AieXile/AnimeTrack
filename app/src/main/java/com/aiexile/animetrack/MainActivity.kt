@@ -2,6 +2,7 @@ package com.aiexile.animetrack
 
 import android.Manifest
 import android.animation.ObjectAnimator
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -29,6 +30,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.widget.WidgetUpdateCoordinator
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
@@ -40,6 +42,8 @@ import com.aiexile.animetrack.ui.icons.LocalIconPack
 import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
+import com.aiexile.animetrack.ui.navigation.WidgetEntry
+import com.aiexile.animetrack.ui.navigation.WidgetEntryRequest
 import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
@@ -56,6 +60,9 @@ class MainActivity : ComponentActivity() {
     // Splash 退出动画是否已完全结束：首启隐私同意弹窗需等 splash 消失后再弹
     // （Compose Dialog 是独立 Window，会直接盖在 Activity 窗口的 splash 遮罩之上）
     private val splashDismissed = MutableStateFlow(false)
+
+    // 桌面组件点击携带的导航目标：UI 层消费后清空（singleTop 下由 onNewIntent 更新）
+    private val pendingWidgetEntry = MutableStateFlow<WidgetEntryRequest?>(null)
 
     // 应用级协程作用域（生命周期与进程一致，适合“启动即完成、不随 Activity 销毁”的后台任务）
     private val appScope get() = (application as AnimeTrackApp).appScope
@@ -98,6 +105,8 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         AppLogManager.i("App", "进入前台")
         AppContainer.sessionStartTime = System.currentTimeMillis()
+        // 进入前台时顺带刷新桌面组件：后台数据可能已过期，也让语言/主题变化及时生效
+        WidgetUpdateCoordinator.requestUpdate(this)
         // SSE 实时事件：前台保持连接（切后台在 onStop 断开）
         AppContainer.getSseClient().start()
         appScope.launch {
@@ -128,10 +137,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // app 已在前台（singleTop）时，组件点击复用当前 Activity，仅更新导航目标
+        WidgetEntry.parse(intent)?.let {
+            pendingWidgetEntry.value = WidgetEntryRequest(it)
+        }
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // 桌面组件冷启动入口：仅首次创建时读取，避免旋转/重建重复导航
+        if (savedInstanceState == null) {
+            WidgetEntry.parse(intent)?.let {
+                pendingWidgetEntry.value = WidgetEntryRequest(it)
+            }
+        }
 
         // 冷启动埋点：进程启动 → 首帧耗时（白屏/启动慢类反馈的第一手数据）
         if (savedInstanceState == null) {
@@ -262,10 +287,13 @@ class MainActivity : ComponentActivity() {
                     LocalAdvancedBlurConfig provides advancedBlurConfig
                 ) {
                     val splashDismissed by splashDismissed.collectAsState()
+                    val widgetEntry by pendingWidgetEntry.collectAsState()
                     AnimeTrackApp(
                         settingsRepository = settingsRepository,
                         isDataLoaded = isDataLoaded,
-                        splashDismissed = splashDismissed
+                        splashDismissed = splashDismissed,
+                        widgetEntry = widgetEntry,
+                        onWidgetEntryConsumed = { pendingWidgetEntry.value = null }
                     )
                 }
             }

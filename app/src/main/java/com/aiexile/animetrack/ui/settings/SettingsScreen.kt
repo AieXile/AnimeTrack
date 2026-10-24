@@ -74,6 +74,7 @@ fun SettingsScreen(
     onNavigateDataManage: () -> Unit = {},
     onNavigateLogin: () -> Unit = {},
     onNavigateUpdateNotification: () -> Unit = {},
+    onNavigateWidgetGuide: () -> Unit = {},
     onNavigateBangumiProxy: () -> Unit = {},
     onNavigateFontSettings: () -> Unit = {},
     onNavigateFeedback: () -> Unit = {},
@@ -283,6 +284,9 @@ fun SettingsScreen(
             } else null
         } ?: stringResource(R.string.common_not_set)
 
+        val widgetGuideTitle = stringResource(R.string.settings_widgets)
+        val widgetGuideSubtitle = stringResource(R.string.settings_widgets_subtitle)
+
         val aboutTitle = stringResource(R.string.settings_about)
 
         // ---- 搜索结果：具体设置项（标题/描述/关键词模糊匹配，含拼音） ----
@@ -300,8 +304,9 @@ fun SettingsScreen(
         val onSearchResultClick: (SearchableSetting) -> Unit = { item ->
             searchActive = false
             searchQuery = ""
-            // 先登记定位请求再导航，确保目标页面进入组合时能立即消费
-            if (item.route != SETTINGS_MAIN_ROUTE) {
+            // 先登记定位请求再导航，确保目标页面进入组合时能立即消费；
+            // 页面级条目（key = null）没有可定位的具体选项，不登记，避免请求滞留
+            if (item.route != SETTINGS_MAIN_ROUTE && item.key != null) {
                 SettingsHighlightBus.request(item.route, item.key)
             }
             when (item.route) {
@@ -310,6 +315,7 @@ fun SettingsScreen(
                 Routes.NAVIGATION_CUSTOMIZE -> onNavigateCustomize()
                 Routes.APPEARANCE -> onNavigateAppearance()
                 Routes.FEATURES -> onNavigateFeatures()
+                Routes.WIDGET_GUIDE -> onNavigateWidgetGuide()
                 Routes.DATA_MANAGE -> onNavigateDataManage()
                 Routes.UPDATE_NOTIFICATION -> onNavigateUpdateNotification()
                 Routes.LOGIN -> onNavigateLogin()
@@ -425,6 +431,14 @@ fun SettingsScreen(
                             title = featuresTitle,
                             icon = rememberAppIconPainter(AppIcon.TUNE),
                             onClick = onNavigateFeatures
+                        )
+                    }
+                    item(key = "widget_guide") {
+                        SettingCard(
+                            title = widgetGuideTitle,
+                            subtitle = widgetGuideSubtitle,
+                            icon = rememberAppIconPainter(AppIcon.DEVICES),
+                            onClick = onNavigateWidgetGuide
                         )
                     }
                     item(key = "proxy") {

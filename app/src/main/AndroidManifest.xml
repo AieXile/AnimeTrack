@@ -62,6 +62,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:resizeableActivity="true"
             android:theme="@style/Theme.AnimeTrack.Splash"
             android:windowSoftInputMode="adjustResize"
@@ -110,7 +111,44 @@
 
                 <category android:name="${applicationId}" />
             </intent-filter>
-        </receiver> <!-- OPPO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
+        </receiver>
+
+        <!-- 桌面组件：今日放送 / 在看清单 / 追番统计 -->
+        <receiver
+            android:name=".ui.widget.TodayAiringWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_today_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_airing_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".ui.widget.WatchingWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_watching_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/watching_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".ui.widget.StatsWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_stats_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stats_widget_info" />
+        </receiver>
+
+        <!-- OPPO 厂商推送：使用字符串资源避免纯数字被解析为 Integer -->
         <meta-data
             android:name="OPPO_APPKEY"
             android:value="@string/oppo_appkey"

@@ -32,12 +32,18 @@ class UpdateCheckUseCase(
         val newEpisodes: Int
     )
 
-    suspend fun checkAiringAnimeUpdates(): List<UpdateResult> = withContext(Dispatchers.IO) {
+    suspend fun checkAiringAnimeUpdates(fullScan: Boolean = false): List<UpdateResult> = withContext(Dispatchers.IO) {
         try {
             // 先做纯本地兜底重算，修正历史上各写入路径遗留的 isFinished=false 脏数据
             recalcFinishStatusLocally()
 
-            val airingAnimes = repository.getAiringAnimesWithBangumiId()
+            // 默认沿用 app 内的窄范围检查（仅缺总集数的条目），避免每次打开 app 对全部
+            // 在追番发起详情请求；组件每日后台同步传 fullScan=true，让「最新集数」真正刷新。
+            val airingAnimes = if (fullScan) {
+                repository.getAiringAnimesWithBangumiIdAll()
+            } else {
+                repository.getAiringAnimesWithBangumiId()
+            }
             if (airingAnimes.isEmpty()) return@withContext emptyList()
 
             Log.d(TAG, "Checking updates for ${airingAnimes.size} airing animes")

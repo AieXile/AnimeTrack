@@ -59,6 +59,7 @@ import com.aiexile.animetrack.ui.settings.PrivacyPolicyScreen
 import com.aiexile.animetrack.ui.settings.UpdateNotificationScreen
 import com.aiexile.animetrack.ui.settings.UserLoginScreen
 import com.aiexile.animetrack.ui.settings.UserRegisterScreen
+import com.aiexile.animetrack.ui.settings.WidgetGuideScreen
 import com.aiexile.animetrack.ui.settings.EmailBindScreen
 import com.aiexile.animetrack.ui.settings.ForgotPasswordScreen
 import com.aiexile.animetrack.ui.settings.WebDAVAutoSyncScreen
@@ -446,6 +447,11 @@ internal fun NavGraphBuilder.sharedDestinations(
             settingsRepository = settingsRepository,
             onBack = navigateBack
         )
+    }
+
+    // 桌面组件
+    composable(Routes.WIDGET_GUIDE) {
+        WidgetGuideScreen(onBack = navigateBack)
     }
 
     // 登录

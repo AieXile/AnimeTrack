@@ -10,6 +10,8 @@ import com.aiexile.animetrack.data.crash.CrashReporter
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
+import com.aiexile.animetrack.data.widget.WidgetSyncScheduler
+import com.aiexile.animetrack.data.widget.WidgetUpdateCoordinator
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,10 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         AppContainer.initialize(this)
         // 文件日志系统：须在其他组件写日志前初始化（崩溃捕获自此刻生效）
         AppLogManager.init(this)
+        // 桌面组件：存在组件实例时调度每日同步与午夜刷新（无组件为空操作），
+        // 并在进程存活期间观察 Room 变化即时重绘（事件驱动优先于轮询）
+        WidgetSyncScheduler.ensureScheduled(this)
+        WidgetUpdateCoordinator.observeAnimeChanges(this)
         // 反馈日志的运行时快照：导出附件时汇总登录态/数据规模/开关状态
         AppLogManager.setDiagnosticsProvider(::buildDiagnosticsSnapshot)
         // xCrash 崩溃捕获（Java/Native/ANR tombstone）：须晚于 AppLogManager 初始化，

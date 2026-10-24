@@ -153,6 +153,9 @@ dependencies {
     implementation(libs.kyant.shapes)
     // LazyGrid 拖拽排序（主界面手动排序模式）
     implementation(libs.reorderable)
+    // 桌面组件：Glance 提供 Compose 风格的 AppWidget DSL（系统由 RemoteViews 渲染）。
+    // 项目无任何现成组件实现，传统 RemoteViews 会与 Compose 单栈割裂，故引入该依赖。
+    implementation(libs.androidx.glance.appwidget)
     // ProfileInstaller：安装时将打包的 baseline-prof.txt 写入系统，触发热路径 AOT 预编译。
     implementation(libs.androidx.profileinstaller)
     
