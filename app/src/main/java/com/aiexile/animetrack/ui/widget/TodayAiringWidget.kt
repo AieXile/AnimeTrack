@@ -256,3 +256,33 @@ class TodayAiringWidgetReceiver : GlanceAppWidgetReceiver() {
         WidgetSyncScheduler.ensureScheduled(context)
     }
 }
+
+/**
+ * 「今日放送·大」入口：固定 4 列宽，只允许竖向缩放。
+ *
+ * Android 的 resizeMode 是 Provider 级静态配置，不能随当前宽度动态切换，
+ * 因此用两个入口表达「2 列只能横向、4 列才能向下拉」：
+ * 小尺寸 2x2 锁死高度，大尺寸 4x2 锁死宽度，再向下扩展成 4x4 / 4x5。
+ */
+class TodayAiringLargeWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = TodayAiringWidget()
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        WidgetSyncScheduler.ensureScheduled(context)
+    }
+
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        WidgetSyncScheduler.ensureScheduled(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        WidgetSyncScheduler.ensureScheduled(context)
+    }
+}

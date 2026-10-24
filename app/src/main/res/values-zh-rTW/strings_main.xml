@@ -201,6 +201,9 @@
     <string name="widget_today_description">今天更新的番劇</string>
     <string name="widget_today_empty">今天沒有更新</string>
     <string name="widget_today_count_format">今天 %1$d 部</string>
+    <string name="widget_today_large_label">今日放送·大</string>
+    <string name="widget_today_large_description">今天更新的番劇，4 列寬大尺寸</string>
+    <string name="widget_today_large_hint">需要 4×4 或更高的尺寸時，請在系統小工具選擇器加入「今日放送·大」：它固定 4 列寬，只能向下拉伸。</string>
     <string name="widget_watching_title">在看</string>
     <string name="widget_watching_label">在看</string>
     <string name="widget_watching_desc">正在看的番劇，按置頂、待看更新和最近觀看排序。</string>

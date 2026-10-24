@@ -201,6 +201,9 @@
     <string name="widget_today_description">Today\'s airing anime</string>
     <string name="widget_today_empty">Nothing airing today</string>
     <string name="widget_today_count_format">%1$d today</string>
+    <string name="widget_today_large_label">Today\'s airing (Large)</string>
+    <string name="widget_today_large_description">Today\'s airing anime in a 4-column layout</string>
+    <string name="widget_today_large_hint">For a 4x4 or taller widget, add “Today\'s airing (Large)” from the system widget picker: it stays 4 columns wide and only resizes vertically.</string>
     <string name="widget_watching_title">Watching</string>
     <string name="widget_watching_label">Watching</string>
     <string name="widget_watching_desc">Anime you are watching, sorted by pinned, new episodes and recent activity.</string>

@@ -87,6 +87,14 @@ fun WidgetGuideScreen(onBack: () -> Unit) {
                         preview = { TodayWidgetPreview() }
                     )
                 }
+                item(key = "today_large_hint") {
+                    Text(
+                        text = stringResource(R.string.widget_today_large_hint),
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 item(key = "watching") {
                     WidgetTypeCard(
                         title = stringResource(R.string.widget_watching_title),

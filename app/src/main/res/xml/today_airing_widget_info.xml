@@ -7,7 +7,7 @@
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
     android:previewImage="@drawable/widget_preview_today"
-    android:resizeMode="horizontal|vertical"
+    android:resizeMode="horizontal"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="0"

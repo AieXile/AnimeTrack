@@ -38,6 +38,7 @@ object WidgetSyncScheduler {
     /** 与 AndroidManifest 中注册的 Receiver 类名保持一致 */
     private val PROVIDER_CLASS_NAMES = listOf(
         "com.aiexile.animetrack.ui.widget.TodayAiringWidgetReceiver",
+        "com.aiexile.animetrack.ui.widget.TodayAiringLargeWidgetReceiver",
         "com.aiexile.animetrack.ui.widget.WatchingWidgetReceiver",
         "com.aiexile.animetrack.ui.widget.StatsWidgetReceiver"
     )

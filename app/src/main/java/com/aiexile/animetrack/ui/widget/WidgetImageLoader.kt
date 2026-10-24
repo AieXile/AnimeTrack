@@ -9,18 +9,17 @@ import android.graphics.Path
 import android.graphics.Shader
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
+import androidx.graphics.shapes.CornerRounding
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.rectangle
+import androidx.graphics.shapes.toPath
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sign
-import kotlin.math.sin
+import kotlin.math.min
 
 /**
  * Coil 2 没有 Glance 适配：组件渲染前把封面解码成 Bitmap，再交给 Glance 的 ImageProvider。
@@ -59,25 +58,27 @@ object WidgetImageLoader {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         }
-        canvas.drawPath(squirclePath(width.toFloat(), height.toFloat()), paint)
+        canvas.drawPath(coverShape(width.toFloat(), height.toFloat()), paint)
         return output
     }
 
-    /** 与桌面背景一致思路的超椭圆路径（Lamé curve），曲率连续，避免普通圆角的生硬转角 */
-    private fun squirclePath(width: Float, height: Float, n: Double = 5.0, steps: Int = 160): Path {
+    /**
+     * 与项目 [com.aiexile.animetrack.ui.components.SquircleShape] 同一套圆角几何：
+     * `RoundedPolygon` + `CornerRounding(smoothing = 0.64)`，半径取短边的 22%，
+     * 保证组件封面和 App 内卡片的圆角形态一致。
+     */
+    private fun coverShape(width: Float, height: Float): Path {
+        val radius = min(width, height) * 0.22f
+        val rounding = CornerRounding(radius = radius, smoothing = 0.64f)
+        val polygon = RoundedPolygon.rectangle(
+            width = width,
+            height = height,
+            perVertexRounding = listOf(rounding, rounding, rounding, rounding),
+            centerX = width / 2f,
+            centerY = height / 2f
+        )
         val path = Path()
-        val cx = width / 2f
-        val cy = height / 2f
-        for (i in 0..steps) {
-            val t = 2.0 * PI * i / steps
-            val ct = cos(t)
-            val st = sin(t)
-            val x = cx + sign(ct) * abs(ct).pow(2.0 / n) * cx
-            val y = cy + sign(st) * abs(st).pow(2.0 / n) * cy
-            if (i == 0) path.moveTo(x.toFloat(), y.toFloat())
-            else path.lineTo(x.toFloat(), y.toFloat())
-        }
-        path.close()
+        polygon.toPath(path)
         return path
     }
 }
