@@ -259,6 +259,8 @@ class BilibiliSyncManager(
         val rating = item.rating?.let { bilibiliScoreToRating(it.score) }
         val airDate = item.publish?.releaseDate?.ifBlank { null }
         val airWeekday = parseRenewalTimeToWeekday(item.renewalTime)
+        // 同步来源天然带 season_id：写入后详情页可直接直达 B 站播放页，免去标题匹配
+        val bilibiliSeasonId = item.seasonId.takeIf { it > 0 }?.toInt()
 
         if (localAnime == null) {
             val newAnime = Anime(
@@ -274,7 +276,8 @@ class BilibiliSyncManager(
                 airDate = airDate,
                 airWeekday = airWeekday,
                 isFinished = isFinished || computeIsFinished(airDate, totalEps, status),
-                syncRemarks = progressRemarks
+                syncRemarks = progressRemarks,
+                bilibiliSeasonId = bilibiliSeasonId
             )
             return Pair(newAnime, null)
         }
@@ -290,6 +293,8 @@ class BilibiliSyncManager(
                 || (localAnime.airWeekday == null && airWeekday != null)
                 || (localAnime.summary.isNullOrBlank() && !summary.isNullOrBlank())
                 || (localAnime.rating == null && rating != null)
+                // 同步来源的 season_id 权威：本地此前按标题匹配可能写错，这里以 B 站追番列表为准
+                || (bilibiliSeasonId != null && localAnime.bilibiliSeasonId != bilibiliSeasonId)
 
         if (needsUpdate) {
             val updatedAnime = localAnime.copy(
@@ -302,7 +307,9 @@ class BilibiliSyncManager(
                 airWeekday = localAnime.airWeekday ?: airWeekday,
                 summary = if (localAnime.summary.isNullOrBlank()) summary else localAnime.summary,
                 rating = localAnime.rating ?: rating,
-                syncRemarks = progressRemarks ?: localAnime.syncRemarks
+                syncRemarks = progressRemarks ?: localAnime.syncRemarks,
+                // 同步来源的 season_id 优先；同步未提供时保留既有值
+                bilibiliSeasonId = bilibiliSeasonId ?: localAnime.bilibiliSeasonId
             )
             return Pair(null, updatedAnime)
         }

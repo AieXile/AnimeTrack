@@ -9,7 +9,14 @@ data class MainPage(val route: String, val title: String)
 object Routes {
     const val ONBOARDING = "onboarding"
     const val MAIN = "main"
-    const val ANIME_DETAIL = "animeDetail/{animeId}"
+    /**
+     * 详情页路由模板。
+     *
+     * 注意：query 参数必须写进路由模板，Navigation 才会解析（`isParameterizedQuery`
+     * 为 false 时整段 query 会被丢弃）。这里只声明共享元素前缀；`coverUrl` 仍作为
+     * 普通 query 传入，供需要的场景使用，但不参与参数解析。
+     */
+    const val ANIME_DETAIL = "animeDetail/{animeId}?sharedKeyPrefix={sharedKeyPrefix}"
     const val ABOUT = "about"
     const val NAVIGATION_CUSTOMIZE = "navigationCustomize"
     const val APPEARANCE = "appearance"
@@ -41,9 +48,21 @@ object Routes {
     const val FEEDBACK_ADMIN_SESSION = "feedbackAdminSession/{sessionId}"
     const val PRIVACY_POLICY = "privacyPolicy"
 
-    /** 带参数的详情路由 */
-    fun animeDetail(animeId: Int, coverUrl: String?) =
-        "animeDetail/$animeId${if (coverUrl != null) "?coverUrl=${android.net.Uri.encode(coverUrl)}" else ""}"
+    /**
+     * 带参数的详情路由。
+     *
+     * [sharedKeyPrefix] 用于区分共享元素来源页（主页 / 收藏页）：两页同在 Pager 内，
+     * 滑动时可能同时组合，同 key 的封面会被误判为一次匹配。详情页用同一前缀拼接
+     * 封面 key，才能与对应来源页配对。
+     */
+    fun animeDetail(animeId: Int, coverUrl: String?, sharedKeyPrefix: String? = null) =
+        "animeDetail/$animeId" +
+            (if (coverUrl != null) "?coverUrl=${android.net.Uri.encode(coverUrl)}" else "") +
+            when {
+                sharedKeyPrefix == null -> ""
+                coverUrl != null -> "&sharedKeyPrefix=${android.net.Uri.encode(sharedKeyPrefix)}"
+                else -> "?sharedKeyPrefix=${android.net.Uri.encode(sharedKeyPrefix)}"
+            }
 
     /** 反馈会话详情路由 */
     fun feedbackSession(sessionId: String) = "feedbackSession/$sessionId"
@@ -61,6 +80,11 @@ object Routes {
     val animeDetailArguments = listOf(
         navArgument("animeId") { type = NavType.IntType },
         navArgument("coverUrl") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        },
+        navArgument("sharedKeyPrefix") {
             type = NavType.StringType
             nullable = true
             defaultValue = null

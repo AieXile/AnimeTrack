@@ -111,12 +111,8 @@ object CoverDownloader {
     }
 
     private fun downloadTo(url: String, destFile: File) {
-        // lain.bgm.tv 图片走 wsrv.nl 代理加速
-        val proxiedUrl = if (url.contains("lain.bgm.tv")) {
-            "https://wsrv.nl/?url=$url"
-        } else {
-            url
-        }
+        // lain.bgm.tv 图片：镜像开启时走自有服务器反代，关闭时走 wsrv.nl
+        val proxiedUrl = BangumiImageUrlResolver.resolve(url) ?: url
 
         val requestBuilder = Request.Builder().url(proxiedUrl)
 
@@ -127,7 +123,7 @@ object CoverDownloader {
 
         var response = client.newCall(requestBuilder.build()).execute()
 
-        // wsrv.nl 代理失败时回退到原始 URL
+        // 代理请求失败时回退到原始 URL
         if (!response.isSuccessful && proxiedUrl != url) {
             response.close()
             val fallbackRequest = Request.Builder().url(url).build()

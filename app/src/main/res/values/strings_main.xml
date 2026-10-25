@@ -26,6 +26,7 @@
     <string name="home_watched_exceeds_total">已看集数不能超过总集数</string>
     <string name="home_filter">筛选</string>
     <string name="home_sort_recent">自动排序</string>
+    <string name="home_sort_alphabetical">首字母排序</string>
     <string name="home_sort_manual">手动顺序</string>
     <string name="home_sort_adjust">调整顺序</string>
     <string name="home_sort_hint">长按卡片拖动调整顺序，置顶卡片固定在最前</string>
@@ -178,6 +179,11 @@
     <string name="nav_app_favorites">收藏</string>
     <string name="nav_app_page_in_development_format">%1$s 页面开发中...</string>
 
+    <!-- 收藏页 -->
+    <string name="favorites_count_format">共 %1$d 部</string>
+    <string name="favorites_empty_title">还没有收藏的番剧</string>
+    <string name="favorites_empty_hint">长按主界面的番剧卡片即可收藏</string>
+
     <!-- 公告弹窗 -->
     <string name="announcement_close">我知道了</string>
     <string name="announcement_history">历史公告</string>
@@ -192,6 +198,8 @@
     <string name="announcement_vote_total_format">共 %1$d 票</string>
     <string name="announcement_vote_count_format">%1$d 票</string>
     <string name="announcement_vote_required">请先完成投票</string>
+    <string name="announcement_vote_login_required">登录后即可参与投票</string>
+    <string name="announcement_vote_login_action">去登录</string>
 
     <!-- 桌面组件 -->
     <string name="settings_widgets">桌面组件</string>
@@ -235,8 +243,9 @@
     <string name="widget_add_to_home">添加到桌面</string>
     <string name="widget_add_unsupported">当前桌面不支持一键添加，请长按桌面 → 小组件 → 找到 AnimeTrack</string>
     <string name="widget_auto_sync_note">桌面存在组件时，每天 05:00 左右会自动同步一次；没打开 app 时组件显示最近一次同步的数据。</string>
-    <string name="developer_widget_refresh">桌面组件刷新</string>
-    <string name="developer_widget_refresh_desc">立即请求桌面上所有组件重绘（用于验证数据变更后的显示）</string>
-    <string name="developer_widget_refresh_button">强制刷新组件</string>
-    <string name="developer_widget_refresh_toast">已请求刷新桌面组件</string>
+    <string name="widget_refresh_title">手动刷新</string>
+    <string name="widget_refresh_desc">组件数据会在后台自动更新。如果想知道最新数据却还没刷新，可以在这里立即刷新桌面上的所有组件。</string>
+    <string name="widget_refresh_button">强制刷新组件</string>
+    <string name="widget_refresh_toast">已请求刷新桌面组件</string>
+    <string name="widget_refresh_none">桌面上还没有组件，请先添加</string>
 </resources>

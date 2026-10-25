@@ -69,9 +69,11 @@ object WbiKeyManager {
             try {
                 val api = RetrofitClient.bilibiliApi
                 val navResp = api.getNavInfo()
+                val wbiImg = navResp.data?.wbiImg
 
-                if (navResp.code == 0 && navResp.data?.wbiImg != null) {
-                    val wbiImg = navResp.data.wbiImg
+                // 未登录时 nav 返回 code=-101，但 data.wbi_img 依然可用；
+                // 只有拿不到 wbi_img 才视为失败（否则未登录用户无法使用番剧搜索）
+                if (wbiImg != null) {
                     val imgKey = wbiImg.imgUrl.substringAfterLast("/").substringBefore(".")
                     val subKey = wbiImg.subUrl.substringAfterLast("/").substringBefore(".")
 
@@ -90,7 +92,7 @@ object WbiKeyManager {
 
                     Result.success(Pair(imgKey, subKey))
                 } else {
-                    Result.failure(Exception("WBI keys not found in nav response"))
+                    Result.failure(Exception("WBI keys not found in nav response (code=${navResp.code})"))
                 }
             } catch (e: Exception) {
                 AppLogManager.e(TAG, "Failed to refresh Wbi keys", e)

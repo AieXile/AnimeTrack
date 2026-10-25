@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.widget.WidgetSyncScheduler
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.widget.StatsWidgetReceiver
@@ -43,7 +44,7 @@ import com.aiexile.animetrack.ui.widget.TodayAiringWidgetReceiver
 import com.aiexile.animetrack.ui.widget.WatchingWidgetReceiver
 
 /**
- * 桌面组件说明页：三种组件的外观预览 + 一键添加。
+ * 桌面组件说明页：三种组件的外观预览 + 一键添加，并提供手动强制刷新入口。
  *
  * 系统组件选择器能添加，但发现性差；这里提供 requestPinAppWidget 快捷入口，
  * 桌面不支持固定组件时提示用户走“长按桌面 → 小组件”的手动路径。
@@ -119,6 +120,48 @@ fun WidgetGuideScreen(onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                item(key = "refresh") {
+                    WidgetRefreshCard()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WidgetRefreshCard() {
+    val context = LocalContext.current
+    Surface(
+        shape = SquircleShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.widget_refresh_title),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.widget_refresh_desc),
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    if (!WidgetSyncScheduler.hasAnyWidget(context)) {
+                        Toast.makeText(context, R.string.widget_refresh_none, Toast.LENGTH_LONG).show()
+                        return@Button
+                    }
+                    WidgetSyncScheduler.requestWidgetUpdates(context)
+                    Toast.makeText(context, R.string.widget_refresh_toast, Toast.LENGTH_SHORT).show()
+                },
+                shape = SquircleShape(12.dp)
+            ) {
+                Text(text = stringResource(R.string.widget_refresh_button))
             }
         }
     }

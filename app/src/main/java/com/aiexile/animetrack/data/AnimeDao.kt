@@ -106,6 +106,13 @@ interface AnimeDao {
     @Query("UPDATE anime SET isPinned = :isPinned WHERE id = :id")
     suspend fun setPinned(id: Int, isPinned: Boolean)
 
+    @Query("UPDATE anime SET isFavorite = :isFavorite WHERE id = :id")
+    suspend fun setFavorite(id: Int, isFavorite: Boolean)
+
+    /** 收藏页数据源：仅已收藏番剧，最近添加的在前 */
+    @Query("SELECT * FROM anime WHERE isFavorite = 1 ORDER BY id DESC")
+    fun getFavoriteAnimes(): Flow<List<Anime>>
+
     @Query("UPDATE anime SET manualOrder = :manualOrder WHERE id = :id")
     suspend fun updateManualOrder(id: Int, manualOrder: Int)
 

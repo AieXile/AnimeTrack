@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 外部播放器跳转（Animeko 等） -->
+    <!-- 外部播放器跳转（Animeko / 哔哩哔哩） -->
     <string name="external_player_not_installed">未安装 %1$s</string>
     <string name="external_player_open_failed">打开外部播放器失败</string>
+    <string name="external_player_watch">外部播放</string>
     <string name="external_player_watch_in_animeko">在 Animeko 中观看</string>
+    <string name="external_player_watch_in_bilibili">在哔哩哔哩中观看</string>
+    <string name="external_player_bilibili">哔哩哔哩</string>
+    <string name="external_player_choose_title">选择播放应用</string>
+    <string name="external_player_not_installed_action">未安装 · 前往下载</string>
     <string name="external_player_missing_link">该番剧未关联 Bangumi，无法跳转</string>
 </resources>

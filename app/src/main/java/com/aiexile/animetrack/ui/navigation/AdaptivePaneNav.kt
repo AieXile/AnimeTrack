@@ -341,6 +341,8 @@ internal fun NavGraphBuilder.sharedDestinations(
     ) { backStackEntry ->
         val animeId = backStackEntry.arguments?.getInt("animeId") ?: return@composable
         val coverUrl = backStackEntry.arguments?.getString("coverUrl")
+        // 共享元素命名空间：收藏页入口带前缀，与主页卡片区分 key
+        val sharedKeyPrefix = backStackEntry.arguments?.getString("sharedKeyPrefix").orEmpty()
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -349,6 +351,7 @@ internal fun NavGraphBuilder.sharedDestinations(
             AnimeDetailScreen(
                 animeId = animeId,
                 coverUrl = coverUrl,
+                sharedKeyPrefix = sharedKeyPrefix,
                 onNavigateBack = navigateBack,
                 onNavigateToPlayer = { id ->
                     onNavigate(Routes.player(id))
@@ -585,7 +588,8 @@ internal fun NavGraphBuilder.sharedDestinations(
             onNavigateToOnboarding = {
                 onClosePane()
                 onNavigate(Routes.ONBOARDING)
-            }
+            },
+            onNavigateUserLogin = { onNavigate(Routes.USER_LOGIN) }
         )
     }
 

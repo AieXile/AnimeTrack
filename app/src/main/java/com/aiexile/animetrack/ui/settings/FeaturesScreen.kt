@@ -26,8 +26,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.CardInfoField
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.settings.SettingsOption
@@ -53,8 +55,38 @@ fun FeaturesScreen(
     val feedbackReplyPillEnabled by settingsRepository.feedbackReplyPillEnabled.collectAsState(true)
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
+    val cardInfoLeftField by settingsRepository.cardInfoLeftField
+        .collectAsState(settingsRepository.cachedCardInfoLeftField())
+    val cardInfoRightField by settingsRepository.cardInfoRightField
+        .collectAsState(settingsRepository.cachedCardInfoRightField())
     val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
     val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsState(true)
+    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(false)
+    val externalPlayMode by settingsRepository.externalPlayMode.collectAsState(ExternalPlayMode.AUTO)
+
+    // 外部播放目标候选：自动/Animeko/哔哩哔哩/每次询问
+    val externalPlayModeOptions = listOf(
+        SettingsOption(
+            value = ExternalPlayMode.AUTO,
+            label = stringResource(R.string.features_external_play_mode_auto),
+            supportingText = stringResource(R.string.features_external_play_mode_auto_desc)
+        ),
+        SettingsOption(
+            value = ExternalPlayMode.ANIMEKO,
+            label = stringResource(R.string.features_external_play_mode_animeko),
+            supportingText = stringResource(R.string.features_external_play_mode_animeko_desc)
+        ),
+        SettingsOption(
+            value = ExternalPlayMode.BILIBILI,
+            label = stringResource(R.string.features_external_play_mode_bilibili),
+            supportingText = stringResource(R.string.features_external_play_mode_bilibili_desc)
+        ),
+        SettingsOption(
+            value = ExternalPlayMode.ASK,
+            label = stringResource(R.string.features_external_play_mode_ask),
+            supportingText = stringResource(R.string.features_external_play_mode_ask_desc)
+        )
+    )
 
     // 评分标准候选：两项互斥单选，改用选项弹层后两行收成一行
     val ratingOptions = listOf(
@@ -70,6 +102,16 @@ fun FeaturesScreen(
         )
     )
 
+    // 卡片信息栏字段候选：与卡片宽度适配的短文案，最后一项是「不显示」
+    val cardInfoFieldOptions = listOf(
+        SettingsOption(value = CardInfoField.PROGRESS, label = stringResource(R.string.card_field_progress)),
+        SettingsOption(value = CardInfoField.RATING, label = stringResource(R.string.card_field_rating)),
+        SettingsOption(value = CardInfoField.AIR_DATE, label = stringResource(R.string.card_field_air_date)),
+        SettingsOption(value = CardInfoField.AIR_WEEKDAY, label = stringResource(R.string.card_field_air_weekday)),
+        SettingsOption(value = CardInfoField.UNWATCHED, label = stringResource(R.string.card_field_unwatched)),
+        SettingsOption(value = CardInfoField.NONE, label = stringResource(R.string.card_field_none))
+    )
+
     // 搜索定位：高亮目标项并滚动到所在分组
     val highlightKey = rememberSettingsHighlight(Routes.FEATURES)
     val listState = rememberLazyListState()
@@ -79,10 +121,14 @@ fun FeaturesScreen(
         "feedback_reply_reminder" to 2,
         "calendar_button" to 2,
         "series_stack" to 3,
+        "card_info_left" to 3,
+        "card_info_right" to 3,
         "auto_complete" to 4,
         "celebration" to 4,
-        "rating" to 5,
-        "crash_report" to 6
+        "external_player_entry" to 5,
+        "external_play_mode" to 5,
+        "rating" to 6,
+        "crash_report" to 7
     )
 
     // 玻璃档滚动定位需补偿顶栏高度，避免目标项被顶栏遮挡
@@ -169,6 +215,28 @@ fun FeaturesScreen(
                                 itemKey = "series_stack",
                                 highlightKey = highlightKey
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // 卡片信息栏只有一行高度，左右各一个槽位；文案项按卡片宽度取了短名
+                            SettingsOptionRow(
+                                title = stringResource(R.string.features_card_info_left),
+                                subtitle = stringResource(R.string.features_card_info_left_desc),
+                                options = cardInfoFieldOptions,
+                                selected = cardInfoLeftField,
+                                onSelected = { field ->
+                                    scope.launch { settingsRepository.setCardInfoLeftField(field) }
+                                },
+                                modifier = rememberHighlightModifier("card_info_left", highlightKey)
+                            )
+                            SettingsOptionRow(
+                                title = stringResource(R.string.features_card_info_right),
+                                subtitle = stringResource(R.string.features_card_info_right_desc),
+                                options = cardInfoFieldOptions,
+                                selected = cardInfoRightField,
+                                onSelected = { field ->
+                                    scope.launch { settingsRepository.setCardInfoRightField(field) }
+                                },
+                                modifier = rememberHighlightModifier("card_info_right", highlightKey)
+                            )
                         }
                     }
                 }
@@ -191,6 +259,35 @@ fun FeaturesScreen(
                                 onCheckedChange = { scope.launch { settingsRepository.setCompletedToastEnabled(it) } },
                                 itemKey = "celebration",
                                 highlightKey = highlightKey
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    SettingsGroup(title = stringResource(R.string.features_external_player)) {
+                        Column {
+                            SwitchItem(
+                                title = stringResource(R.string.features_external_player_visible),
+                                description = stringResource(R.string.features_external_player_visible_desc),
+                                checked = externalPlayerEntryVisible,
+                                onCheckedChange = {
+                                    scope.launch { settingsRepository.setExternalPlayerEntryVisible(it) }
+                                },
+                                itemKey = "external_player_entry",
+                                highlightKey = highlightKey
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SettingsOptionRow(
+                                title = stringResource(R.string.features_external_play_mode),
+                                subtitle = stringResource(R.string.features_external_play_mode_desc),
+                                options = externalPlayModeOptions,
+                                selected = externalPlayMode,
+                                onSelected = { mode ->
+                                    scope.launch { settingsRepository.setExternalPlayMode(mode) }
+                                },
+                                modifier = rememberHighlightModifier("external_play_mode", highlightKey),
+                                verticalPadding = 14.dp
                             )
                         }
                     }

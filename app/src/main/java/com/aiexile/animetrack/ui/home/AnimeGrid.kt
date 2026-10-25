@@ -99,6 +99,7 @@ import com.aiexile.animetrack.ui.components.findActivityWindow
 import com.aiexile.animetrack.ui.components.launchDeletionBurst
 import com.aiexile.animetrack.ui.components.rememberAdaptiveGridColumns
 import com.aiexile.animetrack.ui.components.rememberDeletionBurstState
+import com.aiexile.animetrack.util.resolveCoverModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import sh.calvin.reorderable.ReorderableItem
@@ -162,6 +163,14 @@ private fun FilterMenu(
                 isSelected = listSortMode == ListSortMode.RECENT_PROGRESS,
                 onClick = {
                     onSortModeSelected(ListSortMode.RECENT_PROGRESS)
+                    expanded = false
+                }
+            )
+            FilterMenuRow(
+                label = stringResource(R.string.home_sort_alphabetical),
+                isSelected = listSortMode == ListSortMode.TITLE_ALPHABETICAL,
+                onClick = {
+                    onSortModeSelected(ListSortMode.TITLE_ALPHABETICAL)
                     expanded = false
                 }
             )
@@ -333,6 +342,7 @@ internal fun AnimeGrid(
     /** 截图前清理选中态（隐藏卡片上的操作按钮），保证消散像素不含按钮 */
     onClearSelection: () -> Unit = {},
     onTogglePin: (Anime) -> Unit,
+    onToggleFavorite: (Anime) -> Unit = {},
     onFilterSelected: (AnimeFilter) -> Unit,
     onSortModeSelected: (ListSortMode) -> Unit = {},
     onStartSortEdit: () -> Unit = {},
@@ -672,6 +682,7 @@ internal fun AnimeGrid(
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
+                                onToggleFavorite = { onToggleFavorite(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -685,6 +696,7 @@ internal fun AnimeGrid(
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
+                                onToggleFavorite = { onToggleFavorite(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -820,6 +832,7 @@ internal fun AnimeGrid(
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
+                                onToggleFavorite = { onToggleFavorite(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -835,6 +848,7 @@ internal fun AnimeGrid(
                                 onStatusChange = { onStatusChange(anime, it) },
                                 onDelete = { handleAnimeDelete(anime) },
                                 onTogglePin = { onTogglePin(anime) },
+                                onToggleFavorite = { onToggleFavorite(anime) },
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -1013,6 +1027,7 @@ private fun NewAnimeCardWrapper(
     onStatusChange: (com.aiexile.animetrack.model.AnimeStatus) -> Unit,
     onDelete: () -> Unit,
     onTogglePin: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -1050,6 +1065,7 @@ private fun NewAnimeCardWrapper(
             onStatusChange = onStatusChange,
             onDelete = onDelete,
             onTogglePin = onTogglePin,
+            onToggleFavorite = onToggleFavorite,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier.graphicsLayer {
@@ -1182,7 +1198,7 @@ private fun SortEditCard(
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(anime.coverUrl)
+                        .data(resolveCoverModel(anime.coverUrl))
                         .crossfade(true)
                         .build(),
                     contentDescription = anime.title,

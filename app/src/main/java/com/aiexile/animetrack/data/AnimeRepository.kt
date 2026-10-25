@@ -7,6 +7,7 @@ import com.aiexile.animetrack.data.network.BangumiSearchFilter
 import com.aiexile.animetrack.data.network.BangumiSearchRequest
 import com.aiexile.animetrack.data.network.BangumiSubject
 import com.aiexile.animetrack.data.network.BangumiSubjectDetail
+import com.aiexile.animetrack.data.network.BangumiImageUrlResolver
 import com.aiexile.animetrack.data.network.CoverDownloader
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -147,6 +148,14 @@ interface AnimeRepository {
      * 纯本地字段变更，不触发后端订阅同步，但会通知 WebDAV 备份。
      */
     suspend fun setPinned(id: Int, isPinned: Boolean)
+
+    /** 收藏页数据源：仅已收藏番剧，最近添加的在前 */
+    fun getFavoriteAnimes(): Flow<List<Anime>>
+
+    /**
+     * 设置/取消收藏。收藏仅本地有效：不触发后端订阅同步，但会通知 WebDAV 备份。
+     */
+    suspend fun setFavorite(id: Int, isFavorite: Boolean)
 
     /**
      * 重新识别所有番剧的 seriesKey 并持久化。
@@ -613,6 +622,15 @@ class AnimeRepositoryImpl(
 
     override suspend fun setPinned(id: Int, isPinned: Boolean) {
         animeDao.setPinned(id, isPinned)
+        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
+    }
+
+    override fun getFavoriteAnimes(): Flow<List<Anime>> {
+        return animeDao.getFavoriteAnimes()
+    }
+
+    override suspend fun setFavorite(id: Int, isFavorite: Boolean) {
+        animeDao.setFavorite(id, isFavorite)
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
     }
 
@@ -1205,15 +1223,15 @@ class AnimeRepositoryImpl(
     }
 
     /**
-     * 计算远程封面 URL（可公开访问的 wsrv.nl 代理 URL）。
-     * - lain.bgm.tv URL → wsrv.nl 代理 URL
+     * 计算远程封面 URL（可公开访问）。
+     * - lain.bgm.tv URL → 镜像开启时自有服务器反代，关闭时 wsrv.nl
      * - 其他 http/https URL → 原样返回
      * - 本地路径/null → null
      */
     private fun computeRemoteCoverUrl(coverUrl: String?): String? {
         val url = coverUrl ?: return null
         return when {
-            url.contains("lain.bgm.tv") -> "https://wsrv.nl/?url=$url"
+            url.contains("lain.bgm.tv") -> BangumiImageUrlResolver.resolve(url)
             url.startsWith("http://") || url.startsWith("https://") -> url
             else -> null
         }

@@ -31,6 +31,7 @@ import com.aiexile.animetrack.util.getCurrentWeekday
 import com.aiexile.animetrack.util.isAirDateInFuture
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.NetworkErrorUtils
+import com.aiexile.animetrack.util.titleSortKey
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
@@ -182,7 +183,7 @@ class HomeViewModel(
         initialValue = 0
     )
 
-    /** 主界面列表排序方式（自动排序 / 手动顺序），持久化到 DataStore */
+    /** 主界面列表排序方式（自动排序 / 首字母排序 / 手动顺序），持久化到 DataStore */
     val listSortMode: StateFlow<ListSortMode> = settingsRepository.listSortMode
         .stateIn(
             scope = viewModelScope,
@@ -520,7 +521,7 @@ class HomeViewModel(
             AppLogManager.i(
                 SORT_LOG_TAG,
                 "卡片改状态: ${anime.title} ${anime.status.sortLogLabel()} -> ${newStatus.sortLogLabel()}，" +
-                    "时间键已刷新（模式=${listSortMode.value}；自动排序会重新分段，手动顺序不移动）"
+                    "时间键已刷新（模式=${listSortMode.value}；自动排序会重新分段，首字母/手动顺序不移动）"
             )
 
             if (anime.bangumiId != null) {
@@ -561,6 +562,15 @@ class HomeViewModel(
         viewModelScope.launch {
             repository.setPinned(anime.id, !anime.isPinned)
             AppLogManager.i(SORT_LOG_TAG, "置顶${if (!anime.isPinned) "开启" else "关闭"}: ${anime.title}")
+            clearSelection()
+        }
+    }
+
+    /** 切换收藏状态：收藏的番剧出现在「收藏」页，不改变主页排序与进度时间键 */
+    fun toggleFavorite(anime: Anime) {
+        viewModelScope.launch {
+            repository.setFavorite(anime.id, !anime.isFavorite)
+            AppLogManager.i(SORT_LOG_TAG, "收藏${if (!anime.isFavorite) "开启" else "取消"}: ${anime.title}")
             clearSelection()
         }
     }
@@ -871,13 +881,14 @@ class HomeViewModel(
                     old != null && old.lastProgressAt != new.lastProgressAt
                 }
                 if (progressChanged) {
-                    // 手动排序模式下列表不随进度重排，跳顶反而打断用户浏览，跳过
+                    // 只有自动排序会因进度变更重排并需要跳顶；首字母与手动顺序不随进度变化，
+                    // 跳顶反而打断用户浏览，跳过
                     val mode = listSortMode.value
-                    if (mode != ListSortMode.MANUAL) {
+                    if (mode == ListSortMode.RECENT_PROGRESS) {
                         AppLogManager.i(SORT_LOG_TAG, "进度变更: 自动排序重排并滚回顶部（mode=$mode）")
                         gridState.scrollToItem(index = 0)
                     } else {
-                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 手动顺序保持位置、不跳顶（mode=$mode）")
+                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 当前排序不受影响、不跳顶（mode=$mode）")
                     }
                 }
             }
@@ -931,11 +942,11 @@ class HomeViewModel(
     /**
      * 记录一次排序结果，分两行：
      * - 摘要：模式 / 筛选 / 输入输出条数 / 置顶 / 今日临时置顶 / 未排序新条目 / 状态分布 / 区块分布；
-     * - 明细：前 [SORT_LOG_TOP_N] 条的排序键（状态、置顶、manualOrder、区块、时间键）。
+     * - 明细：前 [SORT_LOG_TOP_N] 条的排序键（状态、置顶、manualOrder、首字母键、区块、时间键）。
      *
      * 用于排查「新加的番为什么在最前/沉到最后一页」「改状态为什么不掉下去」「未放送为什么
-     * 排在计划观看后面」这类问题：自动模式看区块与时间键，手动模式看 manualOrder 与
-     * 「未排序新条目」的落位。
+     * 排在计划观看后面」这类问题：自动模式看区块与时间键，首字母模式看首字母键，
+     * 手动模式看 manualOrder 与「未排序新条目」的落位。
      */
     private fun logSortResult(
         sortMode: ListSortMode,
@@ -988,6 +999,9 @@ class HomeViewModel(
                         append('[').append(anime.status.sortLogLabel())
                         if (anime.isPinned) append("/置顶")
                         append("/手动=").append(anime.manualOrder?.toString() ?: "null")
+                        if (sortMode == ListSortMode.TITLE_ALPHABETICAL) {
+                            append("/首字母=").append(titleSortKey(anime.title).take(SORT_LOG_TITLE_MAX))
+                        }
                         val block = anime.autoSortBlock()
                         append("/段=").append(block.displayName)
                         append("/键=").append(formatSortLogTime(anime.recentModifiedAt()))
@@ -1089,6 +1103,19 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * 首字母排序：整列表按标题拼音键升序，不切状态区块。
+     * 排序键在比较前一次性算好（sortedBy 的比较器会反复调用 selector，逐次转换拼音代价高）；
+     * sortedBy 稳定排序，同键条目保持数据库顺序。
+     */
+    private fun alphabeticalSortList(animes: List<Anime>): List<Anime> {
+        if (animes.size < 2) return animes
+        return animes
+            .map { it to titleSortKey(it.title) }
+            .sortedBy { it.second }
+            .map { it.first }
+    }
+
     fun getFilteredAnimeList(
         animeList: List<Anime>,
         filter: AnimeFilter,
@@ -1106,11 +1133,12 @@ class HomeViewModel(
             AnimeFilter.NOT_AIRED -> animeList.filter { isAirDateInFuture(it.airDate) }
         }
 
-        // 手动排序模式：完全按用户拖拽保存的顺序，忽略区块分组与进度时间键
-        val sorted = if (sortMode == ListSortMode.MANUAL) {
-            filtered.sortedWith(manualOrderComparator)
-        } else {
-            autoSortList(filtered)
+        // 手动排序模式：完全按用户拖拽保存的顺序，忽略区块分组与进度时间键；
+        // 首字母排序模式：整列表按标题拼音升序，同样忽略区块分组
+        val sorted = when (sortMode) {
+            ListSortMode.MANUAL -> filtered.sortedWith(manualOrderComparator)
+            ListSortMode.TITLE_ALPHABETICAL -> alphabeticalSortList(filtered)
+            ListSortMode.RECENT_PROGRESS -> autoSortList(filtered)
         }
 
         val result = if (searchQuery.isNotBlank()) {

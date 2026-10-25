@@ -67,7 +67,8 @@ import kotlin.math.roundToInt
 @Composable
 fun DeveloperScreen(
     onBack: () -> Unit,
-    onNavigateToOnboarding: () -> Unit = {}
+    onNavigateToOnboarding: () -> Unit = {},
+    onNavigateUserLogin: () -> Unit = {}
 ) {
     val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val animeRepository = remember { AppContainer.getAnimeRepository() }
@@ -75,10 +76,8 @@ fun DeveloperScreen(
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
     val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsState(initial = false)
     val playerHubVisible by settingsRepository.playerHubVisible.collectAsState(initial = false)
-    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val widgetRefreshToast = stringResource(R.string.developer_widget_refresh_toast)
 
     val updateViewModel: UpdateViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -106,7 +105,7 @@ fun DeveloperScreen(
     var debugCardCount by remember { mutableIntStateOf(5) }
 
     // 更新弹窗后组合，层级高于公告弹窗（与 HomeScreen 保持一致）
-    AnnouncementDialog(viewModel = announcementViewModel)
+    AnnouncementDialog(viewModel = announcementViewModel, onNavigateLogin = onNavigateUserLogin)
     UpdateDialog(viewModel = updateViewModel)
 
     AppScaffold(
@@ -248,36 +247,6 @@ fun DeveloperScreen(
 
             Spacer(modifier = Modifier.size(24.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.developer_external_player_entry),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.developer_external_player_entry_desc),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                AppSwitch(
-                    checked = externalPlayerEntryVisible,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            settingsRepository.setExternalPlayerEntryVisible(enabled)
-                        }
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
-
             AdvancedBlurTuningSection(
                 settingsRepository = settingsRepository,
                 context = context
@@ -313,42 +282,6 @@ fun DeveloperScreen(
                 )
             ) {
                 Text(text = stringResource(R.string.developer_send_test_notification))
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
-
-            Text(
-                text = stringResource(R.string.developer_widget_refresh),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.developer_widget_refresh_desc),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.size(12.dp))
-
-            Button(
-                onClick = {
-                    com.aiexile.animetrack.data.widget.WidgetSyncScheduler
-                        .requestWidgetUpdates(context)
-                    Toast.makeText(
-                        context,
-                        widgetRefreshToast,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                },
-                shape = SquircleShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text(text = stringResource(R.string.developer_widget_refresh_button))
             }
 
             Spacer(modifier = Modifier.size(24.dp))

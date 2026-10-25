@@ -40,6 +40,8 @@ import com.aiexile.animetrack.ui.components.chrome.chromeSupportsBlur
 import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.icons.LocalIconPack
 import com.aiexile.animetrack.ui.theme.LocalChromeStyle
+import com.aiexile.animetrack.ui.theme.CardInfoFields
+import com.aiexile.animetrack.ui.theme.LocalCardInfoFields
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.navigation.WidgetEntry
@@ -229,6 +231,14 @@ class MainActivity : ComponentActivity() {
             // 界面外壳材质：初始值取同步缓存，避免冷启动首帧先渲染默认档再跳变
             val chromeStyle by settingsRepository.chromeStyle
                 .collectAsState(settingsRepository.cachedChromeStyle())
+            // 卡片信息栏左右槽位：同样用同步缓存作初值，避免首帧按默认字段渲染后跳变
+            val cardInfoLeft by settingsRepository.cardInfoLeftField
+                .collectAsState(settingsRepository.cachedCardInfoLeftField())
+            val cardInfoRight by settingsRepository.cardInfoRightField
+                .collectAsState(settingsRepository.cachedCardInfoRightField())
+            val cardInfoFields = remember(cardInfoLeft, cardInfoRight) {
+                CardInfoFields(left = cardInfoLeft, right = cardInfoRight)
+            }
             // 高级模糊（HAZE 档）参数：全局下发一次，悬浮胶囊/悬浮按钮/顶栏共用
             val blurRadius by settingsRepository.advancedBlurRadius
                 .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -284,7 +294,8 @@ class MainActivity : ComponentActivity() {
                     LocalIconPack provides iconPack,
                     LocalChromeStyle provides if (chromeSupportsBlur()) chromeStyle else
                         ChromeStyle.STANDARD,
-                    LocalAdvancedBlurConfig provides advancedBlurConfig
+                    LocalAdvancedBlurConfig provides advancedBlurConfig,
+                    LocalCardInfoFields provides cardInfoFields
                 ) {
                     val splashDismissed by splashDismissed.collectAsState()
                     val widgetEntry by pendingWidgetEntry.collectAsState()

@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 // ===== 二维码登录 =====
 
@@ -122,6 +123,64 @@ data class BilibiliPublishInfo(
     val releaseDate: String = ""
 )
 
+// ===== 番剧搜索（标题 → season_id，WBI 签名）=====
+
+data class BilibiliSearchResponse(
+    val code: Int = -1,
+    val message: String = "",
+    val data: BilibiliSearchData? = null
+)
+
+data class BilibiliSearchData(
+    @SerializedName("numResults")
+    val numResults: Int = 0,
+    val result: List<BilibiliSearchItem>? = null
+)
+
+data class BilibiliSearchItem(
+    @SerializedName("season_id")
+    val seasonId: Long = 0,
+    @SerializedName("pgc_season_id")
+    val pgcSeasonId: Long = 0,
+    @SerializedName("media_id")
+    val mediaId: Long = 0,
+    val title: String = "",
+    @SerializedName("org_title")
+    val orgTitle: String = "",
+    @SerializedName("ep_size")
+    val epSize: Int = 0,
+    val styles: String = ""
+)
+
+// ===== 番剧详情（season_id → 分集 ep_id）=====
+
+data class BilibiliSeasonResponse(
+    val code: Int = -1,
+    val message: String = "",
+    val result: BilibiliSeasonResult? = null
+)
+
+data class BilibiliSeasonResult(
+    @SerializedName("season_id")
+    val seasonId: Long = 0,
+    val title: String = "",
+    val episodes: List<BilibiliSeasonEpisode>? = null
+)
+
+data class BilibiliSeasonEpisode(
+    val id: Long = 0,
+    @SerializedName("ep_id")
+    val epId: Long = 0,
+    /** 序号字符串（"1"、"2"…）；SP/PV 等非正片可能不是纯数字 */
+    val title: String = "",
+    @SerializedName("long_title")
+    val longTitle: String = "",
+    /** 0 = 正片，1 = 预告/PV 等 */
+    @SerializedName("section_type")
+    val sectionType: Int = 0,
+    val badge: String = ""
+)
+
 // ===== Retrofit 接口 =====
 
 // 登录专用接口（使用独立的干净 OkHttpClient，无 Cookie/Referer）
@@ -152,4 +211,15 @@ interface BilibiliApiService {
         @Query("pn") pn: Int = 1,
         @Query("ps") ps: Int = 30
     ): BilibiliFollowResponse
+
+    /**
+     * 番剧搜索。WBI 签名要求 query 与签名计算时的编码完全一致，
+     * 因此传入已拼接好的完整 URL（见 WbiUtils.buildSignedQuery）。
+     */
+    @GET
+    suspend fun searchBangumiSigned(@Url url: String): BilibiliSearchResponse
+
+    /** 番剧详情（分集列表），匿名可用 */
+    @GET("pgc/view/web/season")
+    suspend fun getSeasonDetail(@Query("season_id") seasonId: Int): BilibiliSeasonResponse
 }

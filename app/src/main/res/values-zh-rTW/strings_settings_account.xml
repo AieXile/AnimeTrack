@@ -153,8 +153,6 @@
     <string name="developer_trigger_simulate_update">觸發模擬更新</string>
     <string name="developer_player_hub_entry">設定頁顯示「影片播放」</string>
     <string name="developer_player_hub_entry_desc">在設定列表中展示影片播放聚合入口，預設隱藏</string>
-    <string name="developer_external_player_entry">詳情頁顯示「在 Animeko 中觀看」</string>
-    <string name="developer_external_player_entry_desc">在番劇詳情頁頂欄展示 Animeko 跳轉按鈕，預設隱藏</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看與測試公告彈窗及投票</string>
     <string name="developer_open_announcement">開啟公告</string>
@@ -219,6 +217,16 @@
     <string name="features_anime_display">番劇顯示</string>
     <string name="features_series_stack">多季堆疊</string>
     <string name="features_series_stack_desc">將同系列多季番劇合併為堆疊卡片，長按展開各季</string>
+    <string name="features_card_info_left">卡片左側資訊</string>
+    <string name="features_card_info_left_desc">標題下方左槽位顯示的欄位</string>
+    <string name="features_card_info_right">卡片右側資訊</string>
+    <string name="features_card_info_right_desc">標題下方右槽位顯示的欄位</string>
+    <string name="card_field_progress">觀看進度</string>
+    <string name="card_field_rating">評分</string>
+    <string name="card_field_air_date">放送日期</string>
+    <string name="card_field_air_weekday">放送星期</string>
+    <string name="card_field_unwatched">未看集數</string>
+    <string name="card_field_none">不顯示</string>
     <string name="features_watching">觀看</string>
     <string name="features_auto_complete">自動完結</string>
     <string name="features_auto_complete_desc">觀看進度拉滿時自動標記為已看完</string>
@@ -231,6 +239,21 @@
     <string name="features_rating_standard_manual">手動打分</string>
     <string name="features_rating_standard_manual_desc">新增番劇時不讀取源評分，由你手動選擇 1-5 星（0.5 步進）</string>
     <string name="features_rating_standard_notice">僅對新新增的番劇生效，已新增的番劇不受影響</string>
+
+    <!-- 外部播放 -->
+    <string name="features_external_player">外部播放</string>
+    <string name="features_external_player_visible">詳情頁顯示播放按鈕</string>
+    <string name="features_external_player_visible_desc">在番劇詳情頁頂欄顯示外部播放按鈕（Animeko / 嗶哩嗶哩）</string>
+    <string name="features_external_play_mode">播放應用</string>
+    <string name="features_external_play_mode_desc">詳情頁播放按鈕跳轉的目標應用</string>
+    <string name="features_external_play_mode_auto">自動</string>
+    <string name="features_external_play_mode_auto_desc">兩個應用都安裝時，已關聯 B 站則直達嗶哩嗶哩，否則彈窗選擇</string>
+    <string name="features_external_play_mode_animeko">Animeko</string>
+    <string name="features_external_play_mode_animeko_desc">始終跳轉 Animeko（需關聯 Bangumi）</string>
+    <string name="features_external_play_mode_bilibili">嗶哩嗶哩</string>
+    <string name="features_external_play_mode_bilibili_desc">始終跳轉嗶哩嗶哩，按標題匹配 B 站番劇</string>
+    <string name="features_external_play_mode_ask">每次詢問</string>
+    <string name="features_external_play_mode_ask_desc">每次播放前選擇應用</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">更新通知</string>

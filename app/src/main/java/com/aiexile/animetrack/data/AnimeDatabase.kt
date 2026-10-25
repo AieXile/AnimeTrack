@@ -13,7 +13,7 @@ import com.aiexile.animetrack.model.PendingDeletion
 
 @Database(
     entities = [Anime::class, PendingDeletion::class],
-    version = 24,
+    version = 26,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -394,6 +394,28 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 24→25 迁移：新增 isFavorite 列（是否收藏，非空默认 false）。
+         *
+         * 收藏仅本地有效：主界面长按卡片可收藏/取消收藏，收藏页按此列过滤展示。
+         */
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /**
+         * 25→26 迁移：新增 bilibiliSeasonId 列（B 站番剧 season_id，可空）。
+         *
+         * 仅本地有效：B 站同步直接写入，标题匹配成功后回写，用于详情页直达播放页。
+         */
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN bilibiliSeasonId INTEGER")
+            }
+        }
+
         /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
         private val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
@@ -403,7 +425,7 @@ abstract class AnimeDatabase : RoomDatabase() {
             MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
             MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
-            MIGRATION_22_23, MIGRATION_23_24
+            MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26
         ).map { LoggingMigration(it) }.toTypedArray()
 
         /**

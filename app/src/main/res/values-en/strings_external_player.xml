@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- External player launching (Animeko etc.) -->
+    <!-- External player launching (Animeko / Bilibili) -->
     <string name="external_player_not_installed">%1$s is not installed</string>
     <string name="external_player_open_failed">Failed to open external player</string>
+    <string name="external_player_watch">External playback</string>
     <string name="external_player_watch_in_animeko">Watch in Animeko</string>
+    <string name="external_player_watch_in_bilibili">Watch in Bilibili</string>
+    <string name="external_player_bilibili">Bilibili</string>
+    <string name="external_player_choose_title">Choose playback app</string>
+    <string name="external_player_not_installed_action">Not installed · Download</string>
     <string name="external_player_missing_link">Not linked to Bangumi. Cannot open external player</string>
 </resources>

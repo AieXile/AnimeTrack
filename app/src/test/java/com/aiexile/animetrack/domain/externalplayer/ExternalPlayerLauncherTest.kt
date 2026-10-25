@@ -8,7 +8,7 @@ import org.junit.Test
 class ExternalPlayerLauncherTest {
 
     private val installedResolver = IntentResolver { true }
-    private val okStarter = ActivityStarter { true }
+    private val okStarter = ActivityStarter { _, _ -> true }
 
     private fun request(bangumiId: Int?) =
         ExternalPlayRequest(animeId = 1, bangumiId = bangumiId, title = "测试", episodeSort = 5)
@@ -44,7 +44,7 @@ class ExternalPlayerLauncherTest {
             request = request(null),
             playerId = ExternalPlayerId.ANIMEKO,
             resolver = IntentResolver { resolved = true; true },
-            starter = ActivityStarter { started = true; true }
+            starter = ActivityStarter { _, _ -> started = true; true }
         )
         assertTrue(result is ExternalPlayResult.MissingBangumiLink)
         assertEquals(false, resolved)
@@ -58,7 +58,7 @@ class ExternalPlayerLauncherTest {
             request = request(12),
             playerId = ExternalPlayerId.ANIMEKO,
             resolver = IntentResolver { false },
-            starter = ActivityStarter { started = true; true }
+            starter = ActivityStarter { _, _ -> started = true; true }
         )
         assertEquals(ExternalPlayResult.NotInstalled(AnimekoPlayer), result)
         assertEquals(false, started)
@@ -70,7 +70,7 @@ class ExternalPlayerLauncherTest {
             request = request(12),
             playerId = ExternalPlayerId.ANIMEKO,
             resolver = installedResolver,
-            starter = ActivityStarter { false }
+            starter = ActivityStarter { _, _ -> false }
         )
         assertTrue(result is ExternalPlayResult.LaunchFailed)
     }

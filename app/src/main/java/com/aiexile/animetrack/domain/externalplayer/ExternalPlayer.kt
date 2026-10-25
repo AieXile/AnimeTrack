@@ -9,7 +9,22 @@ package com.aiexile.animetrack.domain.externalplayer
  */
 
 /** 外部播放器唯一标识；新增播放器在此登记 */
-enum class ExternalPlayerId { ANIMEKO }
+enum class ExternalPlayerId { ANIMEKO, BILIBILI }
+
+/** 外部播放目标选择方式（设置项持久化值） */
+enum class ExternalPlayMode {
+    /** 自动：按已安装应用与本地关联情况选择，歧义时询问 */
+    AUTO,
+
+    /** 始终使用 Animeko */
+    ANIMEKO,
+
+    /** 始终使用哔哩哔哩 */
+    BILIBILI,
+
+    /** 每次播放前询问 */
+    ASK
+}
 
 /**
  * 一次外部播放请求。
@@ -60,6 +75,13 @@ interface ExternalPlayer {
 
     /** 官方下载页 */
     val downloadUrl: String
+
+    /**
+     * 目标应用包名；非 null 时启动会显式定向该包（避免同 scheme 的第三方客户端抢路由），
+     * 安装检测也以包名是否存在为准。
+     */
+    val packageName: String?
+        get() = null
 
     /** 探测 URI（须与 Manifest queries 声明一致，用于安装检测） */
     val probeUri: String

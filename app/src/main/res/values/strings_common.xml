@@ -8,6 +8,8 @@
     <string name="common_delete">删除</string>
     <string name="common_pin">置顶</string>
     <string name="common_unpin">取消置顶</string>
+    <string name="common_favorite">收藏</string>
+    <string name="common_unfavorite">取消收藏</string>
     <string name="common_back">返回</string>
     <string name="common_close">关闭</string>
     <string name="common_retry">重试</string>

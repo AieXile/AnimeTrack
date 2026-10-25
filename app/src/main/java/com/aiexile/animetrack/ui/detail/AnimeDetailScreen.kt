@@ -157,12 +157,18 @@ import coil.request.SuccessResult
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.playlink.BilibiliPlayLinkResolver
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
+import com.aiexile.animetrack.domain.externalplayer.BilibiliPlayer
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayDecision
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayDispatcher
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayRequest
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayResult
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerId
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerLauncher
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerRegistry
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
@@ -178,12 +184,17 @@ import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDateDisplay
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
+import com.gowtham.ratingbar.RatingBar
+import com.gowtham.ratingbar.RatingBarConfig
+import com.gowtham.ratingbar.RatingBarStyle
+import com.gowtham.ratingbar.StepSize
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val CoverAspectRatio = 2f / 3f
 private val CardCornerRadius = 16.dp
@@ -196,6 +207,8 @@ private fun cardContainerColor() = MaterialTheme.colorScheme.surfaceContainerLow
 fun AnimeDetailScreen(
     animeId: Int,
     coverUrl: String? = null,
+    /** 共享元素 key 前缀：与来源页（主页 / 收藏页）保持一致，避免 Pager 同 key 误匹配 */
+    sharedKeyPrefix: String = "",
     onNavigateBack: () -> Unit,
     onNavigateToPlayer: (Int) -> Unit = {},
     isInPane: Boolean = false,
@@ -213,11 +226,15 @@ fun AnimeDetailScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showPlayerChoiceDialog by remember { mutableStateOf(false) }
+    var choiceInstalledPlayers by remember { mutableStateOf(emptySet<ExternalPlayerId>()) }
+    var isResolvingExternalPlay by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
-    // 外部播放器 Animeko 跳转按钮可见性（开发者选项控制，默认隐藏）
+    // 外部播放按钮可见性与目标选择方式（功能设置）
     val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
+    val externalPlayMode by settingsRepository.externalPlayMode.collectAsState(initial = ExternalPlayMode.AUTO)
 
     // 浏览下方内容时顶栏收缩变窄（64dp → 32dp），内容滚回顶部后才展开
     val topBarScrollBehavior = rememberShrinkOnScrollTopAppBarBehavior(collapsedHeight = 32.dp)
@@ -265,6 +282,60 @@ fun AnimeDetailScreen(
         if (uiState.showDuplicateToast) {
             Toast.makeText(context, context.getString(R.string.home_anime_already_exists), Toast.LENGTH_SHORT).show()
             viewModel.dismissDuplicateToast()
+        }
+    }
+
+    /**
+     * 外部播放：Animeko 走既有同步链路；哔哩哔哩先解析 season/集数直达，
+     * 解析失败（网络/匹配不到）回退到 B 站搜索页，保证永远有落点。
+     */
+    fun launchExternalPlayer(
+        anime: Anime,
+        request: ExternalPlayRequest,
+        playerId: ExternalPlayerId,
+        installed: Set<ExternalPlayerId>
+    ) {
+        when (playerId) {
+            ExternalPlayerId.ANIMEKO -> {
+                val result = ExternalPlayerLauncher.launch(context, request, playerId)
+                // 未安装/唤起失败已由便捷入口自动 Toast+降级；未关联需调用方提示
+                if (result is ExternalPlayResult.MissingBangumiLink) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.external_player_missing_link),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            ExternalPlayerId.BILIBILI -> {
+                if (!installed.contains(playerId)) {
+                    // 未安装：沿用统一降级（Toast + 官方下载页），无需先联网解析
+                    ExternalPlayerLauncher.launchUri(
+                        context, BilibiliPlayer, BilibiliPlayer.buildSearchUri(anime.title)
+                    )
+                    return
+                }
+                scope.launch {
+                    isResolvingExternalPlay = true
+                    val link = withTimeoutOrNull(5_000L) {
+                        BilibiliPlayLinkResolver.resolve(
+                            title = anime.title,
+                            storedSeasonId = anime.bilibiliSeasonId,
+                            watchedEpisodes = anime.watchedEpisodes,
+                            totalEpisodes = anime.totalEpisodes.takeIf { it > 0 },
+                            seasonNumber = anime.seasonNumber
+                        )
+                    }
+                    isResolvingExternalPlay = false
+                    // 首次按标题匹配成功时回写 season_id，后续点击可直接直达
+                    if (link != null && anime.bilibiliSeasonId == null) {
+                        viewModel.saveBilibiliSeasonId(link.seasonId)
+                    }
+                    val uri = link?.let { BilibiliPlayer.buildPlayUri(it) }
+                        ?: BilibiliPlayer.buildSearchUri(anime.title)
+                    ExternalPlayerLauncher.launchUri(context, BilibiliPlayer, uri)
+                }
+            }
         }
     }
 
@@ -362,33 +433,49 @@ fun AnimeDetailScreen(
                     }
                 }
                 if (externalPlayerEntryVisible) {
-                    IconButton(onClick = {
-                        // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
-                        // 直接传 0 会被误判为“已看完”而回退详情页级跳转
-                        val request = ExternalPlayRequest.continueWatching(
-                            animeId = anime.id,
-                            bangumiId = anime.bangumiId,
-                            title = anime.title,
-                            watchedEpisodes = anime.watchedEpisodes,
-                            totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
-                        )
-                        val result = ExternalPlayerLauncher.launch(
-                            context, request, ExternalPlayerId.ANIMEKO
-                        )
-                        // 未安装/唤起失败已由便捷入口自动 Toast+降级；未关联需调用方提示
-                        if (result is ExternalPlayResult.MissingBangumiLink) {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.external_player_missing_link),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                    IconButton(
+                        enabled = !isResolvingExternalPlay,
+                        onClick = {
+                            // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
+                            // 直接传 0 会被误判为“已看完”而回退详情页级跳转
+                            val request = ExternalPlayRequest.continueWatching(
+                                animeId = anime.id,
+                                bangumiId = anime.bangumiId,
+                                title = anime.title,
+                                watchedEpisodes = anime.watchedEpisodes,
+                                totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
+                            )
+                            val installed = ExternalPlayerRegistry.all
+                                .filter { ExternalPlayerLauncher.isInstalled(context, it) }
+                                .map { it.id }
+                                .toSet()
+                            when (val decision = ExternalPlayDispatcher.decide(
+                                mode = externalPlayMode,
+                                installed = installed,
+                                hasBilibiliSeasonId = (anime.bilibiliSeasonId ?: 0) > 0
+                            )) {
+                                is ExternalPlayDecision.Launch ->
+                                    launchExternalPlayer(anime, request, decision.playerId, installed)
+                                ExternalPlayDecision.AskUser -> {
+                                    choiceInstalledPlayers = installed
+                                    showPlayerChoiceDialog = true
+                                }
+                            }
                         }
-                    }) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                            contentDescription = stringResource(R.string.external_player_watch_in_animeko),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    ) {
+                        if (isResolvingExternalPlay) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
+                                contentDescription = stringResource(R.string.external_player_watch),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
                 if (shareButtonEnabled) {
@@ -507,9 +594,11 @@ fun AnimeDetailScreen(
                             onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
                             onEditSummaryChange = { viewModel.updateEditSummary(it) },
                             onEditAiringStatusOverrideChange = { viewModel.updateEditAiringStatusOverride(it) },
+                            onEditRatingChange = { viewModel.updateEditRating(it) },
                             isInPane = isInPane,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
+                            sharedKeyPrefix = sharedKeyPrefix,
                             // 玻璃档内容视口全高，顶/底内边距由滚动内容自垫（标准档为零）
                             chromeContentPadding = chrome.content
                         )
@@ -582,6 +671,25 @@ fun AnimeDetailScreen(
                     viewModel.shareAnime(context, notes)
                 },
                 onDismiss = { showShareDialog = false }
+            )
+        }
+
+        if (showPlayerChoiceDialog && uiState.anime != null) {
+            val choiceAnime = uiState.anime!!
+            ExternalPlayerChoiceDialog(
+                installed = choiceInstalledPlayers,
+                onSelect = { playerId ->
+                    showPlayerChoiceDialog = false
+                    val request = ExternalPlayRequest.continueWatching(
+                        animeId = choiceAnime.id,
+                        bangumiId = choiceAnime.bangumiId,
+                        title = choiceAnime.title,
+                        watchedEpisodes = choiceAnime.watchedEpisodes,
+                        totalEpisodes = choiceAnime.totalEpisodes.takeIf { it > 0 }
+                    )
+                    launchExternalPlayer(choiceAnime, request, playerId, choiceInstalledPlayers)
+                },
+                onDismiss = { showPlayerChoiceDialog = false }
             )
         }
 
@@ -917,9 +1025,11 @@ private fun AnimeDetailContent(
     onAdjustEditTotalEpisodes: (Int) -> Unit = {},
     onEditSummaryChange: (String) -> Unit = {},
     onEditAiringStatusOverrideChange: (Boolean?) -> Unit = {},
+    onEditRatingChange: (Float?) -> Unit = {},
     isInPane: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    sharedKeyPrefix: String = "",
     /** 玻璃档需由滚动内容自垫的顶/底内边距；标准档为零 */
     chromeContentPadding: PaddingValues = PaddingValues(0.dp),
     modifier: Modifier = Modifier
@@ -965,7 +1075,7 @@ private fun AnimeDetailContent(
                             if (enableSharedCover) {
                                 with(sharedTransitionScope!!) {
                                     Modifier.sharedElement(
-                                        rememberSharedContentState(key = "cover_${anime.id}"),
+                                        rememberSharedContentState(key = "${sharedKeyPrefix}cover_${anime.id}"),
                                         animatedVisibilityScope = animatedVisibilityScope!!
                                     )
                                 }
@@ -1143,21 +1253,28 @@ private fun AnimeDetailContent(
                             }
                         }
                     } else {
+                        var titleCompact by remember(anime.id, anime.title) { mutableStateOf(false) }
                         Text(
                             text = anime.title,
-                            fontSize = 18.sp,
+                            fontSize = if (titleCompact) 16.sp else 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
+                            maxLines = if (titleCompact) 3 else 2,
                             overflow = TextOverflow.Ellipsis,
-                            onTextLayout = { titleLineCount = it.lineCount },
+                            onTextLayout = { layoutResult ->
+                                titleLineCount = layoutResult.lineCount
+                                // 两行放不下时改用三行小字号, 保持封面与信息区排列不变
+                                if (!titleCompact && layoutResult.hasVisualOverflow) {
+                                    titleCompact = true
+                                }
+                            },
                             modifier = Modifier.onGloballyPositioned { coordinates ->
                                 onTitlePositionChanged(coordinates.boundsInWindow().bottom)
                             }
                         )
                     }
 
-                    if (anime.rating != null && titleLineCount <= 1) {
+                    if (!editState.isEditing && anime.rating != null && titleLineCount <= 1) {
                         Spacer(modifier = Modifier.height(6.dp))
                         RatingBadge(rating = anime.rating)
                     }
@@ -1214,10 +1331,20 @@ private fun AnimeDetailContent(
                             null -> anime.isFinished
                         }
                         if (editState.isEditing) {
-                            AiringStatusSelector(
-                                override = editState.airingStatusOverride,
-                                onOverrideChange = onEditAiringStatusOverrideChange
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                AiringStatusSelector(
+                                    override = editState.airingStatusOverride,
+                                    onOverrideChange = onEditAiringStatusOverrideChange
+                                )
+                                RatingEditEntry(
+                                    rating = editState.rating,
+                                    onRatingChange = onEditRatingChange
+                                )
+                            }
                             if (!effectiveIsFinished && anime.status != AnimeStatus.COMPLETED) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically
@@ -1405,6 +1532,152 @@ private fun RatingBadge(
                 fontWeight = FontWeight.Bold,
                 color = LocalAnimeColors.current.starFilled
             )
+        }
+    }
+}
+
+/**
+ * 编辑态评分入口：与查看态 [RatingBadge] 同一视觉语言（星标 + 分数），
+ * 未评分时显示次要色的「未评分」。点击弹出 [RatingPickerDialog]，
+ * 由调用方放在「连载状态」行右侧，不额外占用纵向空间。
+ */
+@Composable
+private fun RatingEditEntry(
+    rating: Float?,
+    onRatingChange: (Float?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val hasRating = rating != null && rating > 0f
+    val animeColors = LocalAnimeColors.current
+
+    Surface(
+        modifier = modifier,
+        shape = SquircleShape(8.dp),
+        color = if (hasRating) {
+            animeColors.finished.copy(alpha = 0.1f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        }
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(SquircleShape(8.dp))
+                .clickable { showDialog = true }
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
+                contentDescription = stringResource(R.string.add_anime_rating),
+                tint = if (hasRating) {
+                    animeColors.starFilled
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                },
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = if (hasRating) String.format("%.1f", rating ?: 0f)
+                else stringResource(R.string.add_anime_no_rating),
+                fontSize = 12.sp,
+                fontWeight = if (hasRating) FontWeight.Bold else FontWeight.Normal,
+                color = if (hasRating) animeColors.starFilled
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    if (showDialog) {
+        RatingPickerDialog(
+            currentRating = rating,
+            onRatingChange = onRatingChange,
+            onDismiss = { showDialog = false }
+        )
+    }
+}
+
+/**
+ * 评分选择 Dialog：5 星、0.5 步进，点选即写入编辑态（保存时统一落库），
+ * 可清除为未评分。星级配置与添加番剧表单保持一致。
+ */
+@Composable
+private fun RatingPickerDialog(
+    currentRating: Float?,
+    onRatingChange: (Float?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val hasRating = currentRating != null && currentRating > 0f
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.width(320.dp).dialogBlurBehind(),
+            shape = SquircleShape(24.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.add_anime_rating),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (hasRating) {
+                            stringResource(R.string.add_anime_rating_value, currentRating ?: 0f)
+                        } else {
+                            stringResource(R.string.add_anime_no_rating)
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (hasRating) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                RatingBar(
+                    value = currentRating ?: 0f,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    config = RatingBarConfig()
+                        .numStars(5)
+                        .size(36.dp)
+                        .padding(4.dp)
+                        .style(RatingBarStyle.HighLighted)
+                        .stepSize(StepSize.HALF)
+                        .hideInactiveStars(false)
+                        .isIndicator(false)
+                        .activeColor(MaterialTheme.colorScheme.primary)
+                        .inactiveColor(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)),
+                    onValueChange = { onRatingChange(it) },
+                    onRatingChanged = { newValue -> if (newValue <= 0f) onRatingChange(null) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (hasRating) {
+                        TextButton(onClick = { onRatingChange(null) }) {
+                            Text(stringResource(R.string.common_clear))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.common_close))
+                    }
+                }
+            }
         }
     }
 }
@@ -2889,7 +3162,7 @@ private suspend fun saveCoverToGallery(context: Context, coverUrl: String) = wit
     try {
         val imageLoader = Coil.imageLoader(context)
         val request = ImageRequest.Builder(context)
-            .data(coverUrl)
+            .data(resolveCoverModel(coverUrl))
             .allowHardware(false)
             .build()
         val result = imageLoader.execute(request)

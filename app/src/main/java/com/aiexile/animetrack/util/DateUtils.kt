@@ -170,3 +170,37 @@ fun parseDateToTimestamp(dateStr: String?): Long? {
     }
 }
 
+/**
+ * 卡片信息栏用的短放送日期：去掉冗长的年份前缀，保留可辨识度。
+ * - 当年 yyyy-MM-dd → "10-25"
+ * - 跨年 yyyy-MM-dd → "25-10-25"（两位年份，避免和日/月混淆又放得下）
+ * - 当年 yyyy-MM → "10月"
+ * - 跨年 yyyy-MM → "25-10"
+ * - 解析失败 → 原样返回
+ *
+ * @param omitYear 为 true 时不输出年份（跨年也只显示 "10-25"）。
+ *   卡片左右两个字段同时有内容时宽度只够一份，日期让位给同行的另一个字段。
+ */
+fun formatAirDateShort(airDate: String?, omitYear: Boolean = false): String? {
+    val normalized = formatAirDate(airDate) ?: return null
+    val currentYear = LocalDate.now().year
+    return when {
+        normalized.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$")) -> {
+            val parts = normalized.split("-")
+            if (omitYear || parts[0].toIntOrNull() == currentYear) {
+                "${parts[1]}-${parts[2]}"
+            } else {
+                "${parts[0].takeLast(2)}-${parts[1]}-${parts[2]}"
+            }
+        }
+        normalized.matches(Regex("^\\d{4}-\\d{2}$")) -> {
+            val parts = normalized.split("-")
+            if (omitYear || parts[0].toIntOrNull() == currentYear) {
+                "${parts[1]}月"
+            } else {
+                "${parts[0].takeLast(2)}-${parts[1]}"
+            }
+        }
+        else -> normalized
+    }
+}

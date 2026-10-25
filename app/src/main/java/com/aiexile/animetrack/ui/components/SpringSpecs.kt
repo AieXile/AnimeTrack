@@ -56,3 +56,17 @@ object iOSSpringSpecs {
         stiffness = Spring.StiffnessMedium
     )
 }
+
+/**
+ * 共享元素（卡片封面 ↔ 详情封面）的 key 约定。
+ *
+ * 主页与收藏页同在 HorizontalPager 内，滑动或起始组合时两页可能同时存在；
+ * 同一部番若共用 `cover_<id>`，会在同一 SharedTransitionScope 中出现两个同 key 节点，
+ * 被框架误判为一次匹配并互相吸到同一位置。按来源页加前缀让两侧 key 各自唯一，
+ * 详情页通过路由参数拿到同一前缀才能配对成功。
+ */
+object SharedElementSpecs {
+
+    /** 收藏页封面的 key 前缀 */
+    const val FavoritesKeyPrefix = "favorites_"
+}

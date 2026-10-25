@@ -25,6 +25,7 @@
     <string name="home_watched_exceeds_total">Watched episodes cannot exceed total</string>
     <string name="home_filter">Filter</string>
     <string name="home_sort_recent">Auto sort</string>
+    <string name="home_sort_alphabetical">Alphabetical</string>
     <string name="home_sort_manual">Manual order</string>
     <string name="home_sort_adjust">Adjust order</string>
     <string name="home_sort_hint">Long-press and drag cards to reorder. Pinned cards stay on top</string>
@@ -174,6 +175,11 @@
     <string name="nav_app_favorites">Favorites</string>
     <string name="nav_app_page_in_development_format">%1$s page under development...</string>
 
+    <!-- Favorites -->
+    <string name="favorites_count_format">%1$d total</string>
+    <string name="favorites_empty_title">No favorites yet</string>
+    <string name="favorites_empty_hint">Long-press a card on the home screen to add it to favorites</string>
+
     <!-- Announcement Dialog -->
     <string name="announcement_close">Got it</string>
     <string name="announcement_history">History</string>
@@ -188,6 +194,8 @@
     <string name="announcement_vote_total_format">%1$d votes total</string>
     <string name="announcement_vote_count_format">%1$d votes</string>
     <string name="announcement_vote_required">Please vote first</string>
+    <string name="announcement_vote_login_required">Sign in to vote</string>
+    <string name="announcement_vote_login_action">Sign in</string>
 
     <!-- Home screen widgets -->
     <string name="settings_widgets">Home screen widgets</string>
@@ -231,8 +239,9 @@
     <string name="widget_add_to_home">Add to home screen</string>
     <string name="widget_add_unsupported">This launcher does not support pinning. Long-press the home screen → Widgets → AnimeTrack.</string>
     <string name="widget_auto_sync_note">While widgets are on your home screen, AnimeTrack syncs about once a day around 05:00. Without opening the app, widgets show the most recent synced data.</string>
-    <string name="developer_widget_refresh">Widget refresh</string>
-    <string name="developer_widget_refresh_desc">Request a redraw of all home screen widgets now (to verify data changes)</string>
-    <string name="developer_widget_refresh_button">Refresh widgets</string>
-    <string name="developer_widget_refresh_toast">Widget refresh requested</string>
+    <string name="widget_refresh_title">Manual refresh</string>
+    <string name="widget_refresh_desc">Widgets update automatically in the background. If you want the latest data and it hasn\'t refreshed yet, you can refresh all home screen widgets right here.</string>
+    <string name="widget_refresh_button">Refresh widgets</string>
+    <string name="widget_refresh_toast">Widget refresh requested</string>
+    <string name="widget_refresh_none">No widgets on your home screen yet — add one first</string>
 </resources>

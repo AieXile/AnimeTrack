@@ -642,7 +642,7 @@ object ShareCardRenderer {
                 BitmapFactory.decodeFile(localFile.absolutePath, options)
             } else {
                 val request = ImageRequest.Builder(context)
-                    .data(anime.coverUrl)
+                    .data(resolveCoverModel(anime.coverUrl))
                     .size((coverWidth * 2).toInt(), (coverHeight * 2).toInt())
                     .allowHardware(false) // 软件Canvas不能绘制硬件Bitmap
                     .build()

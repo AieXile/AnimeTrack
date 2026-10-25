@@ -54,6 +54,7 @@ data class EditState(
     val bangumiId: Int? = null,
     val tmdbId: Int? = null,
     val summary: String? = null,
+    val rating: Float? = null,
     val isEditingTitle: Boolean = false,
     val localCoverUri: String? = null,
     /**
@@ -579,6 +580,18 @@ class AnimeDetailViewModel(
     }
 
     /**
+     * B 站标题匹配成功后回写 season_id：下次点击可直接直达，
+     * 「自动」模式也能据此判断优先跳哔哩哔哩。纯本地字段，不触发后端同步。
+     */
+    fun saveBilibiliSeasonId(seasonId: Int) {
+        val anime = animeFlow.value ?: return
+        if (seasonId <= 0 || anime.bilibiliSeasonId == seasonId) return
+        viewModelScope.launch {
+            repository.updateAnimeInternal(anime.copy(bilibiliSeasonId = seasonId))
+        }
+    }
+
+    /**
      * 检查给定的 bangumiId / tmdbId 是否已被【其他】番剧占用。
      * 用于编辑/封面搜索/匹配场景写入前的去重，避免触发 UNIQUE 约束导致闪退。
      * @param selfId 当前番剧自身 id，查到的占用者若是自身则视为合法。
@@ -646,6 +659,7 @@ class AnimeDetailViewModel(
             airWeekday = anime.airWeekday,
             bangumiId = anime.bangumiId,
             summary = anime.summary,
+            rating = anime.rating,
             airingStatusOverride = anime.airingStatusOverride
         )
     }
@@ -701,7 +715,12 @@ class AnimeDetailViewModel(
                 _showDuplicateToast.value = true
                 return@launch
             }
-            val updatedAnime = anime.copy(bangumiId = newBangumiId, tmdbId = newTmdbId)
+            val updatedAnime = anime.copy(
+                bangumiId = newBangumiId,
+                tmdbId = newTmdbId,
+                // 重新匹配可能换了一部作品：旧的 B 站关联不再可信，清空后按新标题重新解析
+                bilibiliSeasonId = if (newBangumiId != anime.bangumiId) null else anime.bilibiliSeasonId
+            )
             try {
                 repository.updateAnime(updatedAnime)
             } catch (e: Exception) {
@@ -726,6 +745,7 @@ class AnimeDetailViewModel(
             || edit.airWeekday != anime.airWeekday
             || edit.bangumiId != anime.bangumiId
             || edit.summary != anime.summary
+            || edit.rating != anime.rating
             || edit.airingStatusOverride != anime.airingStatusOverride
     }
 
@@ -743,6 +763,10 @@ class AnimeDetailViewModel(
 
     fun updateEditSummary(summary: String) {
         _editState.value = _editState.value.copy(summary = summary)
+    }
+
+    fun updateEditRating(rating: Float?) {
+        _editState.value = _editState.value.copy(rating = rating)
     }
 
     /**
@@ -849,6 +873,12 @@ class AnimeDetailViewModel(
                 airEndDate = anime.airEndDate,
                 airingStatusOverride = edit.airingStatusOverride
             )
+            // 标题或 Bangumi 关联变更后旧的 B 站关联不再可信，清空后按新标题重新解析
+            val bilibiliSeasonId = if (edit.title != anime.title || edit.bangumiId != anime.bangumiId) {
+                null
+            } else {
+                anime.bilibiliSeasonId
+            }
             val updatedAnime = anime.copy(
                 title = edit.title,
                 coverUrl = newCoverUrl,
@@ -858,8 +888,10 @@ class AnimeDetailViewModel(
                 airWeekday = edit.airWeekday,
                 bangumiId = edit.bangumiId,
                 summary = edit.summary ?: anime.summary,
+                rating = edit.rating,
                 isFinished = newIsFinished,
-                airingStatusOverride = edit.airingStatusOverride
+                airingStatusOverride = edit.airingStatusOverride,
+                bilibiliSeasonId = bilibiliSeasonId
             )
             try {
                 repository.updateAnime(updatedAnime)
@@ -1101,7 +1133,9 @@ class AnimeDetailViewModel(
                             watchedEpisodes = clampedWatched,
                             isFinished = isFinished,
                             airEndDate = parsedAirEndDate ?: anime.airEndDate,
-                            bangumiId = result.sourceId
+                            bangumiId = result.sourceId,
+                            // 换绑了新的 Bangumi 条目：旧的 B 站关联不再可信
+                            bilibiliSeasonId = if (result.sourceId != anime.bangumiId) null else anime.bilibiliSeasonId
                         )
                         try {
                             repository.updateAnime(updatedAnime)

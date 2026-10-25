@@ -236,7 +236,10 @@ fun HomeScreen(
     
     // 更新弹窗后组合，层级高于公告弹窗：更新检查期间公告可能先弹出，
     // 若检查出新版，更新弹窗叠在其上方，确保公告不遮挡更新弹窗。
-    com.aiexile.animetrack.ui.announcement.AnnouncementDialog(viewModel = viewModel.announcementViewModel)
+    com.aiexile.animetrack.ui.announcement.AnnouncementDialog(
+        viewModel = viewModel.announcementViewModel,
+        onNavigateLogin = onNavigateUserLogin
+    )
     UpdateDialog(viewModel = viewModel.updateViewModel)
     
     Scaffold(
@@ -336,6 +339,7 @@ fun HomeScreen(
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
                     onClearSelection = { viewModel.clearSelection() },
                     onTogglePin = { anime -> viewModel.togglePin(anime) },
+                    onToggleFavorite = { anime -> viewModel.toggleFavorite(anime) },
                     onFilterSelected = { viewModel.setFilter(it) },
                     onSortModeSelected = { viewModel.setListSortMode(it) },
                     onStartSortEdit = { viewModel.startSortEditMode() },

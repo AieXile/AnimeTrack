@@ -71,6 +71,8 @@ data class Anime(
     val lastProgressAt: Long? = null,
     /** 用户手动置顶。置顶的卡片固定排在列表最前，不受筛选/排序影响。 */
     val isPinned: Boolean = false,
+    /** 是否已收藏。收藏的番剧展示在「收藏」页，仅本地有效，不参与服务器订阅同步。 */
+    val isFavorite: Boolean = false,
     /**
      * 跨设备稳定的远程同步 ID（UUID）。bangumiId 为空的番剧（手动添加/B站同步）
      * 上传订阅时用作服务端 animeId，替代仅本设备稳定的本地自增 id，避免多设备
@@ -88,7 +90,13 @@ data class Anime(
      * （置顶之后、已设置条目之前），同组按 lastProgressAt/startDate 降序兜底。
      * 仅本地有效，不参与服务器订阅同步。
      */
-    val manualOrder: Int? = null
+    val manualOrder: Int? = null,
+    /**
+     * B 站番剧 season_id。B 站同步的条目在同步时直接写入；
+     * 按标题匹配成功时也会回写，用于详情页一键直达 B 站播放页。
+     * 仅本地有效，不参与服务器订阅同步。
+     */
+    val bilibiliSeasonId: Int? = null
 ) {
     val progress: Float
         get() = if (totalEpisodes > 0) watchedEpisodes.toFloat() / totalEpisodes else 0f

@@ -6,6 +6,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.crash.CrashReporter
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
@@ -59,6 +60,22 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
                 val fallbackRequest = request.newBuilder().url(originalUrl).build()
                 return@Interceptor chain.proceed(fallbackRequest)
             }
+        }
+        response
+    }
+
+    private val bangumiImageFallbackInterceptor = Interceptor { chain ->
+        val request = chain.request()
+        val response = chain.proceed(request)
+        // 自有服务器图片反代失败时回退官方 lain.bgm.tv（不走 wsrv）
+        val path = request.url.encodedPath
+        if (!response.isSuccessful &&
+            request.url.host == SettingsRepository.BANGUMI_MIRROR_HOST &&
+            path.startsWith("/v0/bgmimg/")
+        ) {
+            val originalUrl = "https://lain.bgm.tv/" + path.removePrefix("/v0/bgmimg/")
+            response.close()
+            return@Interceptor chain.proceed(request.newBuilder().url(originalUrl).build())
         }
         response
     }
@@ -202,6 +219,7 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
                     .readTimeout(10, TimeUnit.SECONDS)
                     .addInterceptor(bilibiliRefererInterceptor)
                     .addInterceptor(wsrvNlFallbackInterceptor)
+                    .addInterceptor(bangumiImageFallbackInterceptor)
                     .build()
             }
             .memoryCache {

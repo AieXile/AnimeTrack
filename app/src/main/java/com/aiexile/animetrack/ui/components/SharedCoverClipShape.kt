@@ -5,6 +5,7 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
@@ -14,6 +15,17 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+
+/**
+ * 圆角进度的收敛阈值。
+ *
+ * 共享元素默认的 bounds 动画是 `spring(stiffness = 400, damping = 1,
+ * visibilityThreshold = 1px/分量)`（见 Compose `SharedTransitionDefaults`）。
+ * 封面飞行距离通常几百 px，对应约 0.2% 的相对精度；圆角进度是 0~1 的
+ * 归一化值，取 0.002 让两条曲线同时起步、同时收尾，避免圆角先变完、
+ * 封面还在继续飞行。
+ */
+private const val CornerProgressVisibilityThreshold = 0.002f
 
 /**
  * 封面共享元素转场专用 Shape：圆角随转场进度连续插值。
@@ -70,7 +82,14 @@ fun rememberSharedCoverClipShape(
     detailSide: Boolean
 ): Shape {
     val transition: Transition<EnterExitState> = animatedVisibilityScope.transition
-    val progressState = transition.animateFloat(label = "sharedCoverCorner") { state ->
+    val progressState = transition.animateFloat(
+        transitionSpec = {
+            // 与默认 bounds 弹簧同参数（damping=1, stiffness=400），只收窄阈值，
+            // 使圆角变化和封面位移同时收尾
+            spring(visibilityThreshold = CornerProgressVisibilityThreshold)
+        },
+        label = "sharedCoverCorner"
+    ) { state ->
         val visibleProgress = if (detailSide) 1f else 0f
         if (state == EnterExitState.Visible) visibleProgress else 1f - visibleProgress
     }

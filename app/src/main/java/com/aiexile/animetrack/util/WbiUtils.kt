@@ -69,4 +69,21 @@ object WbiUtils {
 
         return rawParams
     }
+
+    /**
+     * 生成可直接拼到 URL 后的已签名 query 串。
+     *
+     * 编码必须与签名计算时完全一致，否则服务端校验 w_rid 失败；
+     * 因此这里复用 [encodeURIComponent]，而不是交给 Retrofit 的 @QueryMap 再编码一次。
+     */
+    fun buildSignedQuery(
+        params: Map<String, String>,
+        imgKey: String,
+        subKey: String
+    ): String {
+        val signed = sign(params, imgKey, subKey)
+        return signed.keys.sorted().joinToString("&") { key ->
+            "$key=${encodeURIComponent(signed.getValue(key))}"
+        }
+    }
 }

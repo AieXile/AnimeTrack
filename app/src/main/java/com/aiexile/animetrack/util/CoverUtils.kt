@@ -3,6 +3,7 @@ package com.aiexile.animetrack.util
 import android.content.Context
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.aiexile.animetrack.data.network.BangumiImageUrlResolver
 import com.aiexile.animetrack.model.AnimeStatus
 import java.io.File
 import java.time.LocalDate
@@ -24,10 +25,9 @@ fun resolveCoverModel(coverUrl: String?): Any? {
     return if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
         val file = File(coverUrl.removePrefix("file://"))
         if (file.exists() && file.length() > 0) file else null
-    } else if (coverUrl.contains("lain.bgm.tv")) {
-        "https://wsrv.nl/?url=$coverUrl"
     } else {
-        coverUrl
+        // lain.bgm.tv 走「镜像开启 → 自有服务器反代；关闭 → wsrv.nl」
+        BangumiImageUrlResolver.resolve(coverUrl)
     }
 }
 

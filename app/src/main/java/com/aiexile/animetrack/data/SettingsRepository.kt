@@ -17,6 +17,7 @@ import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
+import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.theme.isMonetColorSupported
 import com.aiexile.animetrack.ui.icons.IconPack
@@ -53,15 +54,37 @@ enum class RatingStandard {
 }
 
 /**
+ * 主界面卡片信息栏（标题下方一行）左右槽位可选的显示字段。
+ * [NONE] 表示该槽位留空，卡片高度保持不变。
+ */
+enum class CardInfoField {
+    /** 观看进度，如 8/12 */
+    PROGRESS,
+    /** 评分，如 ★8.2 */
+    RATING,
+    /** 放送日期（首播），当年显示 MM-dd */
+    AIR_DATE,
+    /** 放送星期，如 周五 */
+    AIR_WEEKDAY,
+    /** 未看集数，如 +3 */
+    UNWATCHED,
+    /** 不显示 */
+    NONE
+}
+
+/**
  * 主界面列表排序方式：
  * - [RECENT_PROGRESS] 自动排序（默认）：按状态区块排列——正在观看 → 计划观看 → 未放送 →
  *   已看完 → 已弃番，区块内部再按各自规则排序（在追 / 计划 / 未放送 / 已弃番按最近修改，
  *   已看完按看完日期）。枚举名沿用历史值，避免已持久化的 DataStore 值需要迁移
+ * - [TITLE_ALPHABETICAL] 首字母排序：不切状态区块，整列表按标题拼音升序
+ *   （汉字转全拼、字母数字小写、标点跳过）；置顶卡片仍固定在最前
  * - [MANUAL] 按用户手动拖拽保存的顺序（manualOrder），不再跟随进度自动重排；
  *   未参与过手动排序的新条目（manualOrder 为 null）视为最新，排在置顶之后、手动顺序之前
  */
 enum class ListSortMode {
     RECENT_PROGRESS,
+    TITLE_ALPHABETICAL,
     MANUAL
 }
 
@@ -103,6 +126,9 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
         private val SERIES_STACK_TOP_KEY = stringPreferencesKey("series_stack_top_indices")
+        // 卡片信息栏左右槽位字段（CardInfoField.name），默认保持进度 + 评分
+        private val CARD_INFO_LEFT_KEY = stringPreferencesKey("card_info_left")
+        private val CARD_INFO_RIGHT_KEY = stringPreferencesKey("card_info_right")
         private val LIST_SORT_MODE_KEY = stringPreferencesKey("list_sort_mode")
         private val RATING_STANDARD_KEY = stringPreferencesKey("rating_standard")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
@@ -139,6 +165,7 @@ class SettingsRepository(private val context: Context) {
 
         private val PLAYER_HUB_VISIBLE_KEY = booleanPreferencesKey("player_hub_visible")
         private val EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY = booleanPreferencesKey("external_player_entry_visible")
+        private val EXTERNAL_PLAY_MODE_KEY = stringPreferencesKey("external_play_mode")
         /** 播放器专属 WebDAV 配置：与备份同步相互独立 */
         private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
         private val PLAYER_WEBDAV_USERNAME_KEY = stringPreferencesKey("player_webdav_username")
@@ -568,6 +595,32 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
 
+    /** 卡片信息栏左槽位字段，默认观看进度 */
+    val cardInfoLeftField: Flow<CardInfoField> =
+        preferenceFlow(CARD_INFO_LEFT_KEY, CardInfoField.PROGRESS.name)
+            .map { runCatching { CardInfoField.valueOf(it) }.getOrDefault(CardInfoField.PROGRESS) }
+
+    suspend fun setCardInfoLeftField(field: CardInfoField) = setPreference(CARD_INFO_LEFT_KEY, field.name)
+
+    /** 卡片信息栏右槽位字段，默认评分 */
+    val cardInfoRightField: Flow<CardInfoField> =
+        preferenceFlow(CARD_INFO_RIGHT_KEY, CardInfoField.RATING.name)
+            .map { runCatching { CardInfoField.valueOf(it) }.getOrDefault(CardInfoField.RATING) }
+
+    suspend fun setCardInfoRightField(field: CardInfoField) = setPreference(CARD_INFO_RIGHT_KEY, field.name)
+
+    /** 卡片左槽位的同步缓存值：作为 CompositionLocal 初值，避免冷启动首帧按默认字段渲染再跳变 */
+    fun cachedCardInfoLeftField(): CardInfoField =
+        (prefCache[CARD_INFO_LEFT_KEY] as? String)
+            ?.let { runCatching { CardInfoField.valueOf(it) }.getOrNull() }
+            ?: CardInfoField.PROGRESS
+
+    /** 卡片右槽位的同步缓存值 */
+    fun cachedCardInfoRightField(): CardInfoField =
+        (prefCache[CARD_INFO_RIGHT_KEY] as? String)
+            ?.let { runCatching { CardInfoField.valueOf(it) }.getOrNull() }
+            ?: CardInfoField.RATING
+
     /** 主界面列表排序方式（默认为自动排序，历史持久化值沿用 RECENT_PROGRESS） */
     val listSortMode: Flow<ListSortMode> = preferenceFlow(LIST_SORT_MODE_KEY, ListSortMode.RECENT_PROGRESS.name)
         .map { modeString ->
@@ -884,9 +937,15 @@ class SettingsRepository(private val context: Context) {
     val playerHubVisible: Flow<Boolean> = preferenceFlow(PLAYER_HUB_VISIBLE_KEY, false)
     suspend fun setPlayerHubVisible(visible: Boolean) = setPreference(PLAYER_HUB_VISIBLE_KEY, visible)
 
-    /** 详情页顶栏是否显示 Animeko 跳转按钮（开发者选项控制，默认隐藏） */
+    /** 详情页顶栏是否显示外部播放按钮（功能设置，默认隐藏） */
     val externalPlayerEntryVisible: Flow<Boolean> = preferenceFlow(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, false)
     suspend fun setExternalPlayerEntryVisible(visible: Boolean) = setPreference(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, visible)
+
+    /** 外部播放目标选择方式（自动 / Animeko / 哔哩哔哩 / 每次询问） */
+    val externalPlayMode: Flow<ExternalPlayMode> =
+        preferenceFlow(EXTERNAL_PLAY_MODE_KEY, ExternalPlayMode.AUTO.name)
+            .map { runCatching { ExternalPlayMode.valueOf(it) }.getOrDefault(ExternalPlayMode.AUTO) }
+    suspend fun setExternalPlayMode(mode: ExternalPlayMode) = setPreference(EXTERNAL_PLAY_MODE_KEY, mode.name)
 
     // ---- 播放器专属 WebDAV（与备份同步的 webdavUrl 三件套互不影响）----
     val playerWebdavUrl: Flow<String> = preferenceFlow(PLAYER_WEBDAV_URL_KEY, "")

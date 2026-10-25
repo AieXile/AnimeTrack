@@ -90,7 +90,10 @@ private fun resolveImageUrls(markdown: String): String {
 }
 
 @Composable
-fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
+fun AnnouncementDialog(
+    viewModel: AnnouncementViewModel,
+    onNavigateLogin: () -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     if (!uiState.showDialog) return
@@ -113,7 +116,8 @@ fun AnnouncementDialog(viewModel: AnnouncementViewModel) {
                     announcement = announcement,
                     uiState = uiState,
                     onVote = { viewModel.submitVote(it) },
-                    onClearVoteError = { viewModel.clearVoteError() }
+                    onClearVoteError = { viewModel.clearVoteError() },
+                    onNavigateLogin = onNavigateLogin
                 )
             }
         },
@@ -170,7 +174,8 @@ private fun AnnouncementContent(
     announcement: com.aiexile.animetrack.data.network.Announcement,
     uiState: AnnouncementUiState,
     onVote: (Int) -> Unit,
-    onClearVoteError: () -> Unit
+    onClearVoteError: () -> Unit,
+    onNavigateLogin: () -> Unit
 ) {
     Column {
         // 标题
@@ -246,20 +251,23 @@ private fun AnnouncementContent(
             }
         }
 
-        // 投票区（需登录，未登录或无选项时不显示）
+        // 投票区（未登录时只显示登录提示，详情接口要求登录）
         VoteSection(
             detail = uiState.currentDetail,
             isDetailLoading = uiState.isDetailLoading,
+            isLoggedIn = uiState.isLoggedIn,
             isVoting = uiState.isVoting,
             voteError = uiState.voteError,
             onVote = onVote,
-            onClearVoteError = onClearVoteError
+            onClearVoteError = onClearVoteError,
+            onNavigateLogin = onNavigateLogin
         )
     }
 }
 
 /**
  * 投票区组件。
+ * - 未登录：显示"登录后可参与投票"提示与登录入口（选项需登录后由详情接口返回）。
  * - 未投票：选项为可点击行（RadioButton 指示器，无 ripple）。
  * - 已投票：显示各选项得票数 + 占比 + 进度条，已选项高亮。
  * - 投票状态由后端 selectedOptionId 驱动，而非本地 remember 锁定。
@@ -268,10 +276,12 @@ private fun AnnouncementContent(
 private fun VoteSection(
     detail: AnnouncementDetail?,
     isDetailLoading: Boolean,
+    isLoggedIn: Boolean,
     isVoting: Boolean,
     voteError: String?,
     onVote: (Int) -> Unit,
-    onClearVoteError: () -> Unit
+    onClearVoteError: () -> Unit,
+    onNavigateLogin: () -> Unit
 ) {
     // 详情加载中
     if (isDetailLoading) {
@@ -292,6 +302,32 @@ private fun VoteSection(
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        return
+    }
+
+    // 未登录：详情接口要求登录，拿不到选项，只给登录引导（登录后由 ViewModel 自动补拉详情）
+    if (!isLoggedIn) {
+        Spacer(modifier = Modifier.height(12.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = SquircleShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.announcement_vote_login_required),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = onNavigateLogin) {
+                    Text(stringResource(R.string.announcement_vote_login_action))
+                }
+            }
         }
         return
     }

@@ -3,11 +3,7 @@ package com.aiexile.animetrack.ui.settings
 import androidx.annotation.StringRes
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.navigation.Routes
-import net.sourceforge.pinyin4j.PinyinHelper
-import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType
-import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat
-import net.sourceforge.pinyin4j.format.HanyuPinyinToneType
-import java.util.concurrent.ConcurrentHashMap
+import com.aiexile.animetrack.util.charPinyin
 
 /**
  * 可搜索的设置项：指向某个设置子页面内的具体选项。
@@ -28,27 +24,6 @@ data class SearchableSetting(
 
 /** 设置主页路由（用于 TMDB API Key 弹窗等主页内条目） */
 const val SETTINGS_MAIN_ROUTE = "settings"
-
-/** 拼音输出格式：小写、无声调（如「主」→ "zhu"） */
-private val pinyinFormat = HanyuPinyinOutputFormat().apply {
-    caseType = HanyuPinyinCaseType.LOWERCASE
-    toneType = HanyuPinyinToneType.WITHOUT_TONE
-}
-
-/** 单字拼音缓存：设置条目文本有限，避免每次按键重复转换 */
-private val charPinyinCache = ConcurrentHashMap<Char, String>()
-
-/** 取单字拼音（多音字取第一个读音）；非汉字返回 null */
-private fun charPinyin(c: Char): String? {
-    charPinyinCache[c]?.let { return it }
-    val py = try {
-        PinyinHelper.toHanyuPinyinStringArray(c, pinyinFormat)?.firstOrNull()
-    } catch (_: Exception) {
-        null
-    }
-    if (py != null) charPinyinCache[c] = py
-    return py
-}
 
 /**
  * 模糊匹配：原文包含（忽略大小写）、拼音全拼、拼音首字母任一命中即匹配。
@@ -231,6 +206,16 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("系列", "折叠", "同系列")
     ),
     SearchableSetting(
+        route = Routes.FEATURES, key = "card_info_left",
+        titleRes = R.string.features_card_info_left, descRes = R.string.features_card_info_left_desc,
+        keywords = listOf("卡片", "显示内容", "放送时间", "播出时间", "评分", "进度")
+    ),
+    SearchableSetting(
+        route = Routes.FEATURES, key = "card_info_right",
+        titleRes = R.string.features_card_info_right, descRes = R.string.features_card_info_right_desc,
+        keywords = listOf("卡片", "显示内容", "放送时间", "播出时间", "评分", "进度")
+    ),
+    SearchableSetting(
         route = Routes.FEATURES, key = "auto_complete",
         titleRes = R.string.features_auto_complete, descRes = R.string.features_auto_complete_desc,
         keywords = listOf("自动补全", "补全")
@@ -249,6 +234,20 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         route = Routes.FEATURES, key = "crash_report",
         titleRes = R.string.features_crash_report, descRes = R.string.features_crash_report_desc,
         keywords = listOf("崩溃", "崩溃追踪", "上报", "诊断", "帮助改进", "稳定性", "crash")
+    ),
+
+    // ---- 外部播放 ----
+    SearchableSetting(
+        route = Routes.FEATURES, key = "external_player_entry",
+        titleRes = R.string.features_external_player_visible,
+        descRes = R.string.features_external_player_visible_desc,
+        keywords = listOf("外部播放", "播放按钮", "详情页", "Animeko", "哔哩哔哩", "B站", "external", "player")
+    ),
+    SearchableSetting(
+        route = Routes.FEATURES, key = "external_play_mode",
+        titleRes = R.string.features_external_play_mode,
+        descRes = R.string.features_external_play_mode_desc,
+        keywords = listOf("播放应用", "默认播放器", "自动", "Animeko", "哔哩哔哩", "B站", "bilibili", "player")
     ),
 
     // ---- 代理 ----
@@ -301,7 +300,7 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
     SearchableSetting(
         route = Routes.WIDGET_GUIDE, key = null,
         titleRes = R.string.settings_widgets, descRes = R.string.settings_widgets_subtitle,
-        keywords = listOf("桌面组件", "小组件", "widget", "放送", "统计", "桌面")
+        keywords = listOf("桌面组件", "小组件", "widget", "放送", "统计", "桌面", "刷新")
     ),
 
     // ---- TMDB API Key（设置主页弹窗） ----

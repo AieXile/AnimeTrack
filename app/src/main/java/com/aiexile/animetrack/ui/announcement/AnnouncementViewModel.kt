@@ -13,6 +13,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +25,8 @@ data class AnnouncementUiState(
     val showDialog: Boolean = false,
     val showHistoryList: Boolean = false,
     val error: String? = null,
+    /** 当前用户是否已登录：未登录时投票区只显示登录提示（详情接口要求登录） */
+    val isLoggedIn: Boolean = false,
     /** 当前公告的投票详情（需登录，未登录或拉取失败时为 null） */
     val currentDetail: AnnouncementDetail? = null,
     val isDetailLoading: Boolean = false,
@@ -55,6 +58,26 @@ class AnnouncementViewModel(
 
     private val _uiState = MutableStateFlow(AnnouncementUiState())
     val uiState: StateFlow<AnnouncementUiState> = _uiState.asStateFlow()
+
+    init {
+        // 跟随登录态变化：登录完成后补拉当前公告详情，解锁正显示中的公告投票区；
+        // 退出登录后清空详情，避免残留投票区
+        viewModelScope.launch {
+            var previous: Boolean? = null
+            userAuthManager.isLoggedIn.collect { loggedIn ->
+                _uiState.update { state ->
+                    state.copy(
+                        isLoggedIn = loggedIn,
+                        currentDetail = if (loggedIn) state.currentDetail else null
+                    )
+                }
+                if (previous == false && loggedIn && _uiState.value.showDialog) {
+                    loadCurrentDetail()
+                }
+                previous = loggedIn
+            }
+        }
+    }
 
     /**
      * 拉取公告列表，若有未读公告则标记为待显示。
@@ -189,14 +212,15 @@ class AnnouncementViewModel(
 
     /**
      * 拉取当前公告的投票详情（含选项与已选状态）。
-     * 仅在用户已登录时请求，未登录则不展示投票区。
+     * 仅在用户已登录时请求，未登录则不展示投票选项（只显示登录提示）。
      */
     private fun loadCurrentDetail() {
         val announcement = _uiState.value.currentAnnouncement ?: return
-        // 未登录时不拉取详情（投票功能需要登录）
-        if (userAuthManager.getCachedAccessToken() == null) return
-        _uiState.update { it.copy(isDetailLoading = true, voteError = null) }
         viewModelScope.launch {
+            // 读 DataStore 而非内存缓存：冷启动时缓存可能尚未灌入，
+            // 会把已登录用户误判为未登录而跳过详情请求
+            if (!userAuthManager.isLoggedIn.first()) return@launch
+            _uiState.update { it.copy(isDetailLoading = true, voteError = null) }
             try {
                 val response = RetrofitClient.userAuthApi.getAnnouncementDetail(announcement.id)
                 if (response.success) {

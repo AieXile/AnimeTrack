@@ -153,8 +153,6 @@
     <string name="developer_trigger_simulate_update">Trigger Simulated Update</string>
     <string name="developer_player_hub_entry">Show "Video Playback" in Settings</string>
     <string name="developer_player_hub_entry_desc">Show the playback hub entry in the settings list, hidden by default</string>
-    <string name="developer_external_player_entry">Show "Watch in Animeko" in details</string>
-    <string name="developer_external_player_entry_desc">Show the Animeko launch button in the anime detail top bar, hidden by default</string>
     <string name="developer_announcement">Announcement</string>
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>
@@ -219,6 +217,16 @@
     <string name="features_anime_display">Anime Display</string>
     <string name="features_series_stack">Series Stacking</string>
     <string name="features_series_stack_desc">Merge multi-season anime into stacked cards, long press to expand</string>
+    <string name="features_card_info_left">Card Left Info</string>
+    <string name="features_card_info_left_desc">Field shown in the left slot under the title</string>
+    <string name="features_card_info_right">Card Right Info</string>
+    <string name="features_card_info_right_desc">Field shown in the right slot under the title</string>
+    <string name="card_field_progress">Watch progress</string>
+    <string name="card_field_rating">Rating</string>
+    <string name="card_field_air_date">Air date</string>
+    <string name="card_field_air_weekday">Air weekday</string>
+    <string name="card_field_unwatched">Unwatched</string>
+    <string name="card_field_none">None</string>
     <string name="features_watching">Watching</string>
     <string name="features_auto_complete">Auto Complete</string>
     <string name="features_auto_complete_desc">Auto-mark as completed when progress is full</string>
@@ -231,6 +239,21 @@
     <string name="features_rating_standard_manual">Manual Rating</string>
     <string name="features_rating_standard_manual_desc">Don\'t read source rating when adding anime, manually select 1-5 stars (0.5 step)</string>
     <string name="features_rating_standard_notice">Only affects newly added anime, existing anime are not affected</string>
+
+    <!-- External playback -->
+    <string name="features_external_player">External playback</string>
+    <string name="features_external_player_visible">Show play button in details</string>
+    <string name="features_external_player_visible_desc">Show the external playback button (Animeko / Bilibili) in the anime detail top bar</string>
+    <string name="features_external_play_mode">Playback app</string>
+    <string name="features_external_play_mode_desc">Target app opened by the play button on the detail page</string>
+    <string name="features_external_play_mode_auto">Automatic</string>
+    <string name="features_external_play_mode_auto_desc">If both apps are installed, jump to Bilibili when linked, otherwise ask</string>
+    <string name="features_external_play_mode_animeko">Animeko</string>
+    <string name="features_external_play_mode_animeko_desc">Always open Animeko (requires a Bangumi link)</string>
+    <string name="features_external_play_mode_bilibili">Bilibili</string>
+    <string name="features_external_play_mode_bilibili_desc">Always open Bilibili, matching the anime by title</string>
+    <string name="features_external_play_mode_ask">Ask every time</string>
+    <string name="features_external_play_mode_ask_desc">Choose an app before each playback</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">Update Notifications</string>

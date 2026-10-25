@@ -92,6 +92,7 @@ import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
+import com.aiexile.animetrack.ui.components.SharedElementSpecs
 import com.aiexile.animetrack.ui.components.SideNavigationRail
 import com.aiexile.animetrack.ui.components.TokenExpiredBanner
 import com.aiexile.animetrack.ui.components.TopNoticeBanner
@@ -122,6 +123,7 @@ import com.aiexile.animetrack.ui.settings.PrivacyConsentDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
+import com.aiexile.animetrack.ui.favorites.FavoritesScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -1001,7 +1003,21 @@ internal fun MainPagerContent(
             // 主界面「新回复」胶囊直跳历史列表（回复在历史会话中查看）
             onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK_HISTORY) }
         )
-        "favorites" -> PlaceholderScreen(title = stringResource(R.string.nav_app_favorites), showBottomBar = false)
+        "favorites" -> FavoritesScreen(
+            onAnimeClick = { anime ->
+                onNavigateToScreen(
+                    Routes.animeDetail(
+                        animeId = anime.id,
+                        coverUrl = anime.coverUrl,
+                        sharedKeyPrefix = SharedElementSpecs.FavoritesKeyPrefix
+                    )
+                )
+            },
+            isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE,
+            // 与主页同一组共享元素 Scope：收藏卡片 → 详情封面飞入飞出
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope
+        )
         "timeline" -> TimelineScreen(showBottomBar = false, onNavigate = { })
         "schedule" -> ScheduleScreen(
             onAnimeClick = { animeId ->

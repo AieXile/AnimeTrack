@@ -25,6 +25,7 @@
     <string name="home_watched_exceeds_total">已看集數不能超過總集數</string>
     <string name="home_filter">篩選</string>
     <string name="home_sort_recent">自動排序</string>
+    <string name="home_sort_alphabetical">首字母排序</string>
     <string name="home_sort_manual">手動順序</string>
     <string name="home_sort_adjust">調整順序</string>
     <string name="home_sort_hint">長按卡片拖動調整順序，置頂卡片固定在最前</string>
@@ -174,6 +175,11 @@
     <string name="nav_app_favorites">收藏</string>
     <string name="nav_app_page_in_development_format">%1$s 頁面開發中...</string>
 
+    <!-- 收藏頁 -->
+    <string name="favorites_count_format">共 %1$d 部</string>
+    <string name="favorites_empty_title">還沒有收藏的番劇</string>
+    <string name="favorites_empty_hint">長按主介面的番劇卡片即可收藏</string>
+
     <!-- 公告彈窗 -->
     <string name="announcement_close">我知道了</string>
     <string name="announcement_history">歷史公告</string>
@@ -188,6 +194,8 @@
     <string name="announcement_vote_total_format">共 %1$d 票</string>
     <string name="announcement_vote_count_format">%1$d 票</string>
     <string name="announcement_vote_required">請先完成投票</string>
+    <string name="announcement_vote_login_required">登入後即可參與投票</string>
+    <string name="announcement_vote_login_action">去登入</string>
 
     <!-- 桌面小工具 -->
     <string name="settings_widgets">桌面小工具</string>
@@ -231,8 +239,9 @@
     <string name="widget_add_to_home">新增到桌面</string>
     <string name="widget_add_unsupported">目前桌面不支援一鍵新增，請長按桌面 → 小工具 → 找到 AnimeTrack</string>
     <string name="widget_auto_sync_note">桌面存在小工具時，每天 05:00 左右會自動同步一次；沒打開 app 時小工具顯示最近一次同步的資料。</string>
-    <string name="developer_widget_refresh">桌面小工具重新整理</string>
-    <string name="developer_widget_refresh_desc">立即請求桌面上所有小工具重繪（用於驗證資料變更後的顯示）</string>
-    <string name="developer_widget_refresh_button">強制重新整理小工具</string>
-    <string name="developer_widget_refresh_toast">已請求重新整理桌面小工具</string>
+    <string name="widget_refresh_title">手動重新整理</string>
+    <string name="widget_refresh_desc">小工具資料會在背景自動更新。想看到最新資料卻還沒重新整理時，可以在這裡立即重新整理桌面上的所有小工具。</string>
+    <string name="widget_refresh_button">強制重新整理小工具</string>
+    <string name="widget_refresh_toast">已請求重新整理桌面小工具</string>
+    <string name="widget_refresh_none">桌面上還沒有小工具，請先新增</string>
 </resources>
