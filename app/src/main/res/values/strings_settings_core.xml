@@ -21,6 +21,26 @@
     <string name="font_family_setting">应用字体</string>
     <string name="font_language_setting">应用语言</string>
 
+    <!-- 本机字体 -->
+    <string name="font_device_title">本机字体</string>
+    <string name="font_device_subtitle">从本机已安装的字体中选择，也可导入字体文件</string>
+    <string name="font_device_imported_tag">已导入</string>
+    <string name="font_device_delete">删除字体</string>
+    <string name="font_device_delete_title">删除字体</string>
+    <string name="font_device_delete_message">确定删除“%1$s”吗？字体文件会从本机移除。</string>
+    <string name="font_device_deleted">已删除字体：%1$s</string>
+    <string name="font_device_delete_failed">删除字体失败</string>
+    <string name="font_device_not_selected">未选择本机字体</string>
+    <string name="font_device_select_first">请先选择本机字体</string>
+    <string name="font_device_select_button">选择字体</string>
+    <string name="font_device_picker_title">本机字体</string>
+    <string name="font_device_search_hint">搜索字体…</string>
+    <string name="font_device_scanning">正在扫描本机字体…</string>
+    <string name="font_device_empty">未找到可用字体，可导入字体文件</string>
+    <string name="font_device_no_match">未找到匹配的字体</string>
+    <string name="font_device_applied">已应用本机字体：%1$s</string>
+    <string name="font_device_preview_sample">永远相信美好的事情即将发生</string>
+
     <!-- SettingsScreen -->
     <string name="settings_title">设置</string>
     <string name="settings_search_hint">搜索设置…</string>

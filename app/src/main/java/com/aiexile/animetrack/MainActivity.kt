@@ -29,6 +29,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.ChromeStyle
+import com.aiexile.animetrack.data.AppLanguage
+import com.aiexile.animetrack.data.font.DeviceFontResolver
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.widget.WidgetUpdateCoordinator
 import com.aiexile.animetrack.model.DarkStyle
@@ -50,6 +52,8 @@ import com.aiexile.animetrack.ui.theme.AnimeTrackTheme
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -58,6 +62,9 @@ class MainActivity : ComponentActivity() {
 
     // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
     private val customFontFamily = MutableStateFlow<FontFamily?>(null)
+
+    // 本机字体异步解析结果：与自定义字体一样，加载完成前先用默认 FontFamily 渲染
+    private val deviceFontFamily = MutableStateFlow<FontFamily?>(null)
 
     // Splash 退出动画是否已完全结束：首启隐私同意弹窗需等 splash 消失后再弹
     // （Compose Dialog 是独立 Window，会直接盖在 Activity 窗口的 splash 遮罩之上）
@@ -222,6 +229,20 @@ class MainActivity : ComponentActivity() {
                 customFontFamily.value = loaded
             }
         }
+        // 本机字体异步解析：选择值、界面语言或字体文件变化时重新解析。
+        appScope.launch {
+            combine(
+                settingsRepository.deviceFontSelectionFlow,
+                settingsRepository.appLanguageFlow,
+                settingsRepository.deviceFontReloadFlow
+            ) { selection, language, _ -> selection to language }
+                .collectLatest { (selection, language) ->
+                    val appLanguage = runCatching { AppLanguage.valueOf(language) }
+                        .getOrDefault(AppLanguage.SIMPLIFIED_CHINESE)
+                    val typeface = DeviceFontResolver.resolve(applicationContext, selection, appLanguage)
+                    deviceFontFamily.value = typeface?.let { FontFamily(it) }
+                }
+        }
         com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager.getInstance().onAppOpen()
         setContent {
             val themeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
@@ -260,8 +281,9 @@ class MainActivity : ComponentActivity() {
 
             val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
             val customFontLoaded by customFontFamily.collectAsState()
+            val deviceFontLoaded by deviceFontFamily.collectAsState()
 
-            val currentFontFamily = remember(fontFamily, customFontLoaded) {
+            val currentFontFamily = remember(fontFamily, customFontLoaded, deviceFontLoaded) {
                 when (fontFamily) {
                     "MISANS" -> FontFamily(
                         Font(R.font.misans_regular, FontWeight.Normal),
@@ -269,6 +291,7 @@ class MainActivity : ComponentActivity() {
                         Font(R.font.misans_bold, FontWeight.Bold)
                     )
                     "CUSTOM" -> customFontLoaded ?: FontFamily.Default
+                    "DEVICE" -> deviceFontLoaded ?: FontFamily.Default
                     else -> FontFamily.Default
                 }
             }

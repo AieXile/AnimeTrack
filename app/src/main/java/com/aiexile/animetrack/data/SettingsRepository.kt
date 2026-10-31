@@ -17,6 +17,9 @@ import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
+import com.aiexile.animetrack.data.font.DeviceFontFamily
+import com.aiexile.animetrack.data.font.DeviceFontSelection
+import com.aiexile.animetrack.data.font.FontNameReader
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.theme.isMonetColorSupported
@@ -25,12 +28,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -38,7 +45,8 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 enum class FontFamilyType(val displayName: String) {
     SYSTEM("系统字体"),
     MISANS("MiSans"),
-    CUSTOM("自定义字体")
+    CUSTOM("自定义字体"),
+    DEVICE("本机字体")
 }
 
 enum class AppLanguage(val displayName: String, val code: String) {
@@ -218,6 +226,10 @@ class SettingsRepository(private val context: Context) {
 
         private val FONT_FAMILY_KEY = stringPreferencesKey("font_family")
         private val CUSTOM_FONT_PATH_KEY = stringPreferencesKey("custom_font_path")
+        // 本机字体选择：家族名 + 代表字面文件 + TTC face 索引（路径失效时按家族名重新解析）
+        private val DEVICE_FONT_FAMILY_KEY = stringPreferencesKey("device_font_family")
+        private val DEVICE_FONT_PATH_KEY = stringPreferencesKey("device_font_path")
+        private val DEVICE_FONT_TTC_INDEX_KEY = intPreferencesKey("device_font_ttc_index")
         private val APP_LANGUAGE_KEY = stringPreferencesKey("app_language")
         // SharedPreferences 同步镜像 key（供 attachBaseContext 冷启动时同步读取）
         private const val APP_LANGUAGE_PREF = "app_language"
@@ -329,6 +341,40 @@ class SettingsRepository(private val context: Context) {
         migrated?.let { prefCache[CHROME_STYLE_KEY] = it }
     }
 
+    /**
+     * 一次性迁移：旧「自定义字体」合并进「本机字体」。
+     *
+     * 旧版本只保存一个自定义字体文件路径；合并后统一用本机字体选择的
+     * 「家族名 + 文件 + ttcIndex」持久化。文件不存在时回退系统字体，
+     * 避免继续停留在已失效的 CUSTOM 类型。
+     */
+    private suspend fun migrateCustomFontToDeviceIfNeeded() {
+        var migratedToDevice = false
+        context.dataStore.edit { prefs ->
+            if (prefs[FONT_FAMILY_KEY] != FontFamilyType.CUSTOM.name) return@edit
+            val path = prefs[CUSTOM_FONT_PATH_KEY].orEmpty()
+            val file = File(path)
+            val names = if (path.isNotBlank() && file.isFile && file.canRead()) {
+                FontNameReader.read(file, 0)
+            } else {
+                null
+            }
+            if (names != null) {
+                prefs[DEVICE_FONT_FAMILY_KEY] = names.family.trim()
+                    .ifBlank { file.nameWithoutExtension }
+                prefs[DEVICE_FONT_PATH_KEY] = file.absolutePath
+                prefs[DEVICE_FONT_TTC_INDEX_KEY] = 0
+                prefs[FONT_FAMILY_KEY] = FontFamilyType.DEVICE.name
+                migratedToDevice = true
+            } else {
+                prefs[FONT_FAMILY_KEY] = FontFamilyType.SYSTEM.name
+            }
+        }
+        if (migratedToDevice) {
+            AppLogManager.i(TAG, "旧自定义字体已迁移为本机字体")
+        }
+    }
+
     init {
         // 复用 Application 级协程作用域（替代 GlobalScope）加载缓存；
         // Application 未就绪时兜底自建一次性作用域，保证初始化任务仍能执行。
@@ -340,6 +386,8 @@ class SettingsRepository(private val context: Context) {
             try {
                 // 旧双布尔 → ChromeStyle 迁移必须先于缓存填充与任何首读
                 migrateChromeStyleIfNeeded()
+                // 旧「自定义字体」→ 本机字体迁移同样必须先于首读，避免 UI 先显示 CUSTOM
+                migrateCustomFontToDeviceIfNeeded()
 
                 val prefs = context.dataStore.data.first()
                 currentTmdbApiKey = prefs[TMDB_API_KEY_KEY] ?: DEFAULT_TMDB_API_KEY
@@ -995,9 +1043,69 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setFontFamily(type: FontFamilyType) = setPreference(FONT_FAMILY_KEY, type.name)
 
+    /** 旧「自定义字体」路径：仅用于迁移与旧值兜底，新导入字体统一走本机字体选择 */
     val customFontPathFlow: Flow<String> = preferenceFlow(CUSTOM_FONT_PATH_KEY, "")
 
-    suspend fun setCustomFontPath(path: String) = setPreference(CUSTOM_FONT_PATH_KEY, path)
+    val deviceFontSelectionFlow: Flow<DeviceFontSelection> = combine(
+        preferenceFlow(DEVICE_FONT_FAMILY_KEY, ""),
+        preferenceFlow(DEVICE_FONT_PATH_KEY, ""),
+        preferenceFlow(DEVICE_FONT_TTC_INDEX_KEY, 0)
+    ) { family, path, ttcIndex -> DeviceFontSelection(family, path, ttcIndex) }
+
+    // 字体文件被覆盖/改名时，选择项的值可能不变，用一个进程内信号触发重新加载 Typeface
+    private val deviceFontReload = MutableStateFlow(0L)
+
+    val deviceFontReloadFlow: Flow<Long> = deviceFontReload.asStateFlow()
+
+    /**
+     * 应用本机字体：家族名 / 文件 / ttcIndex 与字体类型在一次 DataStore 事务中写入，
+     * 避免启动加载逻辑观察到中间态后闪切字体。
+     */
+    suspend fun applyDeviceFont(family: DeviceFontFamily) {
+        val face = family.representativeFace
+        prefCache[DEVICE_FONT_FAMILY_KEY] = family.name
+        prefCache[DEVICE_FONT_PATH_KEY] = face.filePath
+        prefCache[DEVICE_FONT_TTC_INDEX_KEY] = face.ttcIndex
+        prefCache[FONT_FAMILY_KEY] = FontFamilyType.DEVICE.name
+        try {
+            context.dataStore.edit { prefs ->
+                prefs[DEVICE_FONT_FAMILY_KEY] = family.name
+                prefs[DEVICE_FONT_PATH_KEY] = face.filePath
+                prefs[DEVICE_FONT_TTC_INDEX_KEY] = face.ttcIndex
+                prefs[FONT_FAMILY_KEY] = FontFamilyType.DEVICE.name
+            }
+            AppLogManager.i(TAG, "应用本机字体: ${family.name} ${face.filePath}#${face.ttcIndex}")
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "本机字体写入失败: ${family.name}", e)
+        } finally {
+            notifyDeviceFontChanged()
+        }
+    }
+
+    /** 清除本机字体选择并回退系统字体（删除当前正在使用的导入字体时调用） */
+    suspend fun clearDeviceFont() {
+        prefCache.remove(DEVICE_FONT_FAMILY_KEY)
+        prefCache.remove(DEVICE_FONT_PATH_KEY)
+        prefCache.remove(DEVICE_FONT_TTC_INDEX_KEY)
+        prefCache[FONT_FAMILY_KEY] = FontFamilyType.SYSTEM.name
+        try {
+            context.dataStore.edit { prefs ->
+                prefs.remove(DEVICE_FONT_FAMILY_KEY)
+                prefs.remove(DEVICE_FONT_PATH_KEY)
+                prefs.remove(DEVICE_FONT_TTC_INDEX_KEY)
+                prefs[FONT_FAMILY_KEY] = FontFamilyType.SYSTEM.name
+            }
+            AppLogManager.i(TAG, "已清除本机字体选择，回退系统字体")
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "清除本机字体选择失败", e)
+        } finally {
+            notifyDeviceFontChanged()
+        }
+    }
+
+    private fun notifyDeviceFontChanged() {
+        deviceFontReload.value = deviceFontReload.value + 1
+    }
 
     val appLanguageFlow: Flow<String> = preferenceFlow(APP_LANGUAGE_KEY, AppLanguage.SIMPLIFIED_CHINESE.name)
 

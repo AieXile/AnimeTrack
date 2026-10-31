@@ -119,12 +119,15 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
     SearchableSetting(
         route = Routes.FONT_SETTINGS, key = "font",
         titleRes = R.string.font_title, descRes = R.string.font_select_font,
-        keywords = listOf("系统字体", "MiSans", "自定义字体", "font")
+        keywords = listOf("系统字体", "MiSans", "自定义字体", "本机字体", "font")
     ),
     SearchableSetting(
-        route = Routes.FONT_SETTINGS, key = "custom_font",
-        titleRes = R.string.font_custom_title, descRes = R.string.font_custom_subtitle,
-        keywords = listOf("导入字体", "ttf", "字体文件")
+        route = Routes.FONT_SETTINGS, key = "device_font",
+        titleRes = R.string.font_device_title, descRes = R.string.font_device_subtitle,
+        keywords = listOf(
+            "本机字体", "系统已安装字体", "设备字体", "导入字体", "ttf", "字体文件",
+            "device font", "system font", "import font"
+        )
     ),
     SearchableSetting(
         route = Routes.FONT_SETTINGS, key = "language",

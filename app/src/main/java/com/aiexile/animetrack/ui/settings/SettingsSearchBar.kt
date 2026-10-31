@@ -42,14 +42,17 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 fun SettingsSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hint: String? = null,
+    autoFocus: Boolean = true
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val resolvedHint = hint ?: stringResource(R.string.settings_search_hint)
 
-    // 进入搜索模式后自动聚焦并弹出键盘
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    // 进入搜索模式后自动聚焦并弹出键盘；作为页面内常驻搜索框使用时可关闭
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) focusRequester.requestFocus()
     }
 
     Row(
@@ -91,7 +94,7 @@ fun SettingsSearchBar(
                     Box {
                         if (query.isEmpty()) {
                             Text(
-                                text = stringResource(R.string.settings_search_hint),
+                                text = resolvedHint,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

@@ -53,6 +53,7 @@ import com.aiexile.animetrack.ui.settings.DataManageScreen
 import com.aiexile.animetrack.ui.settings.DeveloperScreen
 import com.aiexile.animetrack.ui.settings.FeaturesScreen
 import com.aiexile.animetrack.ui.settings.FontSettingsScreen
+import com.aiexile.animetrack.ui.settings.DeviceFontPickerScreen
 import com.aiexile.animetrack.ui.settings.LoginScreen
 import com.aiexile.animetrack.ui.settings.NavigationCustomizeScreen
 import com.aiexile.animetrack.ui.settings.PrivacyPolicyScreen
@@ -413,6 +414,15 @@ internal fun NavGraphBuilder.sharedDestinations(
     // 字体设置
     composable(Routes.FONT_SETTINGS) {
         FontSettingsScreen(
+            settingsRepository = settingsRepository,
+            onBack = navigateBack,
+            onOpenDeviceFontPicker = { onNavigate(Routes.DEVICE_FONT_PICKER) }
+        )
+    }
+
+    // 本机字体选择
+    composable(Routes.DEVICE_FONT_PICKER) {
+        DeviceFontPickerScreen(
             settingsRepository = settingsRepository,
             onBack = navigateBack
         )

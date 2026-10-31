@@ -21,6 +21,26 @@
     <string name="font_family_setting">App font</string>
     <string name="font_language_setting">App language</string>
 
+    <!-- Device fonts -->
+    <string name="font_device_title">Device Fonts</string>
+    <string name="font_device_subtitle">Choose from installed fonts, or import a font file</string>
+    <string name="font_device_imported_tag">Imported</string>
+    <string name="font_device_delete">Delete font</string>
+    <string name="font_device_delete_title">Delete Font</string>
+    <string name="font_device_delete_message">Delete “%1$s”? The font file will be removed from this device.</string>
+    <string name="font_device_deleted">Font deleted: %1$s</string>
+    <string name="font_device_delete_failed">Failed to delete font</string>
+    <string name="font_device_not_selected">No device font selected</string>
+    <string name="font_device_select_first">Please select a device font first</string>
+    <string name="font_device_select_button">Choose Font</string>
+    <string name="font_device_picker_title">Device Fonts</string>
+    <string name="font_device_search_hint">Search fonts…</string>
+    <string name="font_device_scanning">Scanning device fonts…</string>
+    <string name="font_device_empty">No usable font found. You can import a font file.</string>
+    <string name="font_device_no_match">No matching font found</string>
+    <string name="font_device_applied">Device font applied: %1$s</string>
+    <string name="font_device_preview_sample">Always believe something wonderful is about to happen</string>
+
     <!-- SettingsScreen -->
     <string name="settings_title">Settings</string>
     <string name="settings_login">Login</string>

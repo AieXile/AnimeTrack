@@ -24,6 +24,7 @@ import coil.request.SuccessResult
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.FontFamilyType
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.font.DeviceFontTypefaceLoader
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -606,7 +607,7 @@ object ShareCardRenderer {
         restore()
     }
 
-    /** 按应用字体设置解析卡片字体:MiSans(内置)/ 自定义字体 / 系统 */
+    /** 按应用字体设置解析卡片字体:MiSans(内置)/ 本机字体 / 旧自定义字体 / 系统 */
     private suspend fun resolveTypeface(context: Context, settingsRepository: SettingsRepository): CardTypeface {
         val system500 = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         val systemBold = Typeface.create("sans-serif", Typeface.BOLD)
@@ -616,6 +617,18 @@ object ShareCardRenderer {
                 ResourcesCompat.getFont(context, R.font.misans_bold) ?: systemBold,
                 fakeBold = false
             )
+            FontFamilyType.DEVICE.name -> {
+                val selection = settingsRepository.deviceFontSelectionFlow.first()
+                val device = runCatching {
+                    if (selection.isConfigured) {
+                        DeviceFontTypefaceLoader.load(selection.toFace())
+                    } else {
+                        null
+                    }
+                }.getOrNull()
+                if (device != null) CardTypeface(device, device, fakeBold = true)
+                else CardTypeface(system500, systemBold, fakeBold = false)
+            }
             FontFamilyType.CUSTOM.name -> {
                 val custom = runCatching {
                     settingsRepository.customFontPathFlow.first()
