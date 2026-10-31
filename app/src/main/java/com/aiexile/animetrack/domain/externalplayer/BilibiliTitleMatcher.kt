@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.domain.externalplayer
 
+import com.aiexile.animetrack.util.normalizeTitleForMatch
 import java.text.Normalizer
 import kotlin.math.abs
 
@@ -52,7 +53,7 @@ object BilibiliTitleMatcher {
         if (title.isBlank() || candidates.isEmpty()) return null
 
         val localTitle = clean(title)
-        val localNormalized = normalize(localTitle)
+        val localNormalized = normalizeTitleForMatch(localTitle)
         if (localNormalized.isEmpty()) return null
         val localSeason = seasonNumber?.takeIf { it in 1..99 } ?: parseSeason(localTitle)
 
@@ -85,8 +86,8 @@ object BilibiliTitleMatcher {
         // seasonNumber=99（剧场版/外传等）不适用该规则
         if (localSeason in 2..50 && candidateSeason == null) return null
 
-        val candidateNormalized = normalize(candidateTitle)
-        val orgNormalized = normalize(clean(candidate.orgTitle))
+        val candidateNormalized = normalizeTitleForMatch(candidateTitle)
+        val orgNormalized = normalizeTitleForMatch(clean(candidate.orgTitle))
 
         val titleScore = when {
             candidateNormalized.isNotEmpty() && candidateNormalized == localNormalized -> SCORE_EXACT
@@ -147,8 +148,4 @@ object BilibiliTitleMatcher {
 
     private fun clean(text: String): String =
         Normalizer.normalize(HTML_TAG.replace(text, ""), Normalizer.Form.NFKC).trim()
-
-    /** 去掉空白与常见标点后用于比较（【我推的孩子】与「我推的孩子」视为同一标题） */
-    private fun normalize(text: String): String =
-        text.lowercase().filter { it.isLetterOrDigit() }
 }

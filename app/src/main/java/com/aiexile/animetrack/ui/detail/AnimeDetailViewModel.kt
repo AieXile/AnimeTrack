@@ -247,6 +247,9 @@ class AnimeDetailViewModel(
 
     private var hasFetchedDetail = false
 
+    /** 本 ViewModel 生命周期内是否已尝试过 TMDB 后台自动匹配，避免 flow 每次发射都请求 */
+    private var hasAttemptedTmdbAutoMatch = false
+
     init {
         viewModelScope.launch {
             animeFlow.collect { anime ->
@@ -279,6 +282,39 @@ class AnimeDetailViewModel(
                     }
                 }
             }
+        }
+        viewModelScope.launch {
+            animeFlow.collect { anime ->
+                if (anime == null || hasAttemptedTmdbAutoMatch || anime.tmdbId != null) return@collect
+                val title = anime.title.trim()
+                if (title.isEmpty()) return@collect
+                hasAttemptedTmdbAutoMatch = true
+                autoMatchTmdb(anime, title)
+            }
+        }
+    }
+
+    /**
+     * 后台按标题尝试关联 TMDB：仅当标题与 TMDB 条目的 name / original_name 完全对齐时自动绑定，
+     * 其余情况保持未关联，由用户通过详情页的手动匹配入口处理。
+     */
+    private suspend fun autoMatchTmdb(searchedAnime: Anime, searchedTitle: String) {
+        try {
+            val tmdbId = searchUseCase.findExactTmdbMatch(searchedTitle, searchedAnime.airDate)
+                ?: return
+            // 匹配期间用户可能已手动绑定或改了标题：以最新数据为准，避免覆盖用户选择
+            val current = animeFlow.value ?: return
+            if (current.id != searchedAnime.id || current.tmdbId != null) return
+            if (current.title.trim() != searchedTitle) return
+            // tmdbId 有 UNIQUE 约束：已被其他番剧占用时放弃自动绑定
+            val occupied = repository.getAnimeByTmdbId(tmdbId)
+            if (occupied != null && occupied.id != current.id) return
+
+            repository.updateAnime(current.copy(tmdbId = tmdbId))
+            Log.d(TAG, "Auto-matched TMDB id $tmdbId for ${current.title}")
+        } catch (e: Exception) {
+            // 后台匹配失败不影响页面，保留手动匹配入口，下次进入详情页重试
+            Log.d(TAG, "Auto TMDB match failed: ${e.message}")
         }
     }
 

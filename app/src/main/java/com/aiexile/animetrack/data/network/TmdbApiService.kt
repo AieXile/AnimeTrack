@@ -18,6 +18,8 @@ data class TmdbTvShow(
     val id: Int,
     @SerializedName("name")
     val name: String,
+    @SerializedName("original_name")
+    val originalName: String? = null,
     @SerializedName("overview")
     val overview: String?,
     @SerializedName("poster_path")

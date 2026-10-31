@@ -14,6 +14,7 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SubscribeRequest
 import com.aiexile.animetrack.data.network.RemoveSubscribeRequest
 import com.aiexile.animetrack.data.network.TmdbTvDetail
+import com.aiexile.animetrack.data.network.TmdbTvShow
 import com.aiexile.animetrack.data.network.toApiString
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -120,6 +121,9 @@ interface AnimeRepository {
     suspend fun searchBangumi(query: String): List<BangumiSubject>
 
     suspend fun searchTmdb(query: String): List<SearchResult>
+
+    /** TMDB 原始搜索结果，供标题精确匹配等需要 original_name 的场景使用 */
+    suspend fun searchTmdbTvShows(query: String): List<TmdbTvShow>
 
     suspend fun searchAll(query: String): List<SearchResult>
 
@@ -526,8 +530,7 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun searchTmdb(query: String): List<SearchResult> {
-        val response = RetrofitClient.tmdbApi.searchTv(query = query)
-        return response.results.map { show ->
+        return searchTmdbTvShows(query).map { show ->
             SearchResult(
                 source = SearchSource.TMDB,
                 sourceId = show.id,
@@ -540,6 +543,10 @@ class AnimeRepositoryImpl(
                 episodeCountText = show.episodeCountText
             )
         }
+    }
+
+    override suspend fun searchTmdbTvShows(query: String): List<TmdbTvShow> {
+        return RetrofitClient.tmdbApi.searchTv(query = query).results
     }
 
     override suspend fun searchAll(query: String): List<SearchResult> {
