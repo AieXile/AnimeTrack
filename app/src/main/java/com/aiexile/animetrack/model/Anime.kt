@@ -80,6 +80,12 @@ data class Anime(
      */
     val remoteSyncId: String? = null,
     /**
+     * 服务端权威订阅 ID（subscription_id）。由订阅 v2 接口下发/回写，
+     * 用于跨设备精确匹配同一订阅（服务端合并后旧行键会变，但此 ID 不变）。
+     * null 表示尚未从 v2 接口拿到（旧服务端 / 尚未同步）。
+     */
+    val serverSubscriptionId: String? = null,
+    /**
      * 是否已展示过「Bangumi 未关联」详情页提示遮罩（bangumiId 为空/为 0 时首次进入触发）。
      * 同一部番剧仅提示一次；删除后重新添加会重新提示。
      */

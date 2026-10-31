@@ -73,6 +73,12 @@ interface AnimeDao {
     @Query("UPDATE anime SET remoteSyncId = :remoteSyncId WHERE id = :id")
     suspend fun updateRemoteSyncId(id: Int, remoteSyncId: String)
 
+    @Query("SELECT * FROM anime WHERE serverSubscriptionId = :subscriptionId LIMIT 1")
+    suspend fun getAnimeByServerSubscriptionId(subscriptionId: String): Anime?
+
+    @Query("UPDATE anime SET serverSubscriptionId = :subscriptionId WHERE id = :id")
+    suspend fun updateServerSubscriptionId(id: Int, subscriptionId: String?)
+
     /**
      * 清洗历史脏数据：bangumiId<=0（B站导入经服务端同步曾产生 animeId='0'）
      * 不是有效 Bangumi ID，置空并改用稳定的 remoteSyncId 标识。
@@ -143,6 +149,24 @@ interface AnimeDao {
     /** 删除确认成功后清除对应墓碑 */
     @Query("DELETE FROM pending_deletions WHERE ownerKey = :ownerKey AND animeId = :animeId")
     suspend fun clearPendingDeletion(ownerKey: String, animeId: String)
+
+    /** 组内任一稳定键删除成功即清理同组全部墓碑（canonical 已删除，alias 无需再试） */
+    @Query("DELETE FROM pending_deletions WHERE ownerKey = :ownerKey AND groupKey = :groupKey")
+    suspend fun clearPendingDeletionGroup(ownerKey: String, groupKey: String)
+
+    /** 按当前行键定位墓碑组：上传恢复成功时整组清理，避免按值清理误伤其他番 */
+    @Query(
+        "SELECT DISTINCT groupKey FROM pending_deletions " +
+            "WHERE ownerKey = :ownerKey AND animeId IN (:keys)"
+    )
+    suspend fun getPendingDeletionGroups(ownerKey: String, keys: List<String>): List<String>
+
+    /** 合并防线只认稳定键：LEGACY_LOCAL 可能与其他番剧的 Bangumi ID 撞车，必须排除 */
+    @Query(
+        "SELECT animeId FROM pending_deletions " +
+            "WHERE ownerKey = :ownerKey AND keyType != 'LEGACY_LOCAL'"
+    )
+    suspend fun getPendingDeletionStableKeys(ownerKey: String): List<String>
 
     /** 清理其他账号遗留的墓碑（换账号后无法安全执行，直接丢弃） */
     @Query("DELETE FROM pending_deletions WHERE ownerKey != :ownerKey")

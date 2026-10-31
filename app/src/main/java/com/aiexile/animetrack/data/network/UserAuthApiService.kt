@@ -318,12 +318,139 @@ data class Subscription(
     val startDate: String? = null,
     val finishDate: String? = null,
     /** 行键迁移映射（服务端下发）：本行取代的旧行键，客户端合并时据此换键合并 */
-    val supersededAnimeIds: List<String>? = null
+    val supersededAnimeIds: List<String>? = null,
+    /** 服务端权威订阅 ID（v2 下发；v1 兼容响应也会带上） */
+    val subscriptionId: String? = null,
+    /** 服务端写入版本号 */
+    val revision: Int? = null,
+    /** 服务端最后写入时间（ISO 8601） */
+    val updatedAt: String? = null,
+    /** 客户端最后有效修改时间（ISO 8601，LWW 依据） */
+    val clientUpdatedAt: String? = null
 )
 
 data class SubscriptionsResponse(
     val success: Boolean,
     val subscriptions: List<Subscription>? = null,
+    val message: String? = null
+)
+
+// ========== 番剧订阅 v2（服务端订阅身份） ==========
+
+data class SubscriptionV2Identity(
+    val bangumiId: Int? = null,
+    val remoteSyncId: String? = null
+)
+
+data class SubscriptionV2SupersededKey(
+    /** bangumi / remote_sync */
+    val type: String,
+    val value: String
+)
+
+/** 服务端下发的带类型别名：bangumi / remote_sync / legacy_local */
+data class SubscriptionV2Alias(
+    val type: String,
+    val value: String
+)
+
+data class SubscriptionV2Data(
+    val animeTitle: String,
+    val animeImage: String? = null,
+    val airDate: String? = null,
+    val isAiring: Boolean? = null,
+    val weekday: Int? = null,
+    val totalEpisodes: Int = 0,
+    val watchedEpisodes: Int = 0,
+    val currentEpisodes: Int = 0,
+    val status: String? = null,
+    val rating: Float? = null,
+    val notes: String? = null,
+    val startDate: String? = null,
+    val finishDate: String? = null
+)
+
+data class SubscriptionV2UpsertRequest(
+    val subscriptionId: String? = null,
+    /** add = 用户显式添加（可绕过墓碑）；sync = 常规同步 */
+    val intent: String? = null,
+    val identity: SubscriptionV2Identity,
+    /** 旧本地自增 id 等一次性键，服务端不会写入 alias 表 */
+    val legacyKeys: List<String>? = null,
+    /** 客户端明确上报的已换绑旧键（旧 bangumiId / remoteSyncId） */
+    val supersededKeys: List<SubscriptionV2SupersededKey>? = null,
+    /** 本地最后有效修改时间（ISO 8601）；服务端据此做 LWW */
+    val clientUpdatedAt: String? = null,
+    val progressReset: Boolean? = null,
+    val legacyTitleConvergence: Boolean? = null,
+    /** 客户端上次看到的 revision，仅用于服务端诊断，不参与拒绝写入 */
+    val baseRevision: Int? = null,
+    val data: SubscriptionV2Data
+)
+
+data class SubscriptionV2DeleteRequest(
+    val subscriptionId: String? = null,
+    val identity: SubscriptionV2Identity? = null,
+    val legacyKeys: List<String>? = null,
+    val supersededKeys: List<SubscriptionV2SupersededKey>? = null
+)
+
+data class SubscriptionV2MergedItem(
+    val mergedSubscriptionId: String,
+    /** 被合并行的旧键，客户端用它清理本地重复卡片 */
+    val aliases: List<SubscriptionV2Alias>? = null
+)
+
+data class SubscriptionV2ConflictKey(
+    val type: String,
+    val value: String
+)
+
+data class SubscriptionV2ConflictExisting(
+    val type: String,
+    val subscriptionId: String
+)
+
+data class SubscriptionV2Conflict(
+    val key: SubscriptionV2ConflictKey,
+    val existing: SubscriptionV2ConflictExisting
+)
+
+data class SubscriptionV2UpsertResponse(
+    val success: Boolean,
+    val subscriptionId: String? = null,
+    val revision: Int? = null,
+    /** 服务端诊断：客户端 baseRevision 是否与写入前的 revision 一致 */
+    val revisionMatched: Boolean? = null,
+    val applied: Boolean? = null,
+    val ignored: Boolean? = null,
+    val canonical: Subscription? = null,
+    val merged: List<SubscriptionV2MergedItem>? = null,
+    val conflicts: List<SubscriptionV2Conflict>? = null,
+    val message: String? = null
+)
+
+data class SubscriptionV2DeleteResponse(
+    val success: Boolean,
+    val removed: Boolean? = null,
+    val subscriptionId: String? = null,
+    val message: String? = null
+)
+
+data class SubscriptionV2Tombstone(
+    val subscriptionId: String,
+    /** 带类型的别名；legacy_local 只在标题一致时采信 */
+    val aliases: List<SubscriptionV2Alias>? = null,
+    val deletedAt: String? = null,
+    /** 删除快照里的标题，用于旧本地 id 的二次确认 */
+    val animeTitle: String? = null
+)
+
+data class SubscriptionsV2Response(
+    val success: Boolean,
+    val apiVersion: Int? = null,
+    val subscriptions: List<Subscription>? = null,
+    val tombstones: List<SubscriptionV2Tombstone>? = null,
     val message: String? = null
 )
 
@@ -451,6 +578,19 @@ interface UserAuthApiService {
 
     @GET("subscriptions/list")
     suspend fun getSubscriptions(): SubscriptionsResponse
+
+    @GET("v2/subscriptions/list")
+    suspend fun getSubscriptionsV2(): SubscriptionsV2Response
+
+    @POST("v2/subscriptions/upsert")
+    suspend fun upsertSubscriptionV2(
+        @Body request: SubscriptionV2UpsertRequest
+    ): SubscriptionV2UpsertResponse
+
+    @POST("v2/subscriptions/delete")
+    suspend fun deleteSubscriptionV2(
+        @Body request: SubscriptionV2DeleteRequest
+    ): SubscriptionV2DeleteResponse
 
     // ========== 用户活跃上报 ==========
 

@@ -1,0 +1,45 @@
+-- 订阅身份 v2：回滚步骤（按阶段选择，不要无脑全执行）
+-- 前置：阶段 0 的 mysqldump 备份必须可用。
+
+-- =========================================================
+-- 阶段 3 回滚（服务端代码回退）：
+--   把 server.js 回退到上线前版本，保留新增列/表。
+--   旧代码不读新增列，因此无需动数据库。
+-- =========================================================
+
+-- =========================================================
+-- 阶段 2 回滚（回填数据）：
+--   从备份恢复 user_subscriptions；新表清空即可。
+--   数据恢复示例（会覆盖当前表，务必先停写）：
+-- =========================================================
+-- 1) 打开维护窗口
+--    SUBSCRIPTION_WRITE_LOCK=1 或创建锁文件后重启/生效
+-- 2) 停服务（避免连接占用）
+-- 3) 恢复：
+--    mysql animetrack < backup_YYYYMMDD.sql
+-- 4) 清空新增表（它们只存 alias/墓碑/审计，可重建）：
+-- TRUNCATE TABLE subscription_aliases;
+-- TRUNCATE TABLE subscription_tombstone_aliases;
+-- TRUNCATE TABLE subscription_tombstones;
+-- TRUNCATE TABLE subscription_merge_log;
+
+-- =========================================================
+-- 阶段 1 回滚（DDL）：
+--   只有确认不需要 v2 时才执行；删除列会丢 subscription_id 等新增数据。
+-- =========================================================
+-- ALTER TABLE user_subscriptions
+--   DROP INDEX uk_user_subscription,
+--   DROP INDEX uk_user_bangumi,
+--   DROP INDEX uk_user_remote_sync,
+--   DROP INDEX idx_user_subscription,
+--   DROP COLUMN updated_at,
+--   DROP COLUMN revision,
+--   DROP COLUMN client_updated_at,
+--   DROP COLUMN remote_sync_id,
+--   DROP COLUMN bangumi_id,
+--   DROP COLUMN subscription_id;
+
+-- DROP TABLE IF EXISTS subscription_merge_log;
+-- DROP TABLE IF EXISTS subscription_tombstone_aliases;
+-- DROP TABLE IF EXISTS subscription_tombstones;
+-- DROP TABLE IF EXISTS subscription_aliases;

@@ -13,7 +13,7 @@ import com.aiexile.animetrack.model.PendingDeletion
 
 @Database(
     entities = [Anime::class, PendingDeletion::class],
-    version = 26,
+    version = 28,
     exportSchema = false
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -416,6 +416,65 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 26→27 迁移：新增 serverSubscriptionId（服务端权威订阅 ID，可空）。
+         * 仅用于跨设备合并/v2 删除，本地功能不依赖；旧数据为 null。
+         */
+        private val MIGRATION_26_27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE anime ADD COLUMN serverSubscriptionId TEXT DEFAULT NULL")
+            }
+        }
+
+        /**
+         * 27→28 迁移：待删除墓碑增加 keyType / groupKey。
+         *
+         * 旧表把「本地自增 id / Bangumi ID / remoteSyncId / subscriptionId」混存，
+         * 无法可靠区分。迁移规则以「宁可残留不可误删」为原则：
+         * - 纯数字行一律按 LEGACY_LOCAL，补偿重试跳过，避免被当成 Bangumi ID 误删别番；
+         * - UUID 行按 LEGACY_UUID，重试时依次按 subscriptionId / remoteSyncId 精确尝试；
+         * - groupKey 用 'migrated:' || id 保证每行独立，避免旧数据跨番剧整组清理。
+         */
+        private val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE pending_deletions_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        animeId TEXT NOT NULL,
+                        keyType TEXT NOT NULL,
+                        groupKey TEXT NOT NULL,
+                        ownerKey TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO pending_deletions_new (id, animeId, keyType, groupKey, ownerKey, createdAt)
+                    SELECT id, animeId,
+                        CASE
+                            WHEN animeId GLOB '????????-????-????-????-????????????' THEN 'LEGACY_UUID'
+                            ELSE 'LEGACY_LOCAL'
+                        END,
+                        'migrated:' || id,
+                        ownerKey, createdAt
+                    FROM pending_deletions
+                    """.trimIndent()
+                )
+                db.execSQL("DROP TABLE pending_deletions")
+                db.execSQL("ALTER TABLE pending_deletions_new RENAME TO pending_deletions")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_pending_deletions_ownerKey_animeId` " +
+                        "ON `pending_deletions` (`ownerKey`, `animeId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_pending_deletions_ownerKey_groupKey` " +
+                        "ON `pending_deletions` (`ownerKey`, `groupKey`)"
+                )
+            }
+        }
+
         /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
         private val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
@@ -425,7 +484,8 @@ abstract class AnimeDatabase : RoomDatabase() {
             MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16,
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
             MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
-            MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26
+            MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
+            MIGRATION_26_27, MIGRATION_27_28
         ).map { LoggingMigration(it) }.toTypedArray()
 
         /**
