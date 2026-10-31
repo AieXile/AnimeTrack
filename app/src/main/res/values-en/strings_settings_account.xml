@@ -214,6 +214,8 @@
     <string name="features_feedback_reply_reminder_desc">Show new feedback reply hint at top of home screen</string>
     <string name="features_calendar_preview_button">Schedule Preview Button</string>
     <string name="features_calendar_preview_button_desc">Show calendar button in watching board to view today/tomorrow updates</string>
+    <string name="features_daily_broadcast_button">Daily Broadcast Entry</string>
+    <string name="features_daily_broadcast_button_desc">Show Bangumi daily broadcast entry in the watching board to browse all shows airing this season</string>
     <string name="features_anime_display">Anime Display</string>
     <string name="features_series_stack">Series Stacking</string>
     <string name="features_series_stack_desc">Merge multi-season anime into stacked cards, long press to expand</string>

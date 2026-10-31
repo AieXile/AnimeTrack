@@ -105,6 +105,65 @@ data class BangumiSubject(
     }
 }
 
+/**
+ * 每日放送单日数据（旧版接口 `GET https://api.bgm.tv/calendar` 的数组元素）。
+ * 接口按周一→周日返回 7 个元素，每个元素的 `items` 是当天放送的条目。
+ */
+data class BangumiCalendarDay(
+    val weekday: BangumiCalendarWeekday? = null,
+    val items: List<BangumiCalendarSubject> = emptyList()
+) {
+    /** 星期编号（1=周一 … 7=周日）；老数据缺 weekday 时回退到周日，与本地 `airWeekday` 语义一致 */
+    val weekdayId: Int
+        get() = weekday?.id?.takeIf { it in 1..7 } ?: 7
+}
+
+/** 每日放送里的星期元信息（旧版接口字段） */
+data class BangumiCalendarWeekday(
+    val id: Int = 0,
+    val en: String? = null,
+    val cn: String? = null,
+    val ja: String? = null
+)
+
+/**
+ * 每日放送的条目（旧版 `Legacy_SubjectSmall`）。
+ *
+ * 与 [BangumiSubject]（v0 搜索结果）字段来源不同，故单独建模：
+ * 这里的话数是 `eps` / `eps_count`，放送日期是 `air_date` / `air_weekday`。
+ */
+data class BangumiCalendarSubject(
+    val id: Int,
+    val name: String,
+    @SerializedName("name_cn")
+    val nameCn: String? = null,
+    val summary: String? = null,
+    val url: String? = null,
+    @SerializedName("air_date")
+    val airDate: String? = null,
+    @SerializedName("air_weekday")
+    val airWeekday: Int? = null,
+    val images: BangumiImages? = null,
+    val eps: Int? = null,
+    @SerializedName("eps_count")
+    val epsCount: Int? = null,
+    val rating: BangumiRating? = null,
+    val type: Int = 2
+) {
+    val displayName: String
+        get() = if (!nameCn.isNullOrBlank()) nameCn else name
+
+    val coverUrl: String?
+        get() = images?.large ?: images?.common ?: images?.medium
+
+    /** 总话数：优先正片话数，缺失时回退含特别篇的总数 */
+    val episodeCount: Int?
+        get() = eps?.takeIf { it > 0 } ?: epsCount?.takeIf { it > 0 }
+
+    val score: Double?
+        get() = rating?.score?.takeIf { it > 0 }
+}
+
 data class BangumiInfoboxItem(
     val key: String?,
     val value: Any?
@@ -318,6 +377,14 @@ data class EpisodeCollectionBody(
 )
 
 interface BangumiApiService {
+    /**
+     * 每日放送。注意这是旧版接口，不在 v0 命名空间下，
+     * 因此这里写绝对 URL（Retrofit 会用绝对地址覆盖 baseUrl）。
+     * UA 由 RetrofitClient 的 headerInterceptor 统一注入。
+     */
+    @GET("https://api.bgm.tv/calendar")
+    suspend fun getCalendar(): List<BangumiCalendarDay>
+
     @POST("search/subjects")
     suspend fun searchSubjects(
         @Body request: BangumiSearchRequest

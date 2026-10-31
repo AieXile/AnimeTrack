@@ -43,6 +43,7 @@ import com.aiexile.animetrack.ui.feedback.FeedbackScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
+import com.aiexile.animetrack.ui.schedule.DailyBroadcastScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
 import com.aiexile.animetrack.ui.settings.BangumiAccountScreen
@@ -465,6 +466,14 @@ internal fun NavGraphBuilder.sharedDestinations(
     // 桌面组件
     composable(Routes.WIDGET_GUIDE) {
         WidgetGuideScreen(onBack = navigateBack)
+    }
+
+    // 每日放送（Bangumi 本季全部番组）
+    composable(Routes.DAILY_BROADCAST) {
+        DailyBroadcastScreen(
+            onBack = navigateBack,
+            onOpenDetail = { animeId -> onNavigate(Routes.animeDetail(animeId, null)) }
+        )
     }
 
     // 登录

@@ -131,6 +131,7 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_UPDATE_BANNER_KEY = booleanPreferencesKey("show_update_banner")
         private val FEEDBACK_REPLY_PILL_ENABLED_KEY = booleanPreferencesKey("feedback_reply_pill_enabled")
         private val SHOW_CALENDAR_BUTTON_KEY = booleanPreferencesKey("show_calendar_button")
+        private val SHOW_DAILY_BROADCAST_BUTTON_KEY = booleanPreferencesKey("show_daily_broadcast_button")
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
         private val SERIES_STACK_TOP_KEY = stringPreferencesKey("series_stack_top_indices")
@@ -635,6 +636,11 @@ class SettingsRepository(private val context: Context) {
     val showCalendarButton: Flow<Boolean> = preferenceFlow(SHOW_CALENDAR_BUTTON_KEY, true)
 
     suspend fun setShowCalendarButton(show: Boolean) = setPreference(SHOW_CALENDAR_BUTTON_KEY, show)
+
+    val showDailyBroadcastButton: Flow<Boolean> = preferenceFlow(SHOW_DAILY_BROADCAST_BUTTON_KEY, true)
+
+    suspend fun setShowDailyBroadcastButton(show: Boolean) =
+        setPreference(SHOW_DAILY_BROADCAST_BUTTON_KEY, show)
 
     val showSearchButton: Flow<Boolean> = preferenceFlow(SHOW_SEARCH_BUTTON_KEY, true)
 

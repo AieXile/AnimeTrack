@@ -204,6 +204,11 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("日历", "预览")
     ),
     SearchableSetting(
+        route = Routes.FEATURES, key = "daily_broadcast_button",
+        titleRes = R.string.features_daily_broadcast_button, descRes = R.string.features_daily_broadcast_button_desc,
+        keywords = listOf("每日放送", "本季", "新番", "日历", "bangumi")
+    ),
+    SearchableSetting(
         route = Routes.FEATURES, key = "series_stack",
         titleRes = R.string.features_series_stack, descRes = R.string.features_series_stack_desc,
         keywords = listOf("系列", "折叠", "同系列")

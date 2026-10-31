@@ -4,6 +4,7 @@ import android.content.Context
 import com.aiexile.animetrack.data.AnimeDatabase
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.AnimeRepositoryImpl
+import com.aiexile.animetrack.data.BangumiCalendarRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.UsageStatsRepository
 import com.aiexile.animetrack.data.auth.AuthManager
@@ -59,6 +60,7 @@ object AppContainer {
     private var context: Context? = null
     private var database: AnimeDatabase? = null
     private var repository: AnimeRepository? = null
+    private var bangumiCalendarRepository: BangumiCalendarRepository? = null
     private var settingsRepository: SettingsRepository? = null
     private var authManager: AuthManager? = null
     private var bilibiliAuthManager: BilibiliAuthManager? = null
@@ -120,6 +122,7 @@ object AppContainer {
         this.context = context.applicationContext
         database = AnimeDatabase.getDatabase(this.context!!)
         repository = AnimeRepositoryImpl(database!!.animeDao(), this.context!!)
+        bangumiCalendarRepository = BangumiCalendarRepository(this.context!!)
         settingsRepository = SettingsRepository(this.context!!)
         authManager = AuthManager(this.context!!)
         bilibiliAuthManager = BilibiliAuthManager(this.context!!)
@@ -146,6 +149,11 @@ object AppContainer {
     
     fun getSettingsRepository(): SettingsRepository {
         return settingsRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getBangumiCalendarRepository(): BangumiCalendarRepository {
+        return bangumiCalendarRepository
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 

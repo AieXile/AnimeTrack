@@ -1023,6 +1023,7 @@ internal fun MainPagerContent(
             onAnimeClick = { animeId ->
                 onNavigateToScreen(Routes.animeDetail(animeId, null))
             },
+            onOpenDailyBroadcast = { onNavigateToScreen(Routes.DAILY_BROADCAST) },
             settingsRepository = settingsRepository
         )
         "settings" -> SettingsScreen(

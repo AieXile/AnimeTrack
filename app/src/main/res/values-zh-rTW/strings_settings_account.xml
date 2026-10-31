@@ -214,6 +214,8 @@
     <string name="features_feedback_reply_reminder_desc">在主介面頂部顯示「回饋有新回覆」提示</string>
     <string name="features_calendar_preview_button">日程預覽按鈕</string>
     <string name="features_calendar_preview_button_desc">在看板右上角顯示日曆按鈕，查看今明日更新</string>
+    <string name="features_daily_broadcast_button">每日放送入口</string>
+    <string name="features_daily_broadcast_button_desc">在看板右上角顯示 Bangumi 每日放送入口，瀏覽本季全部番組</string>
     <string name="features_anime_display">番劇顯示</string>
     <string name="features_series_stack">多季堆疊</string>
     <string name="features_series_stack_desc">將同系列多季番劇合併為堆疊卡片，長按展開各季</string>

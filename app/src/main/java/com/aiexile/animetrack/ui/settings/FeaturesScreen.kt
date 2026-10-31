@@ -54,6 +54,7 @@ fun FeaturesScreen(
     val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
     val feedbackReplyPillEnabled by settingsRepository.feedbackReplyPillEnabled.collectAsState(true)
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
+    val showDailyBroadcastButton by settingsRepository.showDailyBroadcastButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
     val cardInfoLeftField by settingsRepository.cardInfoLeftField
         .collectAsState(settingsRepository.cachedCardInfoLeftField())
@@ -198,6 +199,14 @@ fun FeaturesScreen(
                                 checked = showCalendarButton,
                                 onCheckedChange = { scope.launch { settingsRepository.setShowCalendarButton(it) } },
                                 itemKey = "calendar_button",
+                                highlightKey = highlightKey
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.features_daily_broadcast_button),
+                                description = stringResource(R.string.features_daily_broadcast_button_desc),
+                                checked = showDailyBroadcastButton,
+                                onCheckedChange = { scope.launch { settingsRepository.setShowDailyBroadcastButton(it) } },
+                                itemKey = "daily_broadcast_button",
                                 highlightKey = highlightKey
                             )
                         }

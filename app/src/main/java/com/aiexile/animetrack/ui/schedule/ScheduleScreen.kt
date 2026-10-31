@@ -96,6 +96,7 @@ private fun weekdayLabels(): List<String> = listOf(
 fun ScheduleScreen(
     modifier: Modifier = Modifier,
     onAnimeClick: (Int) -> Unit = {},
+    onOpenDailyBroadcast: () -> Unit = {},
     viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.Factory()),
     settingsRepository: SettingsRepository? = null
 ) {
@@ -106,6 +107,7 @@ fun ScheduleScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: remember { mutableStateOf(true) })
+    val showDailyBroadcastButton by (settingsRepository?.showDailyBroadcastButton?.collectAsState(true) ?: remember { mutableStateOf(true) })
 
     val labels = weekdayLabels()
     val weekdayLabelFormat = stringResource(R.string.schedule_weekday_label_format)
@@ -156,6 +158,15 @@ fun ScheduleScreen(
             }
         },
         actions = {
+            if (showDailyBroadcastButton) {
+                IconButton(onClick = onOpenDailyBroadcast) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.CALENDAR_VIEW_WEEK),
+                        contentDescription = stringResource(R.string.daily_broadcast_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             if (showCalendarButton) {
                 IconButton(onClick = { showScheduleSheet = true }) {
                     Icon(

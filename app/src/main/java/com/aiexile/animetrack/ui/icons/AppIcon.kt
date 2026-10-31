@@ -36,6 +36,8 @@ enum class AppIcon(
     CALENDAR_VIEW_DAY(R.drawable.sym_calendar_view_day, R.drawable.lucide_timeline),
     /** 追番看板右上角“今明日预览”按钮：Lucide 用两天日历（calendar-days） */
     CALENDAR_DAYS(R.drawable.sym_calendar_month, R.drawable.lucide_calendar_days),
+    /** 追番看板右上角“每日放送”入口：一周竖排格子的日历 */
+    CALENDAR_VIEW_WEEK(R.drawable.sym_calendar_view_week, R.drawable.lucide_calendar_range),
     CAMPAIGN(R.drawable.sym_campaign, R.drawable.lucide_megaphone),
     CHECK(R.drawable.sym_check, R.drawable.lucide_check),
     CHECK_BOX(R.drawable.sym_check_box, R.drawable.lucide_square_check),

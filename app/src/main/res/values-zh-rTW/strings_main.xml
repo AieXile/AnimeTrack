@@ -144,6 +144,24 @@
     <string name="schedule_weekday_6">六</string>
     <string name="schedule_weekday_7">日</string>
 
+    <!-- DailyBroadcastScreen -->
+    <string name="daily_broadcast_title">每日放送</string>
+    <string name="daily_broadcast_subtitle_format">本季共 %1$d 部 · 今日 %2$d 部</string>
+    <string name="daily_broadcast_day_count_format">%1$d 部</string>
+    <string name="daily_broadcast_refresh">重新整理</string>
+    <string name="daily_broadcast_stale_format">顯示 %1$s 的快取</string>
+    <string name="daily_broadcast_cache_date_format">%1$d月%2$d日</string>
+    <string name="daily_broadcast_error_title">每日放送載入失敗</string>
+    <string name="daily_broadcast_retry">重試</string>
+    <string name="daily_broadcast_empty">本週暫無放送資料</string>
+    <string name="daily_broadcast_add">加入計畫觀看</string>
+    <string name="daily_broadcast_open_detail">查看詳情</string>
+    <string name="daily_broadcast_open_bangumi">在 Bangumi 開啟</string>
+    <string name="daily_broadcast_episodes_format">全 %1$d 話</string>
+    <string name="daily_broadcast_added_toast">已加入計畫觀看</string>
+    <string name="daily_broadcast_duplicate_toast">該番劇已在庫中</string>
+    <string name="daily_broadcast_add_failed_toast">加入失敗，請重試</string>
+
     <!-- OnboardingScreen -->
     <string name="onboarding_page1_title">追蹤你的番劇</string>
     <string name="onboarding_page1_description">本地記錄觀看進度，收藏與時間線隨時回顧\n不再因時間過長忘記看到哪一集</string>

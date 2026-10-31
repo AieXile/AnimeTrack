@@ -144,6 +144,24 @@
     <string name="schedule_weekday_6">Sat</string>
     <string name="schedule_weekday_7">Sun</string>
 
+    <!-- DailyBroadcastScreen -->
+    <string name="daily_broadcast_title">Daily Broadcast</string>
+    <string name="daily_broadcast_subtitle_format">%1$d shows this season · %2$d today</string>
+    <string name="daily_broadcast_day_count_format">%1$d</string>
+    <string name="daily_broadcast_refresh">Refresh</string>
+    <string name="daily_broadcast_stale_format">showing cache from %1$s</string>
+    <string name="daily_broadcast_cache_date_format">%1$d/%2$d</string>
+    <string name="daily_broadcast_error_title">Failed to load daily broadcast</string>
+    <string name="daily_broadcast_retry">Retry</string>
+    <string name="daily_broadcast_empty">No broadcasts this week</string>
+    <string name="daily_broadcast_add">Add to Plan to Watch</string>
+    <string name="daily_broadcast_open_detail">View details</string>
+    <string name="daily_broadcast_open_bangumi">Open on Bangumi</string>
+    <string name="daily_broadcast_episodes_format">%1$d eps</string>
+    <string name="daily_broadcast_added_toast">Added to Plan to Watch</string>
+    <string name="daily_broadcast_duplicate_toast">Already in your library</string>
+    <string name="daily_broadcast_add_failed_toast">Failed to add, please retry</string>
+
     <!-- OnboardingScreen -->
     <string name="onboarding_page1_title">Track Your Anime</string>
     <string name="onboarding_page1_description">Record watch progress locally, with favorites and timeline at a glance\nNever forget which episode you\'re on</string>
