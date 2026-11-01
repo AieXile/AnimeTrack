@@ -954,6 +954,31 @@ GROUP BY DATE(created_at) ORDER BY d DESC LIMIT 14;
 已知非本次问题：`BangumiImage` 封面缓存偶发 `rename ... ENOENT` 并发日志，
 图片会回退网络加载，不影响功能；后续可单独优化临时文件名冲突。
 
+### 16.6 2026-11-01 补充部署与回归
+
+**服务端（`/www/wwwroot/api`，PM2 `api`）**
+
+- 部署 `subscriptions/` 的 typed 墓碑实现（`service.js` / `aliasRepository.js` / `identity.js` / `schema.js` / `routes.js` / `mergeService.js` / `legacyAdapter.js` / 新增 `metrics.js`）与 `server.js` 墓碑定时清理接线；
+- `GET /v2/subscriptions/list` 的 `tombstones` 现在下发 `aliases: [{type, value}]` 与 `animeTitle`（线上已验证：`subscriptionId, animeTitle, aliases, deletedAt`，alias 元素为 `type/value`）；
+- `subscription_tombstone_aliases` 新增 `alias_type` 列并回填 30 行（bangumi 3 / remote_sync 15 / legacy_local 12）；
+- 生产库 `alias_value` 为 `ascii_bin`，回填 SQL 直接比较 `JSON_UNQUOTE(...)`（utf8mb4）会报 `Illegal mix of collations`。已改为 `CONVERT(... USING ascii)`，并把回填失败降级为告警（不阻塞启动）；
+- 事故记录：首次重启因上述 collation 报错导致 API 反复重启约数分钟，修正 SQL 后恢复；部署前备份位于 `/www/wwwroot/api/backup/20261101/`。
+
+**App**
+
+- `fix(sync): 兼容服务端墓碑字符串 alias`：新增 `SubscriptionV2AliasAdapter`，旧字符串别名按值形态保守推断（数字→legacy_local、UUID→remote_sync、其余忽略）；
+- `fix(sync): 新增番剧上传回写前补上本地 id`：`insertAnime` / `batchInsertAnimes` 同步时传落库 id，修复新增卡片身份键写空、被其他设备删除后无法墓碑清理的问题；
+- `feat(sync): 落败方采纳 canonical 与换键元数据`：LWW 落败时用 canonical 回写用户可见字段；合并命中时若服务端已换绑 Bangumi（旧键在 `supersededAnimeIds`）则采纳新键/标题。
+
+**真机回归（两个隔离包 mtestA/mtestB，测试账号）**
+
+- 首次同步、A 新增 → B 拉取、B 删除 → A 墓碑清卡且不复活；
+- 断网删除：`pending_deletions` 记录 SERVER + REMOTE_SYNC 同组两键，联网后补偿 1 组、服务端删除、墓碑落地、pending 清零；
+- 删除后重新添加同一 Bangumi 番：服务端以同一 `subscriptionId` 恢复，本地身份写回，另一台拉取无重复；
+- LWW：A 断网改状态（旧 `clientUpdatedAt`）→ B 在线更新（较新）→ A 全量同步被拒后日志 `LWW 落败，采纳服务端较新数据`，本地状态被纠正；
+- 换键：A 匹配 Bangumi 3425 后，B 拉取采纳 `bangumiId` 且卡片数量不变（无重复卡）。
+
+
 ***
 
 ## 17. 决策记录与待确认
