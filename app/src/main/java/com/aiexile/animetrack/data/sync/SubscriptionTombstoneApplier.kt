@@ -2,6 +2,7 @@ package com.aiexile.animetrack.data.sync
 
 import com.aiexile.animetrack.data.AnimeDao
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.network.SubscriptionV2Alias
 import com.aiexile.animetrack.data.network.SubscriptionV2Tombstone
 import com.aiexile.animetrack.model.Anime
 import java.time.Instant
@@ -69,9 +70,9 @@ class SubscriptionTombstoneApplier(private val animeDao: AnimeDao) {
  * - 本地在墓碑删除之后又改过进度（lastProgressAt > deletedAt）→ 不删，等上传恢复。
  */
 internal object SubscriptionTombstoneRules {
-    private const val ALIAS_BANGUMI = "bangumi"
-    private const val ALIAS_REMOTE_SYNC = "remote_sync"
-    private const val ALIAS_LEGACY_LOCAL = "legacy_local"
+    private const val ALIAS_BANGUMI = SubscriptionV2Alias.TYPE_BANGUMI
+    private const val ALIAS_REMOTE_SYNC = SubscriptionV2Alias.TYPE_REMOTE_SYNC
+    private const val ALIAS_LEGACY_LOCAL = SubscriptionV2Alias.TYPE_LEGACY_LOCAL
 
     fun matches(anime: Anime, tombstone: SubscriptionV2Tombstone): Boolean {
         val localSubscriptionId = anime.serverSubscriptionId

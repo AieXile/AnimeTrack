@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.network
 
 import com.aiexile.animetrack.model.AnimeStatus
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import retrofit2.HttpException
@@ -348,11 +349,26 @@ data class SubscriptionV2SupersededKey(
     val value: String
 )
 
-/** 服务端下发的带类型别名：bangumi / remote_sync / legacy_local */
+/**
+ * 服务端下发的带类型别名：bangumi / remote_sync / legacy_local。
+ *
+ * 兼容旧版服务端：部分线上版本下发的是原始键字符串数组（如 `["3","uuid"]`），
+ * 由 [SubscriptionV2AliasAdapter] 推断类型；无法识别的值解析为 [TYPE_UNKNOWN]。
+ */
+@JsonAdapter(SubscriptionV2AliasAdapter::class)
 data class SubscriptionV2Alias(
     val type: String,
     val value: String
-)
+) {
+    companion object {
+        const val TYPE_BANGUMI = "bangumi"
+        const val TYPE_REMOTE_SYNC = "remote_sync"
+        const val TYPE_LEGACY_LOCAL = "legacy_local"
+
+        /** 旧格式里无法安全推断的值：调用方按未知类型跳过，绝不能拿去匹配本地卡片 */
+        const val TYPE_UNKNOWN = ""
+    }
+}
 
 data class SubscriptionV2Data(
     val animeTitle: String,
