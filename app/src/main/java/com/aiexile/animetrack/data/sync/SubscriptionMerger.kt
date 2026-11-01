@@ -117,7 +117,13 @@ class SubscriptionMerger(
                 // 后续删除/匹配优先用它，避免旧键漂移。
                 // 仅身份键命中才回写：标题兜底命中无法证明是同一部番，写回会把
                 // subscriptionId 污染到「同名不同季」的本地条目上。
-                if (existing.identityMatched &&
+                if (existing.identityMatched && SubscriptionIdentity.shouldAdoptMigratedKey(matched, remote)) {
+                    // 服务端已把这条订阅换绑到 Bangumi（另一台设备补了 Bangumi ID/改名）。
+                    // 不采纳新键的话，本机会一直显示旧标题、没有 Bangumi 元数据，
+                    // 且下次上传仍以旧键为行键（虽然 alias 能解析，但本地元数据永远不刷新）。
+                    applyServerKeyMigration(matched, remote)
+                } else if (
+                    existing.identityMatched &&
                     remote.subscriptionId != null &&
                     matched.serverSubscriptionId != remote.subscriptionId
                 ) {

@@ -348,6 +348,20 @@ class SubscriptionSyncService(
         )
 
         if (result.success) {
+            // LWW 落败：服务端拒绝了更旧的 clientUpdatedAt。此时必须采纳 canonical 的
+            // 用户可见字段，否则落败设备会永久停在旧进度（pull 对已存在条目不覆盖），
+            // 且用户下次编辑会带新时间戳把另一台设备的进度顶回去。
+            val canonical = result.canonical
+            if (result.usedV2 && !result.ignored && result.applied == false && canonical != null) {
+                val adopted = SubscriptionIdentity.adoptedFromCanonical(anime, canonical)
+                if (adopted != null) {
+                    repository.updateAnimeInternal(adopted)
+                    AppLogManager.i(
+                        TAG,
+                        "LWW 落败，采纳服务端较新数据: ${anime.title}（进度 ${adopted.watchedEpisodes}）"
+                    )
+                }
+            }
             // 上传成功说明这组行键已归属当前条目：之前删除失败留下的墓碑已无意义。
             // 按「组」清理而不是逐个按值清：组里可能包含旧 bangumi/remote alias，
             // 逐个按值清会因数字键与其他番撞车而误删别人的墓碑。

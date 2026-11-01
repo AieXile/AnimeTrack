@@ -4,9 +4,11 @@ import com.aiexile.animetrack.data.network.Subscription
 import com.aiexile.animetrack.data.network.SubscriptionV2Data
 import com.aiexile.animetrack.data.network.SubscriptionV2Identity
 import com.aiexile.animetrack.data.network.SubscriptionV2SupersededKey
+import com.aiexile.animetrack.data.network.parseAnimeStatus
 import com.aiexile.animetrack.data.network.toApiString
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.util.formatDate
+import com.aiexile.animetrack.util.parseDateToTimestamp
 import java.time.Instant
 
 /**
@@ -100,6 +102,57 @@ object SubscriptionIdentity {
     /** 只有本地明确把已看集数调低时才允许服务端下调 */
     fun isProgressReset(anime: Anime, oldAnime: Anime?): Boolean =
         oldAnime != null && anime.watchedEpisodes < oldAnime.watchedEpisodes
+
+    /**
+     * LWW 落败（服务端拒绝了更旧的 clientUpdatedAt）时，把 canonical 里
+     * 服务端已确认的用户可见字段写回本地。
+     *
+     * 为什么必须采纳：pull 对「本地已存在」的条目一律跳过，落败方不采纳就会
+     * 永远停留在旧进度；而用户下次在旧设备上编辑会带「现在」的时间戳，
+     * 反而把新设备的进度顶掉，形成来回覆盖。
+     *
+     * 采纳范围只限后端会同步的字段；封面本地路径、简介、TMDB/Bangumi 绑定、
+     * 置顶/手动顺序等本地专属数据保持不变。服务端为空的可选字段不覆盖本地
+     * 已有值（避免把本地尚未上传的评分/备注清空）。
+     * 返回 null 表示无变化（无需写库）。
+     */
+    fun adoptedFromCanonical(local: Anime, canonical: Subscription): Anime? {
+        val next = local.copy(
+            title = canonical.animeTitle.ifBlank { local.title },
+            remoteCoverUrl = canonical.animeImage?.takeIf { it.isNotBlank() } ?: local.remoteCoverUrl,
+            airDate = canonical.airDate?.takeIf { it.isNotBlank() } ?: local.airDate,
+            airWeekday = canonical.weekday ?: local.airWeekday,
+            totalEpisodes = canonical.totalEpisodes ?: local.totalEpisodes,
+            watchedEpisodes = canonical.watchedEpisodes ?: local.watchedEpisodes,
+            currentEpisodes = canonical.currentEpisodes ?: local.currentEpisodes,
+            status = canonical.status?.let { parseAnimeStatus(it) } ?: local.status,
+            rating = canonical.rating ?: local.rating,
+            notes = canonical.notes?.takeIf { it.isNotBlank() } ?: local.notes,
+            startDate = parseDateToTimestamp(canonical.startDate) ?: local.startDate,
+            finishDate = parseDateToTimestamp(canonical.finishDate) ?: local.finishDate,
+            isFinished = !canonical.isAiring
+        )
+        return next.takeIf { it != local }
+    }
+
+    /**
+     * 服务端已把这条订阅换绑到 Bangumi（补 Bangumi ID / 改名）时，
+     * 本地旧副本是否应采纳新的行键与标题。
+     *
+     * 只在本地的旧键被服务端明确列入 supersededAnimeIds（迁移映射），或本地
+     * 根本没有身份键（但已按 subscriptionId 命中同一条订阅）时采纳；
+     * 本地自己绑定了另一个 Bangumi 时不覆盖，等它自己上传纠正服务端。
+     */
+    fun shouldAdoptMigratedKey(local: Anime, remote: Subscription): Boolean {
+        val serverBangumiId = remote.animeId.toIntOrNull()?.takeIf { it > 0 } ?: return false
+        if (local.bangumiId == serverBangumiId) return false
+        val localKeys = buildList {
+            local.remoteSyncId?.takeIf { it.isNotBlank() }?.let { add(it) }
+            local.bangumiId?.takeIf { it > 0 }?.let { add(it.toString()) }
+        }
+        if (localKeys.isEmpty()) return true
+        return localKeys.any { it in remote.supersededAnimeIds.orEmpty() }
+    }
 
     private fun isoOf(timestamp: Long?): String =
         Instant.ofEpochMilli(timestamp ?: System.currentTimeMillis()).toString()
