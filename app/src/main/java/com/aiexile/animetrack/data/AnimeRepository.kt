@@ -321,8 +321,14 @@ class AnimeRepositoryImpl(
         if (id > 0) {
             com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementAddedAnime()
             triggerReassignSeriesKeysDebounced()
-            // 同步订阅到后端
-            subscriptionSyncService.syncSubscriptionToServer(animeToInsert, isAdd = true, explicitAdd = true)
+            // 同步订阅到后端。必须带上刚落库的 id：上传回写的 remoteSyncId /
+            // serverSubscriptionId 都按本地 id 更新，id=0 会静默写成空，导致这条
+            // 服务端订阅在本地没有身份键，其他设备删除后墓碑匹配不到、卡片删不掉
+            subscriptionSyncService.syncSubscriptionToServer(
+                animeToInsert.copy(id = id.toInt()),
+                isAdd = true,
+                explicitAdd = true
+            )
             // 异步推送到 Bangumi（fire-and-forget，不阻塞新增流程）
             // batchInsertAnimes 不推 Bangumi，避免从 Bangumi 拉取后又推回造成循环
             val bangumiId = animeToInsert.bangumiId
@@ -491,7 +497,8 @@ class AnimeRepositoryImpl(
         for ((anime, id) in animesToInsert.zip(ids)) {
             if (id > 0) {
                 com.aiexile.animetrack.di.AppContainer.getUsageStatsRepository().incrementAddedAnime()
-                successAnimes.add(anime)
+                // 回填落库 id：后续上传要用它回写 remoteSyncId / serverSubscriptionId
+                successAnimes.add(anime.copy(id = id.toInt()))
             }
         }
         if (successAnimes.isNotEmpty()) {
