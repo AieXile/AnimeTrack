@@ -84,4 +84,23 @@
     <string name="admin_feedback_cancel">Cancel</string>
     <string name="admin_feedback_invalid_input">Invalid input</string>
     <string name="admin_feedback_no_permission">No admin permission</string>
+
+    <!-- Manual Agendula forwarding (admin only) -->
+    <string name="admin_feedback_forward_title">Agendula</string>
+    <string name="admin_feedback_forward_send">Send</string>
+    <string name="admin_feedback_forward_sent">Sent</string>
+    <string name="admin_feedback_forwarding">Sending…</string>
+    <string name="admin_feedback_forward_hint">Only user messages and timestamps are sent; admin replies and identity info are excluded</string>
+    <string name="admin_feedback_forward_sent_at">Sent at %1$s</string>
+    <string name="admin_feedback_forward_success">Sent to Agendula</string>
+    <string name="admin_feedback_forward_already">This session was already sent (%1$s); no duplicate task was created</string>
+    <string name="admin_feedback_forward_confirm_title">Send to Agendula</string>
+    <string name="admin_feedback_forward_confirm_message">Send all user feedback in this session (no admin replies or identity info) to Agendula to create a task?</string>
+    <string name="admin_feedback_forward_confirm_already">This session was already sent. Sending again will not create a duplicate task; it only returns the existing result. Continue?</string>
+    <string name="admin_feedback_forward_in_progress">This session is already being sent. Try again later</string>
+    <string name="admin_feedback_forward_not_configured">Agendula forwarding is not configured on the server. Contact the administrator</string>
+    <string name="admin_feedback_forward_rate_limited">Too many sends. Try again later</string>
+    <string name="admin_feedback_forward_failed">Send failed: %1$s</string>
+    <string name="admin_feedback_forward_failed_generic">Send failed; the session was not marked as sent</string>
+    <string name="admin_feedback_forward_status_pushed">Pushed</string>
 </resources>

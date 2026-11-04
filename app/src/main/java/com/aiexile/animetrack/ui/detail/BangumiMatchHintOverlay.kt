@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.ui.detail
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -50,16 +52,43 @@ import kotlin.math.roundToInt
 private val FocusEasing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 /**
+ * 详情页进入转场是否已完全结束（含所有共享元素 bounds 弹簧），且页面尚未开始退出。
+ *
+ * 用作引导遮罩 / 返回键拦截的就绪窗口：
+ *
+ * - 共享元素（封面、状态角标）的 bounds 动画是页面 transition 的**子 transition**；
+ *   `Transition` 只有在全部子 transition 都结束后才会把 `currentState` 推进到
+ *   `Visible`。因此用 `currentState` 判定天然覆盖「近卡/远卡」不同的飞行距离与
+ *   弹簧时长，不需要、也不能用固定延迟。
+ * - 页面开始退出时 `targetState` 立刻变为 `PostExit`，窗口立即关闭：遮罩走自己的
+ *   200ms 淡出，而飞出元素绘制在 `SharedTransitionLayout` 的 overlay 层（高于遮罩），
+ *   不会被遮罩盖住或与之叠色。
+ * - 无 `AnimatedVisibilityScope`（大屏 pane、无转场入口、或页面已常驻）视为就绪，
+ *   遮罩待按钮位置测量完成后立刻出现，不会凭空多等。
+ */
+@Composable
+internal fun rememberDetailTransitionSettled(
+    animatedVisibilityScope: AnimatedVisibilityScope?
+): Boolean {
+    if (animatedVisibilityScope == null) return true
+    return with(animatedVisibilityScope.transition) {
+        currentState == EnterExitState.Visible && targetState != EnterExitState.PostExit
+    }
+}
+
+/**
  * 「Bangumi 未关联」详情页引导遮罩。
  *
- * 聚光灯式聚焦动画：遮罩并非直接出现，而是延迟片刻（待详情页转场结束）后，
- * 圆形洞半径从「覆盖全屏」向「匹配数据源」按钮收敛、遮罩透明度同步加深，
- * 模拟镜头对焦；提示卡片跟随聚光灯下缘从屏幕外升起，聚焦后段渐显落位。
+ * 聚光灯式聚焦动画：调用方通过 [rememberDetailTransitionSettled] 确认详情页
+ * 转场（含共享元素飞行）已结束后才把 [visible] 置真，随后圆形洞半径从
+ * 「覆盖全屏」向「匹配数据源」按钮收敛、遮罩透明度同步加深，模拟镜头对焦；
+ * 提示卡片跟随聚光灯下缘从屏幕外升起，聚焦后段渐显落位。
  *
  * 交互：
  * - 点击洞内（按钮区域）→ [onMatchClick]（打开匹配对话框）
  * - 点击遮罩空白处 / 「知道了」→ [onDismiss]
  *
+ * @param visible 是否进入展示（调用方已按转场稳定窗口过滤）
  * @param targetBounds 匹配按钮在 window 坐标系中的位置（由按钮 onGloballyPositioned 捕获）
  */
 @Composable
@@ -72,7 +101,7 @@ fun BangumiMatchHintOverlay(
 ) {
     AnimatedVisibility(
         visible = visible && targetBounds != null,
-        enter = fadeIn(animationSpec = tween(durationMillis = 500, delayMillis = 250)),
+        enter = fadeIn(animationSpec = tween(durationMillis = 500)),
         exit = fadeOut(animationSpec = tween(200))
     ) {
         val bounds = targetBounds ?: return@AnimatedVisibility
@@ -96,7 +125,6 @@ fun BangumiMatchHintOverlay(
                 targetValue = 1f,
                 animationSpec = tween(
                     durationMillis = 500,
-                    delayMillis = 250,
                     easing = FocusEasing
                 )
             )

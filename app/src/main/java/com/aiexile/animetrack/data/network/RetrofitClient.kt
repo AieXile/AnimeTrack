@@ -491,6 +491,15 @@ object RetrofitClient {
             .build()
     }
 
+    // 管理员「发送到 Agendula」专用客户端：服务端需等待 intake AI 整理（默认超时 20 秒），
+    // 沿用用户认证链路的 Bearer 注入 / 401 刷新 / URL 重写，仅放宽读超时。
+    private val adminForwardOkHttpClient: OkHttpClient by lazy {
+        userAuthOkHttpClient.newBuilder()
+            .readTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
     // SSE 实时事件客户端（长连接）：鉴权与 URL 重写与用户体系一致，
     // 读超时 90 秒 > 服务端 30 秒心跳间隔，心跳丢失即断开重连
     val sseOkHttpClient: OkHttpClient by lazy {
@@ -591,6 +600,14 @@ object RetrofitClient {
             .build()
     }
 
+    private val adminForwardRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(USER_AUTH_DEFAULT_BASE_URL)
+            .client(adminForwardOkHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
     // ===== API 服务 =====
 
     val bangumiApi: BangumiApiService by lazy {
@@ -645,5 +662,10 @@ object RetrofitClient {
     /** 管理员反馈 API：同用户体系鉴权链路，服务端校验 ADMIN_USER_IDS 白名单 */
     val adminFeedbackApi: AdminFeedbackApiService by lazy {
         userAuthRetrofit.create(AdminFeedbackApiService::class.java)
+    }
+
+    /** 管理员 Agendula 推送 API：同一接口，但读超时放宽以等待服务端 AI 整理 */
+    val adminFeedbackForwardApi: AdminFeedbackApiService by lazy {
+        adminForwardRetrofit.create(AdminFeedbackApiService::class.java)
     }
 }

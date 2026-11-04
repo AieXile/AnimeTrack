@@ -29,6 +29,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.CardInfoField
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.StatusBadgeTransitionMode
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -56,6 +57,8 @@ fun FeaturesScreen(
     val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
     val showDailyBroadcastButton by settingsRepository.showDailyBroadcastButton.collectAsState(true)
     val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
+    val statusBadgeTransitionMode by settingsRepository.statusBadgeTransitionMode
+        .collectAsState(settingsRepository.cachedStatusBadgeTransitionMode())
     val cardInfoLeftField by settingsRepository.cardInfoLeftField
         .collectAsState(settingsRepository.cachedCardInfoLeftField())
     val cardInfoRightField by settingsRepository.cardInfoRightField
@@ -122,6 +125,7 @@ fun FeaturesScreen(
         "feedback_reply_reminder" to 2,
         "calendar_button" to 2,
         "series_stack" to 3,
+        "status_badge_transition" to 3,
         "card_info_left" to 3,
         "card_info_right" to 3,
         "auto_complete" to 4,
@@ -223,6 +227,15 @@ fun FeaturesScreen(
                                 onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
                                 itemKey = "series_stack",
                                 highlightKey = highlightKey
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            // 状态角标转场：两套实现二选一，内联动态示意说明差异
+                            StatusBadgeTransitionSetting(
+                                selected = statusBadgeTransitionMode,
+                                onSelected = { mode ->
+                                    scope.launch { settingsRepository.setStatusBadgeTransitionMode(mode) }
+                                },
+                                modifier = rememberHighlightModifier("status_badge_transition", highlightKey)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             // 卡片信息栏只有一行高度，左右各一个槽位；文案项按卡片宽度取了短名

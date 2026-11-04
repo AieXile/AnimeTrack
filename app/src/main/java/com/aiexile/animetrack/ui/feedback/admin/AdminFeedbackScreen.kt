@@ -92,8 +92,11 @@ class AdminFeedbackViewModel(
         // 用户发新反馈时实时刷新（当前会话外的新反馈也刷新列表摘要）
         viewModelScope.launch {
             AppContainer.getSseClient().events
-                .filter { it.type == SseEventTypes.FEEDBACK_MESSAGE }
-                .collect { onNewFeedbackMessage(it) }
+                .filter {
+                    it.type == SseEventTypes.FEEDBACK_MESSAGE ||
+                        it.type == SseEventTypes.FEEDBACK_FORWARDED
+                }
+                .collect { onAdminFeedbackEvent(it) }
         }
     }
 
@@ -135,9 +138,13 @@ class AdminFeedbackViewModel(
         }
     }
 
-    /** 收到用户新反馈：刷新列表（新反馈/追问会话状态为 open，仅「全部」与「进行中」筛选下刷新） */
-    private fun onNewFeedbackMessage(event: SseEvent) {
+    /** 管理员端事件：新反馈按筛选刷新；Agendula 推送结果任何筛选下都刷新列表徽章 */
+    private fun onAdminFeedbackEvent(event: SseEvent) {
         if (_uiState.value.isLoading) return
+        if (event.type == SseEventTypes.FEEDBACK_FORWARDED) {
+            refresh()
+            return
+        }
         val filter = _uiState.value.statusFilter
         if (filter == null || filter == FEEDBACK_STATUS_OPEN) {
             refresh()
@@ -361,6 +368,20 @@ private fun AdminSessionCard(
                     .background(labelBg)
                     .padding(horizontal = 7.dp, vertical = 2.dp)
             )
+            // Agendula 推送状态：列表项直接可见，无需进入详情
+            if (!session.agendulaPushedAt.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.admin_feedback_forward_status_pushed),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .clip(SquircleShape(7.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                )
+            }
         }
         val title = session.title?.takeIf { it.isNotBlank() }
         if (!title.isNullOrBlank()) {

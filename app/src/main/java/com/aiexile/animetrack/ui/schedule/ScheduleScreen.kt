@@ -161,7 +161,7 @@ fun ScheduleScreen(
             if (showDailyBroadcastButton) {
                 IconButton(onClick = onOpenDailyBroadcast) {
                     Icon(
-                        painter = rememberAppIconPainter(AppIcon.CALENDAR_VIEW_WEEK),
+                        painter = rememberAppIconPainter(AppIcon.DAILY_BROADCAST),
                         contentDescription = stringResource(R.string.daily_broadcast_title),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

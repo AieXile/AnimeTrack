@@ -35,6 +35,12 @@ data class AdminFeedbackSession(
     val messageCount: Int = 0,
     /** open / pending / resolved / closed */
     val status: String = "open",
+    /** 手动推送到 Agendula 的成功时间（null = 未推送） */
+    @SerializedName(value = "agendulaPushedAt", alternate = ["agendula_pushed_at"])
+    val agendulaPushedAt: String? = null,
+    /** Agendula 返回的任务 ID（未推送为 null） */
+    @SerializedName(value = "agendulaItemId", alternate = ["agendula_item_id"])
+    val agendulaItemId: String? = null,
     @SerializedName(value = "createdAt", alternate = ["created_at"])
     val createdAt: String? = null,
     @SerializedName(value = "updatedAt", alternate = ["updated_at"])
@@ -59,6 +65,12 @@ data class AdminFeedbackSessionInfo(
     val email: String? = null,
     /** 用户贡献等级 */
     val level: Int = 0,
+    /** 手动推送到 Agendula 的成功时间（null = 未推送） */
+    @SerializedName(value = "agendulaPushedAt", alternate = ["agendula_pushed_at"])
+    val agendulaPushedAt: String? = null,
+    /** Agendula 返回的任务 ID（未推送为 null） */
+    @SerializedName(value = "agendulaItemId", alternate = ["agendula_item_id"])
+    val agendulaItemId: String? = null,
     @SerializedName(value = "createdAt", alternate = ["created_at"])
     val createdAt: String? = null,
     @SerializedName(value = "updatedAt", alternate = ["updated_at"])
@@ -116,6 +128,32 @@ data class AdminFeedbackLevelResponse(
     val message: String? = null
 )
 
+/** 手动推送到 Agendula 的响应（成功时 pushed=true；重复点击返回 alreadyPushed=true） */
+data class AdminFeedbackForwardResponse(
+    val success: Boolean = false,
+    val pushed: Boolean = false,
+    @SerializedName(value = "alreadyPushed", alternate = ["already_pushed"])
+    val alreadyPushed: Boolean = false,
+    @SerializedName(value = "pushedAt", alternate = ["pushed_at"])
+    val pushedAt: String? = null,
+    /** 稳定幂等键：animetrack-feedback-<sessionId 哈希前缀>（intake 限制 ≤36 字符） */
+    val uid: String? = null,
+    @SerializedName(value = "itemId", alternate = ["item_id"])
+    val itemId: String? = null,
+    /** 服务端 AI 是否参与整理 */
+    val ai: Boolean? = null,
+    /** AI 不可用时服务端按原文入队的降级标记 */
+    val degraded: Boolean? = null,
+    /**
+     * 错误码：INTAKE_NOT_CONFIGURED / INTAKE_AUTH_FAILED / INTAKE_RATE_LIMITED /
+     * INTAKE_REJECTED / INTAKE_UNAVAILABLE / INTAKE_TIMEOUT / INTAKE_NETWORK_ERROR /
+     * INTAKE_INVALID_RESPONSE / FORWARD_IN_PROGRESS / EMPTY_FEEDBACK /
+     * FEEDBACK_TOO_LONG_FOR_INTAKE / SESSION_NOT_FOUND
+     */
+    val code: String? = null,
+    val message: String? = null
+)
+
 /**
  * 管理员反馈 API：会话列表/详情/回复/状态流转/授等级 + 身份识别。
  * 全部经 Bearer token 鉴权，服务端校验 ADMIN_USER_IDS 白名单。
@@ -160,4 +198,13 @@ interface AdminFeedbackApiService {
         @Path("sessionId") sessionId: String,
         @Body request: AdminFeedbackLevelRequest
     ): AdminFeedbackLevelResponse
+
+    /**
+     * 手动推送会话到 Agendula（管理员显式触发，幂等 uid）。
+     * 已推送过时不重复调用，直接返回既有状态。
+     */
+    @POST("feedback/admin/sessions/{sessionId}/forward")
+    suspend fun forwardToAgendula(
+        @Path("sessionId") sessionId: String
+    ): AdminFeedbackForwardResponse
 }

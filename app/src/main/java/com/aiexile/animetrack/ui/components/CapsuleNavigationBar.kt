@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,13 +37,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -414,74 +408,5 @@ internal fun CapsuleNavItem(
                 maxLines = 1
             )
         }
-    }
-}
-
-/** 屏幕内可见的模糊区高度：底部 24dp 边距 + 接近胶囊顶部（78dp），顶部为渐隐区 */
-private val NavBackdropBlurVisibleHeight = 72.dp
-
-/** 上边缘渐隐区间占比：0.3 × 72dp ≈ 21.6dp 内由透明过渡到完整磨砂（沿用重构前参数） */
-private const val NavBackdropBlurFadeFraction = 0.3f
-
-/**
- * 液态玻璃模式下导航栏四周的背景模糊层（类 iOS Tab Bar 的底部磨砂区域）。
- *
- * 结构刻意拆成「父节点挖遮罩、子节点出模糊」两层：
- * `DstIn` 渐隐必须工作在离屏缓冲（[CompositingStrategy.Offscreen]）里，
- * 但若把 Offscreen 与 `drawBackdrop` 串在同一节点的 modifier 链上，
- * 外层离屏合成会使 `drawBackdrop` 内部的 blur RenderEffect 失效，
- * 最终只剩淡底色、没有模糊。因此父节点只负责离屏合成与渐隐，
- * 模糊采样完整放在子节点自己的 `drawBackdrop` 里。
- *
- * 渲染在悬浮胶囊下层：胶囊自身采样页面内容层（navBackdrop 不含本层），
- * 因此胶囊保持清晰的折射玻璃，仅四周区域呈现磨砂模糊。
- *
- * 底边必须与屏幕底边严格齐平：采样源（navBackdrop）只覆盖屏幕范围，
- * 若向下超出屏幕，超出的部分在采样源中为透明像素，经 blur 的
- * TileMode.Clamp 延拓后会把透明混入屏幕内最底部约 8dp，
- * 表现为屏幕最下边缘模糊「消失」、透出下层背景色。
- */
-@Composable
-internal fun LiquidGlassNavBackdropBlur(
-    backdrop: Backdrop,
-    modifier: Modifier = Modifier
-) {
-    // 淡底色（LiquidGlassKind.Scrim 与胶囊/状态栏玻璃条同源，仅低一档 alpha）：
-    // 提升磨砂区域实感，避免纯模糊在亮色内容下发透
-    val scrimSpec = liquidGlassSpec(LiquidGlassKind.Scrim)
-    // 父节点：尺寸定位 + 离屏合成 + DstIn 渐隐遮罩（不出模糊）
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(NavBackdropBlurVisibleHeight)
-            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawWithCache {
-                // 沿用重构前已调好的参数：自 30% 高度处起保留完整磨砂，
-                // 上缘 21.6dp 内柔和渐显；底边与屏幕底边齐平保持模糊不消失
-                val fadeBrush = Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    NavBackdropBlurFadeFraction to Color.Black,
-                    startY = 0f,
-                    endY = size.height
-                )
-                onDrawWithContent {
-                    drawContent()
-                    drawRect(brush = fadeBrush, blendMode = BlendMode.DstIn)
-                }
-            }
-    ) {
-        // 子节点：采样页面内容层出 8dp 磨砂模糊 + 淡底色（Scrim 规格：无 vibrancy、
-        // 无 lens、无边缘高光/外阴影，规避 GPU 水平细线与矩形四边白亮线）
-        Box(
-            Modifier
-                .fillMaxSize()
-                .drawLiquidGlass(
-                    backdrop = backdrop,
-                    shape = { RectangleShape },
-                    spec = scrimSpec,
-                    highlight = null,
-                    shadow = null
-                )
-        )
     }
 }

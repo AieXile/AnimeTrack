@@ -179,8 +179,17 @@ class UserAuthManager(private val context: Context) {
     }
 
     suspend fun updateAccessToken(newToken: String) {
+        cachedAccessToken = newToken
         context.userAuthDataStore.edit { preferences ->
             preferences[ACCESS_TOKEN_KEY] = newToken
+        }
+    }
+
+    /** 保存服务端轮换后的新 refresh token（旧 token 已作废） */
+    suspend fun updateRefreshToken(newToken: String) {
+        cachedRefreshToken = newToken
+        context.userAuthDataStore.edit { preferences ->
+            preferences[REFRESH_TOKEN_KEY] = newToken
         }
     }
 

@@ -13,7 +13,7 @@
     <string name="user_login_logged_in">已登录</string>
     <string name="user_login_change_password">修改密码</string>
     <string name="user_login_logout">退出登录</string>
-    <string name="user_login_username">用户名</string>
+    <string name="user_login_username">用户名或邮箱</string>
     <string name="user_login_password">密码</string>
     <string name="user_login_login">登录</string>
     <string name="user_login_no_account_register">没有账号？去注册</string>
@@ -152,7 +152,7 @@
     <string name="developer_simulate_update_desc">模拟完整更新流程，不会下载真实文件</string>
     <string name="developer_trigger_simulate_update">触发模拟更新</string>
     <string name="developer_player_hub_entry">设置页显示「视频播放」</string>
-    <string name="developer_player_hub_entry_desc">在设置列表中展示视频播放聚合入口，默认隐藏</string>
+    <string name="developer_player_hub_entry_desc">在设置中显示播放器聚合入口</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看与测试公告弹窗及投票</string>
     <string name="developer_open_announcement">打开公告</string>
@@ -161,7 +161,7 @@
     <string name="developer_open_onboarding">打开向导</string>
     <string name="developer_mode_disabled">已关闭开发者模式</string>
     <string name="developer_advanced_blur">高级模糊（毛玻璃）</string>
-    <string name="developer_advanced_blur_desc">界面风格为「高级模糊」时生效，调整其模糊参数</string>
+    <string name="developer_advanced_blur_desc">界面风格为高级模糊时生效</string>
     <string name="developer_blur_switch_desc">与外观设置中的「界面风格」同步</string>
     <string name="developer_blur_radius">模糊半径</string>
     <string name="developer_blur_background_alpha">底色不透明度</string>
@@ -209,16 +209,22 @@
     <string name="features_search_button_desc">在主界面右上角显示搜索按钮</string>
     <string name="features_update_reminder">更新提醒</string>
     <string name="features_today_update_reminder">今日更新提醒</string>
-    <string name="features_today_update_reminder_desc">在主界面顶部显示今日番剧更新提醒卡片</string>
+    <string name="features_today_update_reminder_desc">首页顶部显示今日更新提醒</string>
     <string name="features_feedback_reply_reminder">反馈新回复提醒</string>
     <string name="features_feedback_reply_reminder_desc">在主界面顶部显示“反馈有新回复”提示</string>
     <string name="features_calendar_preview_button">日程预览按钮</string>
-    <string name="features_calendar_preview_button_desc">在看板右上角显示日历按钮，查看今明日更新</string>
+    <string name="features_calendar_preview_button_desc">在看板显示今明日更新日历</string>
     <string name="features_daily_broadcast_button">每日放送入口</string>
-    <string name="features_daily_broadcast_button_desc">在看板右上角显示 Bangumi 每日放送入口，浏览本季全部番组</string>
+    <string name="features_daily_broadcast_button_desc">在看板显示本季每日放送入口</string>
     <string name="features_anime_display">番剧显示</string>
     <string name="features_series_stack">多季堆叠</string>
-    <string name="features_series_stack_desc">将同系列多季番剧合并为堆叠卡片，长按展开各季</string>
+    <string name="features_series_stack_desc">同系列多季合并为堆叠卡片</string>
+    <string name="features_status_badge_transition">状态角标转场</string>
+    <string name="features_status_badge_transition_desc">进入详情页时状态角标的飞行动画</string>
+    <string name="features_status_badge_transition_follow_cover">跟随封面</string>
+    <string name="features_status_badge_transition_follow_cover_desc">角标贴着封面一起飞出</string>
+    <string name="features_status_badge_transition_fly_to_title">飞向标题行</string>
+    <string name="features_status_badge_transition_fly_to_title_desc">角标单独飞到标题行</string>
     <string name="features_card_info_left">卡片左侧信息</string>
     <string name="features_card_info_left_desc">标题下方左槽位显示的字段</string>
     <string name="features_card_info_right">卡片右侧信息</string>
@@ -237,19 +243,19 @@
     <string name="features_rating">评分</string>
     <string name="features_rating_standard">评分标准</string>
     <string name="features_rating_standard_source">使用源评分</string>
-    <string name="features_rating_standard_source_desc">添加番剧时使用搜索源（Bangumi/TMDB）提供的评分</string>
+    <string name="features_rating_standard_source_desc">添加番剧时采用搜索源评分</string>
     <string name="features_rating_standard_manual">手动打分</string>
-    <string name="features_rating_standard_manual_desc">添加番剧时不读取源评分，由你手动选择 1-5 星（0.5 步进）</string>
+    <string name="features_rating_standard_manual_desc">添加番剧时手动选择评分</string>
     <string name="features_rating_standard_notice">仅对新添加的番剧生效，已添加的番剧不受影响</string>
 
     <!-- 外部播放 -->
     <string name="features_external_player">外部播放</string>
     <string name="features_external_player_visible">详情页显示播放按钮</string>
-    <string name="features_external_player_visible_desc">在番剧详情页顶栏显示外部播放按钮（Animeko / 哔哩哔哩）</string>
+    <string name="features_external_player_visible_desc">详情页顶栏显示外部播放按钮</string>
     <string name="features_external_play_mode">播放应用</string>
     <string name="features_external_play_mode_desc">详情页播放按钮跳转的目标应用</string>
     <string name="features_external_play_mode_auto">自动</string>
-    <string name="features_external_play_mode_auto_desc">两个应用都安装时，已关联 B 站则直达哔哩哔哩，否则弹窗选择</string>
+    <string name="features_external_play_mode_auto_desc">已装两者时按关联自动选择</string>
     <string name="features_external_play_mode_animeko">Animeko</string>
     <string name="features_external_play_mode_animeko_desc">始终跳转 Animeko（需关联 Bangumi）</string>
     <string name="features_external_play_mode_bilibili">哔哩哔哩</string>

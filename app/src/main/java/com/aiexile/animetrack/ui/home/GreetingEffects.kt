@@ -23,15 +23,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import com.aiexile.animetrack.data.GreetingEffectStyle
+import com.aiexile.animetrack.ui.components.SweepHighlightBandWidthRatio
+import com.aiexile.animetrack.ui.components.SweepHighlightDurationMs
+import com.aiexile.animetrack.ui.components.SweepHighlightEnd
+import com.aiexile.animetrack.ui.components.SweepHighlightStart
 import kotlinx.coroutines.delay
 
-/** 扫光动画时长（ms）；进度按文字宽度归一化，光带从左侧外扫到右侧外 */
-private const val SWEEP_DURATION_MS = 750
-private const val SWEEP_START = -0.4f
-private const val SWEEP_END = 1.4f
+/** 扫光参数与通用 [com.aiexile.animetrack.ui.components.sweepHighlight] 共用同一份令牌 */
+private const val SWEEP_DURATION_MS = SweepHighlightDurationMs
+private const val SWEEP_START = SweepHighlightStart
+private const val SWEEP_END = SweepHighlightEnd
 
 /** 光带半宽占文字宽度比例（渐变两端为基础色，中心为白色高亮） */
-private const val SWEEP_BAND_WIDTH_RATIO = 0.22f
+private const val SWEEP_BAND_WIDTH_RATIO = SweepHighlightBandWidthRatio
 
 /**
  * 欢迎语文本：按 [style] 播放入场动画。

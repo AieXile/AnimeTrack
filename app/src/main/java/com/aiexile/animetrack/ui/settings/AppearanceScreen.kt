@@ -121,7 +121,7 @@ fun AppearanceScreen(
     val currentIconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
     // 界面外壳材质档位：初始值取同步缓存，避免首帧闪变
     val chromeStyle by settingsRepository.chromeStyle.collectAsState(settingsRepository.cachedChromeStyle())
-    // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
+    // 导航栏「背景模糊」开关：初始值取同步缓存，避免首帧闪变；液态玻璃 / 高级模糊档共用
     val capsuleLiquidGlassBackdropBlur by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
         .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
     // 低版本设备不支持实时模糊：档位会由 MainActivity 降级为标准，此处给出说明

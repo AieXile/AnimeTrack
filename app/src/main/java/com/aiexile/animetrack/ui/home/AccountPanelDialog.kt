@@ -5,31 +5,38 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
-import androidx.compose.material3.AlertDialog
+import com.aiexile.animetrack.ui.components.sweepHighlight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,14 +44,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -54,6 +66,9 @@ import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
+
+/** 账号面板中当前展开操作项的账号（同一时间只展开一个） */
+private enum class AccountActionTarget { User, Bilibili, Bangumi }
 
 @Composable
 fun AccountPanelDialog(
@@ -70,8 +85,9 @@ fun AccountPanelDialog(
     val context = LocalContext.current
 
     val notLoggedInText = stringResource(R.string.account_panel_not_logged_in)
-    val unknownUserText = stringResource(R.string.account_panel_unknown_user)
     val connectedText = stringResource(R.string.account_panel_connected)
+    val accountManagementText = stringResource(R.string.account_panel_account_management)
+    val logoutText = stringResource(R.string.account_panel_logout)
 
     val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
     val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
@@ -96,10 +112,18 @@ fun AccountPanelDialog(
     val displayAvatar = customAvatarUri ?: userAvatar ?: bilibiliAvatar ?: bangumiAvatar
     val displayName = userUsername ?: bilibiliNickname ?: bangumiNickname ?: notLoggedInText
 
-    var showUserActions by remember { mutableStateOf(false) }
-    var showBilibiliActions by remember { mutableStateOf(false) }
-    var showBangumiActions by remember { mutableStateOf(false) }
-    var showAvatarActions by remember { mutableStateOf(false) }
+    // 当前展开操作项的账号：点击已登录账号行时展开，再次点击同一行收起
+    var expandedAccount by remember { mutableStateOf<AccountActionTarget?>(null) }
+    // 头像点击扫光触发器：点击头像只播放高亮扫光，不执行其他操作
+    var avatarSweepTrigger by remember { mutableIntStateOf(0) }
+
+    val panelDialogProperties = remember {
+        DialogProperties(
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    }
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -111,353 +135,273 @@ fun AccountPanelDialog(
         }
     }
 
-    // AnimeTrack 服务器账号操作弹窗
-    if (showUserActions) {
-        AlertDialog(
-            onDismissRequest = { showUserActions = false },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = { Text(stringResource(R.string.account_panel_anime_track_account)) },
-            text = { Text(stringResource(R.string.account_panel_logged_in_as, userUsername ?: unknownUserText)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showUserActions = false
-                    onDismiss()
-                    onNavigateUserLogin()
-                }) { Text(stringResource(R.string.account_panel_account_management)) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { showUserActions = false }) { Text(stringResource(R.string.common_cancel)) }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        showUserActions = false
-                        scope.launch { userAuthManager.logout() }
-                    }) {
-                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        )
-    }
-
-    // Bilibili 操作弹窗
-    if (showBilibiliActions) {
-        AlertDialog(
-            onDismissRequest = { showBilibiliActions = false },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = { Text(stringResource(R.string.account_panel_bilibili_account)) },
-            text = { Text(stringResource(R.string.account_panel_logged_in_as, bilibiliNickname ?: unknownUserText)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBilibiliActions = false
-                    onDismiss()
-                    onNavigateBilibiliLogin()
-                }) { Text(stringResource(R.string.account_panel_account_management)) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { showBilibiliActions = false }) { Text(stringResource(R.string.common_cancel)) }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        showBilibiliActions = false
-                        scope.launch { bilibiliAuthManager.logout() }
-                    }) {
-                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        )
-    }
-
-    // Bangumi 操作弹窗
-    if (showBangumiActions) {
-        AlertDialog(
-            onDismissRequest = { showBangumiActions = false },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = { Text(stringResource(R.string.account_panel_bangumi_account)) },
-            text = { Text(stringResource(R.string.account_panel_logged_in_as, bangumiNickname ?: unknownUserText)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBangumiActions = false
-                    onDismiss()
-                    onNavigateBangumiAccount()
-                }) { Text(stringResource(R.string.account_panel_account_management)) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { showBangumiActions = false }) { Text(stringResource(R.string.common_cancel)) }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        showBangumiActions = false
-                        scope.launch { authManager.logout() }
-                    }) {
-                        Text(stringResource(R.string.account_panel_logout), color = MaterialTheme.colorScheme.error)
-                    }
-                }
-            }
-        )
-    }
-
-    // 头像操作弹窗
-    if (showAvatarActions) {
-        AlertDialog(
-            onDismissRequest = { showAvatarActions = false },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = { Text(stringResource(R.string.account_panel_change_avatar)) },
-            text = {
-                Column {
-                    if (customAvatarUri != null) {
-                        TextButton(onClick = {
-                            showAvatarActions = false
-                            scope.launch { authManager.saveCustomAvatarUri(null) }
-                        }) {
-                            Text(stringResource(R.string.account_panel_reset_avatar))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showAvatarActions = false
-                    pickImageLauncher.launch("image/*")
-                }) { Text(stringResource(R.string.account_panel_select_image)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAvatarActions = false }) { Text(stringResource(R.string.common_cancel)) }
-            }
-        )
-    }
-
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.dialogBlurBehind(),
-        shape = SquircleShape(24.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        title = null,
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 头像区域
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(
-                            color = if (anyLoggedIn) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = CircleShape
-                        )
-                        .clickable { showAvatarActions = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (displayAvatar != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(
-                                    if (customAvatarUri != null) customAvatarUri!!.toUri()
-                                    else displayAvatar
-                                )
-                                .build(),
-                            contentDescription = stringResource(R.string.account_panel_avatar),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            error = painterResource(id = R.drawable.ic_launcher_foreground),
-                            fallback = painterResource(id = R.drawable.ic_launcher_foreground)
-                        )
-                    } else {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                            contentDescription = stringResource(R.string.account_panel_default_avatar),
-                            modifier = Modifier.size(32.dp),
-                            tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (anyLoggedIn) displayName else notLoggedInText,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // AnimeTrack 服务器账号条目（排第一）
-                AccountServiceRow(
-                    title = "AnimeTrack",
-                    subtitle = when {
-                        userLoggedIn && userExpired -> stringResource(R.string.token_expired_card_subtitle)
-                        userLoggedIn -> userUsername ?: connectedText
-                        else -> stringResource(R.string.account_panel_login_to_sync)
-                    },
-                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                    isConnected = userLoggedIn,
-                    expired = userLoggedIn && userExpired,
-                    onClick = {
-                        if (userLoggedIn && !userExpired) {
-                            showUserActions = true
-                        } else {
-                            // 未登录或已失效：直达登录页强制重新登录
-                            onDismiss()
-                            onNavigateUserLogin()
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Bilibili 条目
-                AccountServiceRow(
-                    title = "Bilibili",
-                    subtitle = when {
-                        bilibiliLoggedIn && bilibiliExpired -> stringResource(R.string.token_expired_card_subtitle)
-                        bilibiliLoggedIn -> bilibiliNickname ?: connectedText
-                        else -> stringResource(R.string.account_panel_bind_bilibili)
-                    },
-                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                    isConnected = bilibiliLoggedIn,
-                    expired = bilibiliLoggedIn && bilibiliExpired,
-                    onClick = {
-                        if (bilibiliLoggedIn && !bilibiliExpired) {
-                            showBilibiliActions = true
-                        } else {
-                            // 未登录或已失效：直达登录页强制重新登录
-                            onDismiss()
-                            onNavigateBilibiliLogin()
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Bangumi 条目
-                AccountServiceRow(
-                    title = "Bangumi",
-                    subtitle = when {
-                        bangumiLoggedIn && bangumiExpired -> stringResource(R.string.token_expired_card_subtitle)
-                        bangumiLoggedIn -> bangumiNickname ?: connectedText
-                        else -> stringResource(R.string.account_panel_bind_bangumi)
-                    },
-                    icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                    isConnected = bangumiLoggedIn,
-                    expired = bangumiLoggedIn && bangumiExpired,
-                    onClick = {
-                        if (bangumiLoggedIn && !bangumiExpired) {
-                            showBangumiActions = true
-                        } else {
-                            // 未登录或已失效：直达登录页强制重新登录
-                            onDismiss()
-                            onNavigateBangumiLogin()
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 自定义头像按钮
-                OutlinedButton(
-                    onClick = { showAvatarActions = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = SquircleShape(12.dp)
-                ) {
-                    Text(
-                        if (customAvatarUri != null) stringResource(R.string.account_panel_change_avatar) else stringResource(R.string.account_panel_custom_avatar),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {}
-    )
-}
-
-@Composable
-private fun AccountServiceRow(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.painter.Painter,
-    isConnected: Boolean,
-    expired: Boolean = false,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clip(SquircleShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
+        properties = panelDialogProperties
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .dialogBlurBehind()
         ) {
-            Icon(
-                painter = icon,
-                contentDescription = null,
-                tint = when {
-                    expired -> MaterialTheme.colorScheme.outline
-                    isConnected -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.size(22.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (expired) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-
-            // 状态小点：已连接绿色 / 失效或未连接灰色
+            // 透明遮罩：点击面板外的空白区域关闭面板（窗口自带 DIM_BEHIND，不额外压暗）
             Box(
                 modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(
-                        color = if (isConnected && !expired) Color(0xFF4CAF50)
-                        else MaterialTheme.colorScheme.outlineVariant
-                    )
+                    .matchParentSize()
+                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
             )
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+            ) {
+                var cardHeightPx by remember { mutableIntStateOf(0) }
+                // 收起态高度：面板按该高度居中定位；展开时顶部固定，新增高度全部向下生长
+                var collapsedHeightPx by remember { mutableIntStateOf(0) }
+                val density = LocalDensity.current
+                val availableHeightPx = with(density) { maxHeight.toPx() }
+                val cardWidth = minOf(AccountPanelSpec.MaxWidth, maxWidth * AccountPanelSpec.WidthFraction)
+                val centeredTop = (availableHeightPx - collapsedHeightPx) / 2f
+                val maxTop = (availableHeightPx - cardHeightPx).coerceAtLeast(0f)
+                val topOffset = with(density) {
+                    minOf(centeredTop, maxTop).coerceAtLeast(0f).toDp()
+                }
 
-            Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = topOffset)
+                        .width(cardWidth)
+                        // 首帧尚未测量时先隐藏，避免面板从错误位置闪入
+                        .graphicsLayer { alpha = if (cardHeightPx == 0) 0f else 1f }
+                        .onSizeChanged { size ->
+                            cardHeightPx = size.height
+                            if (collapsedHeightPx == 0) collapsedHeightPx = size.height
+                        }
+                        // 消费面板内的空白点击，避免穿透到遮罩误关闭
+                        .pointerInput(Unit) { detectTapGestures { } },
+                    shape = SquircleShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLowest
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 32.dp, bottom = 56.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // 头像区域
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    color = if (anyLoggedIn) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    shape = CircleShape
+                                )
+                                .sweepHighlight(
+                                    trigger = avatarSweepTrigger,
+                                    // 比欢迎语更快；ease-in 曲线让前半段偏慢、后半段加速
+                                    durationMillis = 500,
+                                    easing = FastOutLinearInEasing
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { avatarSweepTrigger++ },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (displayAvatar != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(
+                                            if (customAvatarUri != null) customAvatarUri!!.toUri()
+                                            else displayAvatar
+                                        )
+                                        .build(),
+                                    contentDescription = stringResource(R.string.account_panel_avatar),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                    error = painterResource(id = R.drawable.ic_launcher_foreground),
+                                    fallback = painterResource(id = R.drawable.ic_launcher_foreground)
+                                )
+                            } else {
+                                Icon(
+                                    painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
+                                    contentDescription = stringResource(R.string.account_panel_default_avatar),
+                                    modifier = Modifier.size(32.dp),
+                                    tint = if (anyLoggedIn) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
-            Icon(
-                painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
-                contentDescription = null,
-                tint = if (expired) MaterialTheme.colorScheme.outlineVariant
-                else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(20.dp)
-            )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (anyLoggedIn) displayName else notLoggedInText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // AnimeTrack 服务器账号条目（排第一）
+                        AccountServiceRow(
+                            title = "AnimeTrack",
+                            subtitle = when {
+                                userLoggedIn && userExpired -> stringResource(R.string.token_expired_card_subtitle)
+                                userLoggedIn -> userUsername ?: connectedText
+                                else -> stringResource(R.string.account_panel_login_to_sync)
+                            },
+                            icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
+                            isConnected = userLoggedIn,
+                            expired = userLoggedIn && userExpired,
+                            expanded = expandedAccount == AccountActionTarget.User,
+                            onToggle = {
+                                if (userLoggedIn && !userExpired) {
+                                    expandedAccount = if (expandedAccount == AccountActionTarget.User) {
+                                        null
+                                    } else {
+                                        AccountActionTarget.User
+                                    }
+                                } else {
+                                    // 未登录或已失效：直达登录页强制重新登录
+                                    onDismiss()
+                                    onNavigateUserLogin()
+                                }
+                            },
+                            actions = listOf(
+                                AccountRowAction(label = accountManagementText) {
+                                    expandedAccount = null
+                                    onDismiss()
+                                    onNavigateUserLogin()
+                                },
+                                AccountRowAction(label = logoutText, destructive = true) {
+                                    expandedAccount = null
+                                    scope.launch { userAuthManager.logout() }
+                                }
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Bilibili 条目
+                        AccountServiceRow(
+                            title = "Bilibili",
+                            subtitle = when {
+                                bilibiliLoggedIn && bilibiliExpired -> stringResource(R.string.token_expired_card_subtitle)
+                                bilibiliLoggedIn -> bilibiliNickname ?: connectedText
+                                else -> stringResource(R.string.account_panel_bind_bilibili)
+                            },
+                            icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
+                            isConnected = bilibiliLoggedIn,
+                            expired = bilibiliLoggedIn && bilibiliExpired,
+                            expanded = expandedAccount == AccountActionTarget.Bilibili,
+                            onToggle = {
+                                if (bilibiliLoggedIn && !bilibiliExpired) {
+                                    expandedAccount = if (expandedAccount == AccountActionTarget.Bilibili) {
+                                        null
+                                    } else {
+                                        AccountActionTarget.Bilibili
+                                    }
+                                } else {
+                                    // 未登录或已失效：直达登录页强制重新登录
+                                    onDismiss()
+                                    onNavigateBilibiliLogin()
+                                }
+                            },
+                            actions = listOf(
+                                AccountRowAction(label = accountManagementText) {
+                                    expandedAccount = null
+                                    onDismiss()
+                                    onNavigateBilibiliLogin()
+                                },
+                                AccountRowAction(label = logoutText, destructive = true) {
+                                    expandedAccount = null
+                                    scope.launch { bilibiliAuthManager.logout() }
+                                }
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Bangumi 条目
+                        AccountServiceRow(
+                            title = "Bangumi",
+                            subtitle = when {
+                                bangumiLoggedIn && bangumiExpired -> stringResource(R.string.token_expired_card_subtitle)
+                                bangumiLoggedIn -> bangumiNickname ?: connectedText
+                                else -> stringResource(R.string.account_panel_bind_bangumi)
+                            },
+                            icon = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
+                            isConnected = bangumiLoggedIn,
+                            expired = bangumiLoggedIn && bangumiExpired,
+                            expanded = expandedAccount == AccountActionTarget.Bangumi,
+                            onToggle = {
+                                if (bangumiLoggedIn && !bangumiExpired) {
+                                    expandedAccount = if (expandedAccount == AccountActionTarget.Bangumi) {
+                                        null
+                                    } else {
+                                        AccountActionTarget.Bangumi
+                                    }
+                                } else {
+                                    // 未登录或已失效：直达登录页强制重新登录
+                                    onDismiss()
+                                    onNavigateBangumiLogin()
+                                }
+                            },
+                            actions = listOf(
+                                AccountRowAction(label = accountManagementText) {
+                                    expandedAccount = null
+                                    onDismiss()
+                                    onNavigateBangumiAccount()
+                                },
+                                AccountRowAction(label = logoutText, destructive = true) {
+                                    expandedAccount = null
+                                    scope.launch { authManager.logout() }
+                                }
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // 自定义头像：纯文字按钮，点击直接选择图片（不再弹更换头像对话框）
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    expandedAccount = null
+                                    pickImageLauncher.launch("image/*")
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (customAvatarUri != null) {
+                                    stringResource(R.string.account_panel_change_avatar)
+                                } else {
+                                    stringResource(R.string.account_panel_custom_avatar)
+                                },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+/** 账号面板卡片尺寸：沿用 M3 AlertDialog 的 560dp 上限与平台宽度比例 */
+private object AccountPanelSpec {
+    val MaxWidth = 560.dp
+    const val WidthFraction = 0.92f
 }

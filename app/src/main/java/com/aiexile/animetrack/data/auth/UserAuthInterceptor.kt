@@ -64,6 +64,10 @@ class UserAuthInterceptor : Interceptor {
                                 )
                                 if (refreshResponse.success && refreshResponse.accessToken != null) {
                                     userAuthManager.updateAccessToken(refreshResponse.accessToken)
+                                    // 服务端每次刷新都会轮换 refresh token，必须同步保存新值
+                                    refreshResponse.refreshToken?.let {
+                                        userAuthManager.updateRefreshToken(it)
+                                    }
                                     refreshResponse.accessToken
                                 } else {
                                     // 刷新失败，标记失效（保留资料，引导重新登录）

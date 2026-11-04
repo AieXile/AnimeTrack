@@ -36,8 +36,8 @@ enum class AppIcon(
     CALENDAR_VIEW_DAY(R.drawable.sym_calendar_view_day, R.drawable.lucide_timeline),
     /** 追番看板右上角“今明日预览”按钮：Lucide 用两天日历（calendar-days） */
     CALENDAR_DAYS(R.drawable.sym_calendar_month, R.drawable.lucide_calendar_days),
-    /** 追番看板右上角“每日放送”入口：一周竖排格子的日历 */
-    CALENDAR_VIEW_WEEK(R.drawable.sym_calendar_view_week, R.drawable.lucide_calendar_range),
+    /** 追番看板右上角“每日放送”入口：Material 用电视（放送语义），Lucide 用带日期范围的日历 */
+    DAILY_BROADCAST(R.drawable.sym_live_tv, R.drawable.lucide_calendar_range),
     CAMPAIGN(R.drawable.sym_campaign, R.drawable.lucide_megaphone),
     CHECK(R.drawable.sym_check, R.drawable.lucide_check),
     CHECK_BOX(R.drawable.sym_check_box, R.drawable.lucide_square_check),
@@ -64,6 +64,8 @@ enum class AppIcon(
     FAVORITE(R.drawable.sym_favorite, R.drawable.lucide_heart),
     FEEDBACK(R.drawable.sym_feedback, R.drawable.lucide_message_square_warning),
     FILE_DOWNLOAD(R.drawable.sym_file_download, R.drawable.lucide_download),
+    /** 从本地导入文件：Material 用箭头入框（input），Lucide 用文件接收箭头（file-input） */
+    FILE_INPUT(R.drawable.sym_input, R.drawable.lucide_file_input),
     FILE_OPEN(R.drawable.sym_file_open, R.drawable.lucide_file_up),
     FOLDER(R.drawable.sym_folder, R.drawable.lucide_folder),
     FOLDER_OPEN(R.drawable.sym_folder_open, R.drawable.lucide_folder_open),

@@ -157,7 +157,7 @@ fun DeviceFontPickerScreen(
                 enabled = !importInProgress
             ) {
                 Icon(
-                    painter = rememberAppIconPainter(AppIcon.FONT_DOWNLOAD),
+                    painter = rememberAppIconPainter(AppIcon.FILE_INPUT),
                     contentDescription = stringResource(R.string.font_import_button),
                     tint = MaterialTheme.colorScheme.onSurface
                 )

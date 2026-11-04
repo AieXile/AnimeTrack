@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.data.remote
 
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.network.AdminFeedbackForwardResponse
 import com.aiexile.animetrack.data.network.AdminFeedbackLevelRequest
 import com.aiexile.animetrack.data.network.AdminFeedbackLevelResponse
 import com.aiexile.animetrack.data.network.AdminFeedbackReplyRequest
@@ -57,6 +58,29 @@ sealed class AdminOperationResult {
     data class Error(val throwable: Throwable? = null) : AdminOperationResult()
 }
 
+/** 手动推送到 Agendula 的结果 */
+sealed class AdminForwardResult {
+    /** 推送成功；alreadyPushed=true 表示服务端直接返回既有状态，未重复调用 */
+    data class Success(
+        val pushedAt: String?,
+        val alreadyPushed: Boolean,
+        val itemId: String?
+    ) : AdminForwardResult()
+
+    /** 同一会话已有请求在推送中 */
+    data object InProgress : AdminForwardResult()
+    data object SessionNotFound : AdminForwardResult()
+    /** 服务端未配置 intake token */
+    data object NotConfigured : AdminForwardResult()
+    /** intake 原文模式限流（5 次/60 秒） */
+    data object RateLimited : AdminForwardResult()
+    data object AuthExpired : AdminForwardResult()
+    data object NoPermission : AdminForwardResult()
+    /** 对端拒绝/5xx/超时等，message 为服务端返回的明确错误 */
+    data class Rejected(val message: String?) : AdminForwardResult()
+    data class Error(val throwable: Throwable? = null) : AdminForwardResult()
+}
+
 data class AdminFeedbackSessionsPage(
     val sessions: List<AdminFeedbackSession>,
     val hasMore: Boolean,
@@ -77,6 +101,9 @@ class AdminFeedbackRepository {
     }
 
     private val api: AdminFeedbackApiService = RetrofitClient.adminFeedbackApi
+
+    /** 推送接口单独用放宽读超时的客户端（等待服务端 AI 整理） */
+    private val forwardApi: AdminFeedbackApiService = RetrofitClient.adminFeedbackForwardApi
 
     /** 当前登录用户是否管理员（轻量接口，调用方自行缓存结果） */
     suspend fun getIdentity(): AdminIdentityResult = try {
@@ -169,6 +196,60 @@ class AdminFeedbackRepository {
     } catch (e: Exception) {
         AppLogManager.w(LOG_TAG, "管理端授等级失败: $sessionId delta=$delta", e)
         AdminOperationResult.Error(e)
+    }
+
+    /**
+     * 手动推送会话到 Agendula（管理员显式触发）。
+     * 服务端按稳定 uid 幂等：已推送直接返回既有状态，不会重复调用 intake。
+     */
+    suspend fun forwardToAgendula(sessionId: String): AdminForwardResult = try {
+        val response: AdminFeedbackForwardResponse = forwardApi.forwardToAgendula(sessionId)
+        if (response.success && response.pushed) {
+            AdminForwardResult.Success(
+                pushedAt = response.pushedAt,
+                alreadyPushed = response.alreadyPushed,
+                itemId = response.itemId
+            )
+        } else {
+            AdminForwardResult.Error()
+        }
+    } catch (e: HttpException) {
+        mapForwardException(e)
+    } catch (e: Exception) {
+        AppLogManager.w(LOG_TAG, "管理端推送 Agendula 失败: $sessionId", e)
+        AdminForwardResult.Error(e)
+    }
+
+    /** 解析推送接口的 HTTP 错误（错误码优先，其次按状态码兜底） */
+    private fun mapForwardException(e: HttpException): AdminForwardResult = try {
+        val body = e.response()?.errorBody()?.string()
+        val error = body?.takeIf { it.isNotBlank() }
+            ?.let { Gson().fromJson(it, AdminFeedbackForwardResponse::class.java) }
+        when (error?.code) {
+            "FORWARD_IN_PROGRESS" -> AdminForwardResult.InProgress
+            "INTAKE_NOT_CONFIGURED" -> AdminForwardResult.NotConfigured
+            "INTAKE_RATE_LIMITED" -> AdminForwardResult.RateLimited
+            "SESSION_NOT_FOUND" -> AdminForwardResult.SessionNotFound
+            "INTAKE_AUTH_FAILED",
+            "INTAKE_REJECTED",
+            "INTAKE_UNAVAILABLE",
+            "INTAKE_TIMEOUT",
+            "INTAKE_NETWORK_ERROR",
+            "INTAKE_INVALID_RESPONSE",
+            "EMPTY_FEEDBACK",
+            "FEEDBACK_TOO_LONG_FOR_INTAKE" -> AdminForwardResult.Rejected(error.message)
+            else -> when (e.code()) {
+                401 -> AdminForwardResult.AuthExpired
+                403 -> AdminForwardResult.NoPermission
+                404 -> AdminForwardResult.SessionNotFound
+                409 -> AdminForwardResult.InProgress
+                429 -> AdminForwardResult.RateLimited
+                503 -> AdminForwardResult.NotConfigured
+                else -> AdminForwardResult.Error(e)
+            }
+        }
+    } catch (_: Exception) {
+        AdminForwardResult.Error(e)
     }
 
     /** 解析回复接口的 HTTP 4xx（错误码在响应 body 中） */

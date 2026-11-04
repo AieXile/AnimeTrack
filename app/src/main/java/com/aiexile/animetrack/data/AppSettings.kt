@@ -49,6 +49,19 @@ enum class ChromeStyle(@param:StringRes val labelRes: Int) {
 }
 
 /**
+ * 卡片→详情页的状态角标转场策略。
+ *
+ * - [FOLLOW_COVER]：角标作为封面共享元素内容的一部分，随封面一起位移缩放（原版行为）
+ * - [FLY_TO_TITLE]：角标是独立共享元素，单独飞向详情页标题行的真实徽章节点（默认）
+ *
+ * 默认 [FLY_TO_TITLE]，保证未设置过的用户与线上既有表现一致。
+ */
+enum class StatusBadgeTransitionMode(@param:StringRes val labelRes: Int) {
+    FOLLOW_COVER(R.string.features_status_badge_transition_follow_cover),
+    FLY_TO_TITLE(R.string.features_status_badge_transition_fly_to_title)
+}
+
+/**
  * 旧数据迁移映射：液态玻璃优先于高级模糊（旧 UI 保证互斥，此处只做防御）。
  * 抽成纯函数便于单元测试。
  */

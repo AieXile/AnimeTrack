@@ -24,7 +24,7 @@
     <!-- WebDAVAutoSyncScreen -->
     <string name="webdav_auto_title">Auto sync</string>
     <string name="webdav_auto_enable">Enable auto sync</string>
-    <string name="webdav_auto_enable_desc">When enabled, will automatically backup to WebDAV based on settings</string>
+    <string name="webdav_auto_enable_desc">Auto-backup to WebDAV per settings</string>
     <string name="webdav_auto_trigger_section">Sync triggers</string>
     <string name="webdav_auto_enable_first">Please enable auto sync first</string>
     <string name="webdav_auto_trigger_data_change">On data change</string>
@@ -53,18 +53,14 @@
     <string name="bangumi_proxy_title">Proxy settings</string>
     <string name="bangumi_mirror_group">Mirror data source</string>
     <string name="bangumi_mirror_enable">Use server mirror data source</string>
-    <string name="bangumi_mirror_desc">Fetch subject data from the server directly, no proxy needed, up to 7 days behind</string>
-    <string name="bangumi_mirror_locked_desc">Locked</string>
-    <string name="bangumi_mirror_password_title">Verify password</string>
-    <string name="bangumi_mirror_password_label">Password</string>
-    <string name="bangumi_mirror_password_wrong">Wrong password</string>
+    <string name="bangumi_mirror_desc">Direct subject data, up to 7 days behind</string>
     <string name="bangumi_proxy_reverse_group">Bangumi reverse proxy</string>
     <string name="bangumi_proxy_enable_reverse">Enable reverse proxy</string>
     <string name="bangumi_proxy_set_address_first">Please set proxy address first</string>
-    <string name="bangumi_proxy_reverse_desc">Access api.bgm.tv via %1$s proxy to resolve direct connection issues</string>
+    <string name="bangumi_proxy_reverse_desc">Access api.bgm.tv via %1$s</string>
     <string name="bangumi_proxy_http_group">Network proxy</string>
     <string name="bangumi_proxy_enable_http">Enable network proxy</string>
-    <string name="bangumi_proxy_http_desc">Proxy network access via %1$s, applies to new requests immediately after saving</string>
+    <string name="bangumi_proxy_http_desc">Route network requests via %1$s</string>
     <string name="bangumi_proxy_protocol_web">WEB proxy</string>
     <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT tunnel, best compatibility</string>
     <string name="bangumi_proxy_protocol_socks5">SOCKS5 proxy</string>

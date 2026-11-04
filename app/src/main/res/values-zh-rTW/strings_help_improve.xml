@@ -11,5 +11,5 @@
     <!-- FeaturesScreen（幫助改進應用分組） -->
     <string name="features_help_improve">幫助改進應用</string>
     <string name="features_crash_report">崩潰追蹤</string>
-    <string name="features_crash_report_desc">崩潰時自動上傳診斷資訊，幫助快速定位問題</string>
+    <string name="features_crash_report_desc">崩潰時自動上傳診斷資訊</string>
 </resources>

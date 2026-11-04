@@ -24,7 +24,7 @@
     <!-- WebDAVAutoSyncScreen -->
     <string name="webdav_auto_title">自動同步</string>
     <string name="webdav_auto_enable">啟用自動同步</string>
-    <string name="webdav_auto_enable_desc">開啟後將按設定條件自動備份到 WebDAV</string>
+    <string name="webdav_auto_enable_desc">按設定條件自動備份到 WebDAV</string>
     <string name="webdav_auto_trigger_section">同步觸發條件</string>
     <string name="webdav_auto_enable_first">請先開啟自動同步</string>
     <string name="webdav_auto_trigger_data_change">資料變化時</string>
@@ -53,18 +53,14 @@
     <string name="bangumi_proxy_title">代理設定</string>
     <string name="bangumi_mirror_group">鏡像資料來源</string>
     <string name="bangumi_mirror_enable">使用伺服器鏡像資料來源</string>
-    <string name="bangumi_mirror_desc">條目資料改為從伺服器直連獲取，免代理，最多滯後 7 天</string>
-    <string name="bangumi_mirror_locked_desc">未解鎖</string>
-    <string name="bangumi_mirror_password_title">驗證密碼</string>
-    <string name="bangumi_mirror_password_label">密碼</string>
-    <string name="bangumi_mirror_password_wrong">密碼錯誤</string>
+    <string name="bangumi_mirror_desc">直連取得條目資料，最多滯後 7 天</string>
     <string name="bangumi_proxy_reverse_group">Bangumi 反向代理</string>
     <string name="bangumi_proxy_enable_reverse">啟用反向代理</string>
     <string name="bangumi_proxy_set_address_first">請先設定代理地址</string>
-    <string name="bangumi_proxy_reverse_desc">透過 %1$s 代理存取 api.bgm.tv，解決直連不可達問題</string>
+    <string name="bangumi_proxy_reverse_desc">透過 %1$s 代理存取 api.bgm.tv</string>
     <string name="bangumi_proxy_http_group">網路代理</string>
     <string name="bangumi_proxy_enable_http">啟用網路代理</string>
-    <string name="bangumi_proxy_http_desc">透過 %1$s 代理存取網路，儲存後新請求立即生效</string>
+    <string name="bangumi_proxy_http_desc">透過 %1$s 代理網路請求</string>
     <string name="bangumi_proxy_protocol_web">WEB 代理</string>
     <string name="bangumi_proxy_protocol_web_desc">HTTP/HTTPS CONNECT 通道，相容性最好</string>
     <string name="bangumi_proxy_protocol_socks5">SOCKS5 代理</string>

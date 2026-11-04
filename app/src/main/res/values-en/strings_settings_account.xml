@@ -13,7 +13,7 @@
     <string name="user_login_logged_in">Logged in</string>
     <string name="user_login_change_password">Change Password</string>
     <string name="user_login_logout">Log Out</string>
-    <string name="user_login_username">Username</string>
+    <string name="user_login_username">Username or Email</string>
     <string name="user_login_password">Password</string>
     <string name="user_login_login">Log In</string>
     <string name="user_login_no_account_register">No account? Register</string>
@@ -152,7 +152,7 @@
     <string name="developer_simulate_update_desc">Simulate full update flow without downloading real files</string>
     <string name="developer_trigger_simulate_update">Trigger Simulated Update</string>
     <string name="developer_player_hub_entry">Show "Video Playback" in Settings</string>
-    <string name="developer_player_hub_entry_desc">Show the playback hub entry in the settings list, hidden by default</string>
+    <string name="developer_player_hub_entry_desc">Show playback hub entry in settings</string>
     <string name="developer_announcement">Announcement</string>
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>
@@ -161,7 +161,7 @@
     <string name="developer_open_onboarding">Open Onboarding</string>
     <string name="developer_mode_disabled">Developer mode disabled</string>
     <string name="developer_advanced_blur">Advanced Blur (Frosted Glass)</string>
-    <string name="developer_advanced_blur_desc">Applies when Interface Style is Advanced Blur; tune its blur parameters</string>
+    <string name="developer_advanced_blur_desc">Applies to Advanced Blur style</string>
     <string name="developer_blur_switch_desc">Synced with Interface Style in Appearance</string>
     <string name="developer_blur_radius">Blur Radius</string>
     <string name="developer_blur_background_alpha">Background Opacity</string>
@@ -209,16 +209,22 @@
     <string name="features_search_button_desc">Show search button in top right of home screen</string>
     <string name="features_update_reminder">Update Reminders</string>
     <string name="features_today_update_reminder">Today\'s Update Reminder</string>
-    <string name="features_today_update_reminder_desc">Show today\'s anime update reminder card at top of home screen</string>
+    <string name="features_today_update_reminder_desc">Show today\'s update reminder on home</string>
     <string name="features_feedback_reply_reminder">Feedback Reply Reminder</string>
     <string name="features_feedback_reply_reminder_desc">Show new feedback reply hint at top of home screen</string>
     <string name="features_calendar_preview_button">Schedule Preview Button</string>
-    <string name="features_calendar_preview_button_desc">Show calendar button in watching board to view today/tomorrow updates</string>
+    <string name="features_calendar_preview_button_desc">Show today/tomorrow calendar in board</string>
     <string name="features_daily_broadcast_button">Daily Broadcast Entry</string>
-    <string name="features_daily_broadcast_button_desc">Show Bangumi daily broadcast entry in the watching board to browse all shows airing this season</string>
+    <string name="features_daily_broadcast_button_desc">Show this season\'s daily airing in board</string>
     <string name="features_anime_display">Anime Display</string>
     <string name="features_series_stack">Series Stacking</string>
-    <string name="features_series_stack_desc">Merge multi-season anime into stacked cards, long press to expand</string>
+    <string name="features_series_stack_desc">Stack multi-season anime, long press to expand</string>
+    <string name="features_status_badge_transition">Status Badge Transition</string>
+    <string name="features_status_badge_transition_desc">How the status badge flies into the detail page</string>
+    <string name="features_status_badge_transition_follow_cover">Follow Cover</string>
+    <string name="features_status_badge_transition_follow_cover_desc">Badge flies out attached to the cover</string>
+    <string name="features_status_badge_transition_fly_to_title">Fly to Title</string>
+    <string name="features_status_badge_transition_fly_to_title_desc">Badge flies separately to the title row</string>
     <string name="features_card_info_left">Card Left Info</string>
     <string name="features_card_info_left_desc">Field shown in the left slot under the title</string>
     <string name="features_card_info_right">Card Right Info</string>
@@ -237,19 +243,19 @@
     <string name="features_rating">Rating</string>
     <string name="features_rating_standard">Rating Standard</string>
     <string name="features_rating_standard_source">Use Source Rating</string>
-    <string name="features_rating_standard_source_desc">Use the rating provided by the search source (Bangumi/TMDB) when adding anime</string>
+    <string name="features_rating_standard_source_desc">Use the search source rating when adding</string>
     <string name="features_rating_standard_manual">Manual Rating</string>
-    <string name="features_rating_standard_manual_desc">Don\'t read source rating when adding anime, manually select 1-5 stars (0.5 step)</string>
+    <string name="features_rating_standard_manual_desc">Pick the rating manually when adding</string>
     <string name="features_rating_standard_notice">Only affects newly added anime, existing anime are not affected</string>
 
     <!-- External playback -->
     <string name="features_external_player">External playback</string>
     <string name="features_external_player_visible">Show play button in details</string>
-    <string name="features_external_player_visible_desc">Show the external playback button (Animeko / Bilibili) in the anime detail top bar</string>
+    <string name="features_external_player_visible_desc">Show external play button in detail top bar</string>
     <string name="features_external_play_mode">Playback app</string>
     <string name="features_external_play_mode_desc">Target app opened by the play button on the detail page</string>
     <string name="features_external_play_mode_auto">Automatic</string>
-    <string name="features_external_play_mode_auto_desc">If both apps are installed, jump to Bilibili when linked, otherwise ask</string>
+    <string name="features_external_play_mode_auto_desc">Auto-pick Bilibili when linked, otherwise ask</string>
     <string name="features_external_play_mode_animeko">Animeko</string>
     <string name="features_external_play_mode_animeko_desc">Always open Animeko (requires a Bangumi link)</string>
     <string name="features_external_play_mode_bilibili">Bilibili</string>

@@ -135,6 +135,8 @@ class SettingsRepository(private val context: Context) {
         private val SHOW_SEARCH_BUTTON_KEY = booleanPreferencesKey("show_search_button")
         private val SERIES_STACK_ENABLED_KEY = booleanPreferencesKey("series_stack_enabled")
         private val SERIES_STACK_TOP_KEY = stringPreferencesKey("series_stack_top_indices")
+        // 卡片→详情页状态角标转场策略（StatusBadgeTransitionMode.name），默认飞向标题行
+        private val STATUS_BADGE_TRANSITION_MODE_KEY = stringPreferencesKey("status_badge_transition_mode")
         // 卡片信息栏左右槽位字段（CardInfoField.name），默认保持进度 + 评分
         private val CARD_INFO_LEFT_KEY = stringPreferencesKey("card_info_left")
         private val CARD_INFO_RIGHT_KEY = stringPreferencesKey("card_info_right")
@@ -190,16 +192,11 @@ class SettingsRepository(private val context: Context) {
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
         private val BANGUMI_MIRROR_ENABLED_KEY = booleanPreferencesKey("bangumi_mirror_enabled")
-        /** 镜像数据源解锁标记：关于页彩蛋触发后置 true，开关才可操作 */
-        private val BANGUMI_MIRROR_UNLOCKED_KEY = booleanPreferencesKey("bangumi_mirror_unlocked")
 
         const val DEFAULT_BANGUMI_PROXY_HOST = ""
 
         /** Bangumi 镜像数据源：与账号同步服务器同源，服务器侧含搜索回源兜底 */
         const val BANGUMI_MIRROR_HOST = "www.aiexile.top"
-
-        /** 镜像数据源开启密码：关于页彩蛋解锁入口后，开启时仍需校验 */
-        const val BANGUMI_MIRROR_PASSWORD = "aiexile666"
 
         private val HTTP_PROXY_ENABLED_KEY = booleanPreferencesKey("http_proxy_enabled")
         private val HTTP_PROXY_HOST_KEY = stringPreferencesKey("http_proxy_host")
@@ -528,7 +525,7 @@ class SettingsRepository(private val context: Context) {
         return ChromeStyle.entries.firstOrNull { it.name == cached } ?: ChromeStyle.STANDARD
     }
 
-    /** 液态玻璃导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启。仅液态玻璃档位下生效 */
+    /** 导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启；液态玻璃与高级模糊档共用 */
     val capsuleLiquidGlassBackdropBlurEnabled: Flow<Boolean> =
         preferenceFlow(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, true)
     suspend fun setCapsuleLiquidGlassBackdropBlurEnabled(enabled: Boolean) =
@@ -648,6 +645,27 @@ class SettingsRepository(private val context: Context) {
     val seriesStackEnabled: Flow<Boolean> = preferenceFlow(SERIES_STACK_ENABLED_KEY, false)
 
     suspend fun setSeriesStackEnabled(enabled: Boolean) = setPreference(SERIES_STACK_ENABLED_KEY, enabled)
+
+    /** 卡片→详情页状态角标转场策略，默认 [StatusBadgeTransitionMode.FLY_TO_TITLE]（与线上既有行为一致） */
+    val statusBadgeTransitionMode: Flow<StatusBadgeTransitionMode> =
+        preferenceFlow(STATUS_BADGE_TRANSITION_MODE_KEY, StatusBadgeTransitionMode.FLY_TO_TITLE.name)
+            .map { modeString ->
+                StatusBadgeTransitionMode.entries.firstOrNull { it.name == modeString }
+                    ?: StatusBadgeTransitionMode.FLY_TO_TITLE
+            }
+
+    suspend fun setStatusBadgeTransitionMode(mode: StatusBadgeTransitionMode) {
+        AppLogManager.i(TAG, "状态角标转场切换: $mode")
+        setPreference(STATUS_BADGE_TRANSITION_MODE_KEY, mode.name)
+    }
+
+    /** 状态角标转场策略的同步缓存值：作为 collectAsState 初值，避免冷启动首帧按默认策略渲染再跳变 */
+    fun cachedStatusBadgeTransitionMode(): StatusBadgeTransitionMode {
+        val cached = prefCache[STATUS_BADGE_TRANSITION_MODE_KEY] as? String
+            ?: return StatusBadgeTransitionMode.FLY_TO_TITLE
+        return StatusBadgeTransitionMode.entries.firstOrNull { it.name == cached }
+            ?: StatusBadgeTransitionMode.FLY_TO_TITLE
+    }
 
     /** 卡片信息栏左槽位字段，默认观看进度 */
     val cardInfoLeftField: Flow<CardInfoField> =
@@ -857,17 +875,11 @@ class SettingsRepository(private val context: Context) {
     // Bangumi 镜像数据源
     val bangumiMirrorEnabledFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_ENABLED_KEY, false)
 
-    /** 镜像数据源解锁状态：false 时代理设置页开关置灰不可操作 */
-    val bangumiMirrorUnlockedFlow: Flow<Boolean> = preferenceFlow(BANGUMI_MIRROR_UNLOCKED_KEY, false)
-
     suspend fun setBangumiMirrorEnabled(enabled: Boolean) {
         AppLogManager.i(TAG, "Bangumi 镜像数据源开关: $enabled")
         setPreference(BANGUMI_MIRROR_ENABLED_KEY, enabled)
         bangumiMirrorEnabled = enabled
     }
-
-    suspend fun setBangumiMirrorUnlocked(unlocked: Boolean) =
-        setPreference(BANGUMI_MIRROR_UNLOCKED_KEY, unlocked)
 
     // HTTP 普通代理
     val httpProxyEnabledFlow: Flow<Boolean> = preferenceFlow(HTTP_PROXY_ENABLED_KEY, false)

@@ -111,7 +111,7 @@
     <string name="player_webdav_import_from_backup">从备份配置填入</string>
     <string name="player_webdav_backup_empty_hint">备份同步尚未配置 WebDAV，无可填入的配置</string>
     <string name="player_webdav_trust_all_certs">信任所有证书</string>
-    <string name="player_webdav_trust_all_certs_desc">用 IP 直连 NAS 或自签名证书时开启；仅作用于播放器，重启应用后生效，请勿在不可信网络中使用</string>
+    <string name="player_webdav_trust_all_certs_desc">IP 直连或自签名证书时开启，重启生效</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器设置</string>

@@ -90,6 +90,7 @@ import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
+import com.aiexile.animetrack.ui.components.HazeNavBackdropBlur
 import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
 import com.aiexile.animetrack.ui.components.SharedElementSpecs
@@ -1230,13 +1231,22 @@ private fun MainOverlay(
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "navFabReserve"
             )
-            // 液态玻璃「导航栏背景模糊」：在胶囊下层渲染四周磨砂区域（类 iOS Tab Bar）。
-            // 胶囊自身采样 Pager 内容层（navBackdrop 不含本层），不受模糊层影响，保持清晰玻璃
-            if (chromeStyle == ChromeStyle.LIQUID_GLASS && capsuleLiquidGlassBackdropBlurEnabled) {
-                LiquidGlassNavBackdropBlur(
-                    backdrop = navBackdrop,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
+            // 导航栏四周磨砂层（类 iOS Tab Bar；两种玻璃材质都有，共用同一开关）：
+            // 胶囊自身采样 Pager 内容层（采样源不含本层），不受模糊层影响
+            if (capsuleLiquidGlassBackdropBlurEnabled) {
+                when (chromeStyle) {
+                    ChromeStyle.LIQUID_GLASS -> LiquidGlassNavBackdropBlur(
+                        backdrop = navBackdrop,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+
+                    ChromeStyle.HAZE -> HazeNavBackdropBlur(
+                        hazeState = hazeState,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+
+                    ChromeStyle.STANDARD -> Unit
+                }
             }
             Box(
                 modifier = Modifier

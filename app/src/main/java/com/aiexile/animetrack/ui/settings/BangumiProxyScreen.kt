@@ -64,9 +64,8 @@ fun BangumiProxyScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Bangumi 镜像数据源：解锁前开关置灰，开启需密码验证
+    // Bangumi 镜像数据源：对所有用户开放，开关直接生效
     val mirrorEnabled by settingsRepository.bangumiMirrorEnabledFlow.collectAsState(initial = false)
-    val mirrorUnlocked by settingsRepository.bangumiMirrorUnlockedFlow.collectAsState(initial = false)
 
     // Bangumi 反向代理
     val proxyEnabled by settingsRepository.bangumiProxyEnabledFlow.collectAsState(initial = false)
@@ -82,11 +81,6 @@ fun BangumiProxyScreen(
 
     var showBangumiHostDialog by remember { mutableStateOf(false) }
     var bangumiHostInput by remember { mutableStateOf("") }
-
-    // 镜像数据源密码验证：解锁后每次开启均需重新输入
-    var showMirrorPasswordDialog by remember { mutableStateOf(false) }
-    var mirrorPasswordInput by remember { mutableStateOf("") }
-    var mirrorPasswordError by remember { mutableStateOf(false) }
 
     // 表单本地输入态：失焦时保存到 DataStore，避免逐字符异步写导致的回显延迟与光标跳动
     var serverInput by remember { mutableStateOf("") }
@@ -155,23 +149,9 @@ fun BangumiProxyScreen(
                     ) {
                         SwitchItem(
                             title = stringResource(R.string.bangumi_mirror_enable),
-                            description = if (mirrorUnlocked) {
-                                stringResource(R.string.bangumi_mirror_desc)
-                            } else {
-                                stringResource(R.string.bangumi_mirror_locked_desc)
-                            },
+                            description = stringResource(R.string.bangumi_mirror_desc),
                             checked = mirrorEnabled,
-                            enabled = mirrorUnlocked,
-                            onCheckedChange = { target ->
-                                if (target) {
-                                    // 开启前先过密码验证，关闭无需验证
-                                    mirrorPasswordInput = ""
-                                    mirrorPasswordError = false
-                                    showMirrorPasswordDialog = true
-                                } else {
-                                    scope.launch { settingsRepository.setBangumiMirrorEnabled(false) }
-                                }
-                            }
+                            onCheckedChange = { scope.launch { settingsRepository.setBangumiMirrorEnabled(it) } }
                         )
                     }
                 }
@@ -373,51 +353,6 @@ fun BangumiProxyScreen(
             }
         )
     }
-
-    // 镜像数据源开启密码验证：密码正确才写入开关并生效
-    if (showMirrorPasswordDialog) {
-        AlertDialog(
-            onDismissRequest = { showMirrorPasswordDialog = false },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = { Text(stringResource(R.string.bangumi_mirror_password_title)) },
-            text = {
-                OutlinedTextField(
-                    value = mirrorPasswordInput,
-                    onValueChange = {
-                        mirrorPasswordInput = it
-                        mirrorPasswordError = false
-                    },
-                    label = { Text(stringResource(R.string.bangumi_mirror_password_label)) },
-                    singleLine = true,
-                    isError = mirrorPasswordError,
-                    supportingText = if (mirrorPasswordError) {
-                        { Text(stringResource(R.string.bangumi_mirror_password_wrong)) }
-                    } else {
-                        null
-                    },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (mirrorPasswordInput == SettingsRepository.BANGUMI_MIRROR_PASSWORD) {
-                            scope.launch { settingsRepository.setBangumiMirrorEnabled(true) }
-                            showMirrorPasswordDialog = false
-                        } else {
-                            mirrorPasswordError = true
-                        }
-                    }
-                ) { Text(stringResource(R.string.common_ok)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMirrorPasswordDialog = false }) { Text(stringResource(R.string.common_cancel)) }
-            }
-        )
-    }
 }
 
 @Composable
@@ -490,8 +425,7 @@ private fun SwitchItem(
     title: String,
     description: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -504,21 +438,18 @@ private fun SwitchItem(
                 text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = description,
                 fontSize = 12.sp,
-                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         AppSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled
+            onCheckedChange = onCheckedChange
         )
     }
 }

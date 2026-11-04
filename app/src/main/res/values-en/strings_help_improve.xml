@@ -11,5 +11,5 @@
     <!-- FeaturesScreen (Help improve the app group) -->
     <string name="features_help_improve">Help improve the app</string>
     <string name="features_crash_report">Crash tracking</string>
-    <string name="features_crash_report_desc">Automatically upload diagnostic info on crashes to help locate issues faster</string>
+    <string name="features_crash_report_desc">Auto-upload diagnostics on crash</string>
 </resources>

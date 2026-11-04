@@ -79,12 +79,19 @@ data class UserAuthRefreshRequest(
     /** 设备信息（可选）：存量会话刷新时由服务端补齐，用于多端登录设备展示 */
     val deviceId: String? = null,
     val deviceName: String? = null,
-    val platform: String? = null
+    val platform: String? = null,
+    /**
+     * 新客户端声明支持 refresh token 轮换；旧客户端不发送该字段，
+     * 服务端据此保持兼容不轮换，避免旧版因未保存新 token 被误判重放而登出。
+     */
+    val supportsRefreshTokenRotation: Boolean = true
 )
 
 data class UserAuthRefreshResponse(
     val success: Boolean,
     val accessToken: String?,
+    /** 轮换后的新 refresh token；旧 token 已作废，客户端必须保存 */
+    val refreshToken: String? = null,
     val message: String?,
     /** true = 会话被主动撤销（该设备已下线），客户端需给出明确被踢提示 */
     val kicked: Boolean? = null

@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -57,6 +58,7 @@ import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.isExpandedWidth
 import com.aiexile.animetrack.ui.components.rememberSharedCoverClipShape
+import com.aiexile.animetrack.ui.components.rememberSharedCoverBadgeAlpha
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -107,6 +109,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
@@ -174,8 +177,12 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AirDateEditor
+import com.aiexile.animetrack.ui.components.CoverCornerBadges
+import com.aiexile.animetrack.ui.components.DetailCoverStatusBadge
+import com.aiexile.animetrack.ui.components.DetailTitleStatusBadge
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.components.rememberShrinkOnScrollTopAppBarBehavior
@@ -229,12 +236,26 @@ fun AnimeDetailScreen(
     var showPlayerChoiceDialog by remember { mutableStateOf(false) }
     var choiceInstalledPlayers by remember { mutableStateOf(emptySet<ExternalPlayerId>()) }
     var isResolvingExternalPlay by remember { mutableStateOf(false) }
+    // 内容末端（状态卡下方）是否已滚到底：播放入口据此在 FAB 与展开卡片之间形变。
+    // 默认 false：进入页面即显示 FAB，不被尚未进行的滚动测量拦住
+    var isContentEndReached by remember { mutableStateOf(false) }
+    // 内容列的窗口范围（宽度 = 内容卡片宽度），由内容末尾标记上报
+    var actionHostBounds by remember { mutableStateOf(Rect.Zero) }
+    // 播放入口浮层容器的窗口范围，用于把展开卡片右缘对齐到内容列
+    var floatingLayerBounds by remember { mutableStateOf(Rect.Zero) }
     val focusManager = LocalFocusManager.current
     val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
     // 外部播放按钮可见性与目标选择方式（功能设置）
     val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
     val externalPlayMode by settingsRepository.externalPlayMode.collectAsState(initial = ExternalPlayMode.AUTO)
+    // 高级模糊（毛玻璃）参数由 MainActivity 统一下发，与主页悬浮按钮共用
+    val advancedBlurConfig = LocalAdvancedBlurConfig.current
+    // 展开卡片的目标宽度与右缘：跟随内容列（单栏 = 屏宽-32dp，双栏 = 右栏宽）
+    val layoutDensity = LocalDensity.current
+    val expandedActionWidth = with(layoutDensity) { actionHostBounds.width.toDp() }
+    val expandedActionEndInset =
+        with(layoutDensity) { (floatingLayerBounds.right - actionHostBounds.right).toDp() }
 
     // 浏览下方内容时顶栏收缩变窄（64dp → 32dp），内容滚回顶部后才展开
     val topBarScrollBehavior = rememberShrinkOnScrollTopAppBarBehavior(collapsedHeight = 32.dp)
@@ -255,8 +276,13 @@ fun AnimeDetailScreen(
     // 匹配按钮在 window 中的位置（供引导遮罩挖洞定位），按钮组合完成后回调
     var matchButtonBounds by remember { mutableStateOf<Rect?>(null) }
 
+    // 详情页转场稳定窗口：进入动画（含共享元素飞行）完全结束、且尚未开始退出。
+    // 遮罩与返回键拦截都以它为 gate，替代原来固定 250ms 延迟——远卡飞行更久时
+    // 也不会提前露头；进入过程中按返回键则正常退出页面，不会被未显示的遮罩吞掉。
+    val detailTransitionSettled = rememberDetailTransitionSettled(animatedVisibilityScope)
+
     // 引导遮罩展示时优先拦截返回键：先关遮罩（并标记已提示），不直接退出详情页
-    BackHandler(enabled = showBangumiHint) {
+    BackHandler(enabled = showBangumiHint && detailTransitionSettled && matchButtonBounds != null) {
         viewModel.dismissBangumiHint()
     }
 
@@ -339,6 +365,38 @@ fun AnimeDetailScreen(
         }
     }
 
+    /**
+     * 播放入口点击（FAB / 内联卡片共用）：按设置构造「接着看」请求，
+     * 再由 [ExternalPlayDispatcher] 决定直达播放器还是询问用户。
+     */
+    fun startExternalPlay(anime: Anime) {
+        // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
+        // 直接传 0 会被误判为“已看完”而回退详情页级跳转
+        val request = ExternalPlayRequest.continueWatching(
+            animeId = anime.id,
+            bangumiId = anime.bangumiId,
+            title = anime.title,
+            watchedEpisodes = anime.watchedEpisodes,
+            totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
+        )
+        val installed = ExternalPlayerRegistry.all
+            .filter { ExternalPlayerLauncher.isInstalled(context, it) }
+            .map { it.id }
+            .toSet()
+        when (val decision = ExternalPlayDispatcher.decide(
+            mode = externalPlayMode,
+            installed = installed,
+            hasBilibiliSeasonId = (anime.bilibiliSeasonId ?: 0) > 0
+        )) {
+            is ExternalPlayDecision.Launch ->
+                launchExternalPlayer(anime, request, decision.playerId, installed)
+            ExternalPlayDecision.AskUser -> {
+                choiceInstalledPlayers = installed
+                showPlayerChoiceDialog = true
+            }
+        }
+    }
+
     BackHandler(enabled = uiState.coverSearch.isVisible || editState.isEditing) {
         when {
             uiState.coverSearch.isVisible -> viewModel.hideCoverSearch()
@@ -352,6 +410,26 @@ fun AnimeDetailScreen(
             }
         }
     }
+
+    // 播放入口仅在「正在观看 / 计划观看」且已开播时可用：
+    // 未放送（与详情页状态徽章一致的 isUnaired 判定）、已看完、已弃番均隐藏
+    val externalPlayEntryAllowed = externalPlayerEntryVisible &&
+        !editState.isEditing &&
+        uiState.anime?.let { anime ->
+            !isUnaired(anime.airDate) &&
+                (anime.status == AnimeStatus.WATCHING || anime.status == AnimeStatus.PLANNED)
+        } == true
+
+    // 展开卡片的目标集数文案：已看完（详情页级跳转）时留空，不标集数
+    val externalPlayEpisodeText = uiState.anime?.let { anime ->
+        val total = anime.totalEpisodes
+        when {
+            total > 0 && anime.watchedEpisodes >= total -> ""
+            total > 0 ->
+                stringResource(R.string.detail_watched_progress_format, anime.watchedEpisodes + 1, total)
+            else -> stringResource(R.string.detail_watched_only_format, anime.watchedEpisodes + 1)
+        }
+    }.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         val detailTopBarTitle: @Composable () -> Unit = {
@@ -406,14 +484,6 @@ fun AnimeDetailScreen(
                 }
             } else if (uiState.anime != null) {
                 val anime = uiState.anime!!
-                // 播放按钮暂时隐藏，以后复用
-                // IconButton(onClick = { onNavigateToPlayer(animeId) }) {
-                //     Icon(
-                //         painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                //         contentDescription = stringResource(R.string.detail_play),
-                //         tint = MaterialTheme.colorScheme.primary
-                //     )
-                // }
                 // bangumiId<=0（历史脏数据）与 null 同样视为未关联，保证引导遮罩触发时按钮必然可见
                 val missingBangumi = anime.bangumiId == null || anime.bangumiId <= 0
                 val missingTmdb = anime.tmdbId == null
@@ -430,52 +500,6 @@ fun AnimeDetailScreen(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
-                    }
-                }
-                if (externalPlayerEntryVisible) {
-                    IconButton(
-                        enabled = !isResolvingExternalPlay,
-                        onClick = {
-                            // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
-                            // 直接传 0 会被误判为“已看完”而回退详情页级跳转
-                            val request = ExternalPlayRequest.continueWatching(
-                                animeId = anime.id,
-                                bangumiId = anime.bangumiId,
-                                title = anime.title,
-                                watchedEpisodes = anime.watchedEpisodes,
-                                totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
-                            )
-                            val installed = ExternalPlayerRegistry.all
-                                .filter { ExternalPlayerLauncher.isInstalled(context, it) }
-                                .map { it.id }
-                                .toSet()
-                            when (val decision = ExternalPlayDispatcher.decide(
-                                mode = externalPlayMode,
-                                installed = installed,
-                                hasBilibiliSeasonId = (anime.bilibiliSeasonId ?: 0) > 0
-                            )) {
-                                is ExternalPlayDecision.Launch ->
-                                    launchExternalPlayer(anime, request, decision.playerId, installed)
-                                ExternalPlayDecision.AskUser -> {
-                                    choiceInstalledPlayers = installed
-                                    showPlayerChoiceDialog = true
-                                }
-                            }
-                        }
-                    ) {
-                        if (isResolvingExternalPlay) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                                contentDescription = stringResource(R.string.external_player_watch),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
                     }
                 }
                 if (shareButtonEnabled) {
@@ -524,85 +548,120 @@ fun AnimeDetailScreen(
             },
             scrollBehavior = topBarScrollBehavior
         ) { chrome ->
+            // 播放入口作为同层浮层渲染在内容采样源之外：玻璃档会把子内容录进
+            // backdrop/haze 采样层，浮层若在源内会采样到上一帧的自己
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(chrome.layout)
-                    .then(
-                        // 玻璃档顶栏不收缩：不挂 scrollBehavior 的 nestedScroll，
-                        // 否则内容滚动被顶栏行为消费却没有对应视觉位移
-                        if (chrome.style == ChromeStyle.STANDARD) {
-                            Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection)
-                        } else {
-                            Modifier
-                        }
-                    )
+                    .onGloballyPositioned { floatingLayerBounds = it.boundsInWindow() }
             ) {
-                when {
-                    uiState.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(chrome.layout)
+                        .then(
+                            // 玻璃档顶栏不收缩：不挂 scrollBehavior 的 nestedScroll，
+                            // 否则内容滚动被顶栏行为消费却没有对应视觉位移
+                            if (chrome.style == ChromeStyle.STANDARD) {
+                                Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection)
+                            } else {
+                                Modifier
+                            }
+                        )
+                ) {
+                    when {
+                        uiState.isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                            }
                         }
-                    }
-                    uiState.error != null -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = uiState.error ?: stringResource(R.string.detail_unknown_error),
-                                color = MaterialTheme.colorScheme.error
+                        uiState.error != null -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = uiState.error ?: stringResource(R.string.detail_unknown_error),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                        uiState.anime != null -> {
+                            AnimeDetailContent(
+                                anime = uiState.anime!!,
+                                isFetchingDetail = uiState.isFetchingDetail,
+                                detailFetchError = uiState.detailFetchError,
+                                notesText = uiState.notesText,
+                                isEditingNotes = uiState.isEditingNotes,
+                                airStatusText = uiState.airStatusText,
+                                onNotesChange = { viewModel.updateNotes(it) },
+                                onSaveNotes = { viewModel.saveNotes() },
+                                onEditNotes = { viewModel.setEditingNotes(true) },
+                                onUpdateWatchedEpisodes = { viewModel.updateWatchedEpisodes(it) },
+                                onAdjustWatchedEpisodes = { viewModel.adjustWatchedEpisodes(it) },
+                                onStatusChange = { viewModel.updateStatus(it) },
+                                onFinishDateChange = { viewModel.updateFinishDate(it) },
+                                editState = editState,
+                                onEditCoverSearch = { viewModel.showCoverSearch() },
+                                onEditCoverUpload = { imagePickerLauncher.launch("image/*") },
+                                onEditCoverSave = {
+                                    val coverUrl = editState.localCoverUri ?: editState.coverUrl ?: uiState.anime?.coverUrl
+                                    if (coverUrl != null) {
+                                        scope.launch { saveCoverToGallery(context, coverUrl) }
+                                    } else {
+                                        Toast.makeText(context, context.getString(R.string.detail_no_cover_to_save), Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onEditTitleChange = { viewModel.updateEditTitle(it) },
+                                onEditTitleStart = { viewModel.setEditingTitle(true) },
+                                onEditTitleDone = { viewModel.setEditingTitle(false) },
+                                onTitlePositionChanged = { contentTitleBottomPx.floatValue = it },
+                                onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
+                                onEditAirDateChange = { viewModel.updateEditAirDate(it) },
+                                onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
+                                onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
+                                onEditSummaryChange = { viewModel.updateEditSummary(it) },
+                                onEditAiringStatusOverrideChange = { viewModel.updateEditAiringStatusOverride(it) },
+                                onEditRatingChange = { viewModel.updateEditRating(it) },
+                                isInPane = isInPane,
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                sharedKeyPrefix = sharedKeyPrefix,
+                                externalPlayActionVisible = externalPlayEntryAllowed,
+                                onContentEndReached = { isContentEndReached = it },
+                                onActionHostBoundsChanged = { actionHostBounds = it },
+                                // 玻璃档内容视口全高，顶/底内边距由滚动内容自垫（标准档为零）
+                                chromeContentPadding = chrome.content
                             )
                         }
                     }
-                    uiState.anime != null -> {
-                        AnimeDetailContent(
-                            anime = uiState.anime!!,
-                            isFetchingDetail = uiState.isFetchingDetail,
-                            detailFetchError = uiState.detailFetchError,
-                            notesText = uiState.notesText,
-                            isEditingNotes = uiState.isEditingNotes,
-                            airStatusText = uiState.airStatusText,
-                            onNotesChange = { viewModel.updateNotes(it) },
-                            onSaveNotes = { viewModel.saveNotes() },
-                            onEditNotes = { viewModel.setEditingNotes(true) },
-                            onUpdateWatchedEpisodes = { viewModel.updateWatchedEpisodes(it) },
-                            onAdjustWatchedEpisodes = { viewModel.adjustWatchedEpisodes(it) },
-                            onStatusChange = { viewModel.updateStatus(it) },
-                            onFinishDateChange = { viewModel.updateFinishDate(it) },
-                            editState = editState,
-                            onEditCoverSearch = { viewModel.showCoverSearch() },
-                            onEditCoverUpload = { imagePickerLauncher.launch("image/*") },
-                            onEditCoverSave = {
-                                val coverUrl = editState.localCoverUri ?: editState.coverUrl ?: uiState.anime?.coverUrl
-                                if (coverUrl != null) {
-                                    scope.launch { saveCoverToGallery(context, coverUrl) }
-                                } else {
-                                    Toast.makeText(context, context.getString(R.string.detail_no_cover_to_save), Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onEditTitleChange = { viewModel.updateEditTitle(it) },
-                            onEditTitleStart = { viewModel.setEditingTitle(true) },
-                            onEditTitleDone = { viewModel.setEditingTitle(false) },
-                            onTitlePositionChanged = { contentTitleBottomPx.floatValue = it },
-                            onEditAirWeekdayChange = { viewModel.updateEditAirWeekday(it) },
-                            onEditAirDateChange = { viewModel.updateEditAirDate(it) },
-                            onUpdateEditTotalEpisodes = { viewModel.updateEditTotalEpisodes(it) },
-                            onAdjustEditTotalEpisodes = { viewModel.adjustEditTotalEpisodes(it) },
-                            onEditSummaryChange = { viewModel.updateEditSummary(it) },
-                            onEditAiringStatusOverrideChange = { viewModel.updateEditAiringStatusOverride(it) },
-                            onEditRatingChange = { viewModel.updateEditRating(it) },
-                            isInPane = isInPane,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            sharedKeyPrefix = sharedKeyPrefix,
-                            // 玻璃档内容视口全高，顶/底内边距由滚动内容自垫（标准档为零）
-                            chromeContentPadding = chrome.content
-                        )
-                    }
+                }
+
+                // 播放入口：常驻悬浮 FAB；滚到内容末端（状态卡下方）后同一块表面
+                // 通过尺寸/材质形变展开为整行卡片（Shape Morphing），不是淡出再淡入
+                AnimatedVisibility(
+                    visible = externalPlayEntryAllowed,
+                    enter = fadeIn(tween(150)),
+                    exit = fadeOut(tween(120)),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                ) {
+                    DetailExternalPlayAction(
+                        expanded = isContentEndReached,
+                        style = chrome.style,
+                        hazeState = chrome.sources.hazeState,
+                        backdrop = chrome.sources.backdrop,
+                        blurConfig = advancedBlurConfig,
+                        isResolving = isResolvingExternalPlay,
+                        episodeText = externalPlayEpisodeText,
+                        expandedWidth = expandedActionWidth,
+                        expandedEndInset = expandedActionEndInset,
+                        onClick = { uiState.anime?.let { startExternalPlay(it) } }
+                    )
                 }
             }
         }
@@ -676,7 +735,7 @@ fun AnimeDetailScreen(
 
         if (showPlayerChoiceDialog && uiState.anime != null) {
             val choiceAnime = uiState.anime!!
-            ExternalPlayerChoiceDialog(
+            ExternalPlayerChoiceSheet(
                 installed = choiceInstalledPlayers,
                 onSelect = { playerId ->
                     showPlayerChoiceDialog = false
@@ -706,9 +765,11 @@ fun AnimeDetailScreen(
             )
         }
 
-        // 「Bangumi 未关联」引导遮罩：bangumiId 为空/为 0 且未提示过时展示（仅一次）
+        // 「Bangumi 未关联」引导遮罩：bangumiId 为空/为 0 且未提示过时展示（仅一次）。
+        // 只有详情页转场（含共享元素飞行）完全结束后才允许出现，退出开始时立即关闭，
+        // 避免遮罩与飞入/飞出元素同时出现。
         BangumiMatchHintOverlay(
-            visible = showBangumiHint,
+            visible = showBangumiHint && detailTransitionSettled,
             targetBounds = matchButtonBounds,
             onDismiss = { viewModel.dismissBangumiHint() },
             onMatchClick = {
@@ -1030,6 +1091,12 @@ private fun AnimeDetailContent(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     sharedKeyPrefix: String = "",
+    /** 外部播放入口是否可用（设置开启且非编辑态）：为展开卡片预留底部滚动空间 */
+    externalPlayActionVisible: Boolean = false,
+    /** 内容末端（状态卡下方）是否已滚到底，供页面层把 FAB 形变为展开卡片 */
+    onContentEndReached: (Boolean) -> Unit = {},
+    /** 内容列的窗口范围（宽度 = 内容卡片宽度），页面层据此对齐展开卡片 */
+    onActionHostBoundsChanged: (Rect) -> Unit = {},
     /** 玻璃档需由滚动内容自垫的顶/底内边距；标准档为零 */
     chromeContentPadding: PaddingValues = PaddingValues(0.dp),
     modifier: Modifier = Modifier
@@ -1039,6 +1106,39 @@ private fun AnimeDetailContent(
     // 避免 pane 内再拆两列导致显示不全。分支不依赖编辑状态，
     // 避免编辑模式切换时子树结构重建与 SharedTransition 动画冲突。
     val isTwoPane = isExpandedWidth() && !isInPane
+
+    // 内容末端判定：滚动容器到最大滚动量即视为「观看状态下方已到底」。
+    // 展开卡片是浮层（不参与滚动内容测量），maxValue 不会因卡片出现而变化，不存在抖动；
+    // maxValue == 0（内容无需滚动）时永远不算到底，FAB 常驻。
+    val mainScrollState = rememberScrollState()
+    val headerScrollState = rememberScrollState()
+    val isContentEndReached by remember {
+        derivedStateOf {
+            mainScrollState.maxValue > 0 && mainScrollState.value >= mainScrollState.maxValue
+        }
+    }
+    LaunchedEffect(isContentEndReached) {
+        onContentEndReached(isContentEndReached)
+    }
+
+    // 入口开启时把内容原本的 24dp 底部留白换成展开卡片所需空间：
+    // 12dp 间隔 + 卡片 68dp + 16dp 底部留白，滚到底时卡片正好落在状态卡下方
+    val contentBottomPadding =
+        if (externalPlayActionVisible) ExternalPlayActionReserveHeight else 24.dp
+
+    // 内容列末尾标记：只上报横向范围（宽度 = 内容卡片宽度），不参与末端判定。
+    // 纵向固定为 0，避免滚动时 y 变化触发页面层重组
+    val contentHostMarker: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .onGloballyPositioned { coordinates ->
+                    val bounds = coordinates.boundsInWindow()
+                    onActionHostBoundsChanged(Rect(bounds.left, 0f, bounds.right, 1f))
+                }
+        )
+    }
 
     // 左栏内容：封面信息头 + 简介（单栏/双栏共用）
     val headerSection: @Composable () -> Unit = {
@@ -1067,6 +1167,26 @@ private fun AnimeDetailContent(
                 } else {
                     SquircleShape(CardCornerRadius)
                 }
+                // 封面共享元素状态：同时供 sharedElement 与飞行小角标的
+                // "是否真的匹配到卡片"判定（无匹配时角标不显示，避免从
+                // 无共享元素的入口进入详情时封面角标闪现一次）
+                val coverContentState = if (enableSharedCover) {
+                    with(sharedTransitionScope!!) {
+                        rememberSharedContentState(key = "${sharedKeyPrefix}cover_${anime.id}")
+                    }
+                } else {
+                    null
+                }
+                // 置顶/收藏小角标没有详情页落点，合并进封面共享元素内容一起
+                // 飞行，落位前淡出；详情页静止态不可见
+                val coverCornerBadgeAlpha: () -> Float = if (enableSharedCover) {
+                    rememberSharedCoverBadgeAlpha(
+                        animatedVisibilityScope!!,
+                        coverContentState
+                    )
+                } else {
+                    { 0f }
+                }
                 Box(
                     modifier = Modifier
                         .width(130.dp)
@@ -1075,7 +1195,7 @@ private fun AnimeDetailContent(
                             if (enableSharedCover) {
                                 with(sharedTransitionScope!!) {
                                     Modifier.sharedElement(
-                                        rememberSharedContentState(key = "${sharedKeyPrefix}cover_${anime.id}"),
+                                        coverContentState!!,
                                         animatedVisibilityScope = animatedVisibilityScope!!
                                     )
                                 }
@@ -1135,6 +1255,33 @@ private fun AnimeDetailContent(
                                 shape = coverClipShape
                             )
                         }
+                    }
+
+                    // 飞行期间的封面角标叠层：与封面共享元素同层，落位前淡出。
+                    // - 置顶/收藏小角标：两种模式都并入封面内容
+                    // - FOLLOW_COVER 模式的状态角标：也并入这里，随封面一起飞出
+                    if (enableSharedCover && !editState.isEditing) {
+                        CoverCornerBadges(
+                            isPinned = anime.isPinned,
+                            isFavorite = anime.isFavorite,
+                            modifier = Modifier
+                                .matchParentSize()
+                                // 纯飞行装饰：不参与无障碍
+                                .clearAndSetSemantics {}
+                                .graphicsLayer { alpha = coverCornerBadgeAlpha() }
+                        )
+                        // FLY_TO_TITLE 模式不会绘制（角标落在标题行）
+                        DetailCoverStatusBadge(
+                            status = anime.status,
+                            unaired = isUnaired(anime.airDate),
+                            sharedElementKeyPrefix = sharedKeyPrefix,
+                            animeId = anime.id,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            coverContentState = coverContentState,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                        )
                     }
 
                     if (editState.isEditing) {
@@ -1383,7 +1530,16 @@ private fun AnimeDetailContent(
                     ) {
                         if (!editState.isEditing) {
                             val unaired = isUnaired(anime.airDate)
-                            StatusBadge(status = anime.status, unaired = unaired)
+                            // FLY_TO_TITLE：作为共享元素落点，卡片角标飞到这里；
+                            // FOLLOW_COVER：普通静态徽章，角标已在封面上淡出
+                            DetailTitleStatusBadge(
+                                status = anime.status,
+                                unaired = unaired,
+                                animeId = anime.id,
+                                sharedElementKeyPrefix = sharedKeyPrefix,
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
 
                             if (anime.rating != null && titleLineCount >= 2) {
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -1468,7 +1624,7 @@ private fun AnimeDetailContent(
                 modifier = Modifier
                     .weight(0.42f)
                     .fillMaxHeight()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(headerScrollState)
                     .padding(chromeContentPadding)
                     .padding(bottom = 24.dp)
             ) {
@@ -1481,11 +1637,12 @@ private fun AnimeDetailContent(
                 modifier = Modifier
                     .weight(0.58f)
                     .fillMaxHeight()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(mainScrollState)
                     .padding(chromeContentPadding)
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = contentBottomPadding)
             ) {
                 detailSection()
+                contentHostMarker()
             }
         }
     } else {
@@ -1493,14 +1650,15 @@ private fun AnimeDetailContent(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(mainScrollState)
                 .padding(chromeContentPadding)
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
+                .padding(bottom = contentBottomPadding)
         ) {
             headerSection()
             Spacer(modifier = Modifier.height(12.dp))
             detailSection()
+            contentHostMarker()
         }
     }
 }
@@ -2680,35 +2838,6 @@ private suspend fun PointerInputScope.detectSegmentDrag(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StatusBadge(
-    status: AnimeStatus,
-    modifier: Modifier = Modifier,
-    unaired: Boolean = false
-) {
-    // 黑白简洁暗色下为半透明黑 scrim + 浅字（与主界面角标一致，见 Theme.kt 中 AnimeColors 计算）
-    val containerColor = LocalAnimeColors.current.statusBadgeContainer
-    val contentColor = LocalAnimeColors.current.statusBadgeContent
-    val text = if (unaired) {
-        stringResource(R.string.status_unaired)
-    } else {
-        status.displayName
-    }
-    Surface(
-        modifier = modifier,
-        shape = SquircleShape(6.dp),
-        color = containerColor
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            color = contentColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 

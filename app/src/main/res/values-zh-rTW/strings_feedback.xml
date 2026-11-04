@@ -84,4 +84,23 @@
     <string name="admin_feedback_cancel">取消</string>
     <string name="admin_feedback_invalid_input">輸入無效</string>
     <string name="admin_feedback_no_permission">無管理員權限</string>
+
+    <!-- Agendula 手動推送（管理員在會話詳情中觸發） -->
+    <string name="admin_feedback_forward_title">Agendula</string>
+    <string name="admin_feedback_forward_send">傳送</string>
+    <string name="admin_feedback_forward_sent">已傳送</string>
+    <string name="admin_feedback_forwarding">傳送中…</string>
+    <string name="admin_feedback_forward_hint">僅傳送使用者訊息與時間戳，不含管理員回覆和身分資訊</string>
+    <string name="admin_feedback_forward_sent_at">已傳送於 %1$s</string>
+    <string name="admin_feedback_forward_success">已傳送到 Agendula</string>
+    <string name="admin_feedback_forward_already">此會話已傳送過（%1$s），未重複建立任務</string>
+    <string name="admin_feedback_forward_confirm_title">傳送到 Agendula</string>
+    <string name="admin_feedback_forward_confirm_message">將把此會話的全部使用者回報內容（不含管理員回覆與身分資訊）傳送到 Agendula 建立任務。確定傳送？</string>
+    <string name="admin_feedback_forward_confirm_already">此會話已傳送過，再次傳送不會重複建立任務，只會回傳既有結果。繼續？</string>
+    <string name="admin_feedback_forward_in_progress">此會話正在傳送中，請稍後再試</string>
+    <string name="admin_feedback_forward_not_configured">伺服器未設定 Agendula 傳送，請聯絡管理員</string>
+    <string name="admin_feedback_forward_rate_limited">傳送過於頻繁，請稍後再試</string>
+    <string name="admin_feedback_forward_failed">傳送失敗：%1$s</string>
+    <string name="admin_feedback_forward_failed_generic">傳送失敗，未標記為已傳送</string>
+    <string name="admin_feedback_forward_status_pushed">已推送</string>
 </resources>

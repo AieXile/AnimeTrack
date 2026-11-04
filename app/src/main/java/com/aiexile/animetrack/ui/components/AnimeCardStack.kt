@@ -487,11 +487,39 @@ private fun StackCardLayer(
             .clip(CardShape)
             .background(containerColor)
     ) {
-        // 封面
+        // 共享元素过渡：仅顶卡（depth==0）参与，key 与详情页封面配对实现
+        // 飞入飞出；探边卡带旋转/缩放变换，参与会导致飞行起点歪斜。
+        // 顶卡静止态 graphicsLayer 全 identity，bounds 干净
+        val enableSharedCover = depth == 0 && sharedTransitionScope != null && animatedVisibilityScope != null
+        // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变
+        val coverClipShape = if (enableSharedCover) {
+            rememberSharedCoverClipShape(
+                animatedVisibilityScope = animatedVisibilityScope!!,
+                cornerRadius = CardCornerRadius,
+                detailSide = false
+            )
+        } else {
+            CoverTopShape
+        }
+
+        // 封面共享元素：状态徽章是独立共享元素（落在详情页标题行），
+        // 与封面同步飞行但不参与封面内容的缩放
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(CoverAspectRatio)
+                .then(
+                    if (enableSharedCover) {
+                        with(sharedTransitionScope!!) {
+                            Modifier.sharedElement(
+                                rememberSharedContentState(key = "cover_${anime.id}"),
+                                animatedVisibilityScope = animatedVisibilityScope!!
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             // 先解析封面模型：空串脏数据/本地文件缺失均解析为 null，走占位图分支
             val resolvedModel = remember(anime.coverUrl) { resolveCoverModel(anime.coverUrl) }
@@ -500,51 +528,28 @@ private fun StackCardLayer(
                 val coverRequest = remember(anime.coverUrl) {
                     coverImageRequestForList(context, anime.coverUrl)
                 }
-                // 共享元素过渡：仅顶卡（depth==0）参与，key 与详情页封面配对实现
-                // 飞入飞出；探边卡带旋转/缩放变换，参与会导致飞行起点歪斜。
-                // 顶卡静止态 graphicsLayer 全 identity，bounds 干净
-                val enableSharedCover = depth == 0 && sharedTransitionScope != null && animatedVisibilityScope != null
-                // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变
-                val coverClipShape = if (enableSharedCover) {
-                    rememberSharedCoverClipShape(
-                        animatedVisibilityScope = animatedVisibilityScope!!,
-                        cornerRadius = CardCornerRadius,
-                        detailSide = false
-                    )
-                } else {
-                    CoverTopShape
-                }
-                val coverModifier = if (enableSharedCover) {
-                    with(sharedTransitionScope!!) {
-                        Modifier
-                            .fillMaxSize()
-                            .sharedElement(
-                                rememberSharedContentState(key = "cover_${anime.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope!!
-                            )
-                            .clip(coverClipShape)
-                    }
-                } else {
-                    Modifier
-                        .fillMaxSize()
-                        .clip(coverClipShape)
-                }
                 AsyncImage(
                     model = coverRequest,
                     contentDescription = anime.title,
                     contentScale = ContentScale.Crop,
-                    modifier = coverModifier
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(coverClipShape)
                 )
             } else {
                 EmptyCoverPlaceholder(
-                    shape = CoverTopShape
+                    shape = coverClipShape
                 )
             }
 
-            // 观看状态徽章（与普通卡片 AnimeCoverWithStatus 一致：右上角）
-            StatusBadge(
+            // 观看状态角标（与普通卡片一致：右上角；策略由设置项切换）
+            CardStatusBadge(
                 status = anime.status,
                 unaired = isUnaired(anime.airDate),
+                animeId = anime.id,
+                sharedElementKeyPrefix = "",
+                sharedTransitionScope = sharedTransitionScope.takeIf { enableSharedCover },
+                animatedVisibilityScope = animatedVisibilityScope.takeIf { enableSharedCover },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp)

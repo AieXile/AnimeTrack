@@ -38,7 +38,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,7 +94,6 @@ private val CoverAspectRatio = 2f / 3f
 private val CardShape = SquircleShape(CardCornerRadius)
 private val CoverTopShape = SquircleShape(topStart = CardCornerRadius, topEnd = CardCornerRadius)
 private val DropdownShape = SquircleShape(16.dp)
-private val BadgeShape = SquircleShape(6.dp)
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -650,38 +648,41 @@ private fun AnimeCoverWithStatus(
     sharedElementKeyPrefix: String = "",
     modifier: Modifier = Modifier
 ) {
+    val enableSharedElement = sharedTransitionScope != null && animatedVisibilityScope != null
+
+    // 共享元素转场时圆角随进度连续插值（底部直角→圆角），避免两侧静态
+    // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape
+    val coverClipShape = if (enableSharedElement) {
+        rememberSharedCoverClipShape(
+            animatedVisibilityScope = animatedVisibilityScope!!,
+            cornerRadius = CardCornerRadius,
+            detailSide = false
+        )
+    } else {
+        CoverTopShape
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(CoverAspectRatio)
-    ) {
-        // 共享元素转场时圆角随进度连续插值（底部直角→圆角），避免两侧静态
-        // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape
-        val coverClipShape = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            rememberSharedCoverClipShape(
-                animatedVisibilityScope = animatedVisibilityScope,
-                cornerRadius = CardCornerRadius,
-                detailSide = false
+            // 封面共享元素：置顶/收藏小角标随其内容一起飞行；状态角标按设置
+            // 走"随封面同层"或"独立飞向详情页标题行"两种策略之一
+            .then(
+                if (enableSharedElement) {
+                    with(sharedTransitionScope!!) {
+                        Modifier.sharedElement(
+                            rememberSharedContentState(
+                                key = "${sharedElementKeyPrefix}cover_${animeId}"
+                            ),
+                            animatedVisibilityScope = animatedVisibilityScope!!
+                        )
+                    }
+                } else {
+                    Modifier
+                }
             )
-        } else {
-            CoverTopShape
-        }
-        val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            with(sharedTransitionScope) {
-                Modifier
-                    .fillMaxSize()
-                    .sharedElement(
-                        rememberSharedContentState(key = "${sharedElementKeyPrefix}cover_${animeId}"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-                    .clip(coverClipShape)
-            }
-        } else {
-            Modifier
-                .fillMaxSize()
-                .clip(coverClipShape)
-        }
-        
+    ) {
         // 先解析封面模型：空串脏数据/本地文件缺失均解析为 null，走占位图分支
         val resolvedModel = remember(coverUrl) { resolveCoverModel(coverUrl) }
         if (resolvedModel != null) {
@@ -696,91 +697,35 @@ private fun AnimeCoverWithStatus(
                 model = request,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
-                modifier = sharedModifier
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(coverClipShape)
             )
         } else {
             EmptyCoverPlaceholder(
-                shape = CoverTopShape
+                shape = coverClipShape
             )
         }
-        
-        StatusBadge(
+
+        // 置顶/收藏小角标：没有详情页对应落点，随封面共享元素一起飞行
+        CoverCornerBadges(
+            isPinned = isPinned,
+            isFavorite = isFavorite,
+            modifier = Modifier.matchParentSize()
+        )
+
+        // 观看状态角标：两种转场策略由设置项切换——
+        // FOLLOW_COVER 作为封面内容随封面飞行；FLY_TO_TITLE 独立飞向标题行
+        CardStatusBadge(
             status = status,
             unaired = isUnaired(airDate),
+            animeId = animeId,
+            sharedElementKeyPrefix = sharedElementKeyPrefix,
+            sharedTransitionScope = sharedTransitionScope.takeIf { enableSharedElement },
+            animatedVisibilityScope = animatedVisibilityScope.takeIf { enableSharedElement },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(6.dp)
-        )
-
-        // 置顶角标：左下角小图钉，标识该卡片固定排在列表最前
-        if (isPinned) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(6.dp),
-                shape = BadgeShape,
-                // 黑白简洁暗色下角标 scrim（与 StatusBadge 同色），其余主题沿用 primary
-                color = LocalAnimeColors.current.statusBadgeContainer
-            ) {
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
-                    contentDescription = stringResource(R.string.common_pin),
-                    tint = LocalAnimeColors.current.statusBadgeContent,
-                    modifier = Modifier
-                        .padding(2.dp)
-                        .size(12.dp)
-                )
-            }
-        }
-
-        // 收藏角标：右下角小心形，标识该番剧已加入收藏
-        if (isFavorite) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp),
-                shape = BadgeShape,
-                color = LocalAnimeColors.current.statusBadgeContainer
-            ) {
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.FAVORITE),
-                    contentDescription = stringResource(R.string.common_favorite),
-                    tint = LocalAnimeColors.current.statusBadgeContent,
-                    modifier = Modifier
-                        .padding(2.dp)
-                        .size(12.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun StatusBadge(
-    status: AnimeStatus,
-    modifier: Modifier = Modifier,
-    unaired: Boolean = false
-) {
-    // 黑白简洁暗色下为半透明黑 scrim + 浅字（见 Theme.kt 中 AnimeColors 的计算），
-    // 其余主题/明暗模式保持 primary 实底样式
-    val containerColor = LocalAnimeColors.current.statusBadgeContainer
-    val contentColor = LocalAnimeColors.current.statusBadgeContent
-    val text = if (unaired) {
-        stringResource(R.string.status_unaired)
-    } else {
-        status.displayName
-    }
-    Surface(
-        modifier = modifier,
-        shape = BadgeShape,
-        color = containerColor
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            color = contentColor,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Medium
         )
     }
 }

@@ -11,5 +11,5 @@
     <!-- FeaturesScreen（帮助改进应用分组） -->
     <string name="features_help_improve">帮助改进应用</string>
     <string name="features_crash_report">崩溃追踪</string>
-    <string name="features_crash_report_desc">崩溃时自动上传诊断信息，帮助快速定位问题</string>
+    <string name="features_crash_report_desc">崩溃时自动上传诊断信息</string>
 </resources>

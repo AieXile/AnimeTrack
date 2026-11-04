@@ -29,6 +29,9 @@ object SseEventTypes {
     /** 用户发了新反馈（推送给在线管理员，管理员端列表/详情页实时刷新） */
     const val FEEDBACK_MESSAGE = "feedback_message"
 
+    /** 会话已推送 Agendula（推送给在线管理员，管理员端列表/详情状态即时刷新） */
+    const val FEEDBACK_FORWARDED = "feedback_forwarded"
+
     /** 会话被撤销/设备被下线（立即标记 token 失效并显示横幅） */
     const val SESSION_KICKED = "session_kicked"
 

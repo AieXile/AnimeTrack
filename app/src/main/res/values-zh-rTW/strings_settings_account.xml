@@ -13,7 +13,7 @@
     <string name="user_login_logged_in">已登入</string>
     <string name="user_login_change_password">修改密碼</string>
     <string name="user_login_logout">登出</string>
-    <string name="user_login_username">使用者名稱</string>
+    <string name="user_login_username">使用者名稱或信箱</string>
     <string name="user_login_password">密碼</string>
     <string name="user_login_login">登入</string>
     <string name="user_login_no_account_register">沒有帳號？去註冊</string>
@@ -152,7 +152,7 @@
     <string name="developer_simulate_update_desc">模擬完整更新流程，不會下載真實檔案</string>
     <string name="developer_trigger_simulate_update">觸發模擬更新</string>
     <string name="developer_player_hub_entry">設定頁顯示「影片播放」</string>
-    <string name="developer_player_hub_entry_desc">在設定列表中展示影片播放聚合入口，預設隱藏</string>
+    <string name="developer_player_hub_entry_desc">在設定中顯示播放器聚合入口</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看與測試公告彈窗及投票</string>
     <string name="developer_open_announcement">開啟公告</string>
@@ -161,7 +161,7 @@
     <string name="developer_open_onboarding">開啟嚮導</string>
     <string name="developer_mode_disabled">已關閉開發者模式</string>
     <string name="developer_advanced_blur">進階模糊（毛玻璃）</string>
-    <string name="developer_advanced_blur_desc">介面風格為「進階模糊」時生效，調整其模糊參數</string>
+    <string name="developer_advanced_blur_desc">介面風格為進階模糊時生效</string>
     <string name="developer_blur_switch_desc">與外觀設定中的「介面風格」同步</string>
     <string name="developer_blur_radius">模糊半徑</string>
     <string name="developer_blur_background_alpha">底色不透明度</string>
@@ -209,16 +209,22 @@
     <string name="features_search_button_desc">在主介面右上角顯示搜尋按鈕</string>
     <string name="features_update_reminder">更新提醒</string>
     <string name="features_today_update_reminder">今日更新提醒</string>
-    <string name="features_today_update_reminder_desc">在主介面頂部顯示今日番劇更新提醒卡片</string>
+    <string name="features_today_update_reminder_desc">首頁頂部顯示今日更新提醒</string>
     <string name="features_feedback_reply_reminder">回饋新回覆提醒</string>
     <string name="features_feedback_reply_reminder_desc">在主介面頂部顯示「回饋有新回覆」提示</string>
     <string name="features_calendar_preview_button">日程預覽按鈕</string>
-    <string name="features_calendar_preview_button_desc">在看板右上角顯示日曆按鈕，查看今明日更新</string>
+    <string name="features_calendar_preview_button_desc">在看板顯示今明日更新日曆</string>
     <string name="features_daily_broadcast_button">每日放送入口</string>
-    <string name="features_daily_broadcast_button_desc">在看板右上角顯示 Bangumi 每日放送入口，瀏覽本季全部番組</string>
+    <string name="features_daily_broadcast_button_desc">在看板顯示本季每日放送入口</string>
     <string name="features_anime_display">番劇顯示</string>
     <string name="features_series_stack">多季堆疊</string>
-    <string name="features_series_stack_desc">將同系列多季番劇合併為堆疊卡片，長按展開各季</string>
+    <string name="features_series_stack_desc">同系列多季合併為堆疊卡片</string>
+    <string name="features_status_badge_transition">狀態角標轉場</string>
+    <string name="features_status_badge_transition_desc">進入詳情頁時狀態角標的飛行動畫</string>
+    <string name="features_status_badge_transition_follow_cover">跟隨封面</string>
+    <string name="features_status_badge_transition_follow_cover_desc">角標貼著封面一起飛出</string>
+    <string name="features_status_badge_transition_fly_to_title">飛向標題列</string>
+    <string name="features_status_badge_transition_fly_to_title_desc">角標單獨飛到標題列</string>
     <string name="features_card_info_left">卡片左側資訊</string>
     <string name="features_card_info_left_desc">標題下方左槽位顯示的欄位</string>
     <string name="features_card_info_right">卡片右側資訊</string>
@@ -237,19 +243,19 @@
     <string name="features_rating">評分</string>
     <string name="features_rating_standard">評分標準</string>
     <string name="features_rating_standard_source">使用源評分</string>
-    <string name="features_rating_standard_source_desc">新增番劇時使用搜尋源（Bangumi/TMDB）提供的評分</string>
+    <string name="features_rating_standard_source_desc">新增番劇時採用搜尋源評分</string>
     <string name="features_rating_standard_manual">手動打分</string>
-    <string name="features_rating_standard_manual_desc">新增番劇時不讀取源評分，由你手動選擇 1-5 星（0.5 步進）</string>
+    <string name="features_rating_standard_manual_desc">新增番劇時手動選擇評分</string>
     <string name="features_rating_standard_notice">僅對新新增的番劇生效，已新增的番劇不受影響</string>
 
     <!-- 外部播放 -->
     <string name="features_external_player">外部播放</string>
     <string name="features_external_player_visible">詳情頁顯示播放按鈕</string>
-    <string name="features_external_player_visible_desc">在番劇詳情頁頂欄顯示外部播放按鈕（Animeko / 嗶哩嗶哩）</string>
+    <string name="features_external_player_visible_desc">詳情頁頂欄顯示外部播放按鈕</string>
     <string name="features_external_play_mode">播放應用</string>
     <string name="features_external_play_mode_desc">詳情頁播放按鈕跳轉的目標應用</string>
     <string name="features_external_play_mode_auto">自動</string>
-    <string name="features_external_play_mode_auto_desc">兩個應用都安裝時，已關聯 B 站則直達嗶哩嗶哩，否則彈窗選擇</string>
+    <string name="features_external_play_mode_auto_desc">已裝兩者時按關聯自動選擇</string>
     <string name="features_external_play_mode_animeko">Animeko</string>
     <string name="features_external_play_mode_animeko_desc">始終跳轉 Animeko（需關聯 Bangumi）</string>
     <string name="features_external_play_mode_bilibili">嗶哩嗶哩</string>

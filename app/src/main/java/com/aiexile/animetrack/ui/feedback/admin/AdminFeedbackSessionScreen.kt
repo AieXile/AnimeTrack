@@ -57,6 +57,7 @@ import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.remote.AdminOperationResult
 import com.aiexile.animetrack.data.remote.AdminReplyResult
 import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
+import com.aiexile.animetrack.data.remote.AdminForwardResult
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
@@ -66,6 +67,7 @@ import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.feedback.FeedbackChatMessage
 import com.aiexile.animetrack.ui.feedback.FeedbackMessageBubble
 import com.aiexile.animetrack.ui.feedback.FeedbackSendButton
+import com.aiexile.animetrack.ui.feedback.formatFeedbackTime
 import com.aiexile.animetrack.ui.feedback.toChatMessage
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
@@ -84,7 +86,9 @@ data class AdminFeedbackSessionUiState(
     val messages: List<FeedbackChatMessage> = emptyList(),
     val isLoading: Boolean = true,
     val loadFailed: Boolean = false,
-    val isSending: Boolean = false
+    val isSending: Boolean = false,
+    /** 正在手动推送 Agendula */
+    val isForwarding: Boolean = false
 )
 
 /** 一次性操作结果提示（UI 消费后调 consumeNotice） */
@@ -107,10 +111,14 @@ class AdminFeedbackSessionViewModel(
     private var sessionId: String = ""
 
     init {
-        // 用户在该会话追加新消息：停留详情页时实时刷新对话
+        // 用户在该会话追加新消息 / 其他管理员推送 Agendula：停留详情页时实时刷新
         viewModelScope.launch {
             AppContainer.getSseClient().events
-                .filter { it.type == SseEventTypes.FEEDBACK_MESSAGE && it.sessionId == sessionId }
+                .filter {
+                    (it.type == SseEventTypes.FEEDBACK_MESSAGE ||
+                        it.type == SseEventTypes.FEEDBACK_FORWARDED) &&
+                        it.sessionId == sessionId
+                }
                 .collect { refreshFromServer() }
         }
     }
@@ -298,6 +306,60 @@ class AdminFeedbackSessionViewModel(
         }
     }
 
+    /**
+     * 手动推送当前会话到 Agendula：只有管理员点击才触发。
+     * 服务端按稳定 uid 幂等，已推送时直接返回既有状态，不会重复创建任务。
+     */
+    fun forwardToAgendula() {
+        if (_uiState.value.isForwarding) return
+        // 先置位再启动协程，避免连点在第一帧状态更新前重复触发
+        _uiState.value = _uiState.value.copy(isForwarding = true)
+        viewModelScope.launch {
+            val result = repository.forwardToAgendula(sessionId)
+            _uiState.value = _uiState.value.copy(isForwarding = false)
+            when (result) {
+                is AdminForwardResult.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        session = _uiState.value.session?.copy(
+                            agendulaPushedAt = result.pushedAt
+                                ?: _uiState.value.session?.agendulaPushedAt,
+                            agendulaItemId = result.itemId
+                                ?: _uiState.value.session?.agendulaItemId
+                        )
+                    )
+                    _notice.value = if (result.alreadyPushed) {
+                        AdminNotice(
+                            R.string.admin_feedback_forward_already,
+                            formatFeedbackTime(result.pushedAt)
+                        )
+                    } else {
+                        AdminNotice(R.string.admin_feedback_forward_success)
+                    }
+                }
+                AdminForwardResult.InProgress ->
+                    _notice.value = AdminNotice(R.string.admin_feedback_forward_in_progress)
+                AdminForwardResult.SessionNotFound ->
+                    _notice.value = AdminNotice(R.string.feedback_error_session_not_found)
+                AdminForwardResult.NotConfigured ->
+                    _notice.value = AdminNotice(R.string.admin_feedback_forward_not_configured)
+                AdminForwardResult.RateLimited ->
+                    _notice.value = AdminNotice(R.string.admin_feedback_forward_rate_limited)
+                AdminForwardResult.AuthExpired ->
+                    _notice.value = AdminNotice(R.string.feedback_error_auth_expired)
+                AdminForwardResult.NoPermission ->
+                    _notice.value = AdminNotice(R.string.admin_feedback_no_permission)
+                is AdminForwardResult.Rejected -> {
+                    _notice.value = result.message
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { AdminNotice(R.string.admin_feedback_forward_failed, it) }
+                        ?: AdminNotice(R.string.admin_feedback_forward_failed_generic)
+                }
+                is AdminForwardResult.Error ->
+                    _notice.value = AdminNotice(R.string.feedback_error_network)
+            }
+        }
+    }
+
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -326,6 +388,7 @@ fun AdminFeedbackSessionScreen(
     var input by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var levelDialogOpen by remember { mutableStateOf(false) }
+    var forwardDialogOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(sessionId) {
         viewModel.load(sessionId)
@@ -486,16 +549,30 @@ fun AdminFeedbackSessionScreen(
                         )
                     }
                     else -> {
+                        // ===== Agendula 手动推送状态条（固定在消息区上方） =====
+                        AdminAgendulaForwardBar(
+                            pushedAt = session?.agendulaPushedAt,
+                            isForwarding = uiState.isForwarding,
+                            onSend = { forwardDialogOpen = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = chrome.content.calculateTopPadding() + 8.dp,
+                                    bottom = 4.dp
+                                )
+                        )
+
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
-                            // 玻璃档在原有 12dp 内边距上叠加顶栏空间，消息可滚到顶栏下方
                             contentPadding = PaddingValues(
                                 start = 20.dp,
                                 end = 20.dp,
-                                top = 12.dp + chrome.content.calculateTopPadding(),
+                                top = 8.dp,
                                 bottom = 12.dp
                             ),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -557,6 +634,18 @@ fun AdminFeedbackSessionScreen(
             onConfirm = { delta ->
                 levelDialogOpen = false
                 viewModel.grantLevel(delta)
+            }
+        )
+    }
+
+    // ===== Agendula 推送二次确认 =====
+    if (forwardDialogOpen) {
+        AdminForwardConfirmDialog(
+            alreadyPushed = !session?.agendulaPushedAt.isNullOrBlank(),
+            onDismiss = { forwardDialogOpen = false },
+            onConfirm = {
+                forwardDialogOpen = false
+                viewModel.forwardToAgendula()
             }
         )
     }

@@ -39,6 +39,7 @@ import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.LocalWindowSizeClass
 import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.chrome.chromeSupportsBlur
+import com.aiexile.animetrack.ui.components.LocalStatusBadgeTransitionMode
 import com.aiexile.animetrack.ui.icons.IconPack
 import com.aiexile.animetrack.ui.icons.LocalIconPack
 import com.aiexile.animetrack.ui.theme.LocalChromeStyle
@@ -257,6 +258,9 @@ class MainActivity : ComponentActivity() {
                 .collectAsState(settingsRepository.cachedCardInfoLeftField())
             val cardInfoRight by settingsRepository.cardInfoRightField
                 .collectAsState(settingsRepository.cachedCardInfoRightField())
+            // 状态角标转场策略：运行时切换，下一次进入详情即生效
+            val statusBadgeTransitionMode by settingsRepository.statusBadgeTransitionMode
+                .collectAsState(settingsRepository.cachedStatusBadgeTransitionMode())
             val cardInfoFields = remember(cardInfoLeft, cardInfoRight) {
                 CardInfoFields(left = cardInfoLeft, right = cardInfoRight)
             }
@@ -318,7 +322,8 @@ class MainActivity : ComponentActivity() {
                     LocalChromeStyle provides if (chromeSupportsBlur()) chromeStyle else
                         ChromeStyle.STANDARD,
                     LocalAdvancedBlurConfig provides advancedBlurConfig,
-                    LocalCardInfoFields provides cardInfoFields
+                    LocalCardInfoFields provides cardInfoFields,
+                    LocalStatusBadgeTransitionMode provides statusBadgeTransitionMode
                 ) {
                     val splashDismissed by splashDismissed.collectAsState()
                     val widgetEntry by pendingWidgetEntry.collectAsState()

@@ -3,6 +3,7 @@ package com.aiexile.animetrack.ui.components
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope.SharedContentState
 import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
@@ -26,6 +27,16 @@ import androidx.compose.ui.unit.LayoutDirection
  * 封面还在继续飞行。
  */
 private const val CornerProgressVisibilityThreshold = 0.002f
+
+/**
+ * 详情页封面角标的淡出区间（进度占比）。
+ *
+ * 角标与封面同属一个 sharedElement，飞行中由 overlay 一起绘制；详情页
+ * 静止态不在封面上显示角标（状态徽章在标题行），所以到达目标前需淡出。
+ * 只在转场末段（进度 > 1 - 本值）淡出，前半程保持完整不透明，视觉上
+ * 仍是"角标随封面飞出"而不是一路变淡。
+ */
+private const val BadgeFadeOutPortion = 0.35f
 
 /**
  * 封面共享元素转场专用 Shape：圆角随转场进度连续插值。
@@ -81,17 +92,66 @@ fun rememberSharedCoverClipShape(
     cornerRadius: Dp,
     detailSide: Boolean
 ): Shape {
+    val progressState = rememberSharedCoverProgress(animatedVisibilityScope, detailSide)
+    return remember(cornerRadius) { SharedCoverClipShape(cornerRadius, progressState) }
+}
+
+/**
+ * 详情页封面上"角标内容"的透明度（1=完整显示，0=隐藏）。
+ *
+ * 由封面共享元素内容绘制，与封面同层、同步位移缩放，到达目标前在末段
+ * 线性淡出，静止态不显示。适用的角标：
+ * - 置顶/收藏小图标角标（两种转场模式下都并入封面共享元素内容）
+ * - FOLLOW_COVER 模式下的状态角标（角标随封面一起飞出，不单独落位）；
+ *   FLY_TO_TITLE 模式的状态角标是独立 sharedBounds，落在标题行，不走这里。
+ *
+ * 返回 lambda 而非 State：调用方在 `graphicsLayer`/draw 阶段读取，
+ * 逐帧变化只触发重绘，不引起重组。
+ *
+ * @param sharedContentState 封面共享元素状态，用于确认是否匹配到卡片侧
+ *   封面。从没有共享元素的入口进入详情（无匹配）时不显示封面角标，
+ *   避免角标在详情封面上闪现一次。
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun rememberSharedCoverBadgeAlpha(
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedContentState: SharedContentState?
+): () -> Float {
+    val progressState = rememberSharedCoverProgress(animatedVisibilityScope, detailSide = true)
+    return remember(progressState, sharedContentState) {
+        {
+            if (sharedContentState?.isMatchFound != true) {
+                0f
+            } else {
+                ((1f - progressState.value) / BadgeFadeOutPortion).coerceIn(0f, 1f)
+            }
+        }
+    }
+}
+
+/**
+ * 封面共享元素转场进度：0=卡片形态，1=详情形态。
+ *
+ * 弹簧规格与默认 sharedElement bounds 动画一致（damping=1、stiffness=400，
+ * 仅收窄 visibilityThreshold），保证圆角/角标透明度与封面位移同时收尾。
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun rememberSharedCoverProgress(
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    detailSide: Boolean
+): State<Float> {
     val transition: Transition<EnterExitState> = animatedVisibilityScope.transition
-    val progressState = transition.animateFloat(
+    return transition.animateFloat(
         transitionSpec = {
             // 与默认 bounds 弹簧同参数（damping=1, stiffness=400），只收窄阈值，
             // 使圆角变化和封面位移同时收尾
             spring(visibilityThreshold = CornerProgressVisibilityThreshold)
         },
-        label = "sharedCoverCorner"
+        label = "sharedCoverProgress"
     ) { state ->
         val visibleProgress = if (detailSide) 1f else 0f
         if (state == EnterExitState.Visible) visibleProgress else 1f - visibleProgress
     }
-    return remember(cornerRadius) { SharedCoverClipShape(cornerRadius, progressState) }
 }

@@ -64,6 +64,7 @@ import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassSpec
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.drawLiquidGlass
+import com.aiexile.animetrack.ui.components.fabBlurModifier
 import com.aiexile.animetrack.ui.components.liquidGlassSpec
 import com.aiexile.animetrack.ui.components.liquidglass.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
