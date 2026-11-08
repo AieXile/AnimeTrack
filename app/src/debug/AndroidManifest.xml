@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- debug 专用清单：只为 LoadingLab 提供一个真机入口，release 合并时不存在。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name="com.aiexile.animetrack.loadinglab.LoadingLabActivity"
+            android:exported="true"
+            android:label="LoadingLab (debug)"
+            android:theme="@style/Theme.AnimeTrack" />
+    </application>
+
+</manifest>

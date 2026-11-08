@@ -740,7 +740,10 @@ data class Announcement(
     @SerializedName("image_url")
     val imageUrl: String?,
     @SerializedName("created_at")
-    val createdAt: String?
+    val createdAt: String?,
+    /** 该公告的投票选项数量（列表接口返回，未登录时也能据此判断是否展示投票入口） */
+    @SerializedName("option_count")
+    val optionCount: Int = 0
 )
 
 data class AnnouncementsResponse(

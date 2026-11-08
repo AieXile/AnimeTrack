@@ -129,6 +129,10 @@
     <string name="nav_custom_topbar_subtitle">Customize home top bar behavior</string>
     <string name="nav_custom_hide_topbar_on_scroll">Hide top bar on scroll</string>
     <string name="nav_custom_hide_topbar_on_scroll_desc">Hide top bar on scroll; search/add become a floating button</string>
+    <string name="nav_custom_topbar_rounded">Top bar rounded corners</string>
+    <string name="nav_custom_topbar_rounded_desc">Round the two bottom corners (32dp) while the top bar is visible</string>
+    <string name="nav_custom_topbar_glass">Top bar uses glass material</string>
+    <string name="nav_custom_topbar_glass_desc">Use haze/liquid glass for the top bar; off keeps a solid background</string>
     <string name="nav_custom_statusbar_mode">Status bar style</string>
     <string name="statusbar_mode_fullscreen">Fullscreen</string>
     <string name="statusbar_mode_scrim">Gradient scrim</string>

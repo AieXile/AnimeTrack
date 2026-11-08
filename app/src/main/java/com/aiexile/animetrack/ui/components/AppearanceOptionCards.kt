@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.data.ChromeStyle
@@ -79,24 +80,36 @@ fun IconPackPreviewCard(
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf(
-                    AppIcon.HOME,
-                    AppIcon.SEARCH,
-                    AppIcon.PLAY_ARROW,
-                    AppIcon.SETTINGS
-                ).forEach { icon ->
-                    Icon(
-                        painter = painterResource(pack.resolve(icon)),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
+            IconPackPreviewContent(pack = pack)
+        }
+    }
+}
+
+/** 图标风格示例行：供外观设置页预览卡与首次启动向导共用，尺寸可缩放 */
+@Composable
+fun IconPackPreviewContent(
+    pack: IconPack,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 20.dp
+) {
+    Row(
+        modifier = modifier,
+        // 调用方传 fillMaxSize 时（向导选项卡），图标组需在预览区内水平居中，而不是贴左
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        listOf(
+            AppIcon.HOME,
+            AppIcon.SEARCH,
+            AppIcon.PLAY_ARROW,
+            AppIcon.SETTINGS
+        ).forEach { icon ->
+            Icon(
+                painter = painterResource(pack.resolve(icon)),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }

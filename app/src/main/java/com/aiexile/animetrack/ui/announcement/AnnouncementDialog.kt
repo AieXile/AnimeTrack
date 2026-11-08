@@ -13,9 +13,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -40,7 +43,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,8 +103,16 @@ fun AnnouncementDialog(
 
     if (!uiState.showDialog) return
 
+    // 含投票且未投票（或详情加载中）时隐藏「我知道了」，
+    // 同时必须阻断返回键/点击外部，否则系统关闭路径会绕过投票约束
+    val detail = uiState.currentDetail
+    val shouldHideClose = !uiState.showHistoryList && (
+        uiState.isDetailLoading ||
+            (detail != null && detail.options.isNotEmpty() && detail.selectedOptionId == null)
+        )
+
     AlertDialog(
-        onDismissRequest = { viewModel.dismiss() },
+        onDismissRequest = { if (!shouldHideClose) viewModel.dismiss() },
         modifier = Modifier.dialogBlurBehind(),
         shape = SquircleShape(24.dp),
         title = null,
@@ -147,11 +160,6 @@ fun AnnouncementDialog(
                 // 右侧：未投票的投票公告时显示提示，否则显示"我知道了"
                 // detail 加载期间也隐藏按钮，避免切换公告时 detail 暂为 null 导致按钮闪现、
                 // 绕过投票约束（任何含投票且未投的公告，无论从当前还是历史进入都必须先投票）。
-                val detail = uiState.currentDetail
-                val shouldHideClose = !uiState.showHistoryList && (
-                    uiState.isDetailLoading ||
-                        (detail != null && detail.options.isNotEmpty() && detail.selectedOptionId == null)
-                    )
                 if (shouldHideClose) {
                     Text(
                         text = stringResource(R.string.announcement_vote_required),
@@ -200,20 +208,7 @@ private fun AnnouncementContent(
         announcement.imageUrl?.takeIf { it.isNotBlank() }?.let { raw ->
             val fullUrl = if (raw.startsWith("http")) raw else "https://www.aiexile.top$raw"
             Spacer(modifier = Modifier.height(12.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = SquircleShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-            ) {
-                AsyncImage(
-                    model = fullUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 160.dp),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            AnnouncementHeaderImage(url = fullUrl)
         }
 
         // 内容（Markdown 渲染，支持图片）
@@ -256,6 +251,7 @@ private fun AnnouncementContent(
             detail = uiState.currentDetail,
             isDetailLoading = uiState.isDetailLoading,
             isLoggedIn = uiState.isLoggedIn,
+            hasVoteOptions = announcement.optionCount > 0,
             isVoting = uiState.isVoting,
             voteError = uiState.voteError,
             onVote = onVote,
@@ -265,8 +261,56 @@ private fun AnnouncementContent(
     }
 }
 
+/** 头图最大高度：竖图按此高度封顶，横图按原图比例自适应、不裁切 */
+private val MaxHeaderImageHeight = 200.dp
+
+/**
+ * 公告头图。
+ * 按原图宽高比自适应高度，配合 [ContentScale.Fit] 完整展示图片：
+ * 横图铺满宽度并按比例收缩高度，竖图以 [MaxHeaderImageHeight] 封顶后等比缩放并留白，
+ * 避免固定高度 + Crop 导致左右或上下裁掉主体内容。
+ */
+@Composable
+private fun AnnouncementHeaderImage(url: String) {
+    // 图片加载完成后才能拿到原始宽高比，加载期间先按 16:9 占位
+    var aspectRatio by remember(url) { mutableStateOf<Float?>(null) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = SquircleShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val ratio = aspectRatio ?: (16f / 9f)
+            // 按原图比例由宽度推算高度；竖图高度封顶，配合 Fit 等比缩放并留白，不裁切内容
+            val imageHeight = (maxWidth / ratio).coerceAtMost(MaxHeaderImageHeight)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(imageHeight),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                    onSuccess = { state ->
+                        val width = state.result.drawable.intrinsicWidth
+                        val height = state.result.drawable.intrinsicHeight
+                        if (width > 0 && height > 0) {
+                            aspectRatio = width.toFloat() / height.toFloat()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
 /**
  * 投票区组件。
+ * - 仅在公告确实带有投票选项时展示（无投票选项时整块隐藏，未登录也不再出现登录提示）。
  * - 未登录：显示"登录后可参与投票"提示与登录入口（选项需登录后由详情接口返回）。
  * - 未投票：选项为可点击行（RadioButton 指示器，无 ripple）。
  * - 已投票：显示各选项得票数 + 占比 + 进度条，已选项高亮。
@@ -277,6 +321,7 @@ private fun VoteSection(
     detail: AnnouncementDetail?,
     isDetailLoading: Boolean,
     isLoggedIn: Boolean,
+    hasVoteOptions: Boolean,
     isVoting: Boolean,
     voteError: String?,
     onVote: (Int) -> Unit,
@@ -306,8 +351,9 @@ private fun VoteSection(
         return
     }
 
-    // 未登录：详情接口要求登录，拿不到选项，只给登录引导（登录后由 ViewModel 自动补拉详情）
+    // 未登录：仅在该公告确实带有投票选项时才给登录引导（无投票选项的公告不显示）
     if (!isLoggedIn) {
+        if (!hasVoteOptions) return
         Spacer(modifier = Modifier.height(12.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),

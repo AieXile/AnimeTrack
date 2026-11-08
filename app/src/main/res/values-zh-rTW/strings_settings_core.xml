@@ -129,6 +129,10 @@
     <string name="nav_custom_topbar_subtitle">自訂首頁頂部欄行為</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隱藏頂部欄</string>
     <string name="nav_custom_hide_topbar_on_scroll_desc">下滑隱藏頂部欄，搜尋/新增合併為懸浮按鈕</string>
+    <string name="nav_custom_topbar_rounded">頂部欄圓角</string>
+    <string name="nav_custom_topbar_rounded_desc">頂部欄可見時底部兩角為 32dp 圓角</string>
+    <string name="nav_custom_topbar_glass">頂部欄跟隨玻璃材質</string>
+    <string name="nav_custom_topbar_glass_desc">開啟後頂部欄使用毛玻璃/液態玻璃；關閉則保持實色</string>
     <string name="nav_custom_statusbar_mode">狀態欄顯示方式</string>
     <string name="statusbar_mode_fullscreen">全螢幕</string>
     <string name="statusbar_mode_scrim">留白遮罩</string>

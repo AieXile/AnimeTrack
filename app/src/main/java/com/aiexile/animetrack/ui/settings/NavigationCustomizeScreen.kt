@@ -38,7 +38,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,17 +77,21 @@ fun NavigationCustomizeScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    val showFavorites by settingsRepository.showFavorites.collectAsState(false)
-    val showTimeline by settingsRepository.showTimeline.collectAsState(true)
-    val showSchedule by settingsRepository.showSchedule.collectAsState(true)
-    val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
-    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.NAV_BAR)
-    val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsState(NavigationLabelMode.ICON_AND_TEXT)
+    val showFavorites by settingsRepository.showFavorites.collectAsStateWithLifecycle(false)
+    val showTimeline by settingsRepository.showTimeline.collectAsStateWithLifecycle(true)
+    val showSchedule by settingsRepository.showSchedule.collectAsStateWithLifecycle(true)
+    val navigationStyle by settingsRepository.navigationStyle.collectAsStateWithLifecycle(NavigationStyle.BOTTOM)
+    val fabLocation by settingsRepository.fabLocation.collectAsStateWithLifecycle(FabLocation.NAV_BAR)
+    val navigationLabelMode by settingsRepository.navigationLabelMode.collectAsStateWithLifecycle(NavigationLabelMode.ICON_AND_TEXT)
     // 初始值取同步缓存（已持久化的值），避免首帧渲染默认关闭态、随后跳变为已开启的闪变
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
-        .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
+        .collectAsStateWithLifecycle(settingsRepository.cachedHideTopBarOnScroll())
+    val topBarRounded by settingsRepository.topBarRounded
+        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarRounded())
+    val topBarGlassTheme by settingsRepository.topBarGlassThemeEnabled
+        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarGlassThemeEnabled())
     val statusBarMode by settingsRepository.statusBarMode
-        .collectAsState(settingsRepository.cachedStatusBarMode())
+        .collectAsStateWithLifecycle(settingsRepository.cachedStatusBarMode())
 
     // 大屏（Medium/Expanded）使用侧边导航栏且无 FAB：导航样式与 FAB 位置设置无效，隐藏对应分组
     val showCompactOnlySettings = isCompactWidth()
@@ -95,16 +99,18 @@ fun NavigationCustomizeScreen(
     // 搜索定位：高亮目标项并滚动到所在分组（锚点索引随大屏条件分组偏移）
     val highlightKey = rememberSettingsHighlight(Routes.NAVIGATION_CUSTOMIZE)
     val listState = rememberLazyListState()
+    // 分组顺序：导航栏样式（含图标与文字）→ 添加番剧按钮位置 → 顶部栏 → 内容 → 欢迎语。
+    // 大屏无导航样式/按钮位置分组，图标与文字单独成组（侧边导航栏同样生效）
     val highlightAnchors = buildMap {
         var i = 1
         if (showCompactOnlySettings) {
-            put("nav_style", i); i++
-        }
-        put("topbar", i); put("hide_topbar", i); put("statusbar", i); i++
-        put("label_mode", i); i++
-        if (showCompactOnlySettings) {
+            put("nav_style", i); put("label_mode", i); i++
             put("fab", i); i++
+        } else {
+            put("label_mode", i); i++
         }
+        put("topbar", i); put("hide_topbar", i); put("topbar_rounded", i)
+        put("topbar_glass", i); put("statusbar", i); i++
         put("content", i); i++
         put("greeting", i); put("typing_effect", i)
     }
@@ -112,7 +118,8 @@ fun NavigationCustomizeScreen(
     // 欢迎语分组索引：聚焦输入框时整组滚动到顶栏下缘，为下方超限提示留出键盘上方冗余
     val greetingGroupIndex = highlightAnchors["greeting"] ?: 0
     // 搜索定位命中可展开分组时默认展开，避免高亮项收起不可见
-    val expandNavStyleGroup = highlightKey == "nav_style"
+    // 「图标与文字」已并入导航样式分组：搜索命中任一项都要展开分组，目标项才可见
+    val expandNavStyleGroup = highlightKey == "nav_style" || highlightKey == "label_mode"
     val expandFabGroup = highlightKey == "fab"
 
     AppScaffold(
@@ -158,6 +165,69 @@ fun NavigationCustomizeScreen(
                                 onClick = { scope.launch { settingsRepository.setNavigationStyle(NavigationStyle.CAPSULE) } }
                             )
                         }
+                        // 图标与文字并入「导航栏样式」：样式与显示方式共用同一张分组卡片
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.nav_custom_label_mode_title),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        NavigationLabelModeSelector(
+                            selected = navigationLabelMode,
+                            onSelect = { mode ->
+                                scope.launch { settingsRepository.setNavigationLabelMode(mode) }
+                            },
+                            modifier = rememberHighlightModifier("label_mode", highlightKey)
+                        )
+                    }
+                }
+            } else {
+                // 大屏使用侧边导航栏，没有导航样式分组：图标与文字单独成组（侧栏同样生效）
+                item(key = "label_mode_group") {
+                    SettingsGroup(
+                        title = stringResource(R.string.nav_custom_label_mode_title),
+                        subtitle = stringResource(R.string.nav_custom_label_mode_subtitle),
+                        modifier = rememberHighlightModifier("label_mode", highlightKey)
+                    ) {
+                        NavigationLabelModeSelector(
+                            selected = navigationLabelMode,
+                            onSelect = { mode ->
+                                scope.launch { settingsRepository.setNavigationLabelMode(mode) }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 添加番剧按钮位置：手机无侧边导航栏时才有效，放在导航样式与顶部栏之间
+            if (showCompactOnlySettings) {
+                item(key = "fab_group") {
+                    ExpandableSettingsGroup(
+                        title = stringResource(R.string.nav_custom_fab_title),
+                        expanded = expandFabGroup
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            FabLocationCard(
+                                modifier = Modifier.weight(1f),
+                                location = FabLocation.BOTTOM_RIGHT,
+                                isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
+                            )
+                            FabLocationCard(
+                                modifier = Modifier.weight(1f),
+                                location = FabLocation.TOP_BAR,
+                                isSelected = fabLocation == FabLocation.TOP_BAR,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
+                            )
+                            FabLocationCard(
+                                modifier = Modifier.weight(1f),
+                                location = FabLocation.NAV_BAR,
+                                isSelected = fabLocation == FabLocation.NAV_BAR,
+                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.NAV_BAR) } }
+                            )
+                        }
                     }
                 }
             }
@@ -175,6 +245,22 @@ fun NavigationCustomizeScreen(
                         checked = hideTopBarOnScroll,
                         onCheckedChange = { scope.launch { settingsRepository.setHideTopBarOnScrollEnabled(it) } },
                         itemKey = "hide_topbar",
+                        highlightKey = highlightKey
+                    )
+                    SwitchItem(
+                        title = stringResource(R.string.nav_custom_topbar_rounded),
+                        description = stringResource(R.string.nav_custom_topbar_rounded_desc),
+                        checked = topBarRounded,
+                        onCheckedChange = { scope.launch { settingsRepository.setTopBarRounded(it) } },
+                        itemKey = "topbar_rounded",
+                        highlightKey = highlightKey
+                    )
+                    SwitchItem(
+                        title = stringResource(R.string.nav_custom_topbar_glass),
+                        description = stringResource(R.string.nav_custom_topbar_glass_desc),
+                        checked = topBarGlassTheme,
+                        onCheckedChange = { scope.launch { settingsRepository.setTopBarGlassThemeEnabled(it) } },
+                        itemKey = "topbar_glass",
                         highlightKey = highlightKey
                     )
                     // 状态栏显示方式：仅「下滑隐藏顶栏」开启时可选，动画展开/收起避免高度跳变闪动
@@ -227,66 +313,6 @@ fun NavigationCustomizeScreen(
                 }
             }
 
-            item(key = "label_mode_group") {
-                SettingsGroup(
-                    title = stringResource(R.string.nav_custom_label_mode_title),
-                    subtitle = stringResource(R.string.nav_custom_label_mode_subtitle),
-                    modifier = rememberHighlightModifier("label_mode", highlightKey)
-                ) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        NavigationLabelMode.entries.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                selected = navigationLabelMode == mode,
-                                onClick = { scope.launch { settingsRepository.setNavigationLabelMode(mode) } },
-                                shape = SegmentedButtonDefaults.itemShape(
-                                    index = index,
-                                    count = NavigationLabelMode.entries.size
-                                ),
-                                icon = {},
-                                label = {
-                                    Text(
-                                        text = stringResource(mode.labelRes),
-                                        maxLines = 1,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 大屏无 FAB（添加入口在顶栏、回到顶部在侧边导航栏底部），FAB 位置设置无效
-            if (showCompactOnlySettings) {
-                item(key = "fab_group") {
-                    ExpandableSettingsGroup(
-                        title = stringResource(R.string.nav_custom_fab_title),
-                        expanded = expandFabGroup
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            FabLocationCard(
-                                modifier = Modifier.weight(1f),
-                                location = FabLocation.BOTTOM_RIGHT,
-                                isSelected = fabLocation == FabLocation.BOTTOM_RIGHT,
-                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.BOTTOM_RIGHT) } }
-                            )
-                            FabLocationCard(
-                                modifier = Modifier.weight(1f),
-                                location = FabLocation.TOP_BAR,
-                                isSelected = fabLocation == FabLocation.TOP_BAR,
-                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.TOP_BAR) } }
-                            )
-                            FabLocationCard(
-                                modifier = Modifier.weight(1f),
-                                location = FabLocation.NAV_BAR,
-                                isSelected = fabLocation == FabLocation.NAV_BAR,
-                                onClick = { scope.launch { settingsRepository.setFabLocation(FabLocation.NAV_BAR) } }
-                            )
-                        }
-                    }
-                }
-            }
-
             item(key = "content_group") {
                 SettingsGroup(
                     title = stringResource(R.string.nav_custom_content_title),
@@ -324,7 +350,7 @@ fun NavigationCustomizeScreen(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val greetingEffectStyle by settingsRepository.greetingEffectStyle
-                            .collectAsState(settingsRepository.cachedGreetingEffectStyle())
+                            .collectAsStateWithLifecycle(settingsRepository.cachedGreetingEffectStyle())
                         SingleChoiceSegmentedButtonRow(
                             modifier = rememberHighlightModifier("typing_effect", highlightKey)
                                 .fillMaxWidth()
@@ -349,7 +375,7 @@ fun NavigationCustomizeScreen(
                             }
                         }
                         CustomGreetingField(
-                            customGreeting = settingsRepository.customGreeting.collectAsState("").value,
+                            customGreeting = settingsRepository.customGreeting.collectAsStateWithLifecycle("").value,
                             onGreetingChange = { scope.launch { settingsRepository.setCustomGreeting(it) } },
                             onFocus = {
                                 scope.launch {
@@ -671,6 +697,38 @@ private fun FabLocationCard(
             maxLines = 2,
             modifier = Modifier.padding(start = 4.dp)
         )
+    }
+}
+
+/**
+ * 导航栏入口显示方式（图标与文字）选择器。
+ * 手机端内嵌在「导航栏样式」分组，大屏单独成组（侧边导航栏同样生效），两处共用。
+ */
+@Composable
+private fun NavigationLabelModeSelector(
+    selected: NavigationLabelMode,
+    onSelect: (NavigationLabelMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        NavigationLabelMode.entries.forEachIndexed { index, mode ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = NavigationLabelMode.entries.size
+                ),
+                icon = {},
+                label = {
+                    Text(
+                        text = stringResource(mode.labelRes),
+                        maxLines = 1,
+                        fontSize = 13.sp
+                    )
+                }
+            )
+        }
     }
 }
 

@@ -132,6 +132,12 @@ fun liquidGlassSpec(kind: LiquidGlassKind): LiquidGlassSpec =
  *
  * 保留 kyant `drawBackdrop` 的默认边缘高光/外阴影（与改造前一致）；磨砂背板这类
  * 不需要高光的场景显式传 null。[layerBlock] 用于按压放大 / 拖拽形变等交互物理。
+ *
+ * @param blurFirst 先模糊后提亮。`blur` 只有在「非 Clamp 边缘」或「前面已有 RenderEffect」
+ *   时才会申请采样 padding；先做 vibrancy 会触发 padding，玻璃缓冲区因此比组件四周各多出
+ *   一圈透明像素——贴屏幕边缘的通栏玻璃（主页顶栏/状态栏玻璃条）会把模糊核边缘的透明像素
+ *   平均进结果，最外一圈变成半透明、看起来「没有模糊」。先 blur（Clamp、无 padding）后
+ *   vibrancy，缓冲区与组件等大，边缘按缓冲区边界 clamp，通栏玻璃边缘保持满强度模糊。
  */
 internal fun Modifier.drawLiquidGlass(
     backdrop: Backdrop,
@@ -140,13 +146,19 @@ internal fun Modifier.drawLiquidGlass(
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     highlight: (() -> Highlight?)? = { Highlight.Default },
     shadow: (() -> Shadow?)? = { Shadow.Default },
-    innerShadow: (() -> InnerShadow?)? = null
+    innerShadow: (() -> InnerShadow?)? = null,
+    blurFirst: Boolean = false
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
     effects = {
-        if (spec.vibrancy) vibrancy()
-        if (spec.blurRadius > 0.dp) blur(spec.blurRadius.toPx())
+        if (blurFirst) {
+            if (spec.blurRadius > 0.dp) blur(spec.blurRadius.toPx())
+            if (spec.vibrancy) vibrancy()
+        } else {
+            if (spec.vibrancy) vibrancy()
+            if (spec.blurRadius > 0.dp) blur(spec.blurRadius.toPx())
+        }
         if (spec.lensRefractionHeight > 0.dp && spec.lensRefractionAmount > 0.dp) {
             lens(spec.lensRefractionHeight.toPx(), spec.lensRefractionAmount.toPx())
         }

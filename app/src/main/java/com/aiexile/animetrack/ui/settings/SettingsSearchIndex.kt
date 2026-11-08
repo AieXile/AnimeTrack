@@ -152,6 +152,16 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("下滑隐藏", "收起顶栏")
     ),
     SearchableSetting(
+        route = Routes.NAVIGATION_CUSTOMIZE, key = "topbar_rounded",
+        titleRes = R.string.nav_custom_topbar_rounded, descRes = R.string.nav_custom_topbar_rounded_desc,
+        keywords = listOf("顶栏圆角", "圆角", "顶部栏")
+    ),
+    SearchableSetting(
+        route = Routes.NAVIGATION_CUSTOMIZE, key = "topbar_glass",
+        titleRes = R.string.nav_custom_topbar_glass, descRes = R.string.nav_custom_topbar_glass_desc,
+        keywords = listOf("顶栏玻璃", "毛玻璃", "液态玻璃", "材质")
+    ),
+    SearchableSetting(
         route = Routes.NAVIGATION_CUSTOMIZE, key = "statusbar",
         titleRes = R.string.nav_custom_statusbar_mode,
         keywords = listOf("状态栏", "全屏", "留白遮罩", "实心")

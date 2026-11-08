@@ -18,14 +18,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,14 +37,10 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.ui.components.TopNoticeBanner
-import com.aiexile.animetrack.ui.icons.AppIcon
-import kotlinx.coroutines.delay
+import com.aiexile.animetrack.ui.components.SquircleShape
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(
@@ -70,36 +64,19 @@ private fun onboardingPages(): List<OnboardingPage> = listOf(
     )
 )
 
-/** 向导总页数：3 页功能介绍 + 主题页 + 图标效果页 + 导航页 + 完成页 */
-private const val ONBOARDING_PAGE_COUNT = 7
-
-/** 第一个可交互自定义页（主题页）索引：跳过按钮跳过功能介绍直达此处 */
-private const val CUSTOMIZE_PAGE_INDEX = 3
-
 @Composable
 fun OnboardingScreen(
     settingsRepository: SettingsRepository,
     onStartReveal: (Offset) -> Unit
 ) {
     val pages = onboardingPages()
-    val pagerState = rememberPagerState(pageCount = { ONBOARDING_PAGE_COUNT })
+    val gateState = rememberOnboardingGateState()
+    val pagerState = rememberPagerState(pageCount = { OnboardingPages.COUNT })
     val scope = rememberCoroutineScope()
-    val isLastPage = pagerState.currentPage == ONBOARDING_PAGE_COUNT - 1
+    val isLastPage = pagerState.currentPage == OnboardingPages.READY
+    // 当前步骤未完成时「下一步」为禁用态；完成判定由 OnboardingGateState 统一提供
+    val canContinue = gateState.isStepComplete(pagerState.currentPage)
     var buttonCenter by remember { mutableStateOf(Offset.Zero) }
-    // 导航定制页注册的「下一步」校验入口：按钮始终可点，
-    // 点击时由导航页校验当前子步——未选则顶部横幅提示，已选则推进子步/翻页
-    var navNextAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-    // 导航页未完成选择时的提示文本：横幅悬浮于状态栏正下方，4 秒自动消失；
-    // lastNavNotice 缓存最近一条，退出动画期间内容不闪空
-    var navNotice by remember { mutableStateOf<String?>(null) }
-    var lastNavNotice by remember { mutableStateOf("") }
-    LaunchedEffect(navNotice) {
-        navNotice?.let {
-            lastNavNotice = it
-            delay(4000)
-            navNotice = null
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -107,8 +84,7 @@ fun OnboardingScreen(
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
-        // 大屏（平板/横屏）限制内容最大宽度并居中，避免预览与控件被拉伸过宽；
-        // 状态栏内边距收在 Column 上，顶部提示横幅才能紧贴状态栏下方悬浮
+        // 大屏（平板/横屏）限制内容最大宽度并居中，避免预览与控件被拉伸过宽
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -122,34 +98,44 @@ fun OnboardingScreen(
                     .height(56.dp)
                     .padding(horizontal = 16.dp)
             ) {
-                // 跳过按钮仅在功能介绍页显示，直达自定义起始页；
-                // 进入自定义环节（主题/图标/导航）后不再提供跳过，需逐项完成
-                if (pagerState.currentPage < CUSTOMIZE_PAGE_INDEX) {
+                // 跳过仅限前 3 页功能介绍，直达主题步骤；进入自定义环节后需逐项完成
+                if (pagerState.currentPage < OnboardingPages.INTRO_COUNT) {
                     TextButton(
-                        onClick = { scope.launch { pagerState.animateScrollToPage(CUSTOMIZE_PAGE_INDEX) } },
+                        onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(OnboardingPages.THEME)
+                            }
+                        },
                         modifier = Modifier.align(Alignment.CenterEnd)
                     ) {
-                        Text(stringResource(R.string.onboarding_skip), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = stringResource(R.string.onboarding_skip),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
 
+            // 主 Pager 禁用手势：既不与页内预览的滑动冲突，也避免滑动绕过未完成的步骤
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                userScrollEnabled = false
             ) { page ->
                 when (page) {
                     in pages.indices -> OnboardingIntroPageContent(page = page, pages = pages)
-                    CUSTOMIZE_PAGE_INDEX -> OnboardingThemePage(settingsRepository = settingsRepository)
-                    CUSTOMIZE_PAGE_INDEX + 1 -> OnboardingIconEffectPage(settingsRepository = settingsRepository)
-                    CUSTOMIZE_PAGE_INDEX + 2 -> OnboardingNavPage(
+                    OnboardingPages.THEME -> OnboardingThemePage(
                         settingsRepository = settingsRepository,
-                        onAdvancePage = {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                        },
-                        onNotice = { navNotice = it },
-                        registerNextAction = { navNextAction = it }
+                        gateState = gateState
+                    )
+                    OnboardingPages.ICON_EFFECT -> OnboardingIconEffectPage(
+                        settingsRepository = settingsRepository,
+                        gateState = gateState
+                    )
+                    OnboardingPages.NAVIGATION -> OnboardingNavPage(
+                        settingsRepository = settingsRepository,
+                        gateState = gateState
                     )
                     else -> OnboardingReadyPage(settingsRepository = settingsRepository)
                 }
@@ -161,9 +147,10 @@ fun OnboardingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 PagerIndicator(
-                    pageCount = ONBOARDING_PAGE_COUNT,
+                    pageCount = OnboardingPages.COUNT,
                     currentPage = pagerState.currentPage,
                     currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                    maxReachedPage = gateState.maxReachedPage,
                     onPageClick = { page -> scope.launch { pagerState.animateScrollToPage(page) } }
                 )
 
@@ -172,45 +159,37 @@ fun OnboardingScreen(
                         onClick = { onStartReveal(buttonCenter) },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
                             val bounds = coordinates.boundsInRoot()
-                            buttonCenter = Offset(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+                            buttonCenter = Offset(
+                                bounds.left + bounds.width / 2,
+                                bounds.top + bounds.height / 2
+                            )
                         },
                         shape = SquircleShape(24.dp)
                     ) {
-                        Text(text = stringResource(R.string.onboarding_start), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(R.string.onboarding_start),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } else {
-                    // 「下一步」始终可点；导航定制页点击时交由页面内校验，
-                    // 其余页面直接翻到下一页
                     FilledTonalButton(
                         onClick = {
-                            val page = pagerState.currentPage
-                            if (page == CUSTOMIZE_PAGE_INDEX + 2) {
-                                navNextAction?.invoke()
-                            } else {
-                                scope.launch { pagerState.animateScrollToPage(page + 1) }
+                            scope.launch {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
                         },
+                        enabled = canContinue,
                         shape = SquircleShape(24.dp)
                     ) {
-                        Text(text = stringResource(R.string.onboarding_next), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                        Text(
+                            text = stringResource(R.string.onboarding_next),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
         }
-
-        // 顶部提示横幅：导航页未完成选择就点「下一步」时滑入提醒，
-        // 悬浮于状态栏正下方，不随向导页滑动；
-        // TopNoticeBanner 自身不带状态栏 padding，独立使用时需自行加
-        TopNoticeBanner(
-            visible = navNotice != null,
-            icon = AppIcon.ERROR,
-            iconTint = MaterialTheme.colorScheme.error,
-            text = navNotice ?: lastNavNotice,
-            onDismiss = { navNotice = null },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-        )
     }
 }
 
@@ -234,32 +213,48 @@ private fun OnboardingIntroPageContent(page: Int, pages: List<OnboardingPage>) {
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(text = pages[page].title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(text = pages[page].description, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp), lineHeight = 20.sp)
-        Spacer(modifier = Modifier.height(24.dp))
+        OnboardingPageHeader(
+            title = pages[page].title,
+            description = pages[page].description,
+            center = true
+        )
+        Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun PagerIndicator(pageCount: Int, currentPage: Int, currentPageOffsetFraction: Float, onPageClick: (Int) -> Unit) {
+private fun PagerIndicator(
+    pageCount: Int,
+    currentPage: Int,
+    currentPageOffsetFraction: Float,
+    maxReachedPage: Int,
+    onPageClick: (Int) -> Unit
+) {
     // 计算连续的页面位置，用于平滑插值
     val fractionalPosition = currentPage + currentPageOffsetFraction
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         repeat(pageCount) { index ->
+            // 超出已到达范围的页不可点击，视觉上弱化，避免越过未完成步骤
+            val locked = index > maxReachedPage
             // 计算该点与当前位置的距离，距离越近宽度越大
             val distance = kotlin.math.abs(fractionalPosition - index)
             val width = (24f + (8f - 24f) * distance.coerceIn(0f, 1f)).dp
-            val color = if (distance < 0.5f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+            val color = when {
+                locked -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                distance < 0.5f -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.outlineVariant
+            }
 
             Box(
                 modifier = Modifier
                     .size(width = width, height = 8.dp)
                     .clip(CircleShape)
                     .background(color)
-                    .clickable { onPageClick(index) }
+                    .clickable(enabled = !locked) { onPageClick(index) }
             )
         }
     }

@@ -133,6 +133,10 @@
     <string name="nav_custom_topbar_subtitle">自定义主页顶部栏行为</string>
     <string name="nav_custom_hide_topbar_on_scroll">下滑隐藏顶部栏</string>
     <string name="nav_custom_hide_topbar_on_scroll_desc">下滑隐藏顶部栏，搜索/添加合并为悬浮按钮</string>
+    <string name="nav_custom_topbar_rounded">顶部栏圆角</string>
+    <string name="nav_custom_topbar_rounded_desc">顶栏可见时底部两角为 32dp 圆角</string>
+    <string name="nav_custom_topbar_glass">顶栏跟随玻璃材质</string>
+    <string name="nav_custom_topbar_glass_desc">开启后顶栏使用毛玻璃/液态玻璃；关闭则保持实色</string>
     <string name="nav_custom_statusbar_mode">状态栏显示方式</string>
     <string name="statusbar_mode_fullscreen">全屏</string>
     <string name="statusbar_mode_scrim">留白遮罩</string>

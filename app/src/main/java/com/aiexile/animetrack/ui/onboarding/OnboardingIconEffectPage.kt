@@ -7,109 +7,109 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.ui.components.GlassEffectPreviewCard
 import com.aiexile.animetrack.ui.components.GlassEffectPreviewContent
-import com.aiexile.animetrack.ui.components.IconPackPreviewCard
+import com.aiexile.animetrack.ui.components.IconPackPreviewContent
 import com.aiexile.animetrack.ui.icons.IconPack
 import kotlinx.coroutines.launch
 
-// ==========================================
-// 自定义页 2: 图标与效果（图标风格选择即时生效，整个向导界面图标实时切换预览）
-// ==========================================
 @Composable
-internal fun OnboardingIconEffectPage(settingsRepository: SettingsRepository) {
+internal fun OnboardingIconEffectPage(
+    settingsRepository: SettingsRepository,
+    gateState: OnboardingGateState
+) {
     val scope = rememberCoroutineScope()
-    // 初始值取同步缓存（已持久化的值），避免首帧渲染默认态后跳变的闪变
-    val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
     val chromeStyle by settingsRepository.chromeStyle
         .collectAsState(settingsRepository.cachedChromeStyle())
+    // 高亮取点选结果，未点选时回落到持久化值，避免异步写入造成闪动
+    val selectedChromeStyle = gateState.selectedChromeStyle ?: chromeStyle
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(8.dp))
-        PageHeader(
-            title = stringResource(R.string.onboarding_icon_effect_title),
-            description = stringResource(R.string.onboarding_icon_effect_description)
+    OnboardingStepScaffold(
+        step = 2,
+        title = stringResource(R.string.onboarding_icon_effect_title),
+        description = stringResource(R.string.onboarding_icon_effect_description),
+        requirement = OnboardingRequirement(
+            text = stringResource(
+                if (gateState.selectedIconPack != null) R.string.onboarding_requirement_icon_done
+                else R.string.onboarding_requirement_icon
+            ),
+            satisfied = gateState.selectedIconPack != null
         )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // 图标风格：点选后整个向导界面的图标立即切换预览
-        SectionLabel(text = stringResource(R.string.onboarding_icon_style_label))
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconPackPreviewCard(
-                modifier = Modifier.weight(1f),
-                pack = IconPack.MATERIAL_SYMBOLS,
-                label = stringResource(R.string.appearance_icon_pack_material),
-                selected = iconPack == IconPack.MATERIAL_SYMBOLS,
-                onClick = { scope.launch { settingsRepository.setIconPack(IconPack.MATERIAL_SYMBOLS) } }
-            )
-            IconPackPreviewCard(
-                modifier = Modifier.weight(1f),
-                pack = IconPack.LUCIDE,
-                label = stringResource(R.string.appearance_icon_pack_lucide),
-                selected = iconPack == IconPack.LUCIDE,
-                onClick = { scope.launch { settingsRepository.setIconPack(IconPack.LUCIDE) } }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // 玻璃效果：悬浮胶囊与悬浮按钮的质感，高级模糊与液态玻璃互斥
-        SectionLabel(text = stringResource(R.string.onboarding_glass_effect_label))
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            GlassEffectPreviewCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.appearance_glass_effect_standard),
-                selected = chromeStyle == ChromeStyle.STANDARD,
-                onClick = {
-                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.STANDARD) }
-                }
+    ) {
+        Column {
+            OnboardingSectionLabel(stringResource(R.string.onboarding_icon_style_label))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                GlassEffectPreviewContent(style = ChromeStyle.STANDARD)
-            }
-            GlassEffectPreviewCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.nav_custom_advanced_blur),
-                selected = chromeStyle == ChromeStyle.HAZE,
-                onClick = {
-                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.HAZE) }
+                IconPack.entries.forEach { pack ->
+                    OnboardingOptionCard(
+                        label = stringResource(iconPackLabelRes(pack)),
+                        selected = gateState.selectedIconPack == pack,
+                        onClick = {
+                            gateState.selectIconPack(pack)
+                            scope.launch { settingsRepository.setIconPack(pack) }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconPackPreviewContent(
+                            pack = pack,
+                            iconSize = 16.dp,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
-            ) {
-                GlassEffectPreviewContent(style = ChromeStyle.HAZE)
-            }
-            GlassEffectPreviewCard(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.nav_custom_liquid_glass),
-                selected = chromeStyle == ChromeStyle.LIQUID_GLASS,
-                onClick = {
-                    scope.launch { settingsRepository.setChromeStyle(ChromeStyle.LIQUID_GLASS) }
-                }
-            ) {
-                GlassEffectPreviewContent(style = ChromeStyle.LIQUID_GLASS)
             }
         }
+
+        Column {
+            OnboardingSectionLabel(stringResource(R.string.onboarding_glass_effect_label))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ChromeStyle.entries.forEach { style ->
+                    OnboardingOptionCard(
+                        label = stringResource(style.labelRes),
+                        selected = selectedChromeStyle == style,
+                        onClick = {
+                            gateState.selectChromeStyle(style)
+                            scope.launch { settingsRepository.setChromeStyle(style) }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        GlassEffectPreviewContent(
+                            style = style,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.onboarding_requirement_hint),
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
     }
+}
+
+internal fun iconPackLabelRes(pack: IconPack): Int = when (pack) {
+    IconPack.MATERIAL_SYMBOLS -> R.string.appearance_icon_pack_material
+    IconPack.LUCIDE -> R.string.appearance_icon_pack_lucide
 }
