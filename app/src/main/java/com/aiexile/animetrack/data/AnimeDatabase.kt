@@ -14,7 +14,7 @@ import com.aiexile.animetrack.model.PendingDeletion
 @Database(
     entities = [Anime::class, PendingDeletion::class],
     version = 28,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(AnimeTypeConverters::class)
 abstract class AnimeDatabase : RoomDatabase() {

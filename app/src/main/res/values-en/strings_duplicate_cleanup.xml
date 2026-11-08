@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="duplicate_cleanup_group">Local data cleanup</string>
+    <string name="duplicate_cleanup_title">Clean duplicate titled anime</string>
+    <string name="duplicate_cleanup_subtitle">Scan duplicate cards sharing the same title and episode count, both without a Bangumi binding. Delete only after confirmation</string>
+    <string name="duplicate_cleanup_entry_subtitle">Remove extra cards with the same title; sync identity is kept on the card you keep</string>
+    <string name="duplicate_cleanup_selected">%1$d selected for cleanup</string>
+    <string name="duplicate_cleanup_keep">Keep</string>
+    <string name="duplicate_cleanup_progress">Watched %1$d / %2$d</string>
+    <string name="duplicate_cleanup_updated">Updated %1$s</string>
+    <string name="duplicate_cleanup_empty">No duplicate anime found</string>
+    <string name="duplicate_cleanup_loading">Scanning…</string>
+    <string name="duplicate_cleanup_cleaning">Cleaning…</string>
+    <string name="duplicate_cleanup_episode_count">%1$d episodes</string>
+    <string name="duplicate_cleanup_confirm">Start cleanup</string>
+    <string name="duplicate_cleanup_cancel">Cancel</string>
+    <string name="duplicate_cleanup_close">Done</string>
+    <string name="duplicate_cleanup_result">Cleaned %1$d group(s), %2$d card(s); %3$d group(s) left</string>
+    <string name="duplicate_cleanup_failed">Cleanup failed midway. Completed deletions are kept; please try again later</string>
+</resources>

@@ -117,6 +117,8 @@ class SettingsRepository(private val context: Context) {
         // 界面外壳材质档位（ChromeStyle.name），替代上面两个互斥布尔
         private val CHROME_STYLE_KEY = stringPreferencesKey("chrome_style")
         private val HIDE_TOPBAR_ON_SCROLL_KEY = booleanPreferencesKey("hide_topbar_on_scroll")
+        private val TOP_BAR_ROUNDED_KEY = booleanPreferencesKey("top_bar_rounded")
+        private val TOP_BAR_GLASS_THEME_KEY = booleanPreferencesKey("top_bar_glass_theme")
         private val STATUS_BAR_MODE_KEY = stringPreferencesKey("status_bar_mode")
         private val ADVANCED_BLUR_RADIUS_KEY = floatPreferencesKey("advanced_blur_radius")
         private val ADVANCED_BLUR_BACKGROUND_ALPHA_KEY = floatPreferencesKey("advanced_blur_background_alpha")
@@ -236,6 +238,32 @@ class SettingsRepository(private val context: Context) {
         private val READ_ANNOUNCEMENT_IDS_KEY = stringPreferencesKey("read_announcement_ids")
         // 设备唯一标识（首次生成后持久化，卸载重装会变，作为活跃统计主键）
         private val DEVICE_ID_KEY = stringPreferencesKey("device_id")
+
+        // 各偏好的唯一默认值：Flow 与 cachedXxx() 共用同一常量，避免两处默认值不一致
+        private val DEFAULT_THEME_MODE = ThemeMode.SYSTEM
+        private val DEFAULT_THEME_PRESET = ThemePreset.MONO_BLACK
+        private val DEFAULT_DARK_STYLE = DarkStyle.BOOST
+        private val DEFAULT_ICON_PACK = IconPack.MATERIAL_SYMBOLS
+        private val DEFAULT_NAVIGATION_STYLE = NavigationStyle.CAPSULE
+        private val DEFAULT_FAB_LOCATION = FabLocation.NAV_BAR
+        private val DEFAULT_NAVIGATION_LABEL_MODE = NavigationLabelMode.ICON_AND_TEXT
+        private val DEFAULT_CHROME_STYLE = ChromeStyle.STANDARD
+        private const val DEFAULT_CAPSULE_LIQUID_GLASS_BACKDROP_BLUR = true
+        private const val DEFAULT_HIDE_TOPBAR_ON_SCROLL = false
+        private const val DEFAULT_TOP_BAR_ROUNDED = true
+        private const val DEFAULT_TOP_BAR_GLASS_THEME = true
+        private val DEFAULT_STATUS_BAR_MODE = StatusBarMode.SCRIM
+        private const val DEFAULT_CUSTOM_GREETING = ""
+        private val DEFAULT_GREETING_EFFECT_STYLE = GreetingEffectStyle.TYPING
+        private val DEFAULT_STATUS_BADGE_TRANSITION_MODE = StatusBadgeTransitionMode.FLY_TO_TITLE
+        private val DEFAULT_CARD_INFO_LEFT = CardInfoField.PROGRESS
+        private val DEFAULT_CARD_INFO_RIGHT = CardInfoField.RATING
+        private val DEFAULT_LIST_SORT_MODE = ListSortMode.RECENT_PROGRESS
+        private val DEFAULT_RATING_STANDARD = RatingStandard.SOURCE
+        private const val DEFAULT_CRASH_REPORT_ENABLED = true
+        private const val DEFAULT_UPDATE_NOTIFICATION_ENABLED = false
+        private val DEFAULT_EXTERNAL_PLAY_MODE = ExternalPlayMode.AUTO
+        private val DEFAULT_PROXY_TYPE = ProxyType.HTTP
     }
 
     // 偏好内存缓存：DataStore 首次读取是异步的，collectAsState(默认值) 会先渲染默认值
@@ -261,6 +289,28 @@ class SettingsRepository(private val context: Context) {
             AppLogManager.e(TAG, "偏好写入失败: key=${key.name}", e)
         }
     }
+
+    /** 枚举偏好的统一模板：存储层只保存 name，缺失 / 非法值回退 [default] */
+    private inline fun <reified T : Enum<T>> enumPreference(
+        key: Preferences.Key<String>,
+        default: T
+    ): Flow<T> = preferenceFlow(key, default.name)
+        .map { value -> enumValueOrDefault(value, default) }
+
+    /** 按 name 解析枚举，非法值回退 [default] */
+    private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String?, default: T): T =
+        T::class.java.enumConstants?.firstOrNull { it.name == value } ?: default
+
+    /** 同步缓存读取：缓存未就绪（冷启动早期）时回退 [default] */
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> cachedOrDefault(key: Preferences.Key<T>, default: T): T =
+        prefCache[key] as? T ?: default
+
+    /** 枚举偏好的同步缓存读取：与 [enumPreference] 共用同一 [default] */
+    private inline fun <reified T : Enum<T>> cachedEnumOrDefault(
+        key: Preferences.Key<String>,
+        default: T
+    ): T = enumValueOrDefault(prefCache[key] as? String, default)
 
     @Volatile
     var currentTmdbApiKey: String? = null
@@ -411,31 +461,22 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    val themeMode: Flow<ThemeMode> = preferenceFlow(THEME_MODE_KEY, ThemeMode.SYSTEM.name)
-        .map { modeString ->
-            try { ThemeMode.valueOf(modeString) } catch (_: IllegalArgumentException) { ThemeMode.SYSTEM }
-        }
+    val themeMode: Flow<ThemeMode> = enumPreference(THEME_MODE_KEY, DEFAULT_THEME_MODE)
 
     suspend fun setThemeMode(mode: ThemeMode) {
         AppLogManager.i(TAG, "主题模式切换: $mode")
         setPreference(THEME_MODE_KEY, mode.name)
     }
 
-    val themePreset: Flow<ThemePreset> = preferenceFlow(THEME_PRESET_KEY, ThemePreset.MONO_BLACK.name)
-        .map { presetString ->
-            try { ThemePreset.valueOf(presetString) } catch (_: IllegalArgumentException) { ThemePreset.MONO_BLACK }
-        }
+    val themePreset: Flow<ThemePreset> = enumPreference(THEME_PRESET_KEY, DEFAULT_THEME_PRESET)
         // 莫奈取色的 seed 来自 Android 12+ 系统动态配色：
         // 备份恢复到低版本设备后回退默认主题，避免界面显示为莫奈取色却实际渲染黑白简洁
-        .map { if (it.seedColor == null && !isMonetColorSupported()) ThemePreset.MONO_BLACK else it }
+        .map { if (it.seedColor == null && !isMonetColorSupported()) DEFAULT_THEME_PRESET else it }
 
     suspend fun setThemePreset(preset: ThemePreset) = setPreference(THEME_PRESET_KEY, preset.name)
 
     /** 深色风格：增强（纯黑）/ 标准（适中）/ 柔和（偏灰）/ 高对比 */
-    val darkStyle: Flow<DarkStyle> = preferenceFlow(DARK_STYLE_KEY, DarkStyle.BOOST.name)
-        .map { styleString ->
-            try { DarkStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { DarkStyle.BOOST }
-        }
+    val darkStyle: Flow<DarkStyle> = enumPreference(DARK_STYLE_KEY, DEFAULT_DARK_STYLE)
 
     suspend fun setDarkStyle(style: DarkStyle) {
         AppLogManager.i(TAG, "深色风格切换: $style")
@@ -443,30 +484,18 @@ class SettingsRepository(private val context: Context) {
     }
 
     /** 主题模式的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
-    fun cachedThemeMode(): ThemeMode {
-        val cached = prefCache[THEME_MODE_KEY] as? String ?: return ThemeMode.SYSTEM
-        return try { ThemeMode.valueOf(cached) } catch (_: IllegalArgumentException) { ThemeMode.SYSTEM }
-    }
+    fun cachedThemeMode(): ThemeMode = cachedEnumOrDefault(THEME_MODE_KEY, DEFAULT_THEME_MODE)
 
     /** 深色风格的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
-    fun cachedDarkStyle(): DarkStyle {
-        val cached = prefCache[DARK_STYLE_KEY] as? String ?: return DarkStyle.BOOST
-        return try { DarkStyle.valueOf(cached) } catch (_: IllegalArgumentException) { DarkStyle.BOOST }
-    }
+    fun cachedDarkStyle(): DarkStyle = cachedEnumOrDefault(DARK_STYLE_KEY, DEFAULT_DARK_STYLE)
 
     /** 图标包：Material Symbols（默认）/ Lucide */
-    val iconPack: Flow<IconPack> = preferenceFlow(ICON_PACK_KEY, IconPack.MATERIAL_SYMBOLS.name)
-        .map { packString ->
-            try { IconPack.valueOf(packString) } catch (_: IllegalArgumentException) { IconPack.MATERIAL_SYMBOLS }
-        }
+    val iconPack: Flow<IconPack> = enumPreference(ICON_PACK_KEY, DEFAULT_ICON_PACK)
 
     suspend fun setIconPack(pack: IconPack) = setPreference(ICON_PACK_KEY, pack.name)
 
     /** 图标包的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
-    fun cachedIconPack(): IconPack {
-        val cached = prefCache[ICON_PACK_KEY] as? String ?: return IconPack.MATERIAL_SYMBOLS
-        return try { IconPack.valueOf(cached) } catch (_: IllegalArgumentException) { IconPack.MATERIAL_SYMBOLS }
-    }
+    fun cachedIconPack(): IconPack = cachedEnumOrDefault(ICON_PACK_KEY, DEFAULT_ICON_PACK)
 
     val showFavorites: Flow<Boolean> = preferenceFlow(SHOW_FAVORITES_KEY, false)
 
@@ -480,39 +509,26 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowSchedule(show: Boolean) = setPreference(SHOW_SCHEDULE_KEY, show)
 
-    val navigationStyle: Flow<NavigationStyle> = preferenceFlow(NAVIGATION_STYLE_KEY, NavigationStyle.CAPSULE.name)
-        .map { styleString ->
-            try { NavigationStyle.valueOf(styleString) } catch (_: IllegalArgumentException) { NavigationStyle.CAPSULE }
-        }
+    val navigationStyle: Flow<NavigationStyle> = enumPreference(NAVIGATION_STYLE_KEY, DEFAULT_NAVIGATION_STYLE)
 
     suspend fun setNavigationStyle(style: NavigationStyle) = setPreference(NAVIGATION_STYLE_KEY, style.name)
 
-    val fabLocation: Flow<FabLocation> = preferenceFlow(FAB_LOCATION_KEY, FabLocation.NAV_BAR.name)
-        .map { locationString ->
-            try { FabLocation.valueOf(locationString) } catch (_: IllegalArgumentException) { FabLocation.NAV_BAR }
-        }
+    val fabLocation: Flow<FabLocation> = enumPreference(FAB_LOCATION_KEY, DEFAULT_FAB_LOCATION)
 
     suspend fun setFabLocation(location: FabLocation) = setPreference(FAB_LOCATION_KEY, location.name)
 
-    val navigationLabelMode: Flow<NavigationLabelMode> = preferenceFlow(NAVIGATION_LABEL_MODE_KEY, NavigationLabelMode.ICON_AND_TEXT.name)
-        .map { modeString ->
-            try { NavigationLabelMode.valueOf(modeString) } catch (_: IllegalArgumentException) { NavigationLabelMode.ICON_AND_TEXT }
-        }
+    val navigationLabelMode: Flow<NavigationLabelMode> =
+        enumPreference(NAVIGATION_LABEL_MODE_KEY, DEFAULT_NAVIGATION_LABEL_MODE)
 
     suspend fun setNavigationLabelMode(mode: NavigationLabelMode) = setPreference(NAVIGATION_LABEL_MODE_KEY, mode.name)
 
     /** 导航栏标签模式的同步缓存值：作为 collectAsState 初始值，
      *  避免 MainOverlay 路由重建时先闪现默认「图标+文字」再跳变为已选模式 */
-    fun cachedNavigationLabelMode(): NavigationLabelMode {
-        val cached = prefCache[NAVIGATION_LABEL_MODE_KEY] as? String ?: return NavigationLabelMode.ICON_AND_TEXT
-        return try { NavigationLabelMode.valueOf(cached) } catch (_: IllegalArgumentException) { NavigationLabelMode.ICON_AND_TEXT }
-    }
+    fun cachedNavigationLabelMode(): NavigationLabelMode =
+        cachedEnumOrDefault(NAVIGATION_LABEL_MODE_KEY, DEFAULT_NAVIGATION_LABEL_MODE)
 
     /** 界面外壳材质档位：标准 / 高级模糊（haze 毛玻璃）/ 液态玻璃（backdrop 折射），默认标准 */
-    val chromeStyle: Flow<ChromeStyle> = preferenceFlow(CHROME_STYLE_KEY, ChromeStyle.STANDARD.name)
-        .map { styleString ->
-            ChromeStyle.entries.firstOrNull { it.name == styleString } ?: ChromeStyle.STANDARD
-        }
+    val chromeStyle: Flow<ChromeStyle> = enumPreference(CHROME_STYLE_KEY, DEFAULT_CHROME_STYLE)
 
     suspend fun setChromeStyle(style: ChromeStyle) {
         AppLogManager.i(TAG, "界面材质切换: $style")
@@ -520,42 +536,55 @@ class SettingsRepository(private val context: Context) {
     }
 
     /** 界面风格的同步缓存值：作为 CompositionLocal 初值，避免冷启动首帧闪变 */
-    fun cachedChromeStyle(): ChromeStyle {
-        val cached = prefCache[CHROME_STYLE_KEY] as? String ?: return ChromeStyle.STANDARD
-        return ChromeStyle.entries.firstOrNull { it.name == cached } ?: ChromeStyle.STANDARD
-    }
+    fun cachedChromeStyle(): ChromeStyle = cachedEnumOrDefault(CHROME_STYLE_KEY, DEFAULT_CHROME_STYLE)
 
     /** 导航栏四周背景模糊（类 iOS Tab Bar 底部磨砂区域），默认开启；液态玻璃与高级模糊档共用 */
     val capsuleLiquidGlassBackdropBlurEnabled: Flow<Boolean> =
-        preferenceFlow(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, true)
+        preferenceFlow(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, DEFAULT_CAPSULE_LIQUID_GLASS_BACKDROP_BLUR)
     suspend fun setCapsuleLiquidGlassBackdropBlurEnabled(enabled: Boolean) =
         setPreference(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, enabled)
     /** 导航栏背景模糊的同步缓存值：作为 collectAsState 初始值，避免首帧闪变 */
     fun cachedCapsuleLiquidGlassBackdropBlur(): Boolean =
-        prefCache[CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY] as? Boolean ?: true
+        cachedOrDefault(CAPSULE_LIQUID_GLASS_BACKDROP_BLUR_KEY, DEFAULT_CAPSULE_LIQUID_GLASS_BACKDROP_BLUR)
 
     /** 主页顶栏下滑隐藏，默认关闭。开启后向下滑动列表收起顶栏，搜索/添加按钮转为组合悬浮按钮 */
-    val hideTopBarOnScrollEnabled: Flow<Boolean> = preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, false)
+    val hideTopBarOnScrollEnabled: Flow<Boolean> =
+        preferenceFlow(HIDE_TOPBAR_ON_SCROLL_KEY, DEFAULT_HIDE_TOPBAR_ON_SCROLL)
 
     suspend fun setHideTopBarOnScrollEnabled(enabled: Boolean) = setPreference(HIDE_TOPBAR_ON_SCROLL_KEY, enabled)
 
     /** 「下滑隐藏顶部栏」的同步缓存值：作为 collectAsState 的初始值，
      *  避免设置页首帧先渲染默认关闭态、下一帧才跳变为已开启的闪变（缓存未就绪时退回默认值） */
-    fun cachedHideTopBarOnScroll(): Boolean = prefCache[HIDE_TOPBAR_ON_SCROLL_KEY] as? Boolean ?: false
+    fun cachedHideTopBarOnScroll(): Boolean =
+        cachedOrDefault(HIDE_TOPBAR_ON_SCROLL_KEY, DEFAULT_HIDE_TOPBAR_ON_SCROLL)
+
+    /** 主页顶栏底部两角是否圆角，默认开启 */
+    val topBarRounded: Flow<Boolean> = preferenceFlow(TOP_BAR_ROUNDED_KEY, DEFAULT_TOP_BAR_ROUNDED)
+
+    suspend fun setTopBarRounded(enabled: Boolean) = setPreference(TOP_BAR_ROUNDED_KEY, enabled)
+
+    /** 顶栏圆角开关的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedTopBarRounded(): Boolean =
+        cachedOrDefault(TOP_BAR_ROUNDED_KEY, DEFAULT_TOP_BAR_ROUNDED)
+
+    /** 主页顶栏是否跟随界面外壳材质档位使用毛玻璃/液态玻璃，默认开启 */
+    val topBarGlassThemeEnabled: Flow<Boolean> =
+        preferenceFlow(TOP_BAR_GLASS_THEME_KEY, DEFAULT_TOP_BAR_GLASS_THEME)
+
+    suspend fun setTopBarGlassThemeEnabled(enabled: Boolean) = setPreference(TOP_BAR_GLASS_THEME_KEY, enabled)
+
+    /** 顶栏玻璃材质开关的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
+    fun cachedTopBarGlassThemeEnabled(): Boolean =
+        cachedOrDefault(TOP_BAR_GLASS_THEME_KEY, DEFAULT_TOP_BAR_GLASS_THEME)
 
     /** 顶栏收起后的状态栏处理方式，默认留白遮罩（仅「下滑隐藏顶栏」开启时生效） */
-    val statusBarMode: Flow<StatusBarMode> = preferenceFlow(STATUS_BAR_MODE_KEY, StatusBarMode.SCRIM.name)
-        .map { modeString ->
-            try { StatusBarMode.valueOf(modeString) } catch (_: IllegalArgumentException) { StatusBarMode.SCRIM }
-        }
+    val statusBarMode: Flow<StatusBarMode> = enumPreference(STATUS_BAR_MODE_KEY, DEFAULT_STATUS_BAR_MODE)
 
     suspend fun setStatusBarMode(mode: StatusBarMode) = setPreference(STATUS_BAR_MODE_KEY, mode.name)
 
     /** 状态栏处理方式的同步缓存值：作为 collectAsState 的初始值，避免首帧闪变 */
-    fun cachedStatusBarMode(): StatusBarMode {
-        val cached = prefCache[STATUS_BAR_MODE_KEY] as? String ?: return StatusBarMode.SCRIM
-        return try { StatusBarMode.valueOf(cached) } catch (_: IllegalArgumentException) { StatusBarMode.SCRIM }
-    }
+    fun cachedStatusBarMode(): StatusBarMode =
+        cachedEnumOrDefault(STATUS_BAR_MODE_KEY, DEFAULT_STATUS_BAR_MODE)
 
     /** 高级模糊半径（dp），默认 24 */
     val advancedBlurRadius: Flow<Float> = preferenceFlow(ADVANCED_BLUR_RADIUS_KEY, DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -577,13 +606,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAdvancedBlurNoise(noise: Float) = setPreference(ADVANCED_BLUR_NOISE_KEY, noise.coerceIn(0f, 1f))
 
-    val customGreeting: Flow<String> = preferenceFlow(CUSTOM_GREETING_KEY, "")
+    val customGreeting: Flow<String> = preferenceFlow(CUSTOM_GREETING_KEY, DEFAULT_CUSTOM_GREETING)
 
     suspend fun setCustomGreeting(greeting: String) = setPreference(CUSTOM_GREETING_KEY, greeting)
 
     /** 自定义欢迎语同步缓存：MainOverlay 随路由切换销毁重建，collectAsState("")
      * 的空初始值会使欢迎语瞬态解析为随机前缀，与已播放标记不匹配导致重播动画 */
-    fun cachedCustomGreeting(): String = prefCache[CUSTOM_GREETING_KEY] as? String ?: ""
+    fun cachedCustomGreeting(): String = cachedOrDefault(CUSTOM_GREETING_KEY, DEFAULT_CUSTOM_GREETING)
 
     val autoCompleteEnabled: Flow<Boolean> = preferenceFlow(AUTO_COMPLETE_KEY, true)
 
@@ -603,12 +632,14 @@ class SettingsRepository(private val context: Context) {
      * 保证升级后行为与原开关一致
      */
     val greetingEffectStyle: Flow<GreetingEffectStyle> = flow {
-        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)?.let { emit(GreetingEffectStyle.fromName(it)) }
+        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)
+            ?.let { enumValueOrDefault(it, DEFAULT_GREETING_EFFECT_STYLE) }
+            ?.let { emit(it) }
         emitAll(
             context.dataStore.data.map { prefs ->
-                prefs[GREETING_EFFECT_STYLE_KEY]?.let { GreetingEffectStyle.fromName(it) }
+                prefs[GREETING_EFFECT_STYLE_KEY]?.let { enumValueOrDefault(it, DEFAULT_GREETING_EFFECT_STYLE) }
                     ?: if (prefs[GREETING_TYPING_EFFECT_KEY] == false) GreetingEffectStyle.NONE
-                       else GreetingEffectStyle.TYPING
+                       else DEFAULT_GREETING_EFFECT_STYLE
             }
         )
     }.distinctUntilChanged()
@@ -618,8 +649,9 @@ class SettingsRepository(private val context: Context) {
 
     /** 入场效果同步缓存：避免 MainOverlay 重建瞬态默认值使已关闭的效果误触发动画 */
     fun cachedGreetingEffectStyle(): GreetingEffectStyle =
-        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)?.let { GreetingEffectStyle.fromName(it) }
-            ?: GreetingEffectStyle.TYPING
+        (prefCache[GREETING_EFFECT_STYLE_KEY] as? String)
+            ?.let { enumValueOrDefault(it, DEFAULT_GREETING_EFFECT_STYLE) }
+            ?: DEFAULT_GREETING_EFFECT_STYLE
 
     val showUpdateBanner: Flow<Boolean> = preferenceFlow(SHOW_UPDATE_BANNER_KEY, true)
 
@@ -648,11 +680,7 @@ class SettingsRepository(private val context: Context) {
 
     /** 卡片→详情页状态角标转场策略，默认 [StatusBadgeTransitionMode.FLY_TO_TITLE]（与线上既有行为一致） */
     val statusBadgeTransitionMode: Flow<StatusBadgeTransitionMode> =
-        preferenceFlow(STATUS_BADGE_TRANSITION_MODE_KEY, StatusBadgeTransitionMode.FLY_TO_TITLE.name)
-            .map { modeString ->
-                StatusBadgeTransitionMode.entries.firstOrNull { it.name == modeString }
-                    ?: StatusBadgeTransitionMode.FLY_TO_TITLE
-            }
+        enumPreference(STATUS_BADGE_TRANSITION_MODE_KEY, DEFAULT_STATUS_BADGE_TRANSITION_MODE)
 
     suspend fun setStatusBadgeTransitionMode(mode: StatusBadgeTransitionMode) {
         AppLogManager.i(TAG, "状态角标转场切换: $mode")
@@ -660,44 +688,29 @@ class SettingsRepository(private val context: Context) {
     }
 
     /** 状态角标转场策略的同步缓存值：作为 collectAsState 初值，避免冷启动首帧按默认策略渲染再跳变 */
-    fun cachedStatusBadgeTransitionMode(): StatusBadgeTransitionMode {
-        val cached = prefCache[STATUS_BADGE_TRANSITION_MODE_KEY] as? String
-            ?: return StatusBadgeTransitionMode.FLY_TO_TITLE
-        return StatusBadgeTransitionMode.entries.firstOrNull { it.name == cached }
-            ?: StatusBadgeTransitionMode.FLY_TO_TITLE
-    }
+    fun cachedStatusBadgeTransitionMode(): StatusBadgeTransitionMode =
+        cachedEnumOrDefault(STATUS_BADGE_TRANSITION_MODE_KEY, DEFAULT_STATUS_BADGE_TRANSITION_MODE)
 
     /** 卡片信息栏左槽位字段，默认观看进度 */
-    val cardInfoLeftField: Flow<CardInfoField> =
-        preferenceFlow(CARD_INFO_LEFT_KEY, CardInfoField.PROGRESS.name)
-            .map { runCatching { CardInfoField.valueOf(it) }.getOrDefault(CardInfoField.PROGRESS) }
+    val cardInfoLeftField: Flow<CardInfoField> = enumPreference(CARD_INFO_LEFT_KEY, DEFAULT_CARD_INFO_LEFT)
 
     suspend fun setCardInfoLeftField(field: CardInfoField) = setPreference(CARD_INFO_LEFT_KEY, field.name)
 
     /** 卡片信息栏右槽位字段，默认评分 */
-    val cardInfoRightField: Flow<CardInfoField> =
-        preferenceFlow(CARD_INFO_RIGHT_KEY, CardInfoField.RATING.name)
-            .map { runCatching { CardInfoField.valueOf(it) }.getOrDefault(CardInfoField.RATING) }
+    val cardInfoRightField: Flow<CardInfoField> = enumPreference(CARD_INFO_RIGHT_KEY, DEFAULT_CARD_INFO_RIGHT)
 
     suspend fun setCardInfoRightField(field: CardInfoField) = setPreference(CARD_INFO_RIGHT_KEY, field.name)
 
     /** 卡片左槽位的同步缓存值：作为 CompositionLocal 初值，避免冷启动首帧按默认字段渲染再跳变 */
     fun cachedCardInfoLeftField(): CardInfoField =
-        (prefCache[CARD_INFO_LEFT_KEY] as? String)
-            ?.let { runCatching { CardInfoField.valueOf(it) }.getOrNull() }
-            ?: CardInfoField.PROGRESS
+        cachedEnumOrDefault(CARD_INFO_LEFT_KEY, DEFAULT_CARD_INFO_LEFT)
 
     /** 卡片右槽位的同步缓存值 */
     fun cachedCardInfoRightField(): CardInfoField =
-        (prefCache[CARD_INFO_RIGHT_KEY] as? String)
-            ?.let { runCatching { CardInfoField.valueOf(it) }.getOrNull() }
-            ?: CardInfoField.RATING
+        cachedEnumOrDefault(CARD_INFO_RIGHT_KEY, DEFAULT_CARD_INFO_RIGHT)
 
     /** 主界面列表排序方式（默认为自动排序，历史持久化值沿用 RECENT_PROGRESS） */
-    val listSortMode: Flow<ListSortMode> = preferenceFlow(LIST_SORT_MODE_KEY, ListSortMode.RECENT_PROGRESS.name)
-        .map { modeString ->
-            try { ListSortMode.valueOf(modeString) } catch (_: IllegalArgumentException) { ListSortMode.RECENT_PROGRESS }
-        }
+    val listSortMode: Flow<ListSortMode> = enumPreference(LIST_SORT_MODE_KEY, DEFAULT_LIST_SORT_MODE)
 
     suspend fun setListSortMode(mode: ListSortMode) {
         AppLogManager.i(TAG, "列表排序方式切换: $mode")
@@ -709,9 +722,7 @@ class SettingsRepository(private val context: Context) {
      * 不能等 DataStore 首读，故与 [cachedChromeStyle] 一样读 prefCache。
      */
     fun cachedListSortMode(): ListSortMode =
-        (prefCache[LIST_SORT_MODE_KEY] as? String)
-            ?.let { runCatching { ListSortMode.valueOf(it) }.getOrNull() }
-            ?: ListSortMode.RECENT_PROGRESS
+        cachedEnumOrDefault(LIST_SORT_MODE_KEY, DEFAULT_LIST_SORT_MODE)
 
     /**
      * 堆叠卡片顶层页码记忆：系列 stableKey（"series_<第一季id>"）→ 顶层索引。
@@ -750,8 +761,7 @@ class SettingsRepository(private val context: Context) {
 
 
     /** 评分标准：使用源评分或手动打分，默认使用源评分 */
-    val ratingStandard: Flow<RatingStandard> = preferenceFlow(RATING_STANDARD_KEY, RatingStandard.SOURCE.name)
-        .map { runCatching { RatingStandard.valueOf(it) }.getOrDefault(RatingStandard.SOURCE) }
+    val ratingStandard: Flow<RatingStandard> = enumPreference(RATING_STANDARD_KEY, DEFAULT_RATING_STANDARD)
 
     suspend fun setRatingStandard(standard: RatingStandard) = setPreference(RATING_STANDARD_KEY, standard.name)
 
@@ -829,7 +839,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     /** 崩溃上报开关的内存缓存值（导出诊断快照时同步读取） */
-    fun cachedCrashReportEnabled(): Boolean = prefCache[CRASH_REPORT_ENABLED_KEY] as? Boolean ?: true
+    fun cachedCrashReportEnabled(): Boolean =
+        cachedOrDefault(CRASH_REPORT_ENABLED_KEY, DEFAULT_CRASH_REPORT_ENABLED)
 
     /** 首启「帮助改进应用」弹窗是否已展示（展示过即不再弹） */
     val helpImproveDialogShown: Flow<Boolean> = preferenceFlow(HELP_IMPROVE_DIALOG_SHOWN_KEY, false)
@@ -885,8 +896,9 @@ class SettingsRepository(private val context: Context) {
     val httpProxyEnabledFlow: Flow<Boolean> = preferenceFlow(HTTP_PROXY_ENABLED_KEY, false)
     val httpProxyHostFlow: Flow<String> = preferenceFlow(HTTP_PROXY_HOST_KEY, DEFAULT_HTTP_PROXY_HOST)
     val httpProxyPortFlow: Flow<Int> = preferenceFlow(HTTP_PROXY_PORT_KEY, DEFAULT_HTTP_PROXY_PORT)
-    val httpProxyTypeFlow: Flow<ProxyType> = preferenceFlow(HTTP_PROXY_TYPE_KEY, DEFAULT_HTTP_PROXY_TYPE)
-        .map { parseProxyType(it) }
+    val httpProxyTypeFlow: Flow<ProxyType> =
+        preferenceFlow(HTTP_PROXY_TYPE_KEY, DEFAULT_HTTP_PROXY_TYPE)
+            .map { enumValueOrDefault(it, DEFAULT_PROXY_TYPE) }
     val httpProxyUsernameFlow: Flow<String> = preferenceFlow(HTTP_PROXY_USERNAME_KEY, DEFAULT_HTTP_PROXY_USERNAME)
     val httpProxyPasswordFlow: Flow<String> = preferenceFlow(HTTP_PROXY_PASSWORD_KEY, DEFAULT_HTTP_PROXY_PASSWORD)
 
@@ -924,9 +936,9 @@ class SettingsRepository(private val context: Context) {
         httpProxyPassword = password
     }
 
-    /** 存储值解析为 ProxyType，非法值兜底 HTTP */
+    /** 存储值解析为 ProxyType，非法值兜底默认代理类型 */
     private fun parseProxyType(value: String): ProxyType =
-        try { ProxyType.valueOf(value) } catch (_: IllegalArgumentException) { ProxyType.HTTP }
+        enumValueOrDefault(value, DEFAULT_PROXY_TYPE)
 
     val userAuthBaseUrlFlow: Flow<String> = preferenceFlow(USER_AUTH_BASE_URL_KEY, DEFAULT_USER_AUTH_BASE_URL)
 
@@ -989,7 +1001,7 @@ class SettingsRepository(private val context: Context) {
 
     /** 每日更新通知开关的内存缓存值（导出诊断快照时同步读取） */
     fun cachedUpdateNotificationEnabled(): Boolean =
-        prefCache[UPDATE_NOTIFICATION_ENABLED_KEY] as? Boolean ?: false
+        cachedOrDefault(UPDATE_NOTIFICATION_ENABLED_KEY, DEFAULT_UPDATE_NOTIFICATION_ENABLED)
 
     val updateNotificationHour: Flow<Int> = preferenceFlow(UPDATE_NOTIFICATION_HOUR_KEY, 9)
 
@@ -1009,8 +1021,7 @@ class SettingsRepository(private val context: Context) {
 
     /** 外部播放目标选择方式（自动 / Animeko / 哔哩哔哩 / 每次询问） */
     val externalPlayMode: Flow<ExternalPlayMode> =
-        preferenceFlow(EXTERNAL_PLAY_MODE_KEY, ExternalPlayMode.AUTO.name)
-            .map { runCatching { ExternalPlayMode.valueOf(it) }.getOrDefault(ExternalPlayMode.AUTO) }
+        enumPreference(EXTERNAL_PLAY_MODE_KEY, DEFAULT_EXTERNAL_PLAY_MODE)
     suspend fun setExternalPlayMode(mode: ExternalPlayMode) = setPreference(EXTERNAL_PLAY_MODE_KEY, mode.name)
 
     // ---- 播放器专属 WebDAV（与备份同步的 webdavUrl 三件套互不影响）----

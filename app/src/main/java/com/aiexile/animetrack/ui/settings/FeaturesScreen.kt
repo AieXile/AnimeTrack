@@ -16,7 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -49,24 +49,24 @@ fun FeaturesScreen(
 
     val scope = rememberCoroutineScope()
 
-    val autoCompleteEnabled by settingsRepository.autoCompleteEnabled.collectAsState(true)
-    val completedToastEnabled by settingsRepository.completedToastEnabled.collectAsState(true)
-    val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
-    val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsState(true)
-    val feedbackReplyPillEnabled by settingsRepository.feedbackReplyPillEnabled.collectAsState(true)
-    val showCalendarButton by settingsRepository.showCalendarButton.collectAsState(true)
-    val showDailyBroadcastButton by settingsRepository.showDailyBroadcastButton.collectAsState(true)
-    val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsState(false)
+    val autoCompleteEnabled by settingsRepository.autoCompleteEnabled.collectAsStateWithLifecycle(true)
+    val completedToastEnabled by settingsRepository.completedToastEnabled.collectAsStateWithLifecycle(true)
+    val showSearchButton by settingsRepository.showSearchButton.collectAsStateWithLifecycle(true)
+    val showUpdateBanner by settingsRepository.showUpdateBanner.collectAsStateWithLifecycle(true)
+    val feedbackReplyPillEnabled by settingsRepository.feedbackReplyPillEnabled.collectAsStateWithLifecycle(true)
+    val showCalendarButton by settingsRepository.showCalendarButton.collectAsStateWithLifecycle(true)
+    val showDailyBroadcastButton by settingsRepository.showDailyBroadcastButton.collectAsStateWithLifecycle(true)
+    val seriesStackEnabled by settingsRepository.seriesStackEnabled.collectAsStateWithLifecycle(false)
     val statusBadgeTransitionMode by settingsRepository.statusBadgeTransitionMode
-        .collectAsState(settingsRepository.cachedStatusBadgeTransitionMode())
+        .collectAsStateWithLifecycle(settingsRepository.cachedStatusBadgeTransitionMode())
     val cardInfoLeftField by settingsRepository.cardInfoLeftField
-        .collectAsState(settingsRepository.cachedCardInfoLeftField())
+        .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoLeftField())
     val cardInfoRightField by settingsRepository.cardInfoRightField
-        .collectAsState(settingsRepository.cachedCardInfoRightField())
-    val ratingStandard by settingsRepository.ratingStandard.collectAsState(RatingStandard.SOURCE)
-    val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsState(true)
-    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(false)
-    val externalPlayMode by settingsRepository.externalPlayMode.collectAsState(ExternalPlayMode.AUTO)
+        .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoRightField())
+    val ratingStandard by settingsRepository.ratingStandard.collectAsStateWithLifecycle(RatingStandard.SOURCE)
+    val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsStateWithLifecycle(true)
+    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsStateWithLifecycle(false)
+    val externalPlayMode by settingsRepository.externalPlayMode.collectAsStateWithLifecycle(ExternalPlayMode.AUTO)
 
     // 外部播放目标候选：自动/Animeko/哔哩哔哩/每次询问
     val externalPlayModeOptions = listOf(

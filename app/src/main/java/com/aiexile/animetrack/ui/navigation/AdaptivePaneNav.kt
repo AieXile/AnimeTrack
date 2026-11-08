@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalConfiguration
@@ -36,12 +38,18 @@ import androidx.navigation.compose.rememberNavController
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.detail.AnimeDetailScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackHistoryScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackScreen
 import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
+import com.aiexile.animetrack.ui.update.UpdateViewModel
+import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.schedule.DailyBroadcastScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
@@ -212,6 +220,12 @@ internal fun SideNavLayout(
     paneWidth: Dp,
     settingsRepository: SettingsRepository,
     homeViewModel: com.aiexile.animetrack.ui.home.HomeViewModel,
+    gridState: LazyGridState,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager,
     hazeState: HazeState,
     navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
@@ -256,6 +270,12 @@ internal fun SideNavLayout(
                     settingsRepository = settingsRepository,
                     navigationStyle = NavigationStyle.BOTTOM,
                     homeViewModel = homeViewModel,
+                    gridState = gridState,
+                    updateViewModel = updateViewModel,
+                    announcementViewModel = announcementViewModel,
+                    authManager = authManager,
+                    bilibiliAuthManager = bilibiliAuthManager,
+                    userAuthManager = userAuthManager,
                     onNavigateToScreen = onNavigateToScreen,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
@@ -361,7 +381,8 @@ internal fun NavGraphBuilder.sharedDestinations(
                 isInPane = isInPane,
                 // pane 模式禁用 sharedElement 飞行动画（pane 展开动画已提供进入动效）
                 sharedTransitionScope = if (isInPane) null else sharedTransitionScope,
-                animatedVisibilityScope = if (isInPane) null else this@composable
+                animatedVisibilityScope = if (isInPane) null else this@composable,
+                settingsRepository = settingsRepository
             )
         }
     }
@@ -370,6 +391,7 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.ABOUT) {
         AboutScreen(
             onBack = navigateBack,
+            settingsRepository = settingsRepository,
             onNavigateDeveloper = { onNavigate(Routes.DEVELOPER) },
             onNavigatePrivacyPolicy = { onNavigate(Routes.PRIVACY_POLICY) }
         )
@@ -459,7 +481,8 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.UPDATE_NOTIFICATION) {
         UpdateNotificationScreen(
             settingsRepository = settingsRepository,
-            onBack = navigateBack
+            onBack = navigateBack,
+            userAuthManager = remember { AppContainer.getUserAuthManager() }
         )
     }
 
@@ -484,14 +507,19 @@ internal fun NavGraphBuilder.sharedDestinations(
             onNavigateBangumiLogin = { onNavigate(Routes.BANGUMI_LOGIN) },
             onNavigateBangumiAccount = { onNavigate(Routes.BANGUMI_ACCOUNT) },
             onNavigateUserLogin = { onNavigate(Routes.USER_LOGIN) },
-            settingsRepository = settingsRepository
+            settingsRepository = settingsRepository,
+            bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() },
+            authManager = remember { AppContainer.getAuthManager() },
+            userAuthManager = remember { AppContainer.getUserAuthManager() }
         )
     }
 
     // B站登录
     composable(Routes.BILIBILI_LOGIN) {
         BilibiliLoginScreen(
-            onBack = navigateBack
+            onBack = navigateBack,
+            bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() },
+            bilibiliSyncManager = remember { AppContainer.getBilibiliSyncManager() }
         )
     }
 
@@ -520,7 +548,9 @@ internal fun NavGraphBuilder.sharedDestinations(
             onBack = navigateBack,
             onNavigateRegister = { onNavigate(Routes.USER_REGISTER) },
             onNavigateForgotPassword = { onNavigate(Routes.FORGOT_PASSWORD) },
-            onNavigateEmailBind = { bindToken -> onNavigate(Routes.emailBind(bindToken)) }
+            onNavigateEmailBind = { bindToken -> onNavigate(Routes.emailBind(bindToken)) },
+            userAuthManager = remember { AppContainer.getUserAuthManager() },
+            animeRepository = remember { AppContainer.getAnimeRepository() }
         )
     }
 
@@ -538,7 +568,9 @@ internal fun NavGraphBuilder.sharedDestinations(
     ) {
         EmailBindScreen(
             bindToken = it.arguments?.getString("bindToken") ?: "",
-            onBack = navigateBack
+            onBack = navigateBack,
+            userAuthManager = remember { AppContainer.getUserAuthManager() },
+            animeRepository = remember { AppContainer.getAnimeRepository() }
         )
     }
 
@@ -603,6 +635,8 @@ internal fun NavGraphBuilder.sharedDestinations(
     composable(Routes.DEVELOPER) {
         DeveloperScreen(
             onBack = navigateBack,
+            settingsRepository = settingsRepository,
+            animeRepository = remember { AppContainer.getAnimeRepository() },
             // 重触发向导：大屏先收起 pane，向导为非 pane 路由会经 onNavigate 分流至全屏
             onNavigateToOnboarding = {
                 onClosePane()
@@ -618,14 +652,16 @@ internal fun NavGraphBuilder.sharedDestinations(
             onBack = navigateBack,
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
             onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
-            onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) }
+            onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
+            settingsRepository = settingsRepository
         )
     }
 
     // 播放器专属 WebDAV 配置（与备份同步独立）
     composable(Routes.PLAYER_WEBDAV_CONFIG) {
         com.aiexile.animetrack.ui.player.PlayerWebDavConfigScreen(
-            onBack = navigateBack
+            onBack = navigateBack,
+            settingsRepository = settingsRepository
         )
     }
 }

@@ -34,7 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +64,6 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
-import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.launch
 
 /** 账号面板中当前展开操作项的账号（同一时间只展开一个） */
@@ -76,11 +75,11 @@ fun AccountPanelDialog(
     onNavigateUserLogin: () -> Unit,
     onNavigateBilibiliLogin: () -> Unit,
     onNavigateBangumiLogin: () -> Unit,
-    onNavigateBangumiAccount: () -> Unit
+    onNavigateBangumiAccount: () -> Unit,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager
 ) {
-    val authManager = remember { AppContainer.getAuthManager() }
-    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-    val userAuthManager = remember { AppContainer.getUserAuthManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -89,21 +88,21 @@ fun AccountPanelDialog(
     val accountManagementText = stringResource(R.string.account_panel_account_management)
     val logoutText = stringResource(R.string.account_panel_logout)
 
-    val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
-    val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
-    val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
-    val bangumiExpired by authManager.tokenExpired.collectAsState(initial = false)
-    val customAvatarUri by authManager.customAvatarUri.collectAsState(initial = null)
+    val bangumiLoggedIn by authManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bangumiNickname by authManager.userNickname.collectAsStateWithLifecycle(initialValue = null)
+    val bangumiAvatar by authManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val bangumiExpired by authManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
+    val customAvatarUri by authManager.customAvatarUri.collectAsStateWithLifecycle(initialValue = null)
 
-    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
-    val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
-    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
-    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
+    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsStateWithLifecycle(initialValue = null)
+    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
 
-    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-    val userUsername by userAuthManager.username.collectAsState(initial = null)
-    val userAvatarPath by userAuthManager.avatar.collectAsState(initial = null)
-    val userExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+    val userLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val userUsername by userAuthManager.username.collectAsStateWithLifecycle(initialValue = null)
+    val userAvatarPath by userAuthManager.avatar.collectAsStateWithLifecycle(initialValue = null)
+    val userExpired by userAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
     // 服务器头像存储的是相对路径，需拼接为完整 URL
     val userAvatar = userAvatarPath?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 

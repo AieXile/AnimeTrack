@@ -25,7 +25,7 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,8 +47,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.aiexile.animetrack.R
-import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
 import kotlinx.coroutines.launch
@@ -61,22 +63,23 @@ fun LoginScreen(
     onNavigateBangumiLogin: () -> Unit,
     onNavigateBangumiAccount: () -> Unit = {},
     onNavigateUserLogin: () -> Unit = {},
-    settingsRepository: SettingsRepository? = null
+    settingsRepository: SettingsRepository? = null,
+    bilibiliAuthManager: BilibiliAuthManager,
+    authManager: AuthManager,
+    userAuthManager: UserAuthManager
 ) {
-    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
-    val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
-    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
-    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
+    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bilibiliNickname by bilibiliAuthManager.userNickname.collectAsStateWithLifecycle(initialValue = null)
+    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val bilibiliExpired by bilibiliAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
 
-    val authManager = remember { AppContainer.getAuthManager() }
-    val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
-    val bangumiNickname by authManager.userNickname.collectAsState(initial = null)
-    val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
-    val bangumiExpired by authManager.tokenExpired.collectAsState(initial = false)
+    val bangumiLoggedIn by authManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bangumiNickname by authManager.userNickname.collectAsStateWithLifecycle(initialValue = null)
+    val bangumiAvatar by authManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val bangumiExpired by authManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
 
     val scope = rememberCoroutineScope()
-    val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
+    val hideAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsStateWithLifecycle(false) ?: remember { mutableStateOf(false) })
 
     // 搜索定位：高亮目标项并滚动到位
     val highlightKey = rememberSettingsHighlight(Routes.LOGIN)
@@ -110,11 +113,10 @@ fun LoginScreen(
             )
         ) {
             item {
-                val userAuthManager = remember { AppContainer.getUserAuthManager() }
-                val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-                val userUsername by userAuthManager.username.collectAsState(initial = null)
-                val userAvatar by userAuthManager.avatar.collectAsState(initial = null)
-                val userExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+                val userLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+                val userUsername by userAuthManager.username.collectAsStateWithLifecycle(initialValue = null)
+                val userAvatar by userAuthManager.avatar.collectAsStateWithLifecycle(initialValue = null)
+                val userExpired by userAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
                 // 服务器头像存储的是相对路径，需拼接为完整 URL
                 val userAvatarUrl = userAvatar?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
 

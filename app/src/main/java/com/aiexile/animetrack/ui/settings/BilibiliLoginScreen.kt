@@ -44,7 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,11 +66,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.BilibiliFollowItem
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
-import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.util.QrCodeGenerator
 import kotlinx.coroutines.CancellationException
@@ -82,19 +82,19 @@ private const val MAX_QR_RETRY = 3
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BilibiliLoginScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    bilibiliAuthManager: BilibiliAuthManager,
+    bilibiliSyncManager: BilibiliSyncManager
 ) {
-    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-    val bilibiliSyncManager = remember { AppContainer.getBilibiliSyncManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val isLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
-    val tokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
-    val userAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
-    val userNickname by bilibiliAuthManager.userNickname.collectAsState(initial = null)
-    val lastSyncTime by bilibiliAuthManager.lastSyncTime.collectAsState(initial = 0L)
-    val autoSyncEnabled by bilibiliAuthManager.bilibiliAutoSync.collectAsState(initial = false)
+    val isLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val tokenExpired by bilibiliAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
+    val userAvatar by bilibiliAuthManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val userNickname by bilibiliAuthManager.userNickname.collectAsStateWithLifecycle(initialValue = null)
+    val lastSyncTime by bilibiliAuthManager.lastSyncTime.collectAsStateWithLifecycle(initialValue = 0L)
+    val autoSyncEnabled by bilibiliAuthManager.bilibiliAutoSync.collectAsStateWithLifecycle(initialValue = false)
 
     var qrCodeUrl by remember { mutableStateOf<String?>(null) }
     var qrCodeKey by remember { mutableStateOf<String?>(null) }

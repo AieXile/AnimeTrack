@@ -24,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -49,6 +49,7 @@ import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_OPEN
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_PENDING
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.sse.SseEvent
 import com.aiexile.animetrack.di.AppContainer
@@ -81,7 +82,8 @@ data class AdminFeedbackUiState(
  * SSE 监听用户新反馈事件（feedback_message）：前台停留时静默刷新当前筛选页。
  */
 class AdminFeedbackViewModel(
-    private val repository: AdminFeedbackRepository
+    private val repository: AdminFeedbackRepository,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminFeedbackUiState())
@@ -91,7 +93,7 @@ class AdminFeedbackViewModel(
         refresh()
         // 用户发新反馈时实时刷新（当前会话外的新反馈也刷新列表摘要）
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter {
                     it.type == SseEventTypes.FEEDBACK_MESSAGE ||
                         it.type == SseEventTypes.FEEDBACK_FORWARDED
@@ -154,7 +156,10 @@ class AdminFeedbackViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AdminFeedbackViewModel(AppContainer.getAdminFeedbackRepository()) as T
+            return AdminFeedbackViewModel(
+                AppContainer.getAdminFeedbackRepository(),
+                AppContainer.getSseClient()
+            ) as T
         }
     }
 }
@@ -170,7 +175,7 @@ fun AdminFeedbackScreen(
     onOpenSession: (String) -> Unit
 ) {
     val viewModel: AdminFeedbackViewModel = viewModel(factory = AdminFeedbackViewModel.Factory())
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     // 滚动接近底部时加载下一页

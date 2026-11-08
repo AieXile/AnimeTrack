@@ -1,38 +1,13 @@
 package com.aiexile.animetrack.ui.settings
 
-import androidx.compose.foundation.background
-import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.icons.AppIcon
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,22 +15,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.DeviceInfo
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.ChangeEmailRequest
+import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.network.ChangePasswordRequest
 import com.aiexile.animetrack.data.network.DeviceSession
 import com.aiexile.animetrack.data.network.EmailCodePurpose
@@ -66,14 +37,15 @@ import com.aiexile.animetrack.data.network.UserAuthLoginRequest
 import com.aiexile.animetrack.data.network.UserAuthLogoutRequest
 import com.aiexile.animetrack.data.network.serverErrorJson
 import com.aiexile.animetrack.data.network.serverMessage
-import com.aiexile.animetrack.di.AppContainer
-import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.push.PushRegistrationHelper
-import com.aiexile.animetrack.ui.components.SquircleShape
-import com.aiexile.animetrack.ui.components.VerificationCodeField
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
-import com.aiexile.animetrack.ui.components.dialogBlurBehind
-import androidx.compose.runtime.LaunchedEffect
+import com.aiexile.animetrack.ui.settings.login.AccountActionsSection
+import com.aiexile.animetrack.ui.settings.login.AccountProfileSection
+import com.aiexile.animetrack.ui.settings.login.ChangeEmailDialogSection
+import com.aiexile.animetrack.ui.settings.login.ChangePasswordDialogSection
+import com.aiexile.animetrack.ui.settings.login.DeviceManageSection
+import com.aiexile.animetrack.ui.settings.login.DevicePickerSection
+import com.aiexile.animetrack.ui.settings.login.LoginFormSection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -90,20 +62,21 @@ fun UserLoginScreen(
     onBack: () -> Unit,
     onNavigateRegister: () -> Unit,
     onNavigateForgotPassword: () -> Unit,
-    onNavigateEmailBind: (bindToken: String) -> Unit
+    onNavigateEmailBind: (bindToken: String) -> Unit,
+    userAuthManager: UserAuthManager,
+    animeRepository: AnimeRepository
 ) {
-    val userAuthManager = remember { AppContainer.getUserAuthManager() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-    val tokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
-    val userId by userAuthManager.userId.collectAsState(initial = null)
-    val username by userAuthManager.username.collectAsState(initial = null)
-    val email by userAuthManager.email.collectAsState(initial = null)
-    val createdAt by userAuthManager.createdAt.collectAsState(initial = null)
-    val avatar by userAuthManager.avatar.collectAsState(initial = null)
-    val userLevel by userAuthManager.userLevel.collectAsState(initial = null)
+    val isLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val tokenExpired by userAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
+    val userId by userAuthManager.userId.collectAsStateWithLifecycle(initialValue = null)
+    val username by userAuthManager.username.collectAsStateWithLifecycle(initialValue = null)
+    val email by userAuthManager.email.collectAsStateWithLifecycle(initialValue = null)
+    val createdAt by userAuthManager.createdAt.collectAsStateWithLifecycle(initialValue = null)
+    val avatar by userAuthManager.avatar.collectAsStateWithLifecycle(initialValue = null)
+    val userLevel by userAuthManager.userLevel.collectAsStateWithLifecycle(initialValue = null)
 
     var inputUsername by remember { mutableStateOf("") }
     var inputPassword by remember { mutableStateOf("") }
@@ -394,7 +367,7 @@ fun UserLoginScreen(
         // 登录成功后拉取后端订阅列表，同步到本地数据库
         // 使用应用级协程，避免登录后 UI 切换导致同步被取消
         try {
-            AppContainer.getAnimeRepository().triggerSyncSubscriptionsFromServer()
+            animeRepository.triggerSyncSubscriptionsFromServer()
         } catch (e: Exception) {
             AppLogManager.w("UserLogin", "登录后触发订阅同步失败（非致命）", e)
         }
@@ -564,213 +537,42 @@ fun UserLoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoggedIn && !tokenExpired) {
-                Spacer(modifier = Modifier.height(20.dp))
-                // 已登录状态 - 头像区域（可点击上传）
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .clickable(enabled = !isUploadingAvatar) {
-                            pickImageLauncher.launch("image/*")
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    val avatarUrl = avatar?.let { "https://www.aiexile.top$it" }
-                    if (avatarUrl != null) {
-                        AsyncImage(
-                            model = avatarUrl,
-                            contentDescription = stringResource(R.string.user_login_avatar),
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                            contentDescription = null,
-                            modifier = Modifier.padding(16.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    if (isUploadingAvatar) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-                avatarError?.let { err ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = err,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = username ?: stringResource(R.string.user_login_user_default),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
+                AccountProfileSection(
+                    avatar = avatar,
+                    isUploadingAvatar = isUploadingAvatar,
+                    avatarError = avatarError,
+                    username = username,
+                    userId = userId,
+                    email = email,
+                    createdAt = createdAt,
+                    userLevel = userLevel,
+                    onAvatarClick = { pickImageLauncher.launch("image/*") },
+                    animeRepository = animeRepository
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                // 用户 ID + 内测/正式版用户标识（ID ≤ 36 为内测用户，之后为正式版用户）
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    userId?.let { id ->
-                        Text(
-                            text = stringResource(R.string.user_login_user_id, id),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (userId != null) {
-                        val uid = userId!!
-                        val isBetaUser = uid <= 36
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = SquircleShape(6.dp),
-                            color = if (isBetaUser) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceContainerHighest
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    if (isBetaUser) R.string.user_login_beta_badge
-                                    else R.string.user_login_official_badge
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isBetaUser) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                        // 贡献等级徽章（服务端下发 level，含 0 即展示；样式与内测徽章同款）
-                        userLevel?.let { level ->
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                shape = SquircleShape(6.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.user_login_level_badge, level),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = email ?: stringResource(R.string.user_login_email_not_set),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (createdAt != null) {
-                    // 注册时间显示到日（截取 yyyy-MM-dd 部分）
-                    val joinedDate = createdAt!!.take(10)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.user_login_joined_date, joinedDate),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                // 追番统计栏：单容器四分栏（总追番/在看/计划/已看完）
-                val statusCounts by remember {
-                    AppContainer.getAnimeRepository().getStatusCounts()
-                }.collectAsState(initial = emptyList())
-                Spacer(modifier = Modifier.height(24.dp))
-                Surface(
-                    shape = SquircleShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val countsMap = statusCounts.associate { it.status to it.count }
-                    val watchingCount = countsMap[AnimeStatus.WATCHING] ?: 0
-                    val plannedCount = countsMap[AnimeStatus.PLANNED] ?: 0
-                    val completedCount = countsMap[AnimeStatus.COMPLETED] ?: 0
-                    val totalCount = watchingCount + plannedCount + completedCount +
-                        (countsMap[AnimeStatus.DROPPED] ?: 0)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        StatItem(count = totalCount, label = stringResource(R.string.user_login_stat_total), isPrimary = false, modifier = Modifier.weight(1f))
-                        StatDivider()
-                        StatItem(count = watchingCount, label = stringResource(R.string.user_login_stat_watching), isPrimary = true, modifier = Modifier.weight(1f))
-                        StatDivider()
-                        StatItem(count = plannedCount, label = stringResource(R.string.user_login_stat_planned), isPrimary = false, modifier = Modifier.weight(1f))
-                        StatDivider()
-                        StatItem(count = completedCount, label = stringResource(R.string.user_login_stat_completed), isPrimary = false, modifier = Modifier.weight(1f))
-                    }
-                }
-                // 账号安全：列表行
-                Spacer(modifier = Modifier.height(16.dp))
-                Surface(
-                    shape = SquircleShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        SecurityRow(
-                            icon = { Icon(rememberAppIconPainter(AppIcon.DEVICES), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
-                            label = stringResource(R.string.device_manage_title),
-                            trailing = deviceCount?.let { stringResource(R.string.device_manage_count_format, it) },
-                            onClick = {
-                                showDeviceManageDialog = true
-                                refreshDevices()
-                            }
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 52.dp),
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                        SecurityRow(
-                            icon = { Icon(rememberAppIconPainter(AppIcon.LOCK), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
-                            label = stringResource(R.string.user_login_change_password),
-                            onClick = {
-                                showChangePasswordDialog = true
-                                oldPassword = ""
-                                newPassword = ""
-                                confirmNewPassword = ""
-                                changePwdCode = ""
-                                changePasswordError = null
-                            }
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 52.dp),
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant
-                        )
-                        SecurityRow(
-                            icon = { Icon(rememberAppIconPainter(AppIcon.MAIL), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) },
-                            label = stringResource(R.string.user_login_change_email),
-                            onClick = {
-                                showChangeEmailDialog = true
-                                changeEmailPassword = ""
-                                changeEmailNewEmail = ""
-                                changeEmailCode = ""
-                                changeEmailError = null
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-                OutlinedButton(
-                    onClick = {
-                        if (isLoggingOut) return@OutlinedButton
+                AccountActionsSection(
+                    deviceCount = deviceCount,
+                    isLoggingOut = isLoggingOut,
+                    onManageDevices = {
+                        showDeviceManageDialog = true
+                        refreshDevices()
+                    },
+                    onChangePassword = {
+                        showChangePasswordDialog = true
+                        oldPassword = ""
+                        newPassword = ""
+                        confirmNewPassword = ""
+                        changePwdCode = ""
+                        changePasswordError = null
+                    },
+                    onChangeEmail = {
+                        showChangeEmailDialog = true
+                        changeEmailPassword = ""
+                        changeEmailNewEmail = ""
+                        changeEmailCode = ""
+                        changeEmailError = null
+                    },
+                    onLogout = logout@{
+                        if (isLoggingOut) return@logout
                         isLoggingOut = true
                         scope.launch(Dispatchers.IO) {
                             try {
@@ -796,126 +598,21 @@ fun UserLoginScreen(
                             }
                         }
                     },
-                    enabled = !isLoggingOut,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
-                    border = ButtonDefaults.outlinedButtonBorder(enabled = true),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isLoggingOut) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    } else {
-                        Text(stringResource(R.string.user_login_logout))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                // 注销账号入口（危险操作，红色弱化展示）
-                TextButton(
-                    onClick = { showDeleteAccount = true },
-                    enabled = !isLoggingOut
-                ) {
-                    Text(
-                        text = stringResource(R.string.user_login_delete_account),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
+                    onDeleteAccount = { showDeleteAccount = true }
+                )
             } else {
-                // 未登录 / token 已失效（强制重新登录）
-                if (tokenExpired) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(SquircleShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
-                    ) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ERROR),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.token_expired_form_hint),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-                Spacer(modifier = Modifier.height(40.dp))
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.ACCOUNT_CIRCLE),
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                LoginFormSection(
+                    tokenExpired = tokenExpired,
+                    username = inputUsername,
+                    onUsernameChange = { inputUsername = it },
+                    password = inputPassword,
+                    onPasswordChange = { inputPassword = it },
+                    errorMessage = errorMessage,
+                    isLoading = isLoading,
+                    onSubmit = { performLogin() },
+                    onNavigateRegister = onNavigateRegister,
+                    onNavigateForgotPassword = onNavigateForgotPassword
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-                OutlinedTextField(
-                    value = inputUsername,
-                    onValueChange = { inputUsername = it },
-                    label = { Text(stringResource(R.string.user_login_username)) },
-                    singleLine = true,
-                    shape = SquircleShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = inputPassword,
-                    onValueChange = { inputPassword = it },
-                    label = { Text(stringResource(R.string.user_login_password)) },
-                    singleLine = true,
-                    shape = SquircleShape(12.dp),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                errorMessage?.let { msg ->
-                    Text(
-                        text = msg,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { performLogin() },
-                    enabled = !isLoading && inputUsername.isNotBlank() && inputPassword.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text(stringResource(R.string.user_login_login))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                TextButton(onClick = onNavigateRegister) {
-                    Text(stringResource(R.string.user_login_no_account_register))
-                }
-                TextButton(onClick = onNavigateForgotPassword) {
-                    Text(
-                        text = stringResource(R.string.user_login_forgot_password),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -930,7 +627,7 @@ fun UserLoginScreen(
                     try {
                         if (clearLocalData) {
                             // 清空本机追番数据（Room anime 表）
-                            AppContainer.getAnimeDatabase().animeDao().deleteAllAnimes()
+                            animeRepository.deleteAllAnimes()
                         }
                     } catch (e: Exception) {
                         AppLogManager.w("UserLogin", "注销账号后清理本地数据失败（非致命）", e)
@@ -956,442 +653,212 @@ fun UserLoginScreen(
         )
     }
 
-    // 修改密码 Dialog
-    if (showChangePasswordDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!isChangingPassword) showChangePasswordDialog = false
-            },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.user_login_change_password),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = oldPassword,
-                        onValueChange = { oldPassword = it },
-                        label = { Text(stringResource(R.string.user_login_old_password)) },
-                        singleLine = true,
-                        shape = SquircleShape(12.dp),
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        enabled = !isChangingPassword,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = { Text(stringResource(R.string.user_login_new_password)) },
-                        placeholder = { Text(stringResource(R.string.user_login_password_min_hint)) },
-                        singleLine = true,
-                        shape = SquircleShape(12.dp),
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        enabled = !isChangingPassword,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = confirmNewPassword,
-                        onValueChange = { confirmNewPassword = it },
-                        label = { Text(stringResource(R.string.user_login_confirm_new_password)) },
-                        singleLine = true,
-                        shape = SquircleShape(12.dp),
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        enabled = !isChangingPassword,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    VerificationCodeField(
-                        code = changePwdCode,
-                        onCodeChange = { changePwdCode = it },
-                        onSendCode = { sendChangePasswordCode() },
-                        isSending = isSendingChangePwdCode,
-                        enabled = !isChangingPassword
-                    )
-                    changePasswordError?.let { err ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = err,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // 本地校验
-                        if (oldPassword.isBlank()) {
-                            changePasswordError = context.getString(R.string.user_login_enter_old_password)
-                            return@TextButton
-                        }
-                        if (newPassword.length < 6) {
-                            changePasswordError = context.getString(R.string.user_login_password_too_short)
-                            return@TextButton
-                        }
-                        if (newPassword != confirmNewPassword) {
-                            changePasswordError = context.getString(R.string.user_login_password_mismatch)
-                            return@TextButton
-                        }
-                        if (newPassword == oldPassword) {
-                            changePasswordError = context.getString(R.string.user_login_password_same_as_old)
-                            return@TextButton
-                        }
-                        if (changePwdCode.isBlank()) {
-                            changePasswordError = context.getString(R.string.verification_code_required)
-                            return@TextButton
-                        }
-
-                        if (isChangingPassword) return@TextButton
-                        isChangingPassword = true
-                        changePasswordError = null
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val response = RetrofitClient.userAuthApi.changePassword(
-                                    ChangePasswordRequest(
-                                        oldPassword = oldPassword,
-                                        newPassword = newPassword,
-                                        code = changePwdCode.trim()
-                                    )
-                                )
-                                if (response.success) {
-                                    withContext(Dispatchers.Main) {
-                                        isChangingPassword = false
-                                        showChangePasswordDialog = false
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        changePasswordError = response.message ?: context.getString(R.string.user_login_change_failed)
-                                        isChangingPassword = false
-                                    }
-                                }
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: HttpException) {
-                                AppLogManager.w("UserLogin", "修改密码失败: HTTP ${e.code()}", e)
-                                withContext(Dispatchers.Main) {
-                                    changePasswordError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
-                                    isChangingPassword = false
-                                }
-                            } catch (e: Exception) {
-                                AppLogManager.e("UserLogin", "修改密码请求异常", e)
-                                withContext(Dispatchers.Main) {
-                                    changePasswordError = context.getString(R.string.user_login_network_error)
-                                    isChangingPassword = false
-                                }
-                            }
-                        }
-                    },
-                    enabled = !isChangingPassword
-                ) {
-                    if (isChangingPassword) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(R.string.user_login_confirm_change))
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        if (!isChangingPassword) showChangePasswordDialog = false
-                    },
-                    enabled = !isChangingPassword
-                ) {
-                    Text(stringResource(R.string.common_cancel))
-                }
+    ChangePasswordDialogSection(
+        visible = showChangePasswordDialog,
+        oldPassword = oldPassword,
+        onOldPasswordChange = { oldPassword = it },
+        newPassword = newPassword,
+        onNewPasswordChange = { newPassword = it },
+        confirmNewPassword = confirmNewPassword,
+        onConfirmNewPasswordChange = { confirmNewPassword = it },
+        code = changePwdCode,
+        onCodeChange = { changePwdCode = it },
+        onSendCode = { sendChangePasswordCode() },
+        isSendingCode = isSendingChangePwdCode,
+        errorMessage = changePasswordError,
+        isChanging = isChangingPassword,
+        onConfirm = changePassword@{
+            // 本地校验
+            if (oldPassword.isBlank()) {
+                changePasswordError = context.getString(R.string.user_login_enter_old_password)
+                return@changePassword
             }
-        )
-    }
-
-    // 更换邮箱 Dialog
-    if (showChangeEmailDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!isChangingEmail) showChangeEmailDialog = false
-            },
-            modifier = Modifier.dialogBlurBehind(),
-            shape = SquircleShape(24.dp),
-            title = {
-                Text(
-                    text = stringResource(R.string.user_login_change_email),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = changeEmailPassword,
-                        onValueChange = { changeEmailPassword = it },
-                        label = { Text(stringResource(R.string.user_login_current_password)) },
-                        singleLine = true,
-                        shape = SquircleShape(12.dp),
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        enabled = !isChangingEmail,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = changeEmailNewEmail,
-                        onValueChange = { changeEmailNewEmail = it },
-                        label = { Text(stringResource(R.string.user_login_new_email)) },
-                        singleLine = true,
-                        shape = SquircleShape(12.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        enabled = !isChangingEmail,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    VerificationCodeField(
-                        code = changeEmailCode,
-                        onCodeChange = { changeEmailCode = it },
-                        onSendCode = { sendChangeEmailCode() },
-                        isSending = isSendingChangeEmailCode,
-                        enabled = !isChangingEmail
-                    )
-                    changeEmailError?.let { err ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = err,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // 本地校验
-                        if (changeEmailPassword.isBlank()) {
-                            changeEmailError = context.getString(R.string.user_login_enter_password)
-                            return@TextButton
-                        }
-                        if (changeEmailNewEmail.trim().isEmpty()) {
-                            changeEmailError = context.getString(R.string.user_login_enter_new_email)
-                            return@TextButton
-                        }
-                        if (changeEmailCode.isBlank()) {
-                            changeEmailError = context.getString(R.string.verification_code_required)
-                            return@TextButton
-                        }
-
-                        if (isChangingEmail) return@TextButton
-                        isChangingEmail = true
-                        changeEmailError = null
-                        scope.launch(Dispatchers.IO) {
-                            try {
-                                val response = RetrofitClient.userAuthApi.changeEmail(
-                                    ChangeEmailRequest(
-                                        password = changeEmailPassword,
-                                        newEmail = changeEmailNewEmail.trim(),
-                                        code = changeEmailCode.trim()
-                                    )
-                                )
-                                if (response.success) {
-                                    // 更新本地缓存的邮箱
-                                    if (response.email != null) {
-                                        userAuthManager.updateEmail(response.email)
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        isChangingEmail = false
-                                        showChangeEmailDialog = false
-                                    }
-                                } else {
-                                    withContext(Dispatchers.Main) {
-                                        changeEmailError = response.message ?: context.getString(R.string.user_login_change_failed)
-                                        isChangingEmail = false
-                                    }
-                                }
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: HttpException) {
-                                AppLogManager.w("UserLogin", "更换邮箱失败: HTTP ${e.code()}", e)
-                                withContext(Dispatchers.Main) {
-                                    changeEmailError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
-                                    isChangingEmail = false
-                                }
-                            } catch (e: Exception) {
-                                AppLogManager.e("UserLogin", "更换邮箱请求异常", e)
-                                withContext(Dispatchers.Main) {
-                                    changeEmailError = context.getString(R.string.user_login_network_error)
-                                    isChangingEmail = false
-                                }
-                            }
-                        }
-                    },
-                    enabled = !isChangingEmail
-                ) {
-                    if (isChangingEmail) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(R.string.user_login_confirm_change))
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        if (!isChangingEmail) showChangeEmailDialog = false
-                    },
-                    enabled = !isChangingEmail
-                ) {
-                    Text(stringResource(R.string.common_cancel))
-                }
+            if (newPassword.length < 6) {
+                changePasswordError = context.getString(R.string.user_login_password_too_short)
+                return@changePassword
             }
-        )
-    }
+            if (newPassword != confirmNewPassword) {
+                changePasswordError = context.getString(R.string.user_login_password_mismatch)
+                return@changePassword
+            }
+            if (newPassword == oldPassword) {
+                changePasswordError = context.getString(R.string.user_login_password_same_as_old)
+                return@changePassword
+            }
+            if (changePwdCode.isBlank()) {
+                changePasswordError = context.getString(R.string.verification_code_required)
+                return@changePassword
+            }
 
-    // 登录超限：选择要下线的设备后重试登录
-    if (showDevicePicker) {
-        DevicePickerDialog(
-            devices = pickerDevices,
-            onConfirm = { kickDeviceIds ->
-                showDevicePicker = false
-                if (kickDeviceIds.isNotEmpty()) {
-                    performLogin(kickDeviceIds)
-                }
-            },
-            onDismiss = { showDevicePicker = false }
-        )
-    }
-
-    // 已登录：登录设备管理（查看当前设备并下线）
-    if (showDeviceManageDialog) {
-        DeviceManageDialog(
-            devices = manageDevices,
-            revokingSessionId = revokingSessionId,
-            onRevoke = { device ->
-                if (revokingSessionId != null) return@DeviceManageDialog
-                revokingSessionId = device.sessionId
-                scope.launch(Dispatchers.IO) {
-                    var toastMessage: String? = null
-                    try {
-                        val response = RetrofitClient.userAuthApi.revokeDevice(
-                            RevokeDeviceRequest(sessionId = device.sessionId)
+            if (isChangingPassword) return@changePassword
+            isChangingPassword = true
+            changePasswordError = null
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val response = RetrofitClient.userAuthApi.changePassword(
+                        ChangePasswordRequest(
+                            oldPassword = oldPassword,
+                            newPassword = newPassword,
+                            code = changePwdCode.trim()
                         )
-                        if (response.success) {
-                            // 明确的成功反馈：被下线设备名 + 已下线提示
-                            toastMessage = context.getString(
-                                R.string.device_manage_revoke_success,
-                                device.deviceName
-                                    ?: context.getString(R.string.device_manage_unknown_device)
-                            )
-                            refreshDevices()
-                        } else {
-                            toastMessage = response.message
-                                ?: context.getString(R.string.device_manage_revoke_failed)
-                        }
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        AppLogManager.w("UserLogin", "撤销登录设备失败", e)
-                        toastMessage = context.getString(R.string.device_manage_revoke_failed)
-                    } finally {
+                    )
+                    if (response.success) {
                         withContext(Dispatchers.Main) {
-                            revokingSessionId = null
-                            toastMessage?.let {
-                                android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
-                            }
+                            isChangingPassword = false
+                            showChangePasswordDialog = false
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            changePasswordError = response.message ?: context.getString(R.string.user_login_change_failed)
+                            isChangingPassword = false
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: HttpException) {
+                    AppLogManager.w("UserLogin", "修改密码失败: HTTP ${e.code()}", e)
+                    withContext(Dispatchers.Main) {
+                        changePasswordError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
+                        isChangingPassword = false
+                    }
+                } catch (e: Exception) {
+                    AppLogManager.e("UserLogin", "修改密码请求异常", e)
+                    withContext(Dispatchers.Main) {
+                        changePasswordError = context.getString(R.string.user_login_network_error)
+                        isChangingPassword = false
+                    }
+                }
+            }
+        },
+        onDismiss = { showChangePasswordDialog = false }
+    )
+
+    ChangeEmailDialogSection(
+        visible = showChangeEmailDialog,
+        password = changeEmailPassword,
+        onPasswordChange = { changeEmailPassword = it },
+        newEmail = changeEmailNewEmail,
+        onNewEmailChange = { changeEmailNewEmail = it },
+        code = changeEmailCode,
+        onCodeChange = { changeEmailCode = it },
+        onSendCode = { sendChangeEmailCode() },
+        isSendingCode = isSendingChangeEmailCode,
+        errorMessage = changeEmailError,
+        isChanging = isChangingEmail,
+        onConfirm = changeEmail@{
+            // 本地校验
+            if (changeEmailPassword.isBlank()) {
+                changeEmailError = context.getString(R.string.user_login_enter_password)
+                return@changeEmail
+            }
+            if (changeEmailNewEmail.trim().isEmpty()) {
+                changeEmailError = context.getString(R.string.user_login_enter_new_email)
+                return@changeEmail
+            }
+            if (changeEmailCode.isBlank()) {
+                changeEmailError = context.getString(R.string.verification_code_required)
+                return@changeEmail
+            }
+
+            if (isChangingEmail) return@changeEmail
+            isChangingEmail = true
+            changeEmailError = null
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val response = RetrofitClient.userAuthApi.changeEmail(
+                        ChangeEmailRequest(
+                            password = changeEmailPassword,
+                            newEmail = changeEmailNewEmail.trim(),
+                            code = changeEmailCode.trim()
+                        )
+                    )
+                    if (response.success) {
+                        // 更新本地缓存的邮箱
+                        if (response.email != null) {
+                            userAuthManager.updateEmail(response.email)
+                        }
+                        withContext(Dispatchers.Main) {
+                            isChangingEmail = false
+                            showChangeEmailDialog = false
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            changeEmailError = response.message ?: context.getString(R.string.user_login_change_failed)
+                            isChangingEmail = false
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: HttpException) {
+                    AppLogManager.w("UserLogin", "更换邮箱失败: HTTP ${e.code()}", e)
+                    withContext(Dispatchers.Main) {
+                        changeEmailError = e.serverMessage() ?: context.getString(R.string.user_login_change_failed)
+                        isChangingEmail = false
+                    }
+                } catch (e: Exception) {
+                    AppLogManager.e("UserLogin", "更换邮箱请求异常", e)
+                    withContext(Dispatchers.Main) {
+                        changeEmailError = context.getString(R.string.user_login_network_error)
+                        isChangingEmail = false
+                    }
+                }
+            }
+        },
+        onDismiss = { showChangeEmailDialog = false }
+    )
+
+    DevicePickerSection(
+        visible = showDevicePicker,
+        devices = pickerDevices,
+        onConfirm = { kickDeviceIds ->
+            showDevicePicker = false
+            if (kickDeviceIds.isNotEmpty()) {
+                performLogin(kickDeviceIds)
+            }
+        },
+        onDismiss = { showDevicePicker = false }
+    )
+
+    DeviceManageSection(
+        visible = showDeviceManageDialog,
+        devices = manageDevices,
+        revokingSessionId = revokingSessionId,
+        onRevoke = revoke@{ device ->
+            if (revokingSessionId != null) return@revoke
+            revokingSessionId = device.sessionId
+            scope.launch(Dispatchers.IO) {
+                var toastMessage: String? = null
+                try {
+                    val response = RetrofitClient.userAuthApi.revokeDevice(
+                        RevokeDeviceRequest(sessionId = device.sessionId)
+                    )
+                    if (response.success) {
+                        // 明确的成功反馈：被下线设备名 + 已下线提示
+                        toastMessage = context.getString(
+                            R.string.device_manage_revoke_success,
+                            device.deviceName
+                                ?: context.getString(R.string.device_manage_unknown_device)
+                        )
+                        refreshDevices()
+                    } else {
+                        toastMessage = response.message
+                            ?: context.getString(R.string.device_manage_revoke_failed)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    AppLogManager.w("UserLogin", "撤销登录设备失败", e)
+                    toastMessage = context.getString(R.string.device_manage_revoke_failed)
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        revokingSessionId = null
+                        toastMessage?.let {
+                            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
-            },
-            onDismiss = { showDeviceManageDialog = false }
-        )
-    }
-}
-
-/** 追番统计栏的单项（数字 + 标签，在看项用主题色强调） */
-@Composable
-private fun StatItem(
-    count: Int,
-    label: String,
-    isPrimary: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = if (isPrimary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-/** 追番统计栏的分隔细线 */
-@Composable
-private fun StatDivider() {
-    Box(
-        modifier = Modifier
-            .size(width = 0.5.dp, height = 28.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant)
+            }
+        },
+        onDismiss = { showDeviceManageDialog = false }
     )
-}
-
-/** 账号安全列表行（图标 + 标题 + 可选右侧文本 + 右箭头） */
-@Composable
-private fun SecurityRow(
-    icon: @Composable () -> Unit,
-    label: String,
-    onClick: () -> Unit,
-    trailing: String? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        icon()
-        Spacer(modifier = Modifier.width(14.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        if (trailing != null) {
-            Text(
-                text = trailing,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-        Icon(
-            painter = rememberAppIconPainter(AppIcon.KEYBOARD_ARROW_RIGHT),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
 }

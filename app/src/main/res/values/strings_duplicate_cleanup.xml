@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="duplicate_cleanup_group">本地数据清理</string>
+    <string name="duplicate_cleanup_title">清理同标题重复番剧</string>
+    <string name="duplicate_cleanup_subtitle">扫描同标题、同集数且都未绑定 Bangumi 的重复卡片，确认后才删除</string>
+    <string name="duplicate_cleanup_entry_subtitle">删除同标题多出来的卡片，同步身份会保留到留下的那张</string>
+    <string name="duplicate_cleanup_selected">已选 %1$d 张待清理</string>
+    <string name="duplicate_cleanup_keep">保留</string>
+    <string name="duplicate_cleanup_progress">已看 %1$d / %2$d</string>
+    <string name="duplicate_cleanup_updated">最近更新 %1$s</string>
+    <string name="duplicate_cleanup_empty">没有发现重复番剧</string>
+    <string name="duplicate_cleanup_loading">正在扫描…</string>
+    <string name="duplicate_cleanup_cleaning">正在清理…</string>
+    <string name="duplicate_cleanup_episode_count">共 %1$d 集</string>
+    <string name="duplicate_cleanup_confirm">开始清理</string>
+    <string name="duplicate_cleanup_cancel">取消</string>
+    <string name="duplicate_cleanup_close">完成</string>
+    <string name="duplicate_cleanup_result">已清理 %1$d 组、%2$d 张卡片，剩余 %3$d 组</string>
+    <string name="duplicate_cleanup_failed">清理中途失败，已完成的部分会保留，请稍后重试</string>
+</resources>

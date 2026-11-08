@@ -29,7 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +55,7 @@ import com.aiexile.animetrack.data.network.FeedbackSession
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -79,7 +80,8 @@ data class FeedbackSessionUiState(
  * 追加与主页共用发送接口，仅固定 sessionId。
  */
 class FeedbackSessionViewModel(
-    private val repository: FeedbackRepository
+    private val repository: FeedbackRepository,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedbackSessionUiState())
@@ -93,7 +95,7 @@ class FeedbackSessionViewModel(
     init {
         // SSE 管理员回复事件：停留在会话详情页时实时追加管理员回复（无需退出重进）
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter { it.type == SseEventTypes.FEEDBACK_REPLY && it.sessionId == sessionId }
                 .collect { refreshFromServer() }
         }
@@ -225,7 +227,10 @@ class FeedbackSessionViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return FeedbackSessionViewModel(AppContainer.getFeedbackRepository()) as T
+            return FeedbackSessionViewModel(
+                AppContainer.getFeedbackRepository(),
+                AppContainer.getSseClient()
+            ) as T
         }
     }
 }
@@ -241,8 +246,8 @@ fun FeedbackSessionScreen(
     onBack: () -> Unit
 ) {
     val viewModel: FeedbackSessionViewModel = viewModel(factory = FeedbackSessionViewModel.Factory())
-    val uiState by viewModel.uiState.collectAsState()
-    val sendError by viewModel.sendError.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sendError by viewModel.sendError.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var appendInputVisible by remember { mutableStateOf(false) }

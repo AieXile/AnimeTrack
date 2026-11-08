@@ -1,0 +1,329 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 28,
+    "identityHash": "4fae68a45b14bb4b80c2e858af992846",
+    "entities": [
+      {
+        "tableName": "anime",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `totalEpisodes` INTEGER NOT NULL, `watchedEpisodes` INTEGER NOT NULL, `status` TEXT NOT NULL, `rating` REAL, `notes` TEXT NOT NULL, `startDate` INTEGER, `finishDate` INTEGER, `coverUrl` TEXT, `airDate` TEXT, `airEndDate` TEXT, `summary` TEXT, `bangumiId` INTEGER, `airWeekday` INTEGER, `isFinished` INTEGER NOT NULL, `currentEpisodes` INTEGER NOT NULL, `hasNewUpdate` INTEGER NOT NULL, `syncRemarks` TEXT, `tmdbId` INTEGER, `seriesKey` TEXT, `seasonNumber` INTEGER, `remoteCoverUrl` TEXT, `summaryFetched` INTEGER, `airingStatusOverride` INTEGER, `lastProgressAt` INTEGER, `isPinned` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `remoteSyncId` TEXT, `serverSubscriptionId` TEXT, `bangumiMatchHintShown` INTEGER NOT NULL, `manualOrder` INTEGER, `bilibiliSeasonId` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalEpisodes",
+            "columnName": "totalEpisodes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "watchedEpisodes",
+            "columnName": "watchedEpisodes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "finishDate",
+            "columnName": "finishDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "coverUrl",
+            "columnName": "coverUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "airDate",
+            "columnName": "airDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "airEndDate",
+            "columnName": "airEndDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "summary",
+            "columnName": "summary",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bangumiId",
+            "columnName": "bangumiId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "airWeekday",
+            "columnName": "airWeekday",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isFinished",
+            "columnName": "isFinished",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentEpisodes",
+            "columnName": "currentEpisodes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasNewUpdate",
+            "columnName": "hasNewUpdate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncRemarks",
+            "columnName": "syncRemarks",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tmdbId",
+            "columnName": "tmdbId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "seriesKey",
+            "columnName": "seriesKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "seasonNumber",
+            "columnName": "seasonNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "remoteCoverUrl",
+            "columnName": "remoteCoverUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "summaryFetched",
+            "columnName": "summaryFetched",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "airingStatusOverride",
+            "columnName": "airingStatusOverride",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastProgressAt",
+            "columnName": "lastProgressAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "isPinned",
+            "columnName": "isPinned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteSyncId",
+            "columnName": "remoteSyncId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "serverSubscriptionId",
+            "columnName": "serverSubscriptionId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bangumiMatchHintShown",
+            "columnName": "bangumiMatchHintShown",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "manualOrder",
+            "columnName": "manualOrder",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bilibiliSeasonId",
+            "columnName": "bilibiliSeasonId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_anime_bangumiId",
+            "unique": true,
+            "columnNames": [
+              "bangumiId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_bangumiId` ON `${TABLE_NAME}` (`bangumiId`)"
+          },
+          {
+            "name": "index_anime_tmdbId",
+            "unique": true,
+            "columnNames": [
+              "tmdbId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_anime_tmdbId` ON `${TABLE_NAME}` (`tmdbId`)"
+          },
+          {
+            "name": "index_anime_title",
+            "unique": false,
+            "columnNames": [
+              "title"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_anime_title` ON `${TABLE_NAME}` (`title`)"
+          },
+          {
+            "name": "index_anime_coverUrl",
+            "unique": false,
+            "columnNames": [
+              "coverUrl"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_anime_coverUrl` ON `${TABLE_NAME}` (`coverUrl`)"
+          },
+          {
+            "name": "index_anime_isFinished_status",
+            "unique": false,
+            "columnNames": [
+              "isFinished",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_anime_isFinished_status` ON `${TABLE_NAME}` (`isFinished`, `status`)"
+          },
+          {
+            "name": "index_anime_seriesKey",
+            "unique": false,
+            "columnNames": [
+              "seriesKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_anime_seriesKey` ON `${TABLE_NAME}` (`seriesKey`)"
+          }
+        ]
+      },
+      {
+        "tableName": "pending_deletions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `animeId` TEXT NOT NULL, `keyType` TEXT NOT NULL, `groupKey` TEXT NOT NULL, `ownerKey` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "animeId",
+            "columnName": "animeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyType",
+            "columnName": "keyType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupKey",
+            "columnName": "groupKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerKey",
+            "columnName": "ownerKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pending_deletions_ownerKey_animeId",
+            "unique": true,
+            "columnNames": [
+              "ownerKey",
+              "animeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_pending_deletions_ownerKey_animeId` ON `${TABLE_NAME}` (`ownerKey`, `animeId`)"
+          },
+          {
+            "name": "index_pending_deletions_ownerKey_groupKey",
+            "unique": false,
+            "columnNames": [
+              "ownerKey",
+              "groupKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_deletions_ownerKey_groupKey` ON `${TABLE_NAME}` (`ownerKey`, `groupKey`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4fae68a45b14bb4b80c2e858af992846')"
+    ]
+  }
+}

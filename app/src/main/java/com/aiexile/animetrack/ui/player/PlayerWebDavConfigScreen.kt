@@ -23,7 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,17 +54,17 @@ import kotlinx.coroutines.launch
 @Composable
 fun PlayerWebDavConfigScreen(
     onBack: () -> Unit,
-    settingsRepository: SettingsRepository = remember { AppContainer.getSettingsRepository() }
+    settingsRepository: SettingsRepository
 ) {
     val scope = rememberCoroutineScope()
 
-    val savedUrl by settingsRepository.playerWebdavUrl.collectAsState(initial = "")
-    val savedUsername by settingsRepository.playerWebdavUsername.collectAsState(initial = "")
-    val savedPassword by settingsRepository.playerWebdavPassword.collectAsState(initial = "")
-    val trustAllCerts by settingsRepository.playerWebdavTrustAllCerts.collectAsState(initial = false)
-    val backupUrl by settingsRepository.webdavUrl.collectAsState(initial = "")
-    val backupUsername by settingsRepository.webdavUsername.collectAsState(initial = "")
-    val backupPassword by settingsRepository.webdavPassword.collectAsState(initial = "")
+    val savedUrl by settingsRepository.playerWebdavUrl.collectAsStateWithLifecycle(initialValue = "")
+    val savedUsername by settingsRepository.playerWebdavUsername.collectAsStateWithLifecycle(initialValue = "")
+    val savedPassword by settingsRepository.playerWebdavPassword.collectAsStateWithLifecycle(initialValue = "")
+    val trustAllCerts by settingsRepository.playerWebdavTrustAllCerts.collectAsStateWithLifecycle(initialValue = false)
+    val backupUrl by settingsRepository.webdavUrl.collectAsStateWithLifecycle(initialValue = "")
+    val backupUsername by settingsRepository.webdavUsername.collectAsStateWithLifecycle(initialValue = "")
+    val backupPassword by settingsRepository.webdavPassword.collectAsStateWithLifecycle(initialValue = "")
 
     // null = 未接管，直接展示存储中的值；用户编辑/导入后接管为本地草稿。
     // 这样既避免 DataStore 异步加载完成前的闪烁，也不会覆盖未编辑字段。

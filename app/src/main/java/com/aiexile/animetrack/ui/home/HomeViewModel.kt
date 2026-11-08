@@ -1,10 +1,6 @@
 package com.aiexile.animetrack.ui.home
 
 import android.util.Log
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,9 +9,11 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ListSortMode
 import com.aiexile.animetrack.data.RatingStandard
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.TmdbTvDetail
-import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.data.remote.FeedbackRepository
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.di.AppContainer
@@ -35,9 +33,11 @@ import com.aiexile.animetrack.util.titleSortKey
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -105,10 +105,13 @@ enum class AnimeFilter(val displayName: String) {
 class HomeViewModel(
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
-    val updateViewModel: UpdateViewModel,
-    val announcementViewModel: AnnouncementViewModel,
+    private val updateViewModel: UpdateViewModel,
+    private val announcementViewModel: AnnouncementViewModel,
     private val searchUseCase: SearchUseCase,
-    private val updateCheckUseCase: UpdateCheckUseCase
+    private val updateCheckUseCase: UpdateCheckUseCase,
+    private val feedbackRepository: FeedbackRepository,
+    private val sseClient: SseClient,
+    private val userAuthManager: UserAuthManager
 ) : ViewModel() {
     
     companion object {
@@ -125,18 +128,72 @@ class HomeViewModel(
         private val greetingPrefixes = listOf("Hi", "Hey", "Hello")
     }
     
-    val gridState = LazyGridState()
+    /**
+     * 网格滚动位置快照：Compose 层的 LazyGridState 在配置变更重建时由 UI 按快照恢复，
+     * ViewModel 只保存纯数据，不持有 Compose 类型。
+     */
+    @Volatile
+    private var gridScrollIndex: Int = 0
+
+    @Volatile
+    private var gridScrollOffset: Int = 0
+
+    fun savedGridScrollIndex(): Int = gridScrollIndex
+
+    fun savedGridScrollOffset(): Int = gridScrollOffset
+
+    fun updateGridScrollPosition(index: Int, offset: Int) {
+        gridScrollIndex = index
+        gridScrollOffset = offset
+    }
+
+    /** 滚回顶部的执行信号：由 UI 层的 LazyGridState 消费，ViewModel 不直接操作 Compose 状态 */
+    private val _scrollToTopRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val scrollToTopRequests = _scrollToTopRequests.asSharedFlow()
 
     /**
      * 主页顶栏是否被下滑隐藏（「下滑隐藏顶栏」开关开启时由滚动驱动）。
      * MainOverlay 中计算写入，HomeScreen 顶栏占位与 MainOverlay 顶栏/FAB 同步消费。
      * 搜索激活期间显隐冻结；列表滚回顶部时恢复显示。
      */
-    var isTopBarHidden by mutableStateOf(false)
-        private set
+    private val _isTopBarHidden = MutableStateFlow(false)
+    val isTopBarHidden: StateFlow<Boolean> = _isTopBarHidden.asStateFlow()
 
     fun updateTopBarHidden(hidden: Boolean) {
-        isTopBarHidden = hidden
+        if (_isTopBarHidden.value != hidden) _isTopBarHidden.value = hidden
+    }
+
+    // ── 反馈新回复胶囊 ────────────────────────────────────────────────
+    /** 「反馈新回复提醒」开关（设置中关闭后胶囊隐藏且不再请求接口） */
+    val feedbackReplyPillEnabled: StateFlow<Boolean> = settingsRepository.feedbackReplyPillEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
+    private val _hasFeedbackReply = MutableStateFlow(false)
+    val hasFeedbackReply: StateFlow<Boolean> = _hasFeedbackReply.asStateFlow()
+
+    /**
+     * 主页恢复可见/开关或登录态变化时刷新反馈胶囊。
+     * 条件不满足（非当前页 / 未登录 / 开关关闭）时直接熄灭，不发请求。
+     */
+    fun refreshFeedbackReply(visible: Boolean, userLoggedIn: Boolean) {
+        if (!visible || !userLoggedIn || !feedbackReplyPillEnabled.value) {
+            _hasFeedbackReply.value = false
+            return
+        }
+        viewModelScope.launch {
+            _hasFeedbackReply.value = feedbackRepository.hasNewReplies()
+        }
+    }
+
+    /** SSE 管理员回复事件：主页可见期间实时刷新胶囊（由 UI 层在满足条件时调用，协程随页面销毁取消） */
+    suspend fun observeFeedbackReplyEvents() {
+        sseClient.events
+            .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+            .collect { _hasFeedbackReply.value = feedbackRepository.hasNewReplies() }
     }
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -381,7 +438,7 @@ class HomeViewModel(
         // SSE 版本发布广播：立即重新检查更新（force 覆盖已有结果，
         // 让已打开 App 的用户第一时间收到新版本弹窗）
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter { it.type == SseEventTypes.APP_UPDATE }
                 .collect { updateViewModel.checkForUpdate(force = true) }
         }
@@ -863,7 +920,7 @@ class HomeViewModel(
      * - 主页卡片菜单改状态：卡片直接从可视区域消失；
      * - 详情页改进度/状态：返回时卡片不在可视区域，共享元素退出动画丢失。
      * 因此检测到变更立即滚回顶部。详情页打开期间 HomeScreen 虽未组合，
-     * 但 gridState 存活于本 ViewModel，scrollToItem 在脱离组合时记录目标位置，
+     * 但 LazyGridState 由 MainOverlay 所在组合持有，滚回顶部的执行信号仍会被消费，
      * 返回主页时网格自顶部开始组合，卡片位于首屏，退出动画正常匹配。
      *
      * 仅比对已有条目的 lastProgressAt（同步流程只改 status/进度不写此字段），
@@ -886,7 +943,9 @@ class HomeViewModel(
                     val mode = listSortMode.value
                     if (mode == ListSortMode.RECENT_PROGRESS) {
                         AppLogManager.i(SORT_LOG_TAG, "进度变更: 自动排序重排并滚回顶部（mode=$mode）")
-                        gridState.scrollToItem(index = 0)
+                        // 立即跳顶（非动画），即使 HomeScreen 未组合也生效；同步归零快照供重建恢复
+                        updateGridScrollPosition(0, 0)
+                        _scrollToTopRequests.tryEmit(Unit)
                     } else {
                         AppLogManager.i(SORT_LOG_TAG, "进度变更: 当前排序不受影响、不跳顶（mode=$mode）")
                     }
@@ -1314,18 +1373,27 @@ class HomeViewModel(
         }
     }
     
-    class Factory : ViewModelProvider.Factory {
+    class Factory(
+        private val updateViewModel: UpdateViewModel,
+        private val announcementViewModel: AnnouncementViewModel
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val repository = AppContainer.getAnimeRepository()
             val settingsRepository = AppContainer.getSettingsRepository()
-            val updateRepository = UpdateRepository()
-            val updateViewModel = UpdateViewModel(updateRepository, settingsRepository)
-            val userAuthManager = AppContainer.getUserAuthManager()
-            val announcementViewModel = AnnouncementViewModel(settingsRepository, userAuthManager)
             val searchUseCase = SearchUseCase(repository)
             val updateCheckUseCase = UpdateCheckUseCase(repository)
-            return HomeViewModel(repository, settingsRepository, updateViewModel, announcementViewModel, searchUseCase, updateCheckUseCase) as T
+            return HomeViewModel(
+                repository,
+                settingsRepository,
+                updateViewModel,
+                announcementViewModel,
+                searchUseCase,
+                updateCheckUseCase,
+                AppContainer.getFeedbackRepository(),
+                AppContainer.getSseClient(),
+                AppContainer.getUserAuthManager()
+            ) as T
         }
     }
 }

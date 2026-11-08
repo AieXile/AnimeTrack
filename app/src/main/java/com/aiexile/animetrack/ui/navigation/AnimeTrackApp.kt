@@ -21,7 +21,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +32,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +45,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -76,18 +80,23 @@ import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.StatusBarMode
+import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.remote.AnimeQuote
+import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeState
-import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.model.AuthSource
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import androidx.compose.ui.platform.LocalContext
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.update.UpdateViewModel
+import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.HazeNavBackdropBlur
@@ -95,8 +104,6 @@ import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
 import com.aiexile.animetrack.ui.components.SharedElementSpecs
 import com.aiexile.animetrack.ui.components.SideNavigationRail
-import com.aiexile.animetrack.ui.components.TokenExpiredBanner
-import com.aiexile.animetrack.ui.components.TopNoticeBanner
 import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.drawLiquidGlass
 import com.aiexile.animetrack.ui.theme.LocalChromeStyle
@@ -119,8 +126,6 @@ import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.EmailBindDialog
-import com.aiexile.animetrack.ui.settings.HelpImproveDialog
-import com.aiexile.animetrack.ui.settings.PrivacyConsentDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.player.PlayerScreen
 import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
@@ -149,21 +154,52 @@ fun AnimeTrackApp(
     widgetEntry: WidgetEntryRequest? = null,
     onWidgetEntryConsumed: () -> Unit = {}
 ) {
-    val showFavorites by settingsRepository.showFavorites.collectAsState(false)
-    val showTimeline by settingsRepository.showTimeline.collectAsState(true)
-    val showSchedule by settingsRepository.showSchedule.collectAsState(true)
+    val showFavorites by settingsRepository.showFavorites.collectAsStateWithLifecycle(false)
+    val showTimeline by settingsRepository.showTimeline.collectAsStateWithLifecycle(true)
+    val showSchedule by settingsRepository.showSchedule.collectAsStateWithLifecycle(true)
     val isPagerScrollEnabled = remember { mutableStateOf(true) }
-    val navigationStyle by settingsRepository.navigationStyle.collectAsState(NavigationStyle.BOTTOM)
+    val navigationStyle by settingsRepository.navigationStyle.collectAsStateWithLifecycle(NavigationStyle.BOTTOM)
     // 大屏适配：Medium/Expanded 宽度使用左侧导航栏（覆盖导航样式设置），Compact 保持原底部导航/胶囊导航
     val useSideNavigation = !isCompactWidth()
-    val fabLocation by settingsRepository.fabLocation.collectAsState(FabLocation.NAV_BAR)
-    val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsState(null)
+    val fabLocation by settingsRepository.fabLocation.collectAsStateWithLifecycle(FabLocation.NAV_BAR)
+    val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsStateWithLifecycle(null)
     // 隐私同意状态：null = 加载中；false = 未同意（首启弹窗模态覆盖）；true = 已同意
-    val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsState(null)
+    val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsStateWithLifecycle(null)
     // 首启「帮助改进应用」弹窗：隐私同意后展示一次（崩溃追踪开关选择）
-    val helpImproveDialogShown by settingsRepository.helpImproveDialogShown.collectAsState(null)
+    val helpImproveDialogShown by settingsRepository.helpImproveDialogShown.collectAsStateWithLifecycle(null)
 
-    val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory())
+    // 更新 / 公告两个子 ViewModel 由本层持有：HomeViewModel 只做编排，不再拥有它们
+    val updateViewModel: UpdateViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                UpdateViewModel(UpdateRepository(), settingsRepository) as T
+        }
+    )
+    val announcementViewModel: AnnouncementViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                AnnouncementViewModel(settingsRepository, AppContainer.getUserAuthManager()) as T
+        }
+    )
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.Factory(updateViewModel, announcementViewModel)
+    )
+    // 网格滚动状态由 Compose 层持有：跨路由存活，配置变更重建时按 ViewModel 快照恢复
+    val gridState = rememberLazyGridState(
+        initialFirstVisibleItemIndex = homeViewModel.savedGridScrollIndex(),
+        initialFirstVisibleItemScrollOffset = homeViewModel.savedGridScrollOffset()
+    )
+    // 持续回写滚动位置快照，供配置变更重建后恢复
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> homeViewModel.updateGridScrollPosition(index, offset) }
+    }
+    // 滚回顶部信号：即使 HomeScreen 未组合（详情页打开期间）也立即滚到顶部
+    LaunchedEffect(gridState, homeViewModel) {
+        homeViewModel.scrollToTopRequests.collect { gridState.scrollToItem(0) }
+    }
     val hazeState = rememberHazeState()
     val navBackdrop = rememberLayerBackdrop()
 
@@ -362,9 +398,10 @@ fun AnimeTrackApp(
     // 若已在其他设备绑定则回填本地邮箱，不弹窗。
     // 弹窗时序：等待启动的更新弹窗/公告弹窗全部结束后再显示，避免弹窗叠加。
     val userAuthManager = remember { AppContainer.getUserAuthManager() }
-    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-    val userEmail by userAuthManager.email.collectAsState(initial = null)
-    val startupDialogsActive by AppContainer.startupDialogsActive.collectAsState()
+    val userLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val userEmail by userAuthManager.email.collectAsStateWithLifecycle(initialValue = null)
+    val startupDialogsActive by AppContainer.startupDialogsActive.collectAsStateWithLifecycle()
+    val animeRepository = remember { AppContainer.getAnimeRepository() }
     var forceBindToken by remember { mutableStateOf<String?>(null) }
 
     // 登录成功（新会话）后立即上报 registrationId 绑定到该会话：
@@ -406,7 +443,9 @@ fun AnimeTrackApp(
                 forceBindToken = null
                 appScope.launch { userAuthManager.logout() }
             },
-            onBound = { forceBindToken = null }
+            onBound = { forceBindToken = null },
+            userAuthManager = userAuthManager,
+            animeRepository = animeRepository
         )
     }
 
@@ -416,10 +455,10 @@ fun AnimeTrackApp(
     // 设备被下线（服务端 kicked 标记）与普通过期共用此横幅，文案区分。
     val bangumiAuthManager = remember { AppContainer.getAuthManager() }
     val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-    val userTokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
-    val userTokenKicked by userAuthManager.tokenKicked.collectAsState(initial = false)
-    val bangumiTokenExpired by bangumiAuthManager.tokenExpired.collectAsState(initial = false)
-    val bilibiliTokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
+    val userTokenExpired by userAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
+    val userTokenKicked by userAuthManager.tokenKicked.collectAsStateWithLifecycle(initialValue = false)
+    val bangumiTokenExpired by bangumiAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
+    val bilibiliTokenExpired by bilibiliAuthManager.tokenExpired.collectAsStateWithLifecycle(initialValue = false)
 
     val expiredSources = buildSet {
         if (userTokenExpired) add(AuthSource.USER)
@@ -450,28 +489,23 @@ fun AnimeTrackApp(
                 ?.requestNotificationPermissionIfNeeded()
         }
     }
-    if (privacyAccepted == false) {
-        if (splashDismissed) {
-            PrivacyConsentDialog(
-                onAccept = {
-                    appScope.launch { settingsRepository.setPrivacyPolicyAccepted(true) }
-                }
-            )
-        }
-        return
-    }
-
-    // ===== 首启「帮助改进应用」弹窗（崩溃追踪开关） =====
-    // 隐私同意后展示一次；splash 未退出前不显示（同隐私弹窗：Dialog 独立 Window 会盖住 splash 遮罩）。
+    // 隐私政策 / 首启「帮助改进应用」弹窗（渲染见 GlobalDialogs）：
+    // 隐私弹窗仅在未同意且 splash 已退出后显示；首启弹窗在隐私同意后展示一次，
+    // splash 未退出前不显示（同隐私弹窗：Dialog 独立 Window 会盖住 splash 遮罩）。
     // null = 加载中，不弹；点击「确定」标记已展示，之后在「设置 → 功能」中调整
-    if (privacyAccepted == true && helpImproveDialogShown == false && splashDismissed) {
-        HelpImproveDialog(
-            settingsRepository = settingsRepository,
-            onConfirm = {
-                appScope.launch { settingsRepository.setHelpImproveDialogShown(true) }
-            }
-        )
-    }
+    GlobalDialogs(
+        privacyConsentVisible = privacyAccepted == false && splashDismissed,
+        onAcceptPrivacy = {
+            appScope.launch { settingsRepository.setPrivacyPolicyAccepted(true) }
+        },
+        helpImproveVisible = privacyAccepted == true && helpImproveDialogShown == false && splashDismissed,
+        settingsRepository = settingsRepository,
+        onConfirmHelpImprove = {
+            appScope.launch { settingsRepository.setHelpImproveDialogShown(true) }
+        }
+    )
+    // 未同意隐私政策：主界面不加载（仅保留上方模态同意弹窗，与原早退一致）
+    if (privacyAccepted == false) return
 
     // 等待初始路由确定
     val currentStartRoute = startRoute
@@ -480,6 +514,20 @@ fun AnimeTrackApp(
     // 跟踪 NavController 当前路由，供 MainOverlay 判断可见性
     val currentNavRoute by navController.currentBackStackEntryAsState()
     val isMainRoute = currentNavRoute?.destination?.route == Routes.MAIN
+
+    // ===== 主界面返回策略 =====
+    // 非首页页签（收藏/时间线/看板/设置）按返回先动画切回首页，首页再返回才交给系统退出；
+    // 大屏 pane 打开时仍优先关闭 pane（见 AdaptivePaneNav.kt）；
+    // 主页排序/搜索/多选、设置页搜索等页内状态由各自 BackHandler 消费（组合晚于本层，优先响应）
+    val homePageIndex = remember(mainPages) { mainPages.indexOfFirst { it.route == "home" } }
+    BackHandler(
+        enabled = homePageIndex >= 0 && isMainRoute && !paneState.isPaneVisible &&
+            (pagerState.currentPage != homePageIndex || pagerState.targetPage != homePageIndex)
+    ) {
+        // 复用 Tab 点击的动画跳转；切回动画进行中重复按返回会被 onTabNavigate 拒绝，
+        // 仅消费本次按键，避免动画未完成时第二次返回直接退出应用
+        mainPages.getOrNull(homePageIndex)?.let { onTabNavigate(it.route) }
+    }
 
     // 用户操作路径埋点：全屏路由变化写入反馈日志（AppLogManager），
     // 崩溃或异常反馈时可还原用户所在页面与导航轨迹
@@ -554,6 +602,12 @@ fun AnimeTrackApp(
                         paneWidth = paneState.paneWidth,
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
+                        gridState = gridState,
+                        updateViewModel = updateViewModel,
+                        announcementViewModel = announcementViewModel,
+                        authManager = bangumiAuthManager,
+                        bilibiliAuthManager = bilibiliAuthManager,
+                        userAuthManager = userAuthManager,
                         hazeState = hazeState,
                         navBackdrop = navBackdrop,
                         onNavigateToScreen = onNavigateToScreen,
@@ -610,6 +664,7 @@ fun AnimeTrackApp(
                 mainPages = mainPages,
                 pagerState = pagerState,
                 homeViewModel = homeViewModel,
+                gridState = gridState,
                 hazeState = hazeState,
                 settingsRepository = settingsRepository,
                 fabLocation = fabLocation,
@@ -624,14 +679,6 @@ fun AnimeTrackApp(
 
         // Token 失效横幅：置顶悬浮；避开沉浸式页面（播放器/WebDAV 浏览）
         // 与启动更新/公告弹窗期间，避免视觉冲突
-        val bannerText = when {
-            bannerVisibleSources == setOf(AuthSource.USER) && userTokenKicked ->
-                stringResource(R.string.token_expired_banner_kicked)
-            bannerVisibleSources.size == 1 ->
-                stringResource(R.string.token_expired_banner_single, bannerVisibleSources.first().displayName)
-            else ->
-                stringResource(R.string.token_expired_banner_multi, bannerVisibleSources.size)
-        }
         val bannerActuallyVisible = bannerVisibleSources.isNotEmpty() &&
                 !startupDialogsActive &&
                 !isImmersiveRoute(currentNavRoute?.destination?.route)
@@ -646,7 +693,7 @@ fun AnimeTrackApp(
 
         // 彩蛋语录横幅：全局状态驱动（AboutScreen 触发），展示 4 秒后自动消失，
         // 层级在顶层，切换界面不丢失
-        val easterEggQuote by AppContainer.easterEggQuote.collectAsState()
+        val easterEggQuote by AppContainer.easterEggQuote.collectAsStateWithLifecycle()
         // 缓存最近一条语录，退出动画期间内容不闪空
         var lastEasterEggQuote by remember { mutableStateOf<AnimeQuote?>(null) }
         LaunchedEffect(easterEggQuote) {
@@ -661,7 +708,7 @@ fun AnimeTrackApp(
         // 数据导入横幅：全局状态驱动（DataManageViewModel 导入流程写入），
         // 进行中不自动消失（导入挂在 applicationScope，退出数据管理界面不中断），
         // 结果展示 4 秒后自动消失；缓存最近一条，退出动画期间内容不闪空
-        val importBanner by AppContainer.importBanner.collectAsState()
+        val importBanner by AppContainer.importBanner.collectAsStateWithLifecycle()
         var lastImportBanner by remember { mutableStateOf<ImportBannerState?>(null) }
         LaunchedEffect(importBanner) {
             if (importBanner != null) {
@@ -676,7 +723,7 @@ fun AnimeTrackApp(
 
         // 通用顶部通知横幅：任何界面经 AppContainer.showTopNotice() 发起，
         // 展示 4 秒后自动消失；缓存最近一条，退出动画期间内容不闪空
-        val topNotice by AppContainer.topNotice.collectAsState()
+        val topNotice by AppContainer.topNotice.collectAsStateWithLifecycle()
         var lastTopNotice by remember { mutableStateOf<TopNoticeState?>(null) }
         LaunchedEffect(topNotice) {
             if (topNotice != null) {
@@ -690,62 +737,35 @@ fun AnimeTrackApp(
         // 启动时自动补全元数据缺失的番剧（如导入时未挂代理导致 Bangumi 匹配失败），
         // 24 小时节流（见 AnimeRepository.triggerCoverBackfillIfNeeded）
         LaunchedEffect(Unit) {
-            AppContainer.getAnimeRepository().triggerCoverBackfillIfNeeded()
+            animeRepository.triggerCoverBackfillIfNeeded()
         }
 
-        // 顶部横幅纵向堆叠（Token 失效与彩蛋同时出现概率极低）
-        // statusBarsPadding 统一加在堆叠容器上：各横幅组件内部不带状态栏 padding，
-        // 避免多条横幅同时显示时每条重复叠加状态栏高度导致间距过大
-        Column(modifier = Modifier.statusBarsPadding()) {
-            TokenExpiredBanner(
-                visible = bannerActuallyVisible,
-                text = bannerText,
-                onClick = {
-                    // 单源失效直达该源登录页；多源失效进入登录管理页由用户自选
-                    val targetRoute = if (bannerVisibleSources.size == 1) {
-                        bannerVisibleSources.first().loginRoute
-                    } else {
-                        Routes.LOGIN
-                    }
-                    onNavigateToScreen(targetRoute)
-                },
-                onDismiss = { dismissedSources = dismissedSources + bannerVisibleSources }
-            )
-            TopNoticeBanner(
-                visible = easterEggQuote != null,
-                icon = AppIcon.STAR_SHINE,
-                iconTint = MaterialTheme.colorScheme.primary,
-                text = quoteForDisplay?.text.orEmpty(),
-                secondaryText = quoteForDisplay?.from
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { "—— $it" },
-                onDismiss = { AppContainer.easterEggQuote.value = null }
-            )
-            TopNoticeBanner(
-                visible = importBanner != null,
-                icon = if (importBannerForDisplay?.isError == true) AppIcon.ERROR else AppIcon.CHECK_CIRCLE,
-                iconTint = if (importBannerForDisplay?.isError == true) {
-                    MaterialTheme.colorScheme.error
+        // 顶部横幅组（Token 失效 / 彩蛋语录 / 数据导入 / 通用顶部通知，渲染见 OverlayBanners）：
+        // 纵向堆叠，Token 失效与彩蛋同时出现概率极低；statusBarsPadding 统一由该组件加在堆叠容器上
+        OverlayBanners(
+            bannerActuallyVisible = bannerActuallyVisible,
+            bannerVisibleSources = bannerVisibleSources,
+            userTokenKicked = userTokenKicked,
+            onTokenBannerClick = {
+                // 单源失效直达该源登录页；多源失效进入登录管理页由用户自选
+                val targetRoute = if (bannerVisibleSources.size == 1) {
+                    bannerVisibleSources.first().loginRoute
                 } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                text = importBannerForDisplay?.text.orEmpty(),
-                loading = importBannerForDisplay?.loading == true,
-                onDismiss = { AppContainer.importBanner.value = null }
-            )
-            TopNoticeBanner(
-                visible = topNotice != null,
-                icon = when (topNoticeForDisplay?.type) {
-                    TopNoticeType.SUCCESS -> AppIcon.CHECK_CIRCLE
-                    TopNoticeType.CELEBRATION -> AppIcon.STAR_SHINE
-                    null -> AppIcon.STAR_SHINE
-                },
-                iconTint = MaterialTheme.colorScheme.primary,
-                text = topNoticeForDisplay?.text.orEmpty(),
-                secondaryText = topNoticeForDisplay?.secondaryText,
-                onDismiss = { AppContainer.topNotice.value = null }
-            )
-        }
+                    Routes.LOGIN
+                }
+                onNavigateToScreen(targetRoute)
+            },
+            onTokenBannerDismiss = { dismissedSources = dismissedSources + bannerVisibleSources },
+            easterEggVisible = easterEggQuote != null,
+            quoteForDisplay = quoteForDisplay,
+            onEasterEggDismiss = { AppContainer.easterEggQuote.value = null },
+            importBannerVisible = importBanner != null,
+            importBannerForDisplay = importBannerForDisplay,
+            onImportBannerDismiss = { AppContainer.importBanner.value = null },
+            topNoticeVisible = topNotice != null,
+            topNoticeForDisplay = topNoticeForDisplay,
+            onTopNoticeDismiss = { AppContainer.topNotice.value = null }
+        )
 
         // 涟漪展开遮罩层
         onboardingRevealCenter?.let { center ->
@@ -785,6 +805,12 @@ private fun MainScreen(
     paneWidth: Dp,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    gridState: LazyGridState,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager,
     hazeState: HazeState,
     navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
@@ -801,6 +827,12 @@ private fun MainScreen(
             paneWidth = paneWidth,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            gridState = gridState,
+            updateViewModel = updateViewModel,
+            announcementViewModel = announcementViewModel,
+            authManager = authManager,
+            bilibiliAuthManager = bilibiliAuthManager,
+            userAuthManager = userAuthManager,
             hazeState = hazeState,
             navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
@@ -813,6 +845,12 @@ private fun MainScreen(
             isPagerScrollEnabled = isPagerScrollEnabled,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            gridState = gridState,
+            updateViewModel = updateViewModel,
+            announcementViewModel = announcementViewModel,
+            authManager = authManager,
+            bilibiliAuthManager = bilibiliAuthManager,
+            userAuthManager = userAuthManager,
             hazeState = hazeState,
             navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
@@ -825,6 +863,12 @@ private fun MainScreen(
             isPagerScrollEnabled = isPagerScrollEnabled,
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
+            gridState = gridState,
+            updateViewModel = updateViewModel,
+            announcementViewModel = announcementViewModel,
+            authManager = authManager,
+            bilibiliAuthManager = bilibiliAuthManager,
+            userAuthManager = userAuthManager,
             hazeState = hazeState,
             navBackdrop = navBackdrop,
             onNavigateToScreen = onNavigateToScreen,
@@ -848,6 +892,12 @@ private fun CapsuleNavLayout(
     isPagerScrollEnabled: Boolean,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    gridState: LazyGridState,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager,
     hazeState: HazeState,
     navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
@@ -889,6 +939,12 @@ private fun CapsuleNavLayout(
                 settingsRepository = settingsRepository,
                 navigationStyle = NavigationStyle.CAPSULE,
                 homeViewModel = homeViewModel,
+                gridState = gridState,
+                updateViewModel = updateViewModel,
+                announcementViewModel = announcementViewModel,
+                authManager = authManager,
+                bilibiliAuthManager = bilibiliAuthManager,
+                userAuthManager = userAuthManager,
                 onNavigateToScreen = onNavigateToScreen,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope
@@ -909,6 +965,12 @@ private fun BottomNavLayout(
     isPagerScrollEnabled: Boolean,
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
+    gridState: LazyGridState,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager,
     hazeState: HazeState,
     navBackdrop: LayerBackdrop,
     onNavigateToScreen: (String) -> Unit,
@@ -923,7 +985,7 @@ private fun BottomNavLayout(
             // BottomBar 占位：实际 BottomNavigationBar 在 MainOverlay（SharedTransitionLayout 外层）渲染。
             // 保留与 BottomNavigationBar 一致的高度（navigationBarsPadding + bottomNavBarHeight）以维持内容区域 padding。
             val labelMode by settingsRepository.navigationLabelMode
-                .collectAsState(settingsRepository.cachedNavigationLabelMode())
+                .collectAsStateWithLifecycle(settingsRepository.cachedNavigationLabelMode())
             Spacer(modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
@@ -961,6 +1023,12 @@ private fun BottomNavLayout(
                     settingsRepository = settingsRepository,
                     navigationStyle = NavigationStyle.BOTTOM,
                     homeViewModel = homeViewModel,
+                    gridState = gridState,
+                    updateViewModel = updateViewModel,
+                    announcementViewModel = announcementViewModel,
+                    authManager = authManager,
+                    bilibiliAuthManager = bilibiliAuthManager,
+                    userAuthManager = userAuthManager,
                     onNavigateToScreen = onNavigateToScreen,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
@@ -980,6 +1048,12 @@ internal fun MainPagerContent(
     settingsRepository: SettingsRepository,
     navigationStyle: NavigationStyle,
     homeViewModel: HomeViewModel,
+    gridState: LazyGridState,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -987,6 +1061,9 @@ internal fun MainPagerContent(
     when (mainPages.getOrNull(page)?.route) {
         "home" -> HomeScreen(
             viewModel = homeViewModel,
+            updateViewModel = updateViewModel,
+            announcementViewModel = announcementViewModel,
+            gridState = gridState,
             showBottomBar = false,
             onNavigate = { },
             onNavigateToDetail = { animeId, coverUrl ->
@@ -1002,7 +1079,10 @@ internal fun MainPagerContent(
             onNavigateBangumiAccount = { onNavigateToScreen(Routes.BANGUMI_ACCOUNT) },
             onNavigateUserLogin = { onNavigateToScreen(Routes.USER_LOGIN) },
             // 主界面「新回复」胶囊直跳历史列表（回复在历史会话中查看）
-            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK_HISTORY) }
+            onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK_HISTORY) },
+            authManager = authManager,
+            bilibiliAuthManager = bilibiliAuthManager,
+            userAuthManager = userAuthManager
         )
         "favorites" -> FavoritesScreen(
             onAnimeClick = { anime ->
@@ -1075,6 +1155,7 @@ private fun MainOverlay(
     mainPages: List<MainPage>,
     pagerState: PagerState,
     homeViewModel: HomeViewModel,
+    gridState: LazyGridState,
     hazeState: HazeState,
     settingsRepository: SettingsRepository,
     fabLocation: FabLocation,
@@ -1090,10 +1171,10 @@ private fun MainOverlay(
     val chromeStyle = LocalChromeStyle.current
     // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现默认「图标+文字」
     val navigationLabelMode by settingsRepository.navigationLabelMode
-        .collectAsState(settingsRepository.cachedNavigationLabelMode())
+        .collectAsStateWithLifecycle(settingsRepository.cachedNavigationLabelMode())
     // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
     val capsuleLiquidGlassBackdropBlurEnabled by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
+        .collectAsStateWithLifecycle(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
 
     // 高级模糊（毛玻璃）自定义参数由 MainActivity 统一下发，悬浮胶囊、主页顶栏与悬浮按钮共用
     val advancedBlurConfig = LocalAdvancedBlurConfig.current
@@ -1102,19 +1183,21 @@ private fun MainOverlay(
     // MainOverlay 随路由切换销毁重建，collectAsState 默认值会使欢迎语瞬态解析为
     // 随机前缀，与已播放标记不匹配导致返回主页时重播打字动画
     val customGreeting by settingsRepository.customGreeting
-        .collectAsState(settingsRepository.cachedCustomGreeting())
+        .collectAsStateWithLifecycle(settingsRepository.cachedCustomGreeting())
     val greetingEffectStyle by settingsRepository.greetingEffectStyle
-        .collectAsState(settingsRepository.cachedGreetingEffectStyle())
-    val showSearchButton by settingsRepository.showSearchButton.collectAsState(true)
+        .collectAsStateWithLifecycle(settingsRepository.cachedGreetingEffectStyle())
+    val showSearchButton by settingsRepository.showSearchButton.collectAsStateWithLifecycle(true)
 
     // 从 homeViewModel 读取列表状态，用于判断搜索按钮可见性
-    val animeList by homeViewModel.animeList.collectAsState()
-    val filteredAnimeListItems by homeViewModel.filteredAnimeListItems.collectAsState()
+    val animeList by homeViewModel.animeList.collectAsStateWithLifecycle()
+    val filteredAnimeListItems by homeViewModel.filteredAnimeListItems.collectAsStateWithLifecycle()
     val hasAnime = animeList.isNotEmpty()
     val hasFilteredItems = filteredAnimeListItems.isNotEmpty()
 
+    // 顶栏收起状态由 ViewModel 的 StateFlow 提供，Compose 层只收集
+    val isTopBarHidden by homeViewModel.isTopBarHidden.collectAsStateWithLifecycle()
+
     // showScrollToTop：基于 gridState 滚动位置计算（与 HomeScreen 内部逻辑一致）
-    val gridState = homeViewModel.gridState
     var showScrollToTop by remember { mutableStateOf(false) }
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex }
@@ -1130,11 +1213,16 @@ private fun MainOverlay(
     // 跨销毁存活，初始 false 会瞬态触发「开关关闭」重置，清掉记忆的收拢状态——
     // 故初始值取同步缓存（与悬浮胶囊开关同方案），返回主页首帧即为真实开关值
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
-        .collectAsState(settingsRepository.cachedHideTopBarOnScroll())
+        .collectAsStateWithLifecycle(settingsRepository.cachedHideTopBarOnScroll())
     // 顶栏收起后的状态栏处理方式（全屏/留白遮罩/实心），初始值取同步缓存避免闪变
     val statusBarMode by settingsRepository.statusBarMode
-        .collectAsState(settingsRepository.cachedStatusBarMode())
-    val homeUiState by homeViewModel.uiState.collectAsState()
+        .collectAsStateWithLifecycle(settingsRepository.cachedStatusBarMode())
+    // 主页顶栏外观设置：底部圆角、是否跟随玻璃材质档位（初始值取同步缓存避免闪变）
+    val topBarRounded by settingsRepository.topBarRounded
+        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarRounded())
+    val topBarGlassTheme by settingsRepository.topBarGlassThemeEnabled
+        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarGlassThemeEnabled())
+    val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(gridState, hideTopBarOnScroll, isHomePage) {
         if (!hideTopBarOnScroll) {
             homeViewModel.updateTopBarHidden(false)
@@ -1162,7 +1250,7 @@ private fun MainOverlay(
                 // 列表滚回顶部：展开顶栏（置于 isScrollInProgress 过滤之前，
                 // 甩动停稳后最后一帧位置变化也要触发）
                 if (index == 0 && offset == 0) {
-                    if (homeViewModel.isTopBarHidden) {
+                    if (isTopBarHidden) {
                         homeViewModel.updateTopBarHidden(false)
                     }
                     return@collect
@@ -1171,7 +1259,7 @@ private fun MainOverlay(
                 if (!gridState.isScrollInProgress) return@collect
                 if (delta > TOPBAR_SCROLL_DIRECTION_THRESHOLD) {
                     // 向下浏览内容：收起顶栏
-                    if (!homeViewModel.isTopBarHidden) {
+                    if (!isTopBarHidden) {
                         homeViewModel.updateTopBarHidden(true)
                     }
                 }
@@ -1326,7 +1414,7 @@ private fun MainOverlay(
         if (isHomePage) {
             // 收拢进度（0=展开, 1=收拢为 FAB）：顶栏与迁移 FAB 共用，保证 morph 连续
             val topBarCollapse by animateFloatAsState(
-                targetValue = if (homeViewModel.isTopBarHidden) 1f else 0f,
+                targetValue = if (isTopBarHidden) 1f else 0f,
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "topBarCollapse"
             )
@@ -1345,8 +1433,9 @@ private fun MainOverlay(
             } else {
                 TopBarActionsSingleWidth
             }
-            // 下滑隐藏 + 高级模糊档：顶栏背景毛玻璃化（与 FAB 参数一致）
-            val topBarBlurEnabled = chromeStyle == ChromeStyle.HAZE && hideTopBarOnScroll
+            // 玻璃档顶栏与 FAB/胶囊同材质：HAZE 毛玻璃 / LIQUID_GLASS 折射玻璃；
+            // 设置中关闭「顶栏跟随玻璃材质」后顶栏保持实色（收拢时仍向 FAB 容器色插值）
+            val topBarGlassEnabled = chromeStyle != ChromeStyle.STANDARD && topBarGlassTheme
 
             // 完全收拢后移除顶栏（避免透明区域拦截点击）
             if (topBarCollapse < 1f) {
@@ -1363,15 +1452,18 @@ private fun MainOverlay(
                     hasFilteredItems = hasFilteredItems,
                     onAddClick = onAddAnimeClick,
                     morphCollapse = topBarCollapse,
-                    // 下滑隐藏 + 高级模糊同时开启时，顶栏背景改为毛玻璃（与 FAB 一致），
-                    // 收拢全程保持毛玻璃，与 FAB 无缝衔接；否则收拢时向 FAB 容器色插值
-                    morphTargetColor = if (topBarBlurEnabled) {
+                    // 玻璃档收拢全程保持玻璃（与 FAB 无缝衔接，不向实色插值）；
+                    // 标准档收拢时向 FAB 容器色插值，避免收拢终点色块断层
+                    morphTargetColor = if (topBarGlassEnabled) {
                         null
                     } else {
                         MaterialTheme.colorScheme.surfaceContainer
                     },
-                    blurEnabled = topBarBlurEnabled,
+                    style = chromeStyle,
                     hazeState = hazeState,
+                    backdrop = navBackdrop,
+                    rounded = topBarRounded,
+                    glassThemeEnabled = topBarGlassTheme,
                     blurConfig = advancedBlurConfig,
                     // 大屏适配：顶栏从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
                     modifier = Modifier

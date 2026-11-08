@@ -41,7 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,14 +100,14 @@ fun ScheduleScreen(
     viewModel: ScheduleViewModel = viewModel(factory = ScheduleViewModel.Factory()),
     settingsRepository: SettingsRepository? = null
 ) {
-    val groupedAnimes by viewModel.groupedAnimes.collectAsState()
-    val selectedWeekday by viewModel.selectedWeekday.collectAsState()
-    val todayAnimes by viewModel.todayAnimes.collectAsState()
-    val tomorrowAnimes by viewModel.tomorrowAnimes.collectAsState()
+    val groupedAnimes by viewModel.groupedAnimes.collectAsStateWithLifecycle()
+    val selectedWeekday by viewModel.selectedWeekday.collectAsStateWithLifecycle()
+    val todayAnimes by viewModel.todayAnimes.collectAsStateWithLifecycle()
+    val tomorrowAnimes by viewModel.tomorrowAnimes.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
-    val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsState(true) ?: remember { mutableStateOf(true) })
-    val showDailyBroadcastButton by (settingsRepository?.showDailyBroadcastButton?.collectAsState(true) ?: remember { mutableStateOf(true) })
+    val showCalendarButton by (settingsRepository?.showCalendarButton?.collectAsStateWithLifecycle(true) ?: remember { mutableStateOf(true) })
+    val showDailyBroadcastButton by (settingsRepository?.showDailyBroadcastButton?.collectAsStateWithLifecycle(true) ?: remember { mutableStateOf(true) })
 
     val labels = weekdayLabels()
     val weekdayLabelFormat = stringResource(R.string.schedule_weekday_label_format)

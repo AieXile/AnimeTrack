@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,7 +26,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,24 +40,29 @@ import androidx.compose.ui.platform.LocalContext
 import com.aiexile.animetrack.R
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
-import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.update.UpdateDialog
+import com.aiexile.animetrack.ui.update.UpdateViewModel
+import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory()),
+    viewModel: HomeViewModel,
+    updateViewModel: UpdateViewModel,
+    announcementViewModel: AnnouncementViewModel,
+    gridState: LazyGridState = rememberLazyGridState(),
     showBottomBar: Boolean = true,
     onNavigate: (String) -> Unit = {},
     onNavigateToDetail: (Int, String?) -> Unit = { _, _ -> },
@@ -68,65 +75,55 @@ fun HomeScreen(
     onNavigateBangumiLogin: () -> Unit = {},
     onNavigateBangumiAccount: () -> Unit = {},
     onNavigateUserLogin: () -> Unit = {},
-    onNavigateFeedback: () -> Unit = {}
+    onNavigateFeedback: () -> Unit = {},
+    authManager: AuthManager,
+    bilibiliAuthManager: BilibiliAuthManager,
+    userAuthManager: UserAuthManager
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val animeList by viewModel.animeList.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val animeList by viewModel.animeList.collectAsStateWithLifecycle()
+    val isTopBarHidden by viewModel.isTopBarHidden.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val authManager = remember { AppContainer.getAuthManager() }
-    val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-    val userAuthManager = remember { AppContainer.getUserAuthManager() }
-    val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
-    val bangumiAvatar by authManager.userAvatar.collectAsState(initial = null)
-    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
-    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsState(initial = null)
-    val customAvatarUri by authManager.customAvatarUri.collectAsState(initial = null)
-    val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-    val userAvatarPath by userAuthManager.avatar.collectAsState(initial = null)
+    val bangumiLoggedIn by authManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bangumiAvatar by authManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val bilibiliAvatar by bilibiliAuthManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
+    val customAvatarUri by authManager.customAvatarUri.collectAsStateWithLifecycle(initialValue = null)
+    val userLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
+    val userAvatarPath by userAuthManager.avatar.collectAsStateWithLifecycle(initialValue = null)
     // 服务器头像存储的是相对路径，需拼接为完整 URL
     val userAvatarUrl = userAvatarPath?.let { if (it.startsWith("http")) it else "https://www.aiexile.top$it" }
     val isLoggedIn = userLoggedIn || bangumiLoggedIn || bilibiliLoggedIn
     // 头像优先级：自定义头像 > 服务器头像 > Bilibili 头像 > Bangumi 头像
     val userAvatar = customAvatarUri ?: userAvatarUrl ?: bilibiliAvatar ?: bangumiAvatar
-    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsState(false) ?: remember { mutableStateOf(false) })
-    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsState(true) ?: remember { mutableStateOf(true) })
+    val hideBangumiAvatar by (settingsRepository?.hideBangumiAvatar?.collectAsStateWithLifecycle(false) ?: remember { mutableStateOf(false) })
+    val showUpdateBanner by (settingsRepository?.showUpdateBanner?.collectAsStateWithLifecycle(true) ?: remember { mutableStateOf(true) })
     // 「下滑隐藏顶栏」与状态栏处理方式：实心状态栏模式收起时列表顶部预留随之收紧，
     // 内容被实心状态栏条顶下去（初始值取同步缓存防闪变）
     val hideTopBarOnScroll by (settingsRepository?.hideTopBarOnScrollEnabled
-        ?.collectAsState(settingsRepository.cachedHideTopBarOnScroll())
+        ?.collectAsStateWithLifecycle(settingsRepository.cachedHideTopBarOnScroll())
         ?: remember { mutableStateOf(false) })
     val statusBarMode by (settingsRepository?.statusBarMode
-        ?.collectAsState(settingsRepository.cachedStatusBarMode())
+        ?.collectAsStateWithLifecycle(settingsRepository.cachedStatusBarMode())
         ?: remember { mutableStateOf(StatusBarMode.SCRIM) })
-    val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsState()
-    val seriesStackTopIndices by viewModel.seriesStackTopIndices.collectAsState()
-    val todayUpdateCount by viewModel.todayUpdateCount.collectAsState()
-    val bannerDismissed by viewModel.bannerDismissed.collectAsState()
-    val autoSyncState by viewModel.autoSyncState.collectAsState()
+    val seriesStackEnabled by viewModel.seriesStackEnabled.collectAsStateWithLifecycle()
+    val seriesStackTopIndices by viewModel.seriesStackTopIndices.collectAsStateWithLifecycle()
+    val todayUpdateCount by viewModel.todayUpdateCount.collectAsStateWithLifecycle()
+    val bannerDismissed by viewModel.bannerDismissed.collectAsStateWithLifecycle()
+    val autoSyncState by viewModel.autoSyncState.collectAsStateWithLifecycle()
 
     // 反馈有新回复（显示胶囊提示，无红点）：登录状态下主页可见时检查；
     // 设置中关闭「反馈新回复提醒」后不再请求接口，胶囊隐藏（今日更新横幅可正常显示）
-    var hasFeedbackReply by remember { mutableStateOf(false) }
-    val feedbackReplyPillEnabled by (settingsRepository?.feedbackReplyPillEnabled?.collectAsState(true) ?: remember { mutableStateOf(true) })
-    val feedbackScope = rememberCoroutineScope()
+    val hasFeedbackReply by viewModel.hasFeedbackReply.collectAsStateWithLifecycle()
+    val feedbackReplyPillEnabled by viewModel.feedbackReplyPillEnabled.collectAsStateWithLifecycle()
     LifecycleResumeEffect(isCurrentPage, feedbackReplyPillEnabled) {
-        if (isCurrentPage && userLoggedIn && feedbackReplyPillEnabled) {
-            feedbackScope.launch {
-                hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
-            }
-        } else {
-            hasFeedbackReply = false
-        }
+        viewModel.refreshFeedbackReply(isCurrentPage, userLoggedIn)
         onPauseOrDispose { }
     }
     // SSE 管理员回复事件：主页可见期间实时刷新反馈新回复胶囊（不再依赖切页/重启）
     LaunchedEffect(isCurrentPage, userLoggedIn, feedbackReplyPillEnabled) {
         if (!isCurrentPage || !userLoggedIn || !feedbackReplyPillEnabled) return@LaunchedEffect
-        AppContainer.getSseClient().events
-            .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
-            .collect {
-                hasFeedbackReply = AppContainer.getFeedbackRepository().hasNewReplies()
-            }
+        viewModel.observeFeedbackReplyEvents()
     }
     // customGreeting / greetingEffectStyle / showSearchButton / focusRequester
     // 已移至 MainOverlay（SharedTransitionLayout 外层）的 HomeTopBar 中维护
@@ -169,11 +166,10 @@ fun HomeScreen(
         }
     }
 
-    val filteredAnimeListItems by viewModel.filteredAnimeListItems.collectAsState()
-    val listSortMode by viewModel.listSortMode.collectAsState()
+    val filteredAnimeListItems by viewModel.filteredAnimeListItems.collectAsStateWithLifecycle()
+    val listSortMode by viewModel.listSortMode.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    val gridState = viewModel.gridState
     // showScrollToTop 状态已移至 MainOverlay（SharedTransitionLayout 外层）维护，
     // 因为 HomeFloatingActions 现在在 MainOverlay 中渲染。
 
@@ -237,10 +233,10 @@ fun HomeScreen(
     // 更新弹窗后组合，层级高于公告弹窗：更新检查期间公告可能先弹出，
     // 若检查出新版，更新弹窗叠在其上方，确保公告不遮挡更新弹窗。
     com.aiexile.animetrack.ui.announcement.AnnouncementDialog(
-        viewModel = viewModel.announcementViewModel,
+        viewModel = announcementViewModel,
         onNavigateLogin = onNavigateUserLogin
     )
-    UpdateDialog(viewModel = viewModel.updateViewModel)
+    UpdateDialog(viewModel = updateViewModel)
     
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -280,7 +276,7 @@ fun HomeScreen(
             // 全屏/留白遮罩模式保持固定预留，内容可滚入状态栏区域；滚动中途 LazyGrid 锚定可见项，内容不跳
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val topBarExtraPadding by animateDpAsState(
-                targetValue = if (statusBarMode == StatusBarMode.SOLID && hideTopBarOnScroll && viewModel.isTopBarHidden) 0.dp else 48.dp,
+                targetValue = if (statusBarMode == StatusBarMode.SOLID && hideTopBarOnScroll && isTopBarHidden) 0.dp else 48.dp,
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "topBarExtraPadding"
             )
@@ -399,6 +395,9 @@ fun HomeScreen(
         if (showAccountPanel) {
             AccountPanelDialog(
                 onDismiss = { showAccountPanel = false },
+                authManager = authManager,
+                bilibiliAuthManager = bilibiliAuthManager,
+                userAuthManager = userAuthManager,
                 onNavigateUserLogin = {
                     showAccountPanel = false
                     onNavigateUserLogin()

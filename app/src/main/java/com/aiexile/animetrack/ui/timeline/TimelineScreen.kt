@@ -38,7 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,8 +87,8 @@ fun TimelineScreen(
     showBottomBar: Boolean = true,
     onNavigate: (String) -> Unit = {}
 ) {
-    val timelineData by viewModel.timelineData.collectAsState()
-    val watchingAnimeList by viewModel.watchingAnimeList.collectAsState()
+    val timelineData by viewModel.timelineData.collectAsStateWithLifecycle()
+    val watchingAnimeList by viewModel.watchingAnimeList.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val monthFormat = stringResource(R.string.timeline_month_format)

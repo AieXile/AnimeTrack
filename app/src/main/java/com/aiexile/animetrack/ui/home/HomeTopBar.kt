@@ -1,6 +1,7 @@
 package com.aiexile.animetrack.ui.home
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.background
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
@@ -22,27 +23,87 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import com.aiexile.animetrack.R
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.LiquidGlassKind
+import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.advancedHazeEffect
+import com.aiexile.animetrack.ui.components.drawLiquidGlass
+import com.aiexile.animetrack.ui.components.liquidGlassSpec
+import com.aiexile.animetrack.ui.theme.LocalChromeStyle
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.highlight.Highlight
 import dev.chrisbanes.haze.HazeState
+
+/** 顶栏可见时的底部两角圆角：顶栏作为悬浮面板，下沿以圆角收尾 */
+private val TopBarBottomShape = SquircleShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+
+/**
+ * 液态玻璃顶栏外形：几何与 [TopBarBottomShape] 相同（底部两角 Squircle 32dp），
+ * 但顶部边缘整体上移到组件之外。
+ *
+ * drawBackdrop 的边缘高光（Highlight.Default）沿整个轮廓描边，通栏顶栏的顶边
+ * 正好落在屏幕最上方，会画出一条本不该有的横向亮线。顶边上移后该段描边落到绘制
+ * 图层外被裁掉，只保留底边/底角与左右两侧的玻璃高光。
+ */
+private val TopBarGlassShape = object : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val extend = size.height
+        val outline = TopBarBottomShape.createOutline(
+            Size(size.width, size.height + extend),
+            layoutDirection,
+            density
+        )
+        val path = (outline as? Outline.Generic)?.path ?: return outline
+        return Outline.Generic(
+            Path().apply {
+                addPath(path)
+                translate(Offset(0f, -extend))
+            }
+        )
+    }
+}
+
+/** 关闭圆角时的玻璃外形：顶边同样上移，保证高光不会在屏幕顶部画出横向亮线 */
+private val TopBarGlassSquareShape = object : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline = Outline.Rectangle(Rect(0f, -size.height, size.width, size.height))
+}
 
 /**
  * 主页顶部栏（独立 Composable，用于在 SharedTransitionLayout 外层渲染，
@@ -63,12 +124,19 @@ fun HomeTopBar(
     alwaysShowAddButton: Boolean = false,
     morphCollapse: Float = 0f,
     morphTargetColor: Color? = null,
-    blurEnabled: Boolean = false,
+    /** 界面外壳材质档位：标准实色 / HAZE 毛玻璃 / LIQUID_GLASS 折射玻璃 */
+    style: ChromeStyle = LocalChromeStyle.current,
     hazeState: HazeState? = null,
+    /** 液态玻璃折射采样源（页面内容层），仅 LIQUID_GLASS 档需要 */
+    backdrop: Backdrop? = null,
+    /** 底部两角是否圆角（设置项，默认开启） */
+    rounded: Boolean = true,
+    /** 是否跟随界面外壳材质档位使用毛玻璃/液态玻璃（设置项，默认开启） */
+    glassThemeEnabled: Boolean = true,
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(uiState.isLocalSearchActive, isCurrentPage) {
@@ -77,9 +145,13 @@ fun HomeTopBar(
         }
     }
 
-    // morph 收拢时背景色向 FAB 容器色插值（收拢终点与 FAB 重合，避免色块断层）；
-    // 毛玻璃模式下背景由 hazeEffect 提供（底色透明），收拢全程与 FAB 毛玻璃一致
-    val containerColor = if (blurEnabled) {
+    // 玻璃档顶栏背景由 hazeEffect / 折射玻璃提供（底色透明），收拢全程与迁移 FAB 同材质；
+    // 标准档在 morph 收拢时向 FAB 容器色插值（收拢终点与 FAB 重合，避免色块断层）
+    val cornerShape = if (rounded) TopBarBottomShape else RectangleShape
+    val glassShape = if (rounded) TopBarGlassShape else TopBarGlassSquareShape
+    val glassBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS && glassThemeEnabled }
+    val hazeSource = hazeState.takeIf { style == ChromeStyle.HAZE && glassThemeEnabled }
+    val containerColor = if (glassBackdrop != null || hazeSource != null) {
         Color.Transparent
     } else if (morphTargetColor != null && morphCollapse > 0f) {
         lerp(MaterialTheme.colorScheme.surface, morphTargetColor, morphCollapse)
@@ -90,13 +162,29 @@ fun HomeTopBar(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            // 顶栏可见（未收拢）时底部两角圆角：顶栏作为悬浮面板收尾，
+            // 与列表内容在顶栏下缘形成圆角接缝；完全收拢后顶栏移除，圆角随之消失
+            .clip(cornerShape)
             .then(
-                if (blurEnabled && hazeState != null) {
-                    // 顶栏毛玻璃背景：参数与 FAB 一致；收拢时被外层 morph 裁剪，
-                    // 毛玻璃随几何同步收缩，与 FAB 毛玻璃无缝衔接
-                    advancedHazeEffect(hazeState, blurConfig)
-                } else {
-                    Modifier.background(containerColor)
+                when {
+                    glassBackdrop != null -> Modifier.drawLiquidGlass(
+                        backdrop = glassBackdrop,
+                        // 玻璃外形顶边上移：高光的顶部描边落在绘制图层外，屏幕顶部不出亮线
+                        shape = { glassShape },
+                        spec = liquidGlassSpec(LiquidGlassKind.Bar),
+                        // 边缘高光与悬浮胶囊导航栏同款（Highlight.Default）：
+                        // 底边/底角内圈一圈高光；顶部描边随外形落在图层外，屏幕顶部不出亮线
+                        highlight = { Highlight.Default },
+                        shadow = null,
+                        // 通栏顶栏贴屏幕边缘：先模糊后提亮，玻璃缓冲区与组件等大，
+                        // 最上沿不会因缓冲区外的透明像素被平均进来而「看起来没模糊」
+                        blurFirst = true
+                    )
+
+                    // 毛玻璃参数与 FAB 一致；收拢时被外层 morph 裁剪，与 FAB 无缝衔接
+                    hazeSource != null -> advancedHazeEffect(hazeSource, blurConfig)
+
+                    else -> Modifier.background(containerColor)
                 }
             )
             .statusBarsPadding()

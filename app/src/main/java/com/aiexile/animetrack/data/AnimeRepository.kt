@@ -50,6 +50,9 @@ interface AnimeRepository {
     /** 按状态分组统计数量，供个人页追番统计栏使用 */
     fun getStatusCounts(): Flow<List<StatusCount>>
 
+    /** 清空本机全部追番数据（注销账号后按用户选择执行） */
+    suspend fun deleteAllAnimes()
+
     suspend fun getAnimeById(id: Int): Anime?
 
     fun observeAnimeById(id: Int): Flow<Anime?>
@@ -95,6 +98,22 @@ interface AnimeRepository {
     suspend fun markBangumiMatchHintShown(id: Int)
 
     suspend fun deleteAnime(anime: Anime)
+
+    /**
+     * 同标题重复卡清理前置：把 [duplicate] 的同步身份落到 [keeper]。
+     *
+     * 本地缺 remoteSyncId / serverSubscriptionId 时直接补齐，并把被删卡的稳定键
+     * 作为 supersededKeys 上传，服务端据此把两行别名合并到保留行。
+     */
+    suspend fun handoffDuplicateIdentity(keeper: Anime, duplicate: Anime)
+
+    /**
+     * 同标题重复卡清理：只删本地行，不走上行删除。
+     *
+     * 服务端那一行已在 [handoffDuplicateIdentity] 中并入保留行；
+     * 若再发 remove，会按别名解析到保留行，把保留卡也删掉。
+     */
+    suspend fun deleteDuplicateAnimeLocally(anime: Anime)
 
     suspend fun getAnimeByTitle(title: String): Anime?
 
@@ -285,6 +304,10 @@ class AnimeRepositoryImpl(
         return animeDao.getStatusCounts()
     }
 
+    override suspend fun deleteAllAnimes() {
+        animeDao.deleteAllAnimes()
+    }
+
     override suspend fun getAnimeById(id: Int): Anime? {
         return animeDao.getAnimeById(id)
     }
@@ -456,6 +479,38 @@ class AnimeRepositoryImpl(
         subscriptionSyncService.recordPendingDeletions(anime)
         // 先同步取消订阅到后端
         subscriptionSyncService.syncSubscriptionToServer(anime, isAdd = false)
+        animeDao.deleteAnime(anime)
+        WebDAVAutoSyncManager.getInstance().notifyDataChanged()
+        triggerReassignSeriesKeysDebounced()
+    }
+
+    override suspend fun handoffDuplicateIdentity(keeper: Anime, duplicate: Anime) {
+        AppLogManager.i(
+            TAG,
+            "重复卡身份移交: ${duplicate.title} (id=${duplicate.id}) -> ${keeper.title} (id=${keeper.id})"
+        )
+        var merged = keeper
+        if (merged.remoteSyncId == null) {
+            merged = merged.copy(remoteSyncId = duplicate.remoteSyncId)
+        }
+        if (merged.serverSubscriptionId == null) {
+            merged = merged.copy(serverSubscriptionId = duplicate.serverSubscriptionId)
+        }
+        if (merged != keeper) {
+            updateAnimeInternal(merged)
+        }
+        // 以被删卡作为 oldAnime 上传保留卡：被删卡的稳定键进入 supersededKeys，
+        // 服务端把两条订阅别名合并到保留行
+        subscriptionSyncService.syncSubscriptionToServer(
+            anime = merged,
+            isAdd = true,
+            oldAnime = duplicate,
+            explicitAdd = true
+        )
+    }
+
+    override suspend fun deleteDuplicateAnimeLocally(anime: Anime) {
+        AppLogManager.i(TAG, "清理同标题重复卡: ${anime.title} (id=${anime.id})")
         animeDao.deleteAnime(anime)
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
         triggerReassignSeriesKeysDebounced()

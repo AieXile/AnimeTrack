@@ -30,8 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,17 +49,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.data.sse.SseEventTypes
-import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
-import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +77,7 @@ fun SettingsScreen(
     settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
 ) {
     val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
-    val tmdbApiKey by settingsViewModel.tmdbApiKey.collectAsState()
+    val tmdbApiKey by settingsViewModel.tmdbApiKey.collectAsStateWithLifecycle()
     var showTmdbApiKeyDialog by remember { mutableStateOf(false) }
     var tmdbApiKeyInput by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
@@ -95,40 +89,24 @@ fun SettingsScreen(
         searchQuery = ""
     }
 
-    // 反馈新回复红点：登录状态下每次页面可见时检查（从反馈页返回后自动消除）
-    var feedbackUnread by remember { mutableStateOf(false) }
-    val settingsScope = rememberCoroutineScope()
-    val userLoggedIn by AppContainer.getUserAuthManager().isLoggedIn.collectAsState(initial = false)
+    // 反馈新回复红点：登录态、SSE 监听与查询都在 ViewModel 里，页面恢复时刷新一次
+    val userLoggedIn by settingsViewModel.userLoggedIn.collectAsStateWithLifecycle()
+    val feedbackUnread by settingsViewModel.feedbackUnread.collectAsStateWithLifecycle()
     LifecycleResumeEffect(userLoggedIn) {
-        if (userLoggedIn) {
-            settingsScope.launch {
-                feedbackUnread = AppContainer.getFeedbackRepository().hasNewReplies()
-            }
-        } else {
-            feedbackUnread = false
-        }
+        settingsViewModel.refreshFeedbackUnread()
         onPauseOrDispose { }
     }
-    // SSE 管理员回复事件：停留设置页期间红点实时亮起（不再依赖切页/重进触发可见性检查）
-    LaunchedEffect(userLoggedIn) {
-        if (!userLoggedIn) return@LaunchedEffect
-        AppContainer.getSseClient().events
-            .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
-            .collect {
-                feedbackUnread = AppContainer.getFeedbackRepository().hasNewReplies()
-            }
-    }
 
-    val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsState(initial = false)
+    val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsStateWithLifecycle(initialValue = false)
         ?: remember { mutableStateOf(false) }
     // 「视频播放」聚合入口：开发者选项控制，默认隐藏
-    val playerHubVisible by settingsRepository?.playerHubVisible?.collectAsState(initial = false)
+    val playerHubVisible by settingsRepository?.playerHubVisible?.collectAsStateWithLifecycle(initialValue = false)
         ?: remember { mutableStateOf(false) }
-    val updateNotificationEnabled by settingsRepository?.updateNotificationEnabled?.collectAsState(initial = false)
+    val updateNotificationEnabled by settingsRepository?.updateNotificationEnabled?.collectAsStateWithLifecycle(initialValue = false)
         ?: remember { mutableStateOf(false) }
-    val updateNotificationHour by settingsRepository?.updateNotificationHour?.collectAsState(initial = 9)
+    val updateNotificationHour by settingsRepository?.updateNotificationHour?.collectAsStateWithLifecycle(initialValue = 9)
         ?: remember { mutableStateOf(9) }
-    val updateNotificationMinute by settingsRepository?.updateNotificationMinute?.collectAsState(initial = 0)
+    val updateNotificationMinute by settingsRepository?.updateNotificationMinute?.collectAsStateWithLifecycle(initialValue = 0)
         ?: remember { mutableStateOf(0) }
 
     if (showTmdbApiKeyDialog) {
@@ -212,15 +190,11 @@ fun SettingsScreen(
         }
     ) { chrome ->
         // ---- 登录状态（登录卡片副标题） ----
-        val bilibiliAuthManager = remember { AppContainer.getBilibiliAuthManager() }
-        val authManager = remember { AppContainer.getAuthManager() }
-        val userAuthManager = remember { AppContainer.getUserAuthManager() }
-        val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsState(initial = false)
-        val bangumiLoggedIn by authManager.isLoggedIn.collectAsState(initial = false)
-        val userLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
-        val bilibiliTokenExpired by bilibiliAuthManager.tokenExpired.collectAsState(initial = false)
-        val bangumiTokenExpired by authManager.tokenExpired.collectAsState(initial = false)
-        val userTokenExpired by userAuthManager.tokenExpired.collectAsState(initial = false)
+        val bilibiliLoggedIn by settingsViewModel.bilibiliLoggedIn.collectAsStateWithLifecycle()
+        val bangumiLoggedIn by settingsViewModel.bangumiLoggedIn.collectAsStateWithLifecycle()
+        val bilibiliTokenExpired by settingsViewModel.bilibiliTokenExpired.collectAsStateWithLifecycle()
+        val bangumiTokenExpired by settingsViewModel.bangumiTokenExpired.collectAsStateWithLifecycle()
+        val userTokenExpired by settingsViewModel.userTokenExpired.collectAsStateWithLifecycle()
         val anyTokenExpired = bilibiliTokenExpired || bangumiTokenExpired || userTokenExpired
 
         // ---- 各设置项的标题 / 副标题 ----
@@ -243,8 +217,8 @@ fun SettingsScreen(
             else -> "${loginStatusParts.joinToString(" · ")} $connectedSuffix"
         }
 
-        val currentPreset = settingsRepository?.themePreset?.collectAsState(ThemePreset.MONO_BLACK)?.value
-        val currentMode = settingsRepository?.themeMode?.collectAsState(ThemeMode.SYSTEM)?.value
+        val currentPreset = settingsRepository?.themePreset?.collectAsStateWithLifecycle(ThemePreset.MONO_BLACK)?.value
+        val currentMode = settingsRepository?.themeMode?.collectAsStateWithLifecycle(ThemeMode.SYSTEM)?.value
         val modeLabel = when (currentMode) {
             ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
             ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)

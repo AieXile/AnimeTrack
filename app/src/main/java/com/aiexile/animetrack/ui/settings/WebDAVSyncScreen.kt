@@ -26,7 +26,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,17 +60,17 @@ fun WebDAVSyncScreen(
     val viewModel: DataManageViewModel = viewModel(factory = DataManageViewModel.Factory())
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val lastSyncTime by settingsRepository.webdavLastSyncTime.collectAsState(0L)
-    val lastAutoSyncTime by settingsRepository.webdavLastAutoSyncTime.collectAsState(0L)
+    val lastSyncTime by settingsRepository.webdavLastSyncTime.collectAsStateWithLifecycle(0L)
+    val lastAutoSyncTime by settingsRepository.webdavLastAutoSyncTime.collectAsStateWithLifecycle(0L)
 
-    val webdavUrl by viewModel.webdavUrl.collectAsState()
-    val webdavUsername by viewModel.webdavUsername.collectAsState()
-    val webdavPassword by viewModel.webdavPassword.collectAsState()
-    val backupStrategy by viewModel.backupStrategy.collectAsState()
-    val restoreMode by viewModel.restoreMode.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val loadingMessage by viewModel.loadingMessage.collectAsState()
-    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+    val webdavUrl by viewModel.webdavUrl.collectAsStateWithLifecycle()
+    val webdavUsername by viewModel.webdavUsername.collectAsStateWithLifecycle()
+    val webdavPassword by viewModel.webdavPassword.collectAsStateWithLifecycle()
+    val backupStrategy by viewModel.backupStrategy.collectAsStateWithLifecycle()
+    val restoreMode by viewModel.restoreMode.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val loadingMessage by viewModel.loadingMessage.collectAsStateWithLifecycle()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
     var configLoaded by remember { mutableStateOf(false) }
 

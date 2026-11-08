@@ -40,7 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -109,21 +109,21 @@ fun AppearanceScreen(
     BackHandler { onBack() }
 
     val scope = rememberCoroutineScope()
-    val currentPreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
+    val currentPreset by settingsRepository.themePreset.collectAsStateWithLifecycle(ThemePreset.MONO_BLACK)
     // 用同步缓存值作初始值，避免首帧渲染默认值、随后跳变为持久化值
     // （否则 showDarkStyleSelector 会经历一次 false→true，深色风格选择器的展开动画被误触发）
-    val currentThemeMode by settingsRepository.themeMode.collectAsState(settingsRepository.cachedThemeMode())
-    val currentDarkStyle by settingsRepository.darkStyle.collectAsState(settingsRepository.cachedDarkStyle())
+    val currentThemeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(settingsRepository.cachedThemeMode())
+    val currentDarkStyle by settingsRepository.darkStyle.collectAsStateWithLifecycle(settingsRepository.cachedDarkStyle())
     val systemDarkTheme = isSystemInDarkTheme()
     // 深色风格选择器：深色模式、或自动模式且系统当前处于深色时才有意义
     val showDarkStyleSelector = currentThemeMode == ThemeMode.DARK ||
             (currentThemeMode == ThemeMode.SYSTEM && systemDarkTheme)
-    val currentIconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
+    val currentIconPack by settingsRepository.iconPack.collectAsStateWithLifecycle(settingsRepository.cachedIconPack())
     // 界面外壳材质档位：初始值取同步缓存，避免首帧闪变
-    val chromeStyle by settingsRepository.chromeStyle.collectAsState(settingsRepository.cachedChromeStyle())
+    val chromeStyle by settingsRepository.chromeStyle.collectAsStateWithLifecycle(settingsRepository.cachedChromeStyle())
     // 导航栏「背景模糊」开关：初始值取同步缓存，避免首帧闪变；液态玻璃 / 高级模糊档共用
     val capsuleLiquidGlassBackdropBlur by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
-        .collectAsState(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
+        .collectAsStateWithLifecycle(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
     // 低版本设备不支持实时模糊：档位会由 MainActivity 降级为标准，此处给出说明
     val blurSupported = chromeSupportsBlur()
 

@@ -32,7 +32,7 @@ import com.aiexile.animetrack.ui.components.AppSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
@@ -67,15 +68,15 @@ import kotlin.math.roundToInt
 @Composable
 fun DeveloperScreen(
     onBack: () -> Unit,
+    settingsRepository: SettingsRepository,
+    animeRepository: AnimeRepository,
     onNavigateToOnboarding: () -> Unit = {},
     onNavigateUserLogin: () -> Unit = {}
 ) {
-    val settingsRepository = remember { AppContainer.getSettingsRepository() }
-    val animeRepository = remember { AppContainer.getAnimeRepository() }
-    val developerMode by settingsRepository.developerMode.collectAsState(initial = true)
-    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
-    val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsState(initial = false)
-    val playerHubVisible by settingsRepository.playerHubVisible.collectAsState(initial = false)
+    val developerMode by settingsRepository.developerMode.collectAsStateWithLifecycle(initialValue = true)
+    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsStateWithLifecycle(initialValue = false)
+    val playerHubVisible by settingsRepository.playerHubVisible.collectAsStateWithLifecycle(initialValue = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -84,20 +85,18 @@ fun DeveloperScreen(
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 val updateRepository = UpdateRepository()
-                val settingsRepo = AppContainer.getSettingsRepository()
-                return UpdateViewModel(updateRepository, settingsRepo) as T
+                return UpdateViewModel(updateRepository, settingsRepository) as T
             }
         }
     )
-    val uiState by updateViewModel.uiState.collectAsState()
+    val uiState by updateViewModel.uiState.collectAsStateWithLifecycle()
 
     val announcementViewModel: AnnouncementViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                val settingsRepo = AppContainer.getSettingsRepository()
                 val userAuthManager = AppContainer.getUserAuthManager()
-                return AnnouncementViewModel(settingsRepo, userAuthManager) as T
+                return AnnouncementViewModel(settingsRepository, userAuthManager) as T
             }
         }
     )
@@ -504,11 +503,11 @@ private fun AdvancedBlurTuningSection(
 ) {
     val scope = rememberCoroutineScope()
     val chromeStyle by settingsRepository.chromeStyle
-        .collectAsState(settingsRepository.cachedChromeStyle())
-    val blurRadius by settingsRepository.advancedBlurRadius.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
-    val backgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
-    val tintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
-    val noise by settingsRepository.advancedBlurNoise.collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+        .collectAsStateWithLifecycle(settingsRepository.cachedChromeStyle())
+    val blurRadius by settingsRepository.advancedBlurRadius.collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+    val backgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha.collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+    val tintAlpha by settingsRepository.advancedBlurTintAlpha.collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+    val noise by settingsRepository.advancedBlurNoise.collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
 
     // 本地拖拽状态：松手前只改本地值
     var localRadius by remember { mutableFloatStateOf(blurRadius) }

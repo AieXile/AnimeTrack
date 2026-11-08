@@ -13,7 +13,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -37,14 +37,14 @@ fun WebDAVAutoSyncScreen(
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    val autoSyncEnabled by settingsRepository.webdavAutoSyncEnabled.collectAsState(false)
-    val onDataChange by settingsRepository.webdavAutoSyncOnDataChange.collectAsState(true)
-    val onAppOpen by settingsRepository.webdavAutoSyncOnAppOpen.collectAsState(false)
-    val scheduled by settingsRepository.webdavAutoSyncScheduled.collectAsState(false)
-    val interval by settingsRepository.webdavAutoSyncInterval.collectAsState(2)
-    val wifiOnly by settingsRepository.webdavAutoSyncWifiOnly.collectAsState(true)
-    val useCustomStrategy by settingsRepository.webdavAutoSyncUseCustomStrategy.collectAsState(false)
-    val backupStrategy by settingsRepository.webdavAutoSyncBackupStrategy.collectAsState(0)
+    val autoSyncEnabled by settingsRepository.webdavAutoSyncEnabled.collectAsStateWithLifecycle(false)
+    val onDataChange by settingsRepository.webdavAutoSyncOnDataChange.collectAsStateWithLifecycle(true)
+    val onAppOpen by settingsRepository.webdavAutoSyncOnAppOpen.collectAsStateWithLifecycle(false)
+    val scheduled by settingsRepository.webdavAutoSyncScheduled.collectAsStateWithLifecycle(false)
+    val interval by settingsRepository.webdavAutoSyncInterval.collectAsStateWithLifecycle(2)
+    val wifiOnly by settingsRepository.webdavAutoSyncWifiOnly.collectAsStateWithLifecycle(true)
+    val useCustomStrategy by settingsRepository.webdavAutoSyncUseCustomStrategy.collectAsStateWithLifecycle(false)
+    val backupStrategy by settingsRepository.webdavAutoSyncBackupStrategy.collectAsStateWithLifecycle(0)
 
     // 同步间隔 / 备份格式：都是「一行一个当前值」的单选，收成选项弹层
     val intervalOptions = listOf(

@@ -131,6 +131,12 @@ kotlin {
     }
 }
 
+// Room 迁移 schema 基线：开启 exportSchema 后把每个版本的建表结构导出到这里，
+// 后续补迁移测试时作为对比基准（当前版本 28）。
+ksp {
+    arg("room.schemaLocation", "${projectDir}/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

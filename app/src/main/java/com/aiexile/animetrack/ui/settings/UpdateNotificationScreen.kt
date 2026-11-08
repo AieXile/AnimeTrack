@@ -29,7 +29,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,12 +44,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.notification.UpdateNotificationManager
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.UpdatePushSettingsRequest
-import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.util.TimeZoneHelper
@@ -61,16 +61,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun UpdateNotificationScreen(
     settingsRepository: SettingsRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    userAuthManager: UserAuthManager
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val enabled by settingsRepository.updateNotificationEnabled.collectAsState(false)
-    val hour by settingsRepository.updateNotificationHour.collectAsState(9)
-    val minute by settingsRepository.updateNotificationMinute.collectAsState(0)
+    val enabled by settingsRepository.updateNotificationEnabled.collectAsStateWithLifecycle(false)
+    val hour by settingsRepository.updateNotificationHour.collectAsStateWithLifecycle(9)
+    val minute by settingsRepository.updateNotificationMinute.collectAsStateWithLifecycle(0)
 
-    val userAuthManager = remember { AppContainer.getUserAuthManager() }
-    val isLoggedIn by userAuthManager.isLoggedIn.collectAsState(initial = false)
+    val isLoggedIn by userAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
 
     var showTimePicker by remember { mutableStateOf(false) }
 

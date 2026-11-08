@@ -20,7 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,7 +63,7 @@ fun FavoritesScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     viewModel: FavoritesViewModel = viewModel(factory = FavoritesViewModel.Factory())
 ) {
-    val favorites by viewModel.favorites.collectAsState()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
 
     AppScaffold(
         title = stringResource(R.string.nav_app_favorites),

@@ -29,7 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +59,7 @@ import com.aiexile.animetrack.data.remote.AdminReplyResult
 import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
 import com.aiexile.animetrack.data.remote.AdminForwardResult
 import com.aiexile.animetrack.data.remote.FeedbackRepository
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.SquircleShape
@@ -99,7 +100,8 @@ data class AdminNotice(val messageRes: Int, val arg: Any? = null)
  * SSE 监听该会话的用户新消息（feedback_message），停留页面时实时追加。
  */
 class AdminFeedbackSessionViewModel(
-    private val repository: AdminFeedbackRepository
+    private val repository: AdminFeedbackRepository,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminFeedbackSessionUiState())
@@ -113,7 +115,7 @@ class AdminFeedbackSessionViewModel(
     init {
         // 用户在该会话追加新消息 / 其他管理员推送 Agendula：停留详情页时实时刷新
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter {
                     (it.type == SseEventTypes.FEEDBACK_MESSAGE ||
                         it.type == SseEventTypes.FEEDBACK_FORWARDED) &&
@@ -363,7 +365,10 @@ class AdminFeedbackSessionViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AdminFeedbackSessionViewModel(AppContainer.getAdminFeedbackRepository()) as T
+            return AdminFeedbackSessionViewModel(
+                AppContainer.getAdminFeedbackRepository(),
+                AppContainer.getSseClient()
+            ) as T
         }
     }
 }
@@ -381,8 +386,8 @@ fun AdminFeedbackSessionScreen(
     val viewModel: AdminFeedbackSessionViewModel = viewModel(
         factory = AdminFeedbackSessionViewModel.Factory()
     )
-    val uiState by viewModel.uiState.collectAsState()
-    val notice by viewModel.notice.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var input by remember { mutableStateOf("") }

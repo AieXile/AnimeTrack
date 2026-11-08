@@ -18,7 +18,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.Font
@@ -246,33 +246,33 @@ class MainActivity : ComponentActivity() {
         }
         com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager.getInstance().onAppOpen()
         setContent {
-            val themeMode by settingsRepository.themeMode.collectAsState(ThemeMode.SYSTEM)
-            val themePreset by settingsRepository.themePreset.collectAsState(ThemePreset.MONO_BLACK)
-            val darkStyle by settingsRepository.darkStyle.collectAsState(DarkStyle.BOOST)
-            val iconPack by settingsRepository.iconPack.collectAsState(settingsRepository.cachedIconPack())
+            val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(ThemeMode.SYSTEM)
+            val themePreset by settingsRepository.themePreset.collectAsStateWithLifecycle(ThemePreset.MONO_BLACK)
+            val darkStyle by settingsRepository.darkStyle.collectAsStateWithLifecycle(DarkStyle.BOOST)
+            val iconPack by settingsRepository.iconPack.collectAsStateWithLifecycle(settingsRepository.cachedIconPack())
             // 界面外壳材质：初始值取同步缓存，避免冷启动首帧先渲染默认档再跳变
             val chromeStyle by settingsRepository.chromeStyle
-                .collectAsState(settingsRepository.cachedChromeStyle())
+                .collectAsStateWithLifecycle(settingsRepository.cachedChromeStyle())
             // 卡片信息栏左右槽位：同样用同步缓存作初值，避免首帧按默认字段渲染后跳变
             val cardInfoLeft by settingsRepository.cardInfoLeftField
-                .collectAsState(settingsRepository.cachedCardInfoLeftField())
+                .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoLeftField())
             val cardInfoRight by settingsRepository.cardInfoRightField
-                .collectAsState(settingsRepository.cachedCardInfoRightField())
+                .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoRightField())
             // 状态角标转场策略：运行时切换，下一次进入详情即生效
             val statusBadgeTransitionMode by settingsRepository.statusBadgeTransitionMode
-                .collectAsState(settingsRepository.cachedStatusBadgeTransitionMode())
+                .collectAsStateWithLifecycle(settingsRepository.cachedStatusBadgeTransitionMode())
             val cardInfoFields = remember(cardInfoLeft, cardInfoRight) {
                 CardInfoFields(left = cardInfoLeft, right = cardInfoRight)
             }
             // 高级模糊（HAZE 档）参数：全局下发一次，悬浮胶囊/悬浮按钮/顶栏共用
             val blurRadius by settingsRepository.advancedBlurRadius
-                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
+                .collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
             val blurBackgroundAlpha by settingsRepository.advancedBlurBackgroundAlpha
-                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
+                .collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_BACKGROUND_ALPHA)
             val blurTintAlpha by settingsRepository.advancedBlurTintAlpha
-                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
+                .collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_TINT_ALPHA)
             val blurNoise by settingsRepository.advancedBlurNoise
-                .collectAsState(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
+                .collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_NOISE)
             val advancedBlurConfig = remember(blurRadius, blurBackgroundAlpha, blurTintAlpha, blurNoise) {
                 AdvancedBlurConfig(
                     blurRadius = blurRadius.dp,
@@ -283,9 +283,9 @@ class MainActivity : ComponentActivity() {
             }
             val systemDarkTheme = isSystemInDarkTheme()
 
-            val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = "SYSTEM")
-            val customFontLoaded by customFontFamily.collectAsState()
-            val deviceFontLoaded by deviceFontFamily.collectAsState()
+            val fontFamily by settingsRepository.fontFamilyFlow.collectAsStateWithLifecycle(initialValue = "SYSTEM")
+            val customFontLoaded by customFontFamily.collectAsStateWithLifecycle()
+            val deviceFontLoaded by deviceFontFamily.collectAsStateWithLifecycle()
 
             val currentFontFamily = remember(fontFamily, customFontLoaded, deviceFontLoaded) {
                 when (fontFamily) {
@@ -325,8 +325,8 @@ class MainActivity : ComponentActivity() {
                     LocalCardInfoFields provides cardInfoFields,
                     LocalStatusBadgeTransitionMode provides statusBadgeTransitionMode
                 ) {
-                    val splashDismissed by splashDismissed.collectAsState()
-                    val widgetEntry by pendingWidgetEntry.collectAsState()
+                    val splashDismissed by splashDismissed.collectAsStateWithLifecycle()
+                    val widgetEntry by pendingWidgetEntry.collectAsStateWithLifecycle()
                     AnimeTrackApp(
                         settingsRepository = settingsRepository,
                         isDataLoaded = isDataLoaded,

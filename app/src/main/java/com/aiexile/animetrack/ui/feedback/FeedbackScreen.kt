@@ -49,7 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,10 +85,10 @@ fun FeedbackScreen(
     onNavigateLogin: () -> Unit
 ) {
     val viewModel: FeedbackViewModel = viewModel(factory = FeedbackViewModel.Factory())
-    val uiState by viewModel.uiState.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val isAdmin by viewModel.isAdmin.collectAsState()
-    val sendError by viewModel.sendError.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
+    val sendError by viewModel.sendError.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var input by remember { mutableStateOf("") }
@@ -154,7 +154,7 @@ fun FeedbackScreen(
                     Column(
                         modifier = Modifier.padding(start = 28.dp, top = topInset + 76.dp)
                     ) {
-                        val username = viewModel.username.collectAsState().value
+                        val username = viewModel.username.collectAsStateWithLifecycle().value
                         Text(
                             text = if (username.isNullOrBlank()) {
                                 stringResource(R.string.feedback_greeting_no_name)
@@ -233,7 +233,7 @@ fun FeedbackScreen(
         }
 
         // ===== 浮动圆形按钮：返回（左上）/ 历史（右上，有未读回复时带红点） =====
-        val hasNewReplies by viewModel.hasNewReplies.collectAsState()
+        val hasNewReplies by viewModel.hasNewReplies.collectAsStateWithLifecycle()
         // 页面重新可见时刷新未读状态（从历史界面返回后红点及时熄灭）
         androidx.lifecycle.compose.LifecycleResumeEffect(isLoggedIn) {
             if (isLoggedIn) viewModel.refreshNewReplies()

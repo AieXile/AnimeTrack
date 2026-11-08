@@ -6,8 +6,14 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.ExportAnimeService
+import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.ImportResult
 import com.aiexile.animetrack.data.MarkdownParser
+import com.aiexile.animetrack.data.auth.AuthManager
+import com.aiexile.animetrack.data.auth.BilibiliAuthManager
+import com.aiexile.animetrack.data.auth.UserAuthManager
+import com.aiexile.animetrack.data.sse.SseClient
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
@@ -16,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,7 +41,12 @@ data class SettingsUiState(
 
 class SettingsViewModel(
     private val animeRepository: AnimeRepository,
-    private val settingsRepository: com.aiexile.animetrack.data.SettingsRepository
+    private val settingsRepository: com.aiexile.animetrack.data.SettingsRepository,
+    private val authManager: AuthManager,
+    private val bilibiliAuthManager: BilibiliAuthManager,
+    private val userAuthManager: UserAuthManager,
+    private val feedbackRepository: FeedbackRepository,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     companion object {
@@ -43,6 +55,49 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    // ---- 登录状态（登录卡片副标题 / 反馈红点）：统一在 ViewModel 里取数 ----
+    val userLoggedIn: StateFlow<Boolean> = userAuthManager.isLoggedIn
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val bangumiLoggedIn: StateFlow<Boolean> = authManager.isLoggedIn
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val bilibiliLoggedIn: StateFlow<Boolean> = bilibiliAuthManager.isLoggedIn
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val userTokenExpired: StateFlow<Boolean> = userAuthManager.tokenExpired
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val bangumiTokenExpired: StateFlow<Boolean> = authManager.tokenExpired
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val bilibiliTokenExpired: StateFlow<Boolean> = bilibiliAuthManager.tokenExpired
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _feedbackUnread = MutableStateFlow(false)
+    val feedbackUnread: StateFlow<Boolean> = _feedbackUnread.asStateFlow()
+
+    init {
+        // 退出登录即熄灭红点
+        viewModelScope.launch {
+            userAuthManager.isLoggedIn.collect { loggedIn ->
+                if (!loggedIn) _feedbackUnread.value = false
+            }
+        }
+        // SSE 管理员回复事件：停留设置页期间红点实时亮起
+        viewModelScope.launch {
+            sseClient.events
+                .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
+                .collect { refreshFeedbackUnread() }
+        }
+    }
+
+    /** 页面恢复时刷新「反馈有新回复」红点（与原实现一致：登录态才查） */
+    fun refreshFeedbackUnread() {
+        viewModelScope.launch {
+            if (!userAuthManager.isLoggedIn.first()) {
+                _feedbackUnread.value = false
+                return@launch
+            }
+            _feedbackUnread.value = feedbackRepository.hasNewReplies()
+        }
+    }
 
     val tmdbApiKey: StateFlow<String?> = settingsRepository.tmdbApiKey
         .stateIn(
@@ -163,7 +218,12 @@ class SettingsViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return SettingsViewModel(
                 AppContainer.getAnimeRepository(),
-                AppContainer.getSettingsRepository()
+                AppContainer.getSettingsRepository(),
+                AppContainer.getAuthManager(),
+                AppContainer.getBilibiliAuthManager(),
+                AppContainer.getUserAuthManager(),
+                AppContainer.getFeedbackRepository(),
+                AppContainer.getSseClient()
             ) as T
         }
     }

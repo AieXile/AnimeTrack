@@ -19,7 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,11 +63,11 @@ fun FontSettingsScreen(
         "language" to 3
     )
 
-    val fontFamily by settingsRepository.fontFamilyFlow.collectAsState(initial = FontFamilyType.SYSTEM.name)
-    val deviceFontSelection by settingsRepository.deviceFontSelectionFlow.collectAsState(
-        initial = DeviceFontSelection()
+    val fontFamily by settingsRepository.fontFamilyFlow.collectAsStateWithLifecycle(initialValue = FontFamilyType.SYSTEM.name)
+    val deviceFontSelection by settingsRepository.deviceFontSelectionFlow.collectAsStateWithLifecycle(
+        initialValue = DeviceFontSelection()
     )
-    val appLanguage by settingsRepository.appLanguageFlow.collectAsState(initial = AppLanguage.SIMPLIFIED_CHINESE.name)
+    val appLanguage by settingsRepository.appLanguageFlow.collectAsStateWithLifecycle(initialValue = AppLanguage.SIMPLIFIED_CHINESE.name)
 
     val currentFontType = remember(fontFamily) {
         val parsed = runCatching { FontFamilyType.valueOf(fontFamily) }

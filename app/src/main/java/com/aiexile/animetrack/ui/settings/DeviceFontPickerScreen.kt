@@ -32,7 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,11 +85,11 @@ fun DeviceFontPickerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val appLanguage by settingsRepository.appLanguageFlow.collectAsState(
-        initial = AppLanguage.SIMPLIFIED_CHINESE.name
+    val appLanguage by settingsRepository.appLanguageFlow.collectAsStateWithLifecycle(
+        initialValue = AppLanguage.SIMPLIFIED_CHINESE.name
     )
-    val selection by settingsRepository.deviceFontSelectionFlow.collectAsState(
-        initial = DeviceFontSelection()
+    val selection by settingsRepository.deviceFontSelectionFlow.collectAsStateWithLifecycle(
+        initialValue = DeviceFontSelection()
     )
 
     var query by rememberSaveable { mutableStateOf("") }

@@ -21,11 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,10 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.data.StatsPeriod
 import com.aiexile.animetrack.data.UsageStats
-import com.aiexile.animetrack.di.AppContainer
-import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 @Composable
@@ -47,25 +45,15 @@ import kotlin.math.ceil
 fun UsageStatsDialog(
     onDismiss: () -> Unit
 ) {
-    val statsRepository = remember { AppContainer.getUsageStatsRepository() }
-    val scope = rememberCoroutineScope()
+    val viewModel: UsageStatsViewModel = viewModel(factory = UsageStatsViewModel.factory())
     var selectedPeriod by remember { mutableStateOf(StatsPeriod.DAY) }
-    val stats by statsRepository.getStats(selectedPeriod).collectAsState(initial = UsageStats())
-    val totalAnimeCount by remember {
-        AppContainer.getAnimeDatabase().animeDao().getAllAnimes()
-    }.collectAsState(initial = emptyList())
+    val statsFlow = remember(selectedPeriod) { viewModel.stats(selectedPeriod) }
+    val stats by statsFlow.collectAsStateWithLifecycle(initialValue = UsageStats())
+    val totalAnimeCount by viewModel.totalAnimeCount.collectAsStateWithLifecycle()
 
     // 打开 Dialog 时刷新一次当前会话的使用时长
     LaunchedEffect(Unit) {
-        scope.launch {
-            val startTime = AppContainer.sessionStartTime
-            if (startTime > 0) {
-                val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
-                if (elapsedSeconds >= 5) {
-                    statsRepository.addUsageSeconds(elapsedSeconds)
-                }
-            }
-        }
+        viewModel.recordSessionUsage()
     }
 
     AlertDialog(
@@ -139,7 +127,7 @@ fun UsageStatsDialog(
                         )
                         StatsItem(
                             label = stringResource(R.string.usage_stats_total_anime),
-                            value = stringResource(R.string.usage_stats_count, totalAnimeCount.size)
+                            value = stringResource(R.string.usage_stats_count, totalAnimeCount)
                         )
                     }
                 }

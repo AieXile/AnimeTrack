@@ -83,7 +83,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -221,12 +221,13 @@ fun AnimeDetailScreen(
     isInPane: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    settingsRepository: com.aiexile.animetrack.data.SettingsRepository,
     viewModel: AnimeDetailViewModel = viewModel(
         key = "anime_detail_$animeId",
         factory = AnimeDetailViewModel.Factory(animeId)
     )
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val editState = uiState.editState
@@ -244,11 +245,24 @@ fun AnimeDetailScreen(
     // 播放入口浮层容器的窗口范围，用于把展开卡片右缘对齐到内容列
     var floatingLayerBounds by remember { mutableStateOf(Rect.Zero) }
     val focusManager = LocalFocusManager.current
-    val settingsRepository = remember { com.aiexile.animetrack.di.AppContainer.getSettingsRepository() }
-    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsState(initial = false)
+    val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsStateWithLifecycle(initialValue = false)
     // 外部播放按钮可见性与目标选择方式（功能设置）
-    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsState(initial = false)
-    val externalPlayMode by settingsRepository.externalPlayMode.collectAsState(initial = ExternalPlayMode.AUTO)
+    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsStateWithLifecycle(initialValue = false)
+    val externalPlayMode by settingsRepository.externalPlayMode.collectAsStateWithLifecycle(initialValue = ExternalPlayMode.AUTO)
+    // 外部播放的「直达/询问」与播放器拉起逻辑独立在 ExternalPlayLauncher，这里只注入状态与回调
+    val externalPlayLauncher = remember(context, scope, externalPlayMode) {
+        ExternalPlayLauncher(
+            context = context,
+            scope = scope,
+            externalPlayMode = externalPlayMode,
+            setIsResolving = { isResolvingExternalPlay = it },
+            onSaveBilibiliSeasonId = { viewModel.saveBilibiliSeasonId(it) },
+            onAskUser = { installed ->
+                choiceInstalledPlayers = installed
+                showPlayerChoiceDialog = true
+            }
+        )
+    }
     // 高级模糊（毛玻璃）参数由 MainActivity 统一下发，与主页悬浮按钮共用
     val advancedBlurConfig = LocalAdvancedBlurConfig.current
     // 展开卡片的目标宽度与右缘：跟随内容列（单栏 = 屏宽-32dp，双栏 = 右栏宽）
@@ -268,10 +282,10 @@ fun AnimeDetailScreen(
         derivedStateOf { contentTitleBottomPx.floatValue > topBarBottomPx.floatValue }
     }
 
-    val showMatchDialog by viewModel.showMatchDialog.collectAsState()
-    val matchSearchQuery by viewModel.matchSearchQuery.collectAsState()
-    val matchSearchState by viewModel.matchSearchState.collectAsState()
-    val showBangumiHint by viewModel.showBangumiHint.collectAsState()
+    val showMatchDialog by viewModel.showMatchDialog.collectAsStateWithLifecycle()
+    val matchSearchQuery by viewModel.matchSearchQuery.collectAsStateWithLifecycle()
+    val matchSearchState by viewModel.matchSearchState.collectAsStateWithLifecycle()
+    val showBangumiHint by viewModel.showBangumiHint.collectAsStateWithLifecycle()
 
     // 匹配按钮在 window 中的位置（供引导遮罩挖洞定位），按钮组合完成后回调
     var matchButtonBounds by remember { mutableStateOf<Rect?>(null) }
@@ -312,91 +326,9 @@ fun AnimeDetailScreen(
     }
 
     /**
-     * 外部播放：Animeko 走既有同步链路；哔哩哔哩先解析 season/集数直达，
-     * 解析失败（网络/匹配不到）回退到 B 站搜索页，保证永远有落点。
+     * 外部播放逻辑已抽至 [ExternalPlayLauncher]：Animeko 走既有同步链路；哔哩哔哩先解析
+     * season/集数直达，解析失败（网络/匹配不到）回退到 B 站搜索页，保证永远有落点。
      */
-    fun launchExternalPlayer(
-        anime: Anime,
-        request: ExternalPlayRequest,
-        playerId: ExternalPlayerId,
-        installed: Set<ExternalPlayerId>
-    ) {
-        when (playerId) {
-            ExternalPlayerId.ANIMEKO -> {
-                val result = ExternalPlayerLauncher.launch(context, request, playerId)
-                // 未安装/唤起失败已由便捷入口自动 Toast+降级；未关联需调用方提示
-                if (result is ExternalPlayResult.MissingBangumiLink) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.external_player_missing_link),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            ExternalPlayerId.BILIBILI -> {
-                if (!installed.contains(playerId)) {
-                    // 未安装：沿用统一降级（Toast + 官方下载页），无需先联网解析
-                    ExternalPlayerLauncher.launchUri(
-                        context, BilibiliPlayer, BilibiliPlayer.buildSearchUri(anime.title)
-                    )
-                    return
-                }
-                scope.launch {
-                    isResolvingExternalPlay = true
-                    val link = withTimeoutOrNull(5_000L) {
-                        BilibiliPlayLinkResolver.resolve(
-                            title = anime.title,
-                            storedSeasonId = anime.bilibiliSeasonId,
-                            watchedEpisodes = anime.watchedEpisodes,
-                            totalEpisodes = anime.totalEpisodes.takeIf { it > 0 },
-                            seasonNumber = anime.seasonNumber
-                        )
-                    }
-                    isResolvingExternalPlay = false
-                    // 首次按标题匹配成功时回写 season_id，后续点击可直接直达
-                    if (link != null && anime.bilibiliSeasonId == null) {
-                        viewModel.saveBilibiliSeasonId(link.seasonId)
-                    }
-                    val uri = link?.let { BilibiliPlayer.buildPlayUri(it) }
-                        ?: BilibiliPlayer.buildSearchUri(anime.title)
-                    ExternalPlayerLauncher.launchUri(context, BilibiliPlayer, uri)
-                }
-            }
-        }
-    }
-
-    /**
-     * 播放入口点击（FAB / 内联卡片共用）：按设置构造「接着看」请求，
-     * 再由 [ExternalPlayDispatcher] 决定直达播放器还是询问用户。
-     */
-    fun startExternalPlay(anime: Anime) {
-        // totalEpisodes<=0 视为未知(null)：continueWatching 语义为“恒给下一集”，
-        // 直接传 0 会被误判为“已看完”而回退详情页级跳转
-        val request = ExternalPlayRequest.continueWatching(
-            animeId = anime.id,
-            bangumiId = anime.bangumiId,
-            title = anime.title,
-            watchedEpisodes = anime.watchedEpisodes,
-            totalEpisodes = anime.totalEpisodes.takeIf { it > 0 }
-        )
-        val installed = ExternalPlayerRegistry.all
-            .filter { ExternalPlayerLauncher.isInstalled(context, it) }
-            .map { it.id }
-            .toSet()
-        when (val decision = ExternalPlayDispatcher.decide(
-            mode = externalPlayMode,
-            installed = installed,
-            hasBilibiliSeasonId = (anime.bilibiliSeasonId ?: 0) > 0
-        )) {
-            is ExternalPlayDecision.Launch ->
-                launchExternalPlayer(anime, request, decision.playerId, installed)
-            ExternalPlayDecision.AskUser -> {
-                choiceInstalledPlayers = installed
-                showPlayerChoiceDialog = true
-            }
-        }
-    }
-
     BackHandler(enabled = uiState.coverSearch.isVisible || editState.isEditing) {
         when {
             uiState.coverSearch.isVisible -> viewModel.hideCoverSearch()
@@ -660,7 +592,7 @@ fun AnimeDetailScreen(
                         episodeText = externalPlayEpisodeText,
                         expandedWidth = expandedActionWidth,
                         expandedEndInset = expandedActionEndInset,
-                        onClick = { uiState.anime?.let { startExternalPlay(it) } }
+                        onClick = { uiState.anime?.let { externalPlayLauncher.start(it) } }
                     )
                 }
             }
@@ -746,7 +678,7 @@ fun AnimeDetailScreen(
                         watchedEpisodes = choiceAnime.watchedEpisodes,
                         totalEpisodes = choiceAnime.totalEpisodes.takeIf { it > 0 }
                     )
-                    launchExternalPlayer(choiceAnime, request, playerId, choiceInstalledPlayers)
+                    externalPlayLauncher.launch(choiceAnime, request, playerId, choiceInstalledPlayers)
                 },
                 onDismiss = { showPlayerChoiceDialog = false }
             )

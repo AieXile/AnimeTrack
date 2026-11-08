@@ -59,7 +59,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +86,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.HitokotoRepository
 import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.ui.components.MarkdownText
@@ -104,6 +105,7 @@ private const val TG_URL = "https://t.me/AnimeTrackovo"
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
+    settingsRepository: SettingsRepository,
     onNavigateDeveloper: () -> Unit = {},
     onNavigatePrivacyPolicy: () -> Unit = {}
 ) {
@@ -111,9 +113,8 @@ fun AboutScreen(
 
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
-    val settingsRepository = remember { AppContainer.getSettingsRepository() }
     val scope = rememberCoroutineScope()
-    val developerMode by settingsRepository.developerMode.collectAsState(initial = false)
+    val developerMode by settingsRepository.developerMode.collectAsStateWithLifecycle(initialValue = false)
 
     var avatarTapCount by remember { mutableStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
@@ -131,7 +132,6 @@ fun AboutScreen(
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 val updateRepository = UpdateRepository()
-                val settingsRepository = AppContainer.getSettingsRepository()
                 return UpdateViewModel(updateRepository, settingsRepository) as T
             }
         }

@@ -19,7 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,17 +67,17 @@ fun PlayerSettingsScreen(
     onNavigateToPlayer: () -> Unit = {},
     onNavigateToWebDAVBrowse: () -> Unit = {},
     onNavigateToPlayerWebDavConfig: () -> Unit = {},
-    settingsRepository: SettingsRepository = remember { AppContainer.getSettingsRepository() }
+    settingsRepository: SettingsRepository
 ) {
     val scope = rememberCoroutineScope()
 
-    val defaultSpeed by settingsRepository.playerDefaultSpeed.collectAsState(initial = 1f)
-    val hardwareAcceleration by settingsRepository.playerHardwareAcceleration.collectAsState(initial = true)
-    val rememberPosition by settingsRepository.playerRememberPosition.collectAsState(initial = true)
-    val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsState(initial = false)
-    val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsState(initial = 2f)
-    val webdavMediaPath by settingsRepository.webdavMediaPath.collectAsState(initial = "")
-    val playerWebdavUrl by settingsRepository.playerWebdavUrl.collectAsState(initial = "")
+    val defaultSpeed by settingsRepository.playerDefaultSpeed.collectAsStateWithLifecycle(initialValue = 1f)
+    val hardwareAcceleration by settingsRepository.playerHardwareAcceleration.collectAsStateWithLifecycle(initialValue = true)
+    val rememberPosition by settingsRepository.playerRememberPosition.collectAsStateWithLifecycle(initialValue = true)
+    val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsStateWithLifecycle(initialValue = false)
+    val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsStateWithLifecycle(initialValue = 2f)
+    val webdavMediaPath by settingsRepository.webdavMediaPath.collectAsStateWithLifecycle(initialValue = "")
+    val playerWebdavUrl by settingsRepository.playerWebdavUrl.collectAsStateWithLifecycle(initialValue = "")
 
     AppScaffold(
         title = stringResource(R.string.settings_playback),

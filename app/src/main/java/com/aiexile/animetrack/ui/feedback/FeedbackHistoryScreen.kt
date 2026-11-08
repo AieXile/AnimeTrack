@@ -22,7 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -45,6 +45,7 @@ import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_PENDING
 import com.aiexile.animetrack.data.network.FEEDBACK_STATUS_RESOLVED
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSessionsPage
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -68,7 +69,8 @@ data class FeedbackHistoryUiState(
 
 /** 反馈历史列表 ViewModel：分页加载会话列表；SSE 管理员回复事件实时刷新列表 */
 class FeedbackHistoryViewModel(
-    private val repository: FeedbackRepository
+    private val repository: FeedbackRepository,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedbackHistoryUiState())
@@ -79,7 +81,7 @@ class FeedbackHistoryViewModel(
         // SSE 管理员回复事件：停留列表页期间实时刷新（新回复红点/最新消息摘要/状态/时间），
         // 无需退出重进（refresh 首页加载成功即 markRead，与进入页面时的行为一致）
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
                 .collect {
                     if (!_uiState.value.isLoading) refresh()
@@ -122,7 +124,10 @@ class FeedbackHistoryViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return FeedbackHistoryViewModel(AppContainer.getFeedbackRepository()) as T
+            return FeedbackHistoryViewModel(
+                AppContainer.getFeedbackRepository(),
+                AppContainer.getSseClient()
+            ) as T
         }
     }
 }
@@ -137,7 +142,7 @@ fun FeedbackHistoryScreen(
     onOpenSession: (String) -> Unit
 ) {
     val viewModel: FeedbackHistoryViewModel = viewModel(factory = FeedbackHistoryViewModel.Factory())
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     // 滚动接近底部时加载下一页

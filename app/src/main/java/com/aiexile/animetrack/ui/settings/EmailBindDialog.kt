@@ -25,7 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.auth.DeviceInfo
+import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.BindEmailRequest
 import com.aiexile.animetrack.data.network.DeviceSession
@@ -33,7 +35,6 @@ import com.aiexile.animetrack.data.network.EmailCodePurpose
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.serverMessage
-import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
@@ -60,11 +61,12 @@ import retrofit2.HttpException
 fun EmailBindDialog(
     token: String,
     onDismiss: () -> Unit,
-    onBound: () -> Unit
+    onBound: () -> Unit,
+    userAuthManager: UserAuthManager,
+    animeRepository: AnimeRepository
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val userAuthManager = remember { AppContainer.getUserAuthManager() }
 
     var inputEmail by remember { mutableStateOf("") }
     var inputCode by remember { mutableStateOf("") }
@@ -141,7 +143,7 @@ fun EmailBindDialog(
                         AppLogManager.w("EmailBind", "绑定后上报推送 registrationId 失败（非致命）", e)
                     }
                     try {
-                        AppContainer.getAnimeRepository()
+                        animeRepository
                             .triggerSyncSubscriptionsFromServer()
                     } catch (e: Exception) {
                         AppLogManager.w("EmailBind", "Trigger sync subscriptions failed (non-fatal)", e)

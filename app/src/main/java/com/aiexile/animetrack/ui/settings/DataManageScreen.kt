@@ -31,7 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +52,7 @@ import com.aiexile.animetrack.ui.components.ImportPreviewDialog
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.navigation.Routes
+import com.aiexile.animetrack.ui.settings.duplicate.DuplicateCleanupDialog
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,15 +67,16 @@ fun DataManageScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val importResult by viewModel.importResult.collectAsState()
-    val duplicateCount by viewModel.duplicateCount.collectAsState()
-    val exportMarkdown by viewModel.exportMarkdown.collectAsState()
+    val importResult by viewModel.importResult.collectAsStateWithLifecycle()
+    val duplicateCount by viewModel.duplicateCount.collectAsStateWithLifecycle()
+    val exportMarkdown by viewModel.exportMarkdown.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadConfig()
     }
 
     var showImportGuide by remember { mutableStateOf(false) }
+    var showDuplicateCleanup by remember { mutableStateOf(false) }
     var localImportResult by remember { mutableStateOf<ImportResult?>(null) }
     var localDuplicateCount by remember { mutableStateOf(0) }
     var pendingContent by remember { mutableStateOf<String?>(null) }
@@ -175,6 +177,10 @@ fun DataManageScreen(
         )
     }
 
+    if (showDuplicateCleanup) {
+        DuplicateCleanupDialog(onDismiss = { showDuplicateCleanup = false })
+    }
+
     AppScaffold(
         title = stringResource(R.string.data_manage_title),
         onBack = onBack,
@@ -257,6 +263,19 @@ fun DataManageScreen(
                             icon = rememberAppIconPainter(AppIcon.CLOUD_UPLOAD),
                             onClick = onNavigateWebDAV,
                             itemKey = "webdav",
+                            highlightKey = highlightKey
+                        )
+                    }
+                }
+
+                item {
+                    SettingsGroup(title = stringResource(R.string.duplicate_cleanup_group)) {
+                        SettingActionItem(
+                            title = stringResource(R.string.duplicate_cleanup_title),
+                            subtitle = stringResource(R.string.duplicate_cleanup_entry_subtitle),
+                            icon = rememberAppIconPainter(AppIcon.DELETE),
+                            onClick = { showDuplicateCleanup = true },
+                            itemKey = "duplicate_cleanup",
                             highlightKey = highlightKey
                         )
                     }

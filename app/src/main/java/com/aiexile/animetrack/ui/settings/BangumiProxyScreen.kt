@@ -23,7 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,19 +65,19 @@ fun BangumiProxyScreen(
     val context = LocalContext.current
 
     // Bangumi 镜像数据源：对所有用户开放，开关直接生效
-    val mirrorEnabled by settingsRepository.bangumiMirrorEnabledFlow.collectAsState(initial = false)
+    val mirrorEnabled by settingsRepository.bangumiMirrorEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
 
     // Bangumi 反向代理
-    val proxyEnabled by settingsRepository.bangumiProxyEnabledFlow.collectAsState(initial = false)
-    val proxyHost by settingsRepository.bangumiProxyHostFlow.collectAsState(initial = SettingsRepository.DEFAULT_BANGUMI_PROXY_HOST)
+    val proxyEnabled by settingsRepository.bangumiProxyEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
+    val proxyHost by settingsRepository.bangumiProxyHostFlow.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_BANGUMI_PROXY_HOST)
 
     // 网络代理（WEB / SOCKS5）
-    val httpProxyEnabled by settingsRepository.httpProxyEnabledFlow.collectAsState(initial = false)
-    val httpProxyHost by settingsRepository.httpProxyHostFlow.collectAsState(initial = SettingsRepository.DEFAULT_HTTP_PROXY_HOST)
-    val httpProxyPort by settingsRepository.httpProxyPortFlow.collectAsState(initial = SettingsRepository.DEFAULT_HTTP_PROXY_PORT)
-    val httpProxyType by settingsRepository.httpProxyTypeFlow.collectAsState(initial = ProxyType.HTTP)
-    val httpProxyUsername by settingsRepository.httpProxyUsernameFlow.collectAsState(initial = SettingsRepository.DEFAULT_HTTP_PROXY_USERNAME)
-    val httpProxyPassword by settingsRepository.httpProxyPasswordFlow.collectAsState(initial = SettingsRepository.DEFAULT_HTTP_PROXY_PASSWORD)
+    val httpProxyEnabled by settingsRepository.httpProxyEnabledFlow.collectAsStateWithLifecycle(initialValue = false)
+    val httpProxyHost by settingsRepository.httpProxyHostFlow.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_HTTP_PROXY_HOST)
+    val httpProxyPort by settingsRepository.httpProxyPortFlow.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_HTTP_PROXY_PORT)
+    val httpProxyType by settingsRepository.httpProxyTypeFlow.collectAsStateWithLifecycle(initialValue = ProxyType.HTTP)
+    val httpProxyUsername by settingsRepository.httpProxyUsernameFlow.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_HTTP_PROXY_USERNAME)
+    val httpProxyPassword by settingsRepository.httpProxyPasswordFlow.collectAsStateWithLifecycle(initialValue = SettingsRepository.DEFAULT_HTTP_PROXY_PASSWORD)
 
     var showBangumiHostDialog by remember { mutableStateOf(false) }
     var bangumiHostInput by remember { mutableStateOf("") }

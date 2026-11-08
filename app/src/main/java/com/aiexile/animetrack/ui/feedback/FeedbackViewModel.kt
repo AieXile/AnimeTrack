@@ -14,6 +14,7 @@ import com.aiexile.animetrack.data.remote.AdminIdentityResult
 import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.remote.FeedbackSendResult
 import com.aiexile.animetrack.data.remote.PendingAttachment
+import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,8 @@ internal suspend fun resolveLogPlaceholder(
 class FeedbackViewModel(
     private val repository: FeedbackRepository,
     private val adminRepository: AdminFeedbackRepository,
-    userAuthManager: UserAuthManager
+    userAuthManager: UserAuthManager,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FeedbackChatUiState())
@@ -105,7 +107,7 @@ class FeedbackViewModel(
         // - 回复主页当前会话：拉取服务端最新消息实时展示在主页（用户无需前往历史页），并标记已读
         // - 回复其他（历史）会话：仅刷新红点
         viewModelScope.launch {
-            AppContainer.getSseClient().events
+            sseClient.events
                 .filter { it.type == SseEventTypes.FEEDBACK_REPLY }
                 .collect { event ->
                     if (event.sessionId != null && event.sessionId == _uiState.value.sessionId) {
@@ -265,7 +267,8 @@ class FeedbackViewModel(
             return FeedbackViewModel(
                 AppContainer.getFeedbackRepository(),
                 AppContainer.getAdminFeedbackRepository(),
-                AppContainer.getUserAuthManager()
+                AppContainer.getUserAuthManager(),
+                AppContainer.getSseClient()
             ) as T
         }
     }
