@@ -180,7 +180,11 @@ fun AnimeTrackApp(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                AnnouncementViewModel(settingsRepository, AppContainer.getUserAuthManager()) as T
+                AnnouncementViewModel(
+                    settingsRepository,
+                    AppContainer.getUserAuthManager(),
+                    AppContainer.getSseClient()
+                ) as T
         }
     )
     val homeViewModel: HomeViewModel = viewModel(

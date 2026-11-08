@@ -37,6 +37,9 @@ object SseEventTypes {
 
     /** 版本发布广播（触发更新检查） */
     const val APP_UPDATE = "app_update"
+
+    /** 公告发布 / 启停 / 删除（触发公告列表重拉与未读弹窗） */
+    const val ANNOUNCEMENT = "announcement"
 }
 
 /** 服务端推送的 SSE 事件（负载字段按类型可选） */

@@ -78,6 +78,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 发版后广播 app_update：在线且已登录的客户端立即重新检查更新并弹出更新弹窗。
+      # 需要仓库 Secret `ADMIN_API_KEY`（与服务端 .env 的 ADMIN_API_KEY 一致）；
+      # 未配置时跳过，不阻塞发版。延迟 60 秒给服务端 update 元数据同步留出时间。
+      - name: Broadcast app_update via SSE
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          if [ -z "$ADMIN_API_KEY" ]; then
+            echo "未配置 ADMIN_API_KEY，跳过 app_update 广播"
+            exit 0
+          fi
+          sleep 60
+          curl -sS -X POST "https://www.aiexile.top/api/admin/broadcast" \
+            -H "Content-Type: application/json" \
+            -H "X-Admin-Key: $ADMIN_API_KEY" \
+            -d "{\"type\":\"app_update\",\"version\":\"${GITHUB_REF_NAME}\"}" \
+            || echo "app_update 广播失败（不影响发版）"
+
       - name: Convert changelog to Telegram HTML
         id: tg_changelog
         env:

@@ -9,10 +9,13 @@ import com.aiexile.animetrack.data.network.Announcement
 import com.aiexile.animetrack.data.network.AnnouncementDetail
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.VoteRequest
+import com.aiexile.animetrack.data.sse.SseClient
+import com.aiexile.animetrack.data.sse.SseEventTypes
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -49,7 +52,8 @@ data class AnnouncementUiState(
 
 class AnnouncementViewModel(
     private val settingsRepository: SettingsRepository,
-    private val userAuthManager: UserAuthManager
+    private val userAuthManager: UserAuthManager,
+    private val sseClient: SseClient
 ) : ViewModel() {
 
     companion object {
@@ -59,7 +63,22 @@ class AnnouncementViewModel(
     private val _uiState = MutableStateFlow(AnnouncementUiState())
     val uiState: StateFlow<AnnouncementUiState> = _uiState.asStateFlow()
 
+    /** 展示期间收到公告变更：关闭弹窗后再刷新，避免打断正在阅读的内容 */
+    private var refreshAfterDismiss = false
+
     init {
+        // SSE 公告事件：管理员发布/启停/删除后立即重拉列表，未读公告按既有串行逻辑自动弹出
+        viewModelScope.launch {
+            sseClient.events
+                .filter { it.type == SseEventTypes.ANNOUNCEMENT }
+                .collect {
+                    if (_uiState.value.showDialog) {
+                        refreshAfterDismiss = true
+                    } else {
+                        fetchAnnouncements()
+                    }
+                }
+        }
         // 跟随登录态变化：登录完成后补拉当前公告详情，解锁正显示中的公告投票区；
         // 退出登录后清空详情，避免残留投票区
         viewModelScope.launch {
@@ -181,6 +200,11 @@ class AnnouncementViewModel(
                     readAnnouncementIds = if (currentId != null)
                         it.readAnnouncementIds + currentId else it.readAnnouncementIds
                 )
+            }
+            // 展示期间有过公告变更：关闭后补拉，新公告仍会按未读逻辑自动弹出
+            if (refreshAfterDismiss) {
+                refreshAfterDismiss = false
+                fetchAnnouncements()
             }
         }
     }

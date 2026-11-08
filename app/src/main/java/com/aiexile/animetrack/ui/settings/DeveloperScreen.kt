@@ -96,7 +96,11 @@ fun DeveloperScreen(
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 val userAuthManager = AppContainer.getUserAuthManager()
-                return AnnouncementViewModel(settingsRepository, userAuthManager) as T
+                return AnnouncementViewModel(
+                    settingsRepository,
+                    userAuthManager,
+                    AppContainer.getSseClient()
+                ) as T
             }
         }
     )
