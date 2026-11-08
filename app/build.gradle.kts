@@ -31,8 +31,8 @@ android {
         applicationId = "com.aiexile.animetrack"
         minSdk = 26
         targetSdk = 34
-        versionCode = 44
-        versionName = "v0.7.4"
+        versionCode = 45
+        versionName = "v0.7.4-fix"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -92,10 +92,10 @@ android {
             //       故资源瘦身一并关闭。如未来需要资源瘦身，需重新启用 minify 并配置 -dontobfuscate。
             isMinifyEnabled = false
             isShrinkResources = false
+            // 签名参数只存在于 CI Secrets：本地缺少 KEYSTORE_* 时产出未签名包（app-release-unsigned.apk），
+            // 不再回落 debug 签名，避免把 debug 签名混进同包名的正式产物
             if (isSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }
