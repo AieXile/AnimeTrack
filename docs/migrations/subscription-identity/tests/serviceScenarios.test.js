@@ -8,7 +8,7 @@ const path = require('path');
 
 const apiDir = process.env.SERVER_API_DIR
   ? path.resolve(process.env.SERVER_API_DIR)
-  : path.resolve(__dirname, '../../../../.trae/server/api');
+  : path.resolve(__dirname, '../../../../server');
 
 const { createSubscriptionService } = require(path.join(apiDir, 'subscriptions/service'));
 const { createMergeService } = require(path.join(apiDir, 'subscriptions/mergeService'));

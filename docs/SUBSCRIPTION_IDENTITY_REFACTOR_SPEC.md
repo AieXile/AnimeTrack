@@ -4,7 +4,7 @@
 | ------ | ------------------------------------------------------------------------------------------------------ |
 | 文档状态   | 待评审（未开始实施）                                                                                             |
 | 日期     | 2026-10-29                                                                                             |
-| 影响范围   | 服务端 `.trae/server/api/`、网页 `.trae/server/update-site/`、App `app/src/main/java/com/aiexile/animetrack/` |
+| 影响范围   | 服务端 `server/`、网页 `.trae/server/update-site/`、App `app/src/main/java/com/aiexile/animetrack/` |
 | 关联现象   | 网页登录后 89 部番剧变成 178 部，多出一份「数据相同但集数为 0」的幽灵卡                                                              |
 | 现有临时收敛 | `server.js` 第 1753–2119 行的 P0/P1（已改完、尚未部署）                                                             |
 | 实施原则   | 功能与 UI 不变、用户数据零丢失、旧客户端零报错、全程可回滚                                                                        |
@@ -854,15 +854,15 @@ GROUP BY DATE(created_at) ORDER BY d DESC LIMIT 14;
 
 | 文件                                                         | 职责                                |
 | ---------------------------------------------------------- | --------------------------------- |
-| `.trae/server/api/subscriptions/identity.js`               | 键归一化、类型判定、数值歧义规则                  |
-| `.trae/server/api/subscriptions/aliasRepository.js`        | alias / 墓碑表的读写                    |
-| `.trae/server/api/subscriptions/subscriptionRepository.js` | canonical 表唯一写入口                  |
-| `.trae/server/api/subscriptions/mergeService.js`           | 目标行选择、字段合并、merge\_log             |
-| `.trae/server/api/subscriptions/service.js`                | upsert/delete/list 编排 + 事务 + 死锁重试 |
-| `.trae/server/api/subscriptions/legacyAdapter.js`          | v1 请求/响应翻译                        |
-| `.trae/server/api/subscriptions/routes.js`                 | v1 + v2 Express 路由 + 维护窗口 503     |
-| `.trae/server/api/subscriptions/schema.js`                 | 建表/加列/严格约束（幂等）                  |
-| `.trae/server/api/subscriptions/backfill.js`               | 阶段 2 单用户回填与校验（dry-run 可回滚）        |
+| `server/subscriptions/identity.js`               | 键归一化、类型判定、数值歧义规则                  |
+| `server/subscriptions/aliasRepository.js`        | alias / 墓碑表的读写                    |
+| `server/subscriptions/subscriptionRepository.js` | canonical 表唯一写入口                  |
+| `server/subscriptions/mergeService.js`           | 目标行选择、字段合并、merge\_log             |
+| `server/subscriptions/service.js`                | upsert/delete/list 编排 + 事务 + 死锁重试 |
+| `server/subscriptions/legacyAdapter.js`          | v1 请求/响应翻译                        |
+| `server/subscriptions/routes.js`                 | v1 + v2 Express 路由 + 维护窗口 503     |
+| `server/subscriptions/schema.js`                 | 建表/加列/严格约束（幂等）                  |
+| `server/subscriptions/backfill.js`               | 阶段 2 单用户回填与校验（dry-run 可回滚）        |
 
 修改：`server.js` 移除原内联订阅实现，改挂 router；账号物理清除与统计改按 canonical 处理。
 

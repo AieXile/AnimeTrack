@@ -1,7 +1,7 @@
 /**
  * 真实 MySQL 集成测试（默认跳过）。
  *
- * 用法（在 .trae/server/api 下已安装依赖后）：
+ * 用法（在 server/ 下已安装依赖后）：
  *   PowerShell:
  *     $env:MYSQL_URL='mysql://root:pass@127.0.0.1:3306/'
  *     node docs/migrations/subscription-identity/tests/integration.mysql.test.js
@@ -26,7 +26,7 @@ if (!MYSQL_URL) {
 }
 
 const repoRoot = path.resolve(__dirname, '../../../..');
-const serverApiDir = path.join(repoRoot, '.trae/server/api');
+const serverApiDir = path.join(repoRoot, 'server');
 const serverRequire = createRequire(path.join(serverApiDir, 'package.json'));
 const mysql = serverRequire('mysql2/promise');
 

@@ -1,5 +1,5 @@
 # Subscription identity refactor: local preflight checks.
-# The server source lives under .trae/ (gitignored), so CI cannot run these.
+# The server source lives under server/, so these checks can run in CI too.
 # Run this before deploying the server module.
 #
 # Usage (repository root):
@@ -7,7 +7,7 @@
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
-$serverDir = Join-Path $root '.trae\server\api\subscriptions'
+$serverDir = Join-Path $root 'server\subscriptions'
 $testDir = Join-Path $PSScriptRoot 'tests'
 
 if (-not (Test-Path $serverDir)) {

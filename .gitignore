@@ -69,3 +69,6 @@ CLAUDE.md
 # Local dev tools
 tools/
 
+# 服务端源码：独立私有仓库（server/.git），不在本公开仓库中跟踪
+server/
+

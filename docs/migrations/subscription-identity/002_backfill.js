@@ -10,7 +10,7 @@
  * 必填环境变量：
  *   DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME
  * 可选：
- *   SERVER_API_DIR  服务端 api 目录（默认仓库内 ../../../.trae/server/api）
+ *   SERVER_API_DIR  服务端 api 目录（默认仓库内 ../../../server）
  *
  * 安全约定：
  * - 默认 dry-run：每个用户事务执行完立即回滚，不落库；
@@ -63,7 +63,7 @@ function resolveServerApi(args) {
   return path.resolve(
     args.serverApi ||
     process.env.SERVER_API_DIR ||
-    path.join(__dirname, '..', '..', '..', '.trae', 'server', 'api')
+    path.join(__dirname, '..', '..', '..', 'server')
   );
 }
 
