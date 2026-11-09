@@ -17,6 +17,10 @@ private const val ANIM_DURATION = 300
 private const val ANIM_DURATION_NO_SHARED = 200
 private val ANIM_EASING = FastOutSlowInEasing
 
+/** 详情页入场延迟：主页顶栏收拢、导航栏下滑离场约需 200ms，
+ *  详情页内容先保持透明，等主界面外壳走掉大半再淡入，避免两套顶栏交叠出现 */
+private const val DETAIL_ENTER_DELAY = 100
+
 private val slideSpec = tween<androidx.compose.ui.unit.IntOffset>(durationMillis = ANIM_DURATION, easing = ANIM_EASING)
 private val fadeSpec = tween<Float>(durationMillis = ANIM_DURATION, easing = ANIM_EASING)
 private val scaleSpec = tween<Float>(durationMillis = ANIM_DURATION, easing = ANIM_EASING)
@@ -130,10 +134,18 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.enterTransition(): EnterTr
         isMainRoute(fromRoute) && toRoute == Routes.ONBOARDING ->
             fadeIn(animationSpec = tween(0))
 
-        // 主页 → 详情页：fadeIn 配合 sharedElement 飞入动画
+        // 主页 → 详情页：fadeIn 配合 sharedElement 飞入动画。
+        // 详情页内容延迟淡入（共享元素飞行不受影响，绘制在转场 Overlay 层）：
+        // 先让主页顶栏收起、导航栏下滑，再由详情页顶栏/返回按钮等接上
         isDetailRoute(toRoute) -> {
             val duration = if (hasSharedElement(targetState)) ANIM_DURATION else ANIM_DURATION_NO_SHARED
-            fadeIn(animationSpec = tween(duration))
+            fadeIn(
+                animationSpec = tween(
+                    durationMillis = duration,
+                    delayMillis = DETAIL_ENTER_DELAY,
+                    easing = ANIM_EASING
+                )
+            )
         }
 
         // 详情页 → 主页：fadeIn 配合 sharedElement 飞出动画

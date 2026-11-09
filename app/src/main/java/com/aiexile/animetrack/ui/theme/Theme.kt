@@ -51,12 +51,12 @@ fun AnimeTrackTheme(
         }
     }
 
-    // 黑白简洁暗色：封面状态角标改用半透明黑 scrim。
-    // 该主题暗色下 primary 为近白（0xFFE0E0E0），实底角标叠在暗色卡片/封面上
+    // 暗色模式（所有主题）：封面状态角标改用半透明黑 scrim。
+    // 暗色下 primary 均为浅色（近白或高亮彩），实底角标叠在暗色卡片/封面上
     // 明度对比过强显得突兀；scrim 与封面图像融合，任意明暗封面均可读。
-    val monoDarkScrim = darkTheme && (themePreset == ThemePreset.MONO_BLACK || seedColor == null)
+    val darkBadgeScrim = darkTheme
 
-    val animeColors = remember(colorScheme, monoDarkScrim) {
+    val animeColors = remember(colorScheme, darkBadgeScrim) {
         AnimeColors(
             starFilled = Color(0xFFF9A825),
             finished = colorScheme.tertiary,
@@ -71,12 +71,12 @@ fun AnimeTrackTheme(
             chipUnselected = colorScheme.onSurfaceVariant,
             chipUnselectedContainer = colorScheme.surfaceVariant,
             chipUnselectedContent = colorScheme.onSurfaceVariant,
-            statusBadgeContainer = if (monoDarkScrim) {
+            statusBadgeContainer = if (darkBadgeScrim) {
                 Color.Black.copy(alpha = 0.55f)
             } else {
                 colorScheme.primary
             },
-            statusBadgeContent = if (monoDarkScrim) Color(0xFFE8E8E8) else colorScheme.onPrimary,
+            statusBadgeContent = if (darkBadgeScrim) Color(0xFFE8E8E8) else colorScheme.onPrimary,
         )
     }
 

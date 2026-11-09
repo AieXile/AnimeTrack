@@ -46,8 +46,8 @@ internal fun StatusBadge(
     modifier: Modifier = Modifier,
     size: StatusBadgeSize = StatusBadgeSize.Corner
 ) {
-    // 黑白简洁暗色下为半透明黑 scrim + 浅字（见 Theme.kt 中 AnimeColors 的计算），
-    // 其余主题/明暗模式保持 primary 实底样式
+    // 暗色模式（所有主题）下为半透明黑 scrim + 浅字（见 Theme.kt 中 AnimeColors 的计算），
+    // 浅色模式保持 primary 实底样式
     val containerColor = LocalAnimeColors.current.statusBadgeContainer
     val contentColor = LocalAnimeColors.current.statusBadgeContent
     val text = if (unaired) {

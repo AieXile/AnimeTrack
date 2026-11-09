@@ -152,6 +152,17 @@ class HomeViewModel(
     val scrollToTopRequests = _scrollToTopRequests.asSharedFlow()
 
     /**
+     * 程序化回顶到达后的顶部拉伸回弹信号（系统 overscroll 只响应手势，程序化滚动不会触发，
+     * 由 HomeScreen 在网格上补一个等效的拉伸动画）。
+     */
+    private val _topStretchRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val topStretchRequests = _topStretchRequests.asSharedFlow()
+
+    fun requestTopStretch() {
+        _topStretchRequests.tryEmit(Unit)
+    }
+
+    /**
      * 主页顶栏是否被下滑隐藏（「下滑隐藏顶栏」开关开启时由滚动驱动）。
      * MainOverlay 中计算写入，HomeScreen 顶栏占位与 MainOverlay 顶栏/FAB 同步消费。
      * 搜索激活期间显隐冻结；列表滚回顶部时恢复显示。
@@ -903,14 +914,6 @@ class HomeViewModel(
     
     fun onScrollCompleted() {
         _uiState.update { it.copy(shouldScrollToTop = false) }
-    }
-
-    /**
-     * 触发列表滚动到顶部（由外层 MainOverlay 的"回到顶部" FAB 调用）。
-     * HomeScreen 内部的 LaunchedEffect 会监听 [HomeUiState.shouldScrollToTop] 执行实际滚动。
-     */
-    fun scrollToTop() {
-        _uiState.update { it.copy(shouldScrollToTop = true) }
     }
 
     /**

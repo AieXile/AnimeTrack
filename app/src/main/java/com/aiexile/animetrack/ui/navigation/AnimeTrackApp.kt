@@ -9,13 +9,17 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.MutatePriority
@@ -28,10 +32,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -56,13 +56,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -79,7 +78,6 @@ import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
@@ -100,29 +98,21 @@ import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.HazeNavBackdropBlur
-import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
 import com.aiexile.animetrack.ui.components.SharedElementSpecs
 import com.aiexile.animetrack.ui.components.SideNavigationRail
 import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
-import com.aiexile.animetrack.ui.components.drawLiquidGlass
-import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.components.isCompactWidth
-import com.aiexile.animetrack.ui.components.liquidGlassSpec
+import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.home.BesideNavFabSize
 import com.aiexile.animetrack.ui.home.BesideNavFabSlot
 import com.aiexile.animetrack.ui.home.BesideNavFabSlotWidth
 import com.aiexile.animetrack.ui.home.besideNavFabSquish
 import com.aiexile.animetrack.ui.home.HomeFloatingActions
 import com.aiexile.animetrack.ui.home.HomeScreen
-import com.aiexile.animetrack.ui.home.HomeTopBar
+import com.aiexile.animetrack.ui.home.smoothScrollToTop
+import com.aiexile.animetrack.ui.home.HomeTopBarLayer
 import com.aiexile.animetrack.ui.home.HomeViewModel
-import com.aiexile.animetrack.ui.home.TopBarActionsCombinedWidth
-import com.aiexile.animetrack.ui.home.TopBarActionsFloating
-import com.aiexile.animetrack.ui.home.TopBarActionsSingleWidth
-import com.aiexile.animetrack.ui.home.TopBarMorphCircleCorner
-import com.aiexile.animetrack.ui.home.TopBarMorphCorner
-import com.aiexile.animetrack.ui.home.topBarCollapseMorph
 import com.aiexile.animetrack.ui.onboarding.OnboardingScreen
 import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.EmailBindDialog
@@ -657,15 +647,30 @@ fun AnimeTrackApp(
             }
         }
 
-        // MainOverlay：在 SharedTransitionLayout 外层渲染 TopBar/BottomBar/FAB，
+        // MainOverlay：在 SharedTransitionLayout 外层渲染导航栏/FAB，
         // 使其绘制顺序晚于共享元素 Overlay，避免转场期间被飞行卡片遮盖。
-        // 仅在 MAIN 路由可见，转场期间保持显示以遮盖飞行卡片。
-        if (isMainRoute) {
+        // 离开 MAIN 后不立即卸载，多保留一个动画时长让导航栏把下滑淡出播完；
+        // 首次进入主界面（冷启动/离开引导页）不播入场动画，之后每次返回都滑回
+        var navOverlayKeepMounted by remember { mutableStateOf(false) }
+        var navOverlayHasLeftMain by remember { mutableStateOf(false) }
+        LaunchedEffect(isMainRoute) {
+            if (isMainRoute) {
+                navOverlayKeepMounted = true
+            } else {
+                // 只在「确实离开过主界面」时标记（冷启动首帧路由尚未落定时
+                // isMainRoute 也是 false，不能据此判定），避免首进主页播入场动画
+                if (navOverlayKeepMounted) navOverlayHasLeftMain = true
+                // 比动画略长，保证卸载时淡出已经走完，不截断最后一帧
+                delay(NAV_OVERLAY_ANIM_DURATION + 50L)
+                navOverlayKeepMounted = false
+            }
+        }
+        if (isMainRoute || navOverlayKeepMounted) {
             MainOverlay(
+                visible = isMainRoute,
+                animateEnter = navOverlayHasLeftMain,
                 navigationStyle = navigationStyle,
                 useSideNavigation = useSideNavigation,
-                paneWidth = paneState.paneWidth,
-                mainPages = mainPages,
                 pagerState = pagerState,
                 homeViewModel = homeViewModel,
                 gridState = gridState,
@@ -680,6 +685,26 @@ fun AnimeTrackApp(
                 navBackdrop = navBackdrop
             )
         }
+
+        // 主页顶栏层：独立挂载，离开主界面（打开详情页/进入二级页）时向上收起淡出，
+        // 返回主界面时自上方落下淡入（首次显示不播动画）；底部导航栏与主页 FAB
+        // 仍由 MainOverlay 管理（显隐行为不变）
+        HomeTopBarLayer(
+            homeViewModel = homeViewModel,
+            settingsRepository = settingsRepository,
+            visible = isMainRoute,
+            isHomePage = currentMainRoute == "home",
+            isCurrentPage = isMainRoute && pagerState.currentPage == homePageIndex,
+            fabLocation = fabLocation,
+            style = LocalChromeStyle.current,
+            hazeState = hazeState,
+            backdrop = navBackdrop,
+            blurConfig = LocalAdvancedBlurConfig.current,
+            useSideNavigation = useSideNavigation,
+            isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE,
+            paneWidth = paneState.paneWidth,
+            onAddClick = { homeViewModel.showBottomSheet() }
+        )
 
         // Token 失效横幅：置顶悬浮；避开沉浸式页面（播放器/WebDAV 浏览）
         // 与启动更新/公告弹窗期间，避免视觉冲突
@@ -884,7 +909,7 @@ private fun MainScreen(
 
 
 /**
- * 胶囊导航栏布局：仅渲染 Pager 内容。
+ * 胶囊导航栏布局：渲染 Pager 内容 + 导航栏四周磨砂层。
  * 实际的 CapsuleNavigationBar 在 MainOverlay 中渲染，胶囊栏为浮动设计，
  * 内容可滚动到其下方（与原行为一致）。
  */
@@ -913,46 +938,75 @@ private fun CapsuleNavLayout(
     // - layerBackdrop 消费方（胶囊/搜索条/FAB/状态栏玻璃条）仅在液态玻璃档挂载
     // - hazeSource 消费方（胶囊毛玻璃/FAB/顶栏毛玻璃）仅在高级模糊档挂载
     val chromeStyle = LocalChromeStyle.current
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
-                    Modifier.layerBackdrop(navBackdrop)
-                } else {
-                    Modifier
-                }
-            )
-            .then(
-                if (chromeStyle == ChromeStyle.HAZE) {
-                    Modifier.hazeSource(state = hazeState)
-                } else {
-                    Modifier
-                }
-            )
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = isPagerScrollEnabled
-        ) { page ->
-            MainPagerContent(
-                page = page,
-                mainPages = mainPages,
-                pagerState = pagerState,
-                settingsRepository = settingsRepository,
-                navigationStyle = NavigationStyle.CAPSULE,
-                homeViewModel = homeViewModel,
-                gridState = gridState,
-                updateViewModel = updateViewModel,
-                announcementViewModel = announcementViewModel,
-                authManager = authManager,
-                bilibiliAuthManager = bilibiliAuthManager,
-                userAuthManager = userAuthManager,
-                onNavigateToScreen = onNavigateToScreen,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope
-            )
+    // 导航栏四周磨砂层开关：磨砂层与采样源同层渲染（见下），开关也在此读取。
+    // 初值取同步缓存，避免从子页面返回重建时首帧闪变
+    val navBackdropBlurEnabled by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
+        .collectAsStateWithLifecycle(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 采样源：只包 Pager 内容，磨砂层与胶囊都不能落在录制子树里
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
+                        Modifier.layerBackdrop(navBackdrop)
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(
+                    if (chromeStyle == ChromeStyle.HAZE) {
+                        Modifier.hazeSource(state = hazeState)
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = isPagerScrollEnabled
+            ) { page ->
+                MainPagerContent(
+                    page = page,
+                    mainPages = mainPages,
+                    pagerState = pagerState,
+                    settingsRepository = settingsRepository,
+                    navigationStyle = NavigationStyle.CAPSULE,
+                    homeViewModel = homeViewModel,
+                    gridState = gridState,
+                    updateViewModel = updateViewModel,
+                    announcementViewModel = announcementViewModel,
+                    authManager = authManager,
+                    bilibiliAuthManager = bilibiliAuthManager,
+                    userAuthManager = userAuthManager,
+                    onNavigateToScreen = onNavigateToScreen,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
+        }
+
+        // 导航栏四周磨砂层（类 iOS Tab Bar；两种玻璃材质都有，共用同一开关）。
+        // 必须与上面的采样源处于同一坐标系：此前它挂在 MainOverlay（SharedTransitionLayout
+        // 外层），而采样源在 NavHost 的动画层内，从子页面返回时的缩放动画会让跨层坐标
+        // 换算整体偏移，屏幕最底部一条采到源图层之外的透明像素，表现为「最底部失去模糊」。
+        // 放在这里后采样方与源同层，任何转场变换都不影响映射。
+        // 绘制顺序仍为：页面内容 < 磨砂层 < 胶囊（胶囊在 MainOverlay，绘制更晚）。
+        if (navBackdropBlurEnabled) {
+            when (chromeStyle) {
+                ChromeStyle.LIQUID_GLASS -> LiquidGlassNavBackdropBlur(
+                    backdrop = navBackdrop,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                ChromeStyle.HAZE -> HazeNavBackdropBlur(
+                    hazeState = hazeState,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                ChromeStyle.STANDARD -> Unit
+            }
         }
     }
 }
@@ -1133,19 +1187,23 @@ internal fun MainPagerContent(
 }
 
 /**
- * 主界面 Overlay：在 SharedTransitionLayout 外层渲染 TopBar/导航栏/FAB。
+ * 主界面 Overlay：在 SharedTransitionLayout 外层渲染导航栏/主页 FAB。
+ * （主页顶栏由 [HomeTopBarLayer] 独立管理，以便离开主界面时播放向上收起动画）
  *
  * 作用：SharedTransitionLayout 在转场期间会于其根节点注入 Overlay 渲染层，
  * 飞行中的共享元素渲染在 Overlay 上，位于其内部所有 Scaffold 内容之上。
- * 将 TopBar/BottomBar/FAB 提升到此 Overlay（即 SharedTransitionLayout 外层）之后，
+ * 将 BottomBar/FAB 提升到此 Overlay（即 SharedTransitionLayout 外层）之后，
  * 使其绘制顺序晚于共享元素 Overlay，从而避免被飞行卡片遮盖。
  *
  * 导航形态：大屏（useSideNavigation）渲染左侧 NavigationRail；
  * Compact 按导航样式设置渲染底部导航栏 / 胶囊导航栏。
  *
- * 可见性：仅在 MAIN 路由可见，转场期间保持显示以遮盖飞行卡片。
+ * 可见性：仅在 MAIN 路由可见；离开时导航栏与 FAB 下滑淡出（大屏 Rail 左滑淡出），
+ * 返回时滑回。离场后调用方会延迟卸载本层，让退出动画播完。
  *
- * @param currentRoute 当前 Pager 页面对应的路由（用于导航栏高亮与 TopBar/FAB 可见性判断）
+ * @param visible 主界面（MAIN）路由是否可见，驱动导航栏/FAB 的进出场动画
+ * @param animateEnter 首次显示传 false：不播入场动画（冷启动/离开引导页时瞬现）
+ * @param currentRoute 当前 Pager 页面对应的路由（用于导航栏高亮与 FAB 可见性判断）
  * @param onNavigate Tab 点击导航回调
  * @param navJumpTarget CapsuleNav 直线跳转动画目标
  * @param onAddAnimeClick 添加番剧按钮点击回调
@@ -1153,10 +1211,10 @@ internal fun MainPagerContent(
 @OptIn(ExperimentalFoundationApi::class, FlowPreview::class)
 @Composable
 private fun MainOverlay(
+    visible: Boolean,
+    animateEnter: Boolean,
     navigationStyle: NavigationStyle,
     useSideNavigation: Boolean,
-    paneWidth: Dp,
-    mainPages: List<MainPage>,
     pagerState: PagerState,
     homeViewModel: HomeViewModel,
     gridState: LazyGridState,
@@ -1176,40 +1234,43 @@ private fun MainOverlay(
     // 初始值取同步缓存：从子页面返回 MainOverlay 重建时不闪现默认「图标+文字」
     val navigationLabelMode by settingsRepository.navigationLabelMode
         .collectAsStateWithLifecycle(settingsRepository.cachedNavigationLabelMode())
-    // 液态玻璃「导航栏背景模糊」开关：初始值取同步缓存，避免首帧闪变
-    val capsuleLiquidGlassBackdropBlurEnabled by settingsRepository.capsuleLiquidGlassBackdropBlurEnabled
-        .collectAsStateWithLifecycle(settingsRepository.cachedCapsuleLiquidGlassBackdropBlur())
 
     // 高级模糊（毛玻璃）自定义参数由 MainActivity 统一下发，悬浮胶囊、主页顶栏与悬浮按钮共用
     val advancedBlurConfig = LocalAdvancedBlurConfig.current
-
-    // 从 settingsRepository 读取 HomeTopBar 所需状态；初始值取同步缓存：
-    // MainOverlay 随路由切换销毁重建，collectAsState 默认值会使欢迎语瞬态解析为
-    // 随机前缀，与已播放标记不匹配导致返回主页时重播打字动画
-    val customGreeting by settingsRepository.customGreeting
-        .collectAsStateWithLifecycle(settingsRepository.cachedCustomGreeting())
-    val greetingEffectStyle by settingsRepository.greetingEffectStyle
-        .collectAsStateWithLifecycle(settingsRepository.cachedGreetingEffectStyle())
-    val showSearchButton by settingsRepository.showSearchButton.collectAsStateWithLifecycle(true)
-
-    // 从 homeViewModel 读取列表状态，用于判断搜索按钮可见性
-    val animeList by homeViewModel.animeList.collectAsStateWithLifecycle()
-    val filteredAnimeListItems by homeViewModel.filteredAnimeListItems.collectAsStateWithLifecycle()
-    val hasAnime = animeList.isNotEmpty()
-    val hasFilteredItems = filteredAnimeListItems.isNotEmpty()
 
     // 顶栏收起状态由 ViewModel 的 StateFlow 提供，Compose 层只收集
     val isTopBarHidden by homeViewModel.isTopBarHidden.collectAsStateWithLifecycle()
 
     // showScrollToTop：基于 gridState 滚动位置计算（与 HomeScreen 内部逻辑一致）
     var showScrollToTop by remember { mutableStateOf(false) }
+    // 程序化回顶进行中：animateScrollToItem 分段弹簧每段收尾会短暂停住位置，
+    // debounce 后误判"已停在中间项"而让按钮重新弹出、到顶又收起（到顶闪一下）。
+    // 此标记期间忽略位置流，不显示按钮。
+    var isScrollingToTop by remember { mutableStateOf(false) }
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex }
             .debounce(50)
             .collect { index ->
-                if (index > 2 && !showScrollToTop) showScrollToTop = true
+                if (index > 2 && !showScrollToTop && !isScrollingToTop) showScrollToTop = true
                 else if (index <= 1 && showScrollToTop) showScrollToTop = false
             }
+    }
+
+    // 回到顶部：点击后直接驱动 gridState，不经 ViewModel 状态回流，
+    // 避免一次 uiState 变更引发 HomeScreen/网格整体重组后滚动才开始
+    val scrollToTopScope = rememberCoroutineScope()
+    val onScrollToTop: () -> Unit = {
+        showScrollToTop = false
+        isScrollingToTop = true
+        scrollToTopScope.launch {
+            try {
+                gridState.smoothScrollToTop()
+                // 到达顶部后补一次拉伸回弹（系统 overscroll 只对手势生效）
+                homeViewModel.requestTopStretch()
+            } finally {
+                isScrollingToTop = false
+            }
+        }
     }
 
     // 顶栏下滑隐藏：开启开关后下滑收起顶栏，滚回列表顶部时展开（手机与平板一致）。
@@ -1218,15 +1279,6 @@ private fun MainOverlay(
     // 故初始值取同步缓存（与悬浮胶囊开关同方案），返回主页首帧即为真实开关值
     val hideTopBarOnScroll by settingsRepository.hideTopBarOnScrollEnabled
         .collectAsStateWithLifecycle(settingsRepository.cachedHideTopBarOnScroll())
-    // 顶栏收起后的状态栏处理方式（全屏/留白遮罩/实心），初始值取同步缓存避免闪变
-    val statusBarMode by settingsRepository.statusBarMode
-        .collectAsStateWithLifecycle(settingsRepository.cachedStatusBarMode())
-    // 主页顶栏外观设置：底部圆角、是否跟随玻璃材质档位（初始值取同步缓存避免闪变）
-    val topBarRounded by settingsRepository.topBarRounded
-        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarRounded())
-    val topBarGlassTheme by settingsRepository.topBarGlassThemeEnabled
-        .collectAsStateWithLifecycle(settingsRepository.cachedTopBarGlassThemeEnabled())
-    val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(gridState, hideTopBarOnScroll, isHomePage) {
         if (!hideTopBarOnScroll) {
             homeViewModel.updateTopBarHidden(false)
@@ -1274,46 +1326,62 @@ private fun MainOverlay(
     // 搜索关闭后顶栏保持收拢（搜索条收回为 FAB 的动画可见，不被顶栏展开覆盖）；
     // 顶栏仅在列表滚回顶部时重新展开，上滑回滚途中不触发
 
+    // 路由级显隐状态：三种导航形态与 FAB 各持一份（同一时刻只有一个 AnimatedVisibility
+    // 实例在组合中，但切换导航样式时新旧分支会短暂并存，故不共用状态对象）。
+    // 初值 = 已可见且无需入场动画：首帧即为最终态，因此首次显示不会播入场动画
+    val navInitialVisible = visible && !animateEnter
+    val sideNavTransition = remember { MutableTransitionState(navInitialVisible) }
+    sideNavTransition.targetState = visible
+    val capsuleNavTransition = remember { MutableTransitionState(navInitialVisible) }
+    capsuleNavTransition.targetState = visible
+    val bottomNavTransition = remember { MutableTransitionState(navInitialVisible) }
+    bottomNavTransition.targetState = visible
+    val fabTransition = remember { MutableTransitionState(navInitialVisible) }
+    fabTransition.targetState = visible
+
     Box(modifier = Modifier.fillMaxSize()) {
         // 导航栏：大屏使用左侧 NavigationRail，Compact 使用底部导航栏 / 胶囊导航栏
         if (useSideNavigation) {
-            SideNavigationRail(
-                currentRoute = currentRoute,
-                visiblePages = visiblePages,
-                onNavigate = onNavigate,
-                labelMode = navigationLabelMode,
+            AnimatedVisibility(
+                visibleState = sideNavTransition,
                 modifier = Modifier.align(Alignment.CenterStart),
-                // 大屏回到顶部按钮：置于 Rail 底部槽位（仅主页可见时提供），替代右下角 FAB
-                bottomContent = if (isHomePage) {
-                    {
-                        AnimatedVisibility(
-                            visible = showScrollToTop,
-                            enter = fadeIn(tween(300)) + scaleIn(
-                                initialScale = 0.8f,
-                                animationSpec = tween(300)
-                            ),
-                            exit = fadeOut(tween(200)) + scaleOut(
-                                targetScale = 0.8f,
-                                animationSpec = tween(200)
-                            )
-                        ) {
-                            IconButton(onClick = {
-                                // 点击后立即隐藏按钮，不等滚动完成
-                                showScrollToTop = false
-                                homeViewModel.scrollToTop()
-                            }) {
-                                Icon(
-                                    painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
-                                    contentDescription = stringResource(R.string.home_scroll_to_top),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                // 侧栏贴着屏幕左缘：向左滑出，与底部栏下滑方向各自符合形态
+                enter = fadeIn(navFadeSpec) + slideInHorizontally(navSlideSpec) { -it },
+                exit = fadeOut(navFadeSpec) + slideOutHorizontally(navSlideSpec) { -it }
+            ) {
+                SideNavigationRail(
+                    currentRoute = currentRoute,
+                    visiblePages = visiblePages,
+                    onNavigate = onNavigate,
+                    labelMode = navigationLabelMode,
+                    // 大屏回到顶部按钮：置于 Rail 底部槽位（仅主页可见时提供），替代右下角 FAB
+                    bottomContent = if (isHomePage) {
+                        {
+                            AnimatedVisibility(
+                                visible = showScrollToTop,
+                                enter = fadeIn(tween(300)) + scaleIn(
+                                    initialScale = 0.8f,
+                                    animationSpec = tween(300)
+                                ),
+                                exit = fadeOut(tween(200)) + scaleOut(
+                                    targetScale = 0.8f,
+                                    animationSpec = tween(200)
                                 )
+                            ) {
+                                IconButton(onClick = onScrollToTop) {
+                                    Icon(
+                                        painter = rememberAppIconPainter(AppIcon.VERTICAL_ALIGN_TOP),
+                                        contentDescription = stringResource(R.string.home_scroll_to_top),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
+                    } else {
+                        null
                     }
-                } else {
-                    null
-                }
-            )
+                )
+            }
         } else if (isCapsuleNav) {
             // 「导航栏旁」FAB：主页时胶囊右端预留按钮槽宽度，离开主页预留动画归零、
             // 胶囊平滑回位重新居中（加号仅主页显示，与右下角 FAB 行为一致）
@@ -1323,279 +1391,106 @@ private fun MainOverlay(
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "navFabReserve"
             )
-            // 导航栏四周磨砂层（类 iOS Tab Bar；两种玻璃材质都有，共用同一开关）：
-            // 胶囊自身采样 Pager 内容层（采样源不含本层），不受模糊层影响
-            if (capsuleLiquidGlassBackdropBlurEnabled) {
-                when (chromeStyle) {
-                    ChromeStyle.LIQUID_GLASS -> LiquidGlassNavBackdropBlur(
-                        backdrop = navBackdrop,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
-
-                    ChromeStyle.HAZE -> HazeNavBackdropBlur(
-                        hazeState = hazeState,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
-
-                    ChromeStyle.STANDARD -> Unit
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
+            // 导航栏四周磨砂层已下移到 CapsuleNavLayout（与采样源同层，避免转场后
+            // 跨层坐标偏移导致屏幕最底部失去模糊），此处只渲染胶囊本体
+            AnimatedVisibility(
+                visibleState = capsuleNavTransition,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(navFadeSpec) + slideInVertically(navSlideSpec) { it },
+                exit = fadeOut(navFadeSpec) + slideOutVertically(navSlideSpec) { it }
             ) {
-                CapsuleNavigationBar(
-                    currentRoute = currentRoute,
-                    visiblePages = visiblePages,
-                    onNavigate = onNavigate,
-                    pagerState = pagerState,
-                    jumpTarget = navJumpTarget,
-                    labelMode = navigationLabelMode,
-                    hazeState = hazeState,
-                    style = chromeStyle,
-                    blurConfig = advancedBlurConfig,
-                    backdrop = navBackdrop,
-                    reserveEndWidth = navFabReserve,
-                    // 底边锁定 Box 底边：按钮槽（含回到顶部）比胶囊高会撑大本 Box，
-                    // 不锁定则胶囊默认贴顶边、跟随按钮槽显隐上下浮动
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-                // 「导航栏旁」按钮槽：加号 52dp（略小于胶囊高 54dp），
-                // bottom padding 25dp = 胶囊边距 24dp + 半高差 (54-52)/2，与胶囊中心对齐，
-                // 右端 32dp 边距与胶囊一致。
-                // 注意：本槽与胶囊一样**不能**消费 navigationBars inset——胶囊自身只留
-                // 24dp 底边距（CapsuleNavigationBar 内部无任何 WindowInsets），若此处加
-                // navigationBarsPadding()，加号会按系统上报的手势提示条高度（0～24dp，
-                // 三键导航约 48dp）整体上浮，而胶囊不动，两者中心线随机型不同错开。
-                // 滑入滑出由 navFabReserve 同一动画源驱动：
-                // 进主页时按钮从屏幕右缘外随胶囊让位同步滑入，离主页时同步滑出，
-                // 任意时刻与胶囊的间距从 32dp 平滑收窄至设计间隔 12dp，
-                // 机制上杜绝「按钮先出现遮挡正在让位的胶囊」
-                if (fabBesideNav) {
-                    // 按钮完全滑出屏幕所需位移：右端边距 32dp + 按钮宽 52dp
-                    val besideNavFabSlideOut = BesideNavFabSize + 32.dp
-                    BesideNavFabSlot(
-                        showScrollToTop = showScrollToTop,
-                        onScrollToTop = {
-                            // 点击后立即隐藏按钮，不等滚动完成
-                            showScrollToTop = false
-                            homeViewModel.scrollToTop()
-                        },
-                        onAddClick = onAddAnimeClick,
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    CapsuleNavigationBar(
+                        currentRoute = currentRoute,
+                        visiblePages = visiblePages,
+                        onNavigate = onNavigate,
+                        pagerState = pagerState,
+                        jumpTarget = navJumpTarget,
+                        labelMode = navigationLabelMode,
                         hazeState = hazeState,
                         style = chromeStyle,
                         blurConfig = advancedBlurConfig,
                         backdrop = navBackdrop,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            // 与胶囊同一基准：胶囊底边距 24dp 只从窗口底算起，不叠系统栏 inset，
-                            // 故此处只叠 25dp 底边距（勿加 navigationBarsPadding，见上方说明）
-                            .padding(end = 32.dp, bottom = 25.dp)
-                            .offset(
-                                x = besideNavFabSlideOut *
-                                    (1f - navFabReserve / BesideNavFabSlotWidth)
-                            )
-                            // 挤压形变：随滑入进度压扁→回弹，与滑移同源无独立时序
-                            .besideNavFabSquish(navFabReserve)
+                        reserveEndWidth = navFabReserve,
+                        // 底边锁定 Box 底边：按钮槽（含回到顶部）比胶囊高会撑大本 Box，
+                        // 不锁定则胶囊默认贴顶边、跟随按钮槽显隐上下浮动
+                        modifier = Modifier.align(Alignment.BottomCenter)
                     )
+                    // 「导航栏旁」按钮槽：加号 52dp（略小于胶囊高 54dp），
+                    // bottom padding 25dp = 胶囊边距 24dp + 半高差 (54-52)/2，与胶囊中心对齐，
+                    // 右端 32dp 边距与胶囊一致。
+                    // 注意：本槽与胶囊一样**不能**消费 navigationBars inset——胶囊自身只留
+                    // 24dp 底边距（CapsuleNavigationBar 内部无任何 WindowInsets），若此处加
+                    // navigationBarsPadding()，加号会按系统上报的手势提示条高度（0～24dp，
+                    // 三键导航约 48dp）整体上浮，而胶囊不动，两者中心线随机型不同错开。
+                    // 滑入滑出由 navFabReserve 同一动画源驱动：
+                    // 进主页时按钮从屏幕右缘外随胶囊让位同步滑入，离主页时同步滑出，
+                    // 任意时刻与胶囊的间距从 32dp 平滑收窄至设计间隔 12dp，
+                    // 机制上杜绝「按钮先出现遮挡正在让位的胶囊」
+                    if (fabBesideNav) {
+                        // 按钮完全滑出屏幕所需位移：右端边距 32dp + 按钮宽 52dp
+                        val besideNavFabSlideOut = BesideNavFabSize + 32.dp
+                        BesideNavFabSlot(
+                            showScrollToTop = showScrollToTop,
+                            onScrollToTop = onScrollToTop,
+                            onAddClick = onAddAnimeClick,
+                            hazeState = hazeState,
+                            style = chromeStyle,
+                            blurConfig = advancedBlurConfig,
+                            backdrop = navBackdrop,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                // 与胶囊同一基准：胶囊底边距 24dp 只从窗口底算起，不叠系统栏 inset，
+                                // 故此处只叠 25dp 底边距（勿加 navigationBarsPadding，见上方说明）
+                                .padding(end = 32.dp, bottom = 25.dp)
+                                .offset(
+                                    x = besideNavFabSlideOut *
+                                        (1f - navFabReserve / BesideNavFabSlotWidth)
+                                )
+                                // 挤压形变：随滑入进度压扁→回弹，与滑移同源无独立时序
+                                .besideNavFabSquish(navFabReserve)
+                        )
+                    }
                 }
             }
         } else {
-            BottomNavigationBar(
-                currentRoute = currentRoute,
-                visiblePages = visiblePages,
-                onNavigate = onNavigate,
-                pagerState = pagerState,
-                labelMode = navigationLabelMode,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            AnimatedVisibility(
+                visibleState = bottomNavTransition,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(navFadeSpec) + slideInVertically(navSlideSpec) { it },
+                exit = fadeOut(navFadeSpec) + slideOutVertically(navSlideSpec) { it }
+            ) {
+                BottomNavigationBar(
+                    currentRoute = currentRoute,
+                    visiblePages = visiblePages,
+                    onNavigate = onNavigate,
+                    pagerState = pagerState,
+                    labelMode = navigationLabelMode
+                )
+            }
         }
 
-        // 主页 TopBar（仅在 home 页可见）：开启「下滑隐藏顶栏」时，顶栏通过
-        // graphics-shapes Morph 真收拢成迁移 FAB（终点=按钮行位置，纵向零位移），
-        // 内容由 AnimeGrid contentPadding 预留顶栏高度，收拢/展开时内容零移动
-        if (isHomePage) {
-            // 收拢进度（0=展开, 1=收拢为 FAB）：顶栏与迁移 FAB 共用，保证 morph 连续
-            val topBarCollapse by animateFloatAsState(
-                targetValue = if (isTopBarHidden) 1f else 0f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "topBarCollapse"
-            )
-            // 顶栏按钮构成决定收拢终点宽度：单按钮 48dp，搜索+添加组合 97dp
-            val topBarShowSearch = showSearchButton && hasAnime && hasFilteredItems
-            val topBarShowAdd = fabLocation == FabLocation.TOP_BAR || useSideNavigation
-            // 加号 FAB 在胶囊导航旁时，右上角只剩单个搜索 FAB：改为与加号一致的全圆，
-            // 顶栏 morph 终点圆角同步改为圆形，收拢终点与 FAB 轮廓重合（组合 FAB 不适用）
-            val circleTopBarSearchFab = !useSideNavigation && isCapsuleNav &&
-                fabLocation == FabLocation.NAV_BAR && topBarShowSearch && !topBarShowAdd
-            // 右上角无任何按钮时无 morph 终点（迁移 FAB 也不会出现），
-            // 顶栏不再收缩成按钮形状，改为整体淡出隐藏
-            val hasTopBarActions = topBarShowSearch || topBarShowAdd
-            val morphTargetWidth = if (topBarShowSearch && topBarShowAdd) {
-                TopBarActionsCombinedWidth
-            } else {
-                TopBarActionsSingleWidth
-            }
-            // 玻璃档顶栏与 FAB/胶囊同材质：HAZE 毛玻璃 / LIQUID_GLASS 折射玻璃；
-            // 设置中关闭「顶栏跟随玻璃材质」后顶栏保持实色（收拢时仍向 FAB 容器色插值）
-            val topBarGlassEnabled = chromeStyle != ChromeStyle.STANDARD && topBarGlassTheme
-
-            // 完全收拢后移除顶栏（避免透明区域拦截点击）
-            if (topBarCollapse < 1f) {
-                HomeTopBar(
-                    viewModel = homeViewModel,
-                    customGreeting = customGreeting,
-                    greetingEffectStyle = greetingEffectStyle,
-                    showSearchButton = showSearchButton,
-                    fabLocation = fabLocation,
-                    // 大屏无 FAB，顶栏始终提供添加入口（不受 FAB 位置设置约束）
-                    alwaysShowAddButton = useSideNavigation,
-                    isCurrentPage = pagerState.currentPage == mainPages.indexOfFirst { it.route == "home" },
-                    hasAnime = hasAnime,
-                    hasFilteredItems = hasFilteredItems,
-                    onAddClick = onAddAnimeClick,
-                    morphCollapse = topBarCollapse,
-                    // 玻璃档收拢全程保持玻璃（与 FAB 无缝衔接，不向实色插值）；
-                    // 标准档收拢时向 FAB 容器色插值，避免收拢终点色块断层
-                    morphTargetColor = if (topBarGlassEnabled) {
-                        null
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainer
-                    },
-                    style = chromeStyle,
-                    hazeState = hazeState,
-                    backdrop = navBackdrop,
-                    rounded = topBarRounded,
-                    glassThemeEnabled = topBarGlassTheme,
-                    blurConfig = advancedBlurConfig,
-                    // 大屏适配：顶栏从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .then(
-                            if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
-                        )
-                        .padding(end = paneWidth)
-                        .then(
-                            if (hasTopBarActions) {
-                                // 真 morph：几何连续变形为按钮行位置的 Squircle / 全圆（问候语早期淡出在 TopBar 内处理）
-                                Modifier.topBarCollapseMorph(
-                                    collapseProgress = topBarCollapse,
-                                    targetWidth = morphTargetWidth,
-                                    targetCornerRadius = if (circleTopBarSearchFab) {
-                                        TopBarMorphCircleCorner
-                                    } else {
-                                        TopBarMorphCorner
-                                    }
-                                )
-                            } else {
-                                // 无按钮无 morph 终点：整体随收拢进度淡出（问候语已在 TopBar 内先行淡出）
-                                Modifier.graphicsLayer { alpha = 1f - topBarCollapse }
-                            }
-                        )
-                )
-            }
-
-            // 状态栏处理方式（「下滑隐藏顶栏」开启时生效，绘制在顶栏之后）：
-            // 全屏 = 不渲染，内容滚入透明状态栏区域；留白遮罩 = 表面色纵向渐变盖在内容上；
-            // 实心状态栏 = 实色条（HomeScreen 顶部预留同步收紧，内容被顶到其下沿），
-            // 高级模糊时顶栏为毛玻璃，实色条保证状态栏区域始终实底。
-            // 液态玻璃开启时实心条改为玻璃条（与 FAB/胶囊同质感），全屏/留白遮罩不受影响。
-            // 随收拢进度淡入，展开时被顶栏自身背景覆盖，无感知
-            if (hideTopBarOnScroll && topBarCollapse > 0f && statusBarMode != StatusBarMode.FULLSCREEN) {
-                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                val surfaceColor = MaterialTheme.colorScheme.surface
-                val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
-                    Modifier
-                        // 渐变略高于状态栏，下缘柔和隐入内容；顶部实色确保状态栏图标易读
-                        .height(statusBarHeight + 12.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    surfaceColor.copy(alpha = 1f),
-                                    surfaceColor.copy(alpha = 0.65f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                } else if (chromeStyle == ChromeStyle.LIQUID_GLASS) {
-                    // 液态玻璃条：仅模糊+提亮（Bar 规格不做 lens 折射，避免薄条边缘畸变）；
-                    // 通栏玻璃关闭默认高光/外阴影，避免顶部出现一条白色亮边
-                    Modifier
-                        .height(statusBarHeight)
-                        .drawLiquidGlass(
-                            backdrop = navBackdrop,
-                            shape = { RectangleShape },
-                            spec = liquidGlassSpec(LiquidGlassKind.Bar),
-                            highlight = null,
-                            shadow = null
-                        )
-                } else {
-                    Modifier
-                        .height(statusBarHeight)
-                        .background(surfaceColor)
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        // 大屏适配：与顶栏一致，从侧边导航栏右侧开始；pane 打开时让出 pane 宽度
-                        .then(
-                            if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
-                        )
-                        .padding(end = paneWidth)
-                        .fillMaxWidth()
-                        .then(scrimModifier)
-                        .graphicsLayer { alpha = topBarCollapse }
-                )
-            }
-
-            // 顶栏动作迁移 FAB：顶栏收拢后期原位淡入（与收拢终点像素级重合）。
-            // 点击搜索 → 不展开顶栏，FAB 左边框向左展开为悬浮搜索条。
-            // 液态玻璃开启时 FAB/搜索条为折射玻璃渲染（与悬浮胶囊同质感）
-            TopBarActionsFloating(
-                collapseProgress = topBarCollapse,
-                isSearchActive = homeUiState.isLocalSearchActive,
-                searchQuery = homeUiState.localSearchQuery,
-                onSearchQueryChange = { homeViewModel.updateLocalSearchQuery(it) },
-                onCloseSearch = { homeViewModel.clearLocalSearch() },
-                showSearch = topBarShowSearch,
-                showAdd = topBarShowAdd,
-                onSearchClick = { homeViewModel.startLocalSearch() },
-                onAddClick = onAddAnimeClick,
-                hazeState = hazeState,
-                style = chromeStyle,
-                blurConfig = advancedBlurConfig,
-                backdrop = navBackdrop,
-                circleFab = circleTopBarSearchFab,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    // 大屏适配：从侧边导航栏右侧开始；pane 打开时 end 让出 pane 宽度
-                    .then(
-                        if (useSideNavigation) Modifier.padding(start = SideNavRailWidth) else Modifier
-                    )
-                    .padding(end = paneWidth)
-                    .statusBarsPadding()
-                    // 与原顶栏按钮对齐：顶栏 horizontal 20dp padding，按钮行自 statusBar 底起 48dp
-                    .padding(end = 20.dp)
-            )
-
-            // 主页 FAB（仅 Compact 渲染）；大屏添加入口在顶栏、回到顶部在侧边导航栏底部槽位
-            if (!useSideNavigation) {
+        // 主页顶栏（含收拢 morph / 状态栏遮罩 / 迁移 FAB）已移至 HomeTopBarLayer，
+        // 以支持离开主界面时向上收起的退出动画
+        AnimatedVisibility(
+            visibleState = fabTransition,
+            modifier = Modifier.align(Alignment.BottomEnd),
+            enter = fadeIn(navFadeSpec) + slideInVertically(navSlideSpec) { it },
+            exit = fadeOut(navFadeSpec) + slideOutVertically(navSlideSpec) { it }
+        ) {
+            // 路由进出由本层播放下滑淡出；页签切换仍按原行为瞬时显隐
+            if (isHomePage && !useSideNavigation) {
+                // 主页 FAB（仅 Compact 渲染）；大屏添加入口在顶栏、回到顶部在侧边导航栏底部槽位
                 HomeFloatingActions(
                     fabLocation = fabLocation,
                     isCapsuleNav = isCapsuleNav && !useSideNavigation,
                     showScrollToTop = showScrollToTop,
-                    onScrollToTop = {
-                        // 点击后立即隐藏按钮，不等滚动完成
-                        showScrollToTop = false
-                        homeViewModel.scrollToTop()
-                    },
+                    onScrollToTop = onScrollToTop,
                     onAddClick = onAddAnimeClick,
                     hazeState = hazeState,
                     style = chromeStyle,
                     blurConfig = advancedBlurConfig,
-                    backdrop = navBackdrop,
-                    modifier = Modifier.align(Alignment.BottomEnd)
+                    backdrop = navBackdrop
                 )
             }
         }
@@ -1605,6 +1500,11 @@ private fun MainOverlay(
 /** 顶栏滚动方向检测：跨 item 位置换算基数与触发阈值（px），阈值过滤微小抖动 */
 private const val TOPBAR_SCROLL_DIRECTION_SCALE = 100000
 private const val TOPBAR_SCROLL_DIRECTION_THRESHOLD = 24
+
+/** 导航栏/FAB 路由级进出场时长（与主页顶栏退出时长一致），调用方按此延迟卸载 MainOverlay */
+private const val NAV_OVERLAY_ANIM_DURATION = 200
+private val navFadeSpec = tween<Float>(NAV_OVERLAY_ANIM_DURATION, easing = FastOutSlowInEasing)
+private val navSlideSpec = tween<IntOffset>(NAV_OVERLAY_ANIM_DURATION, easing = FastOutSlowInEasing)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

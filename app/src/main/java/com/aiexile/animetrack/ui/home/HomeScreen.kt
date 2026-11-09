@@ -5,8 +5,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -35,6 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import com.aiexile.animetrack.R
@@ -55,6 +60,25 @@ import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+/**
+ * 主页「回到顶部」的滚动。
+ *
+ * [LazyGridState.animateScrollToItem] 的动画时长由距离决定（内部是默认弹簧），距离太短会
+ * 「一瞬间就上去」看不出过程；而跨越整条长列表又会逐帧组合沿途全部卡片，必然掉帧。
+ * 因此先瞬移到离顶部 [RIDE_ITEMS] 项的位置，把最后这一段（约 15 行、4~6 屏）留给动画，
+ * 观感是明显从下方滚上来，同时只组合这几十张卡片。
+ */
+internal suspend fun LazyGridState.smoothScrollToTop() {
+    val rideStart = firstVisibleItemIndex - RIDE_ITEMS
+    if (rideStart > 0) {
+        scrollToItem(rideStart)
+    }
+    animateScrollToItem(index = 0)
+}
+
+/** 回到顶部的动画段长度（项数）。调大可加长上滚观感，代价是动画期间组合的卡片更多。 */
+private const val RIDE_ITEMS = 30
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -207,8 +231,18 @@ fun HomeScreen(
     
     LaunchedEffect(uiState.shouldScrollToTop) {
         if (uiState.shouldScrollToTop) {
-            gridState.animateScrollToItem(index = 0)
+            gridState.smoothScrollToTop()
             viewModel.onScrollCompleted()
+        }
+    }
+
+    // 回到顶部到达后的顶部拉伸回弹：系统 overscroll 只响应手势，程序化回顶不会触发，
+    // 这里用同一视觉语言补一个——顶部锚定的纵向拉伸（无空隙）+ 弹簧回弹
+    val topStretch = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        viewModel.topStretchRequests.collect {
+            topStretch.animateTo(1f, tween(durationMillis = 90, easing = FastOutLinearInEasing))
+            topStretch.animateTo(0f, spring(dampingRatio = 0.42f, stiffness = 340f))
         }
     }
     
@@ -355,7 +389,12 @@ fun HomeScreen(
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
                     isCapsuleNav = isCapsuleNav,
-                    topContentPadding = topBarReservedTop
+                    topContentPadding = topBarReservedTop,
+                    modifier = Modifier.graphicsLayer {
+                        // 只读 Animatable，逐帧失效绘制层，不触发重组
+                        scaleY = 1f + 0.025f * topStretch.value
+                        transformOrigin = TransformOrigin(0.5f, 0f)
+                    }
                 )
             }
         }
