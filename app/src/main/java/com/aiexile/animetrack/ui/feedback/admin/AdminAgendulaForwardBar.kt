@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.feedback.formatFeedbackTime
@@ -50,31 +51,46 @@ internal fun AdminAgendulaForwardBar(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = when {
-                    isForwarding -> stringResource(R.string.admin_feedback_forwarding)
-                    alreadyPushed -> stringResource(
-                        R.string.admin_feedback_forward_sent_at,
-                        formatFeedbackTime(pushedAt)
-                    )
-                    else -> stringResource(R.string.admin_feedback_forward_hint)
-                },
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+            if (isForwarding) {
+                ShimmerText(
+                    text = stringResource(R.string.admin_feedback_forwarding),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            } else {
+                Text(
+                    text = if (alreadyPushed) {
+                        stringResource(R.string.admin_feedback_forward_sent_at, formatFeedbackTime(pushedAt))
+                    } else {
+                        stringResource(R.string.admin_feedback_forward_hint)
+                    },
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
         TextButton(onClick = onSend, enabled = !isForwarding) {
-            Text(
-                text = when {
-                    isForwarding -> stringResource(R.string.admin_feedback_forwarding)
-                    alreadyPushed -> stringResource(R.string.admin_feedback_forward_sent)
-                    else -> stringResource(R.string.admin_feedback_forward_send)
-                },
-                fontSize = 12.sp
-            )
+            if (isForwarding) {
+                ShimmerText(
+                    text = stringResource(R.string.admin_feedback_forwarding),
+                    fontSize = 12.sp
+                )
+            } else {
+                Text(
+                    text = if (alreadyPushed) {
+                        stringResource(R.string.admin_feedback_forward_sent)
+                    } else {
+                        stringResource(R.string.admin_feedback_forward_send)
+                    },
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }

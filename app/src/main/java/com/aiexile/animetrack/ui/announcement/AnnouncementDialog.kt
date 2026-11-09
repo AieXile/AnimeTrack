@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.foundation.verticalScroll
@@ -342,7 +343,7 @@ private fun VoteSection(
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
+            ShimmerText(
                 text = stringResource(R.string.announcement_vote_loading),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

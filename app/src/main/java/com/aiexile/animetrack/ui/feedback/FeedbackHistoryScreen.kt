@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -199,7 +200,7 @@ fun FeedbackHistoryScreen(
                     }
                     if (uiState.isLoading) {
                         item(key = "loading") {
-                            Text(
+                            ShimmerText(
                                 text = stringResource(R.string.common_loading),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

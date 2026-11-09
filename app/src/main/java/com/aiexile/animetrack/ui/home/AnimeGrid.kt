@@ -92,6 +92,7 @@ import coil.request.ImageRequest
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.AnimeCardStack
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.CardPixelBounds
 import com.aiexile.animetrack.ui.components.DeletionBurstOverlay
 import com.aiexile.animetrack.ui.components.animateEnter
@@ -950,7 +951,7 @@ private fun SyncBannerArea(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(
+                        ShimmerText(
                             text = stringResource(R.string.home_syncing_data),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,

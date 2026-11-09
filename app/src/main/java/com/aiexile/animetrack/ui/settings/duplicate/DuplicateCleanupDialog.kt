@@ -46,6 +46,7 @@ import coil.compose.AsyncImage
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.util.coverImageRequestForList
 import com.aiexile.animetrack.util.formatDate
@@ -109,7 +110,7 @@ fun DuplicateCleanupDialog(
                             ) {
                                 CircularProgressIndicator()
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text(
+                                ShimmerText(
                                     text = stringResource(
                                         if (state.isCleaning) R.string.duplicate_cleanup_cleaning
                                         else R.string.duplicate_cleanup_loading

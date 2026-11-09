@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.login.LoginViewModel
 
@@ -85,7 +86,7 @@ fun BangumiLoginScreen(
                             modifier = Modifier.size(32.dp),
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Text(
+                        ShimmerText(
                             text = stringResource(R.string.bangumi_login_loading),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

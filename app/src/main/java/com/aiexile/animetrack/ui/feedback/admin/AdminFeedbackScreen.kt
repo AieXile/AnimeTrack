@@ -53,6 +53,7 @@ import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.sse.SseEvent
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.feedback.formatFeedbackTime
@@ -236,7 +237,7 @@ fun AdminFeedbackScreen(
                         }
                         if (uiState.isLoading) {
                             item(key = "loading") {
-                                Text(
+                                ShimmerText(
                                     text = stringResource(R.string.common_loading),
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

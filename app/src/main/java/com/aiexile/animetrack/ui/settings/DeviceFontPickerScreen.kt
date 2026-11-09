@@ -59,6 +59,7 @@ import com.aiexile.animetrack.data.font.DeviceFontSelection
 import com.aiexile.animetrack.data.font.ImportedFontStore
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.icons.AppIcon
@@ -337,12 +338,18 @@ private fun ScanHint(
             if (showProgress) {
                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
                 Spacer(modifier = Modifier.height(12.dp))
+                ShimmerText(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             action?.let {
                 Spacer(modifier = Modifier.height(16.dp))
                 it()

@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.settings.SettingsOption
@@ -304,7 +305,7 @@ fun WebDAVSyncScreen(
                         ) {
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text(
+                            ShimmerText(
                                 text = loadingMessage,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp

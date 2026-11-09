@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,7 +105,7 @@ fun WebDAVBrowseScreen(
                     ) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
+                        ShimmerText(
                             text = stringResource(R.string.webdav_browse_loading),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp

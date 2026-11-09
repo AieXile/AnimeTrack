@@ -181,6 +181,7 @@ import com.aiexile.animetrack.ui.components.CoverCornerBadges
 import com.aiexile.animetrack.ui.components.DetailCoverStatusBadge
 import com.aiexile.animetrack.ui.components.DetailTitleStatusBadge
 import com.aiexile.animetrack.ui.components.EmptyCoverPlaceholder
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
@@ -1884,7 +1885,7 @@ private fun SummaryCard(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
+                ShimmerText(
                     text = stringResource(R.string.detail_syncing_summary, syncSource ?: ""),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

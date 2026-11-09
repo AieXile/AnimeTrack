@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.AlertDialog
@@ -496,7 +497,7 @@ fun BilibiliLoginScreen(
                 if (isGeneratingQr) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(stringResource(R.string.bilibili_login_generating_qr))
+                    ShimmerText(text = stringResource(R.string.bilibili_login_generating_qr))
                 } else if (qrBitmap != null) {
                     ScanLineQrBox(qrBitmap = qrBitmap!!)
                     Spacer(modifier = Modifier.height(16.dp))

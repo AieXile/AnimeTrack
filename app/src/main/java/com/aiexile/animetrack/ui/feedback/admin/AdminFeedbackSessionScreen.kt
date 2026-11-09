@@ -62,6 +62,7 @@ import com.aiexile.animetrack.data.remote.FeedbackRepository
 import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
@@ -535,7 +536,7 @@ fun AdminFeedbackSessionScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
+                        ShimmerText(
                             text = stringResource(R.string.common_loading),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -587,7 +588,7 @@ fun AdminFeedbackSessionScreen(
                             }
                             if (uiState.isSending) {
                                 item(key = "sending") {
-                                    Text(
+                                    ShimmerText(
                                         text = stringResource(R.string.common_loading),
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,

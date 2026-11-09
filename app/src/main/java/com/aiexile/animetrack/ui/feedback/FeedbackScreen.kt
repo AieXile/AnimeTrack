@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import androidx.compose.material3.AlertDialog
@@ -195,7 +196,7 @@ fun FeedbackScreen(
                     }
                     if (uiState.isSending) {
                         item(key = "sending") {
-                            Text(
+                            ShimmerText(
                                 text = stringResource(R.string.common_loading),
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
