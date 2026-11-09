@@ -224,6 +224,12 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("系列", "折叠", "同系列")
     ),
     SearchableSetting(
+        route = Routes.FEATURES, key = "card_cover_fully_rounded",
+        titleRes = R.string.features_card_cover_fully_rounded,
+        descRes = R.string.features_card_cover_fully_rounded_desc,
+        keywords = listOf("封面", "圆角", "卡片", "底部", "显示", "cover", "corner", "rounded")
+    ),
+    SearchableSetting(
         route = Routes.FEATURES, key = "status_badge_transition",
         titleRes = R.string.features_status_badge_transition,
         descRes = R.string.features_status_badge_transition_desc,

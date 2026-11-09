@@ -142,6 +142,8 @@ class SettingsRepository(private val context: Context) {
         // 卡片信息栏左右槽位字段（CardInfoField.name），默认保持进度 + 评分
         private val CARD_INFO_LEFT_KEY = stringPreferencesKey("card_info_left")
         private val CARD_INFO_RIGHT_KEY = stringPreferencesKey("card_info_right")
+        // 卡片封面底部圆角风格：true 时封面四角全圆（底部跟随卡片轮廓），默认仅顶部两角
+        private val CARD_COVER_FULLY_ROUNDED_KEY = booleanPreferencesKey("card_cover_fully_rounded")
         private val LIST_SORT_MODE_KEY = stringPreferencesKey("list_sort_mode")
         private val RATING_STANDARD_KEY = stringPreferencesKey("rating_standard")
         private val SKIPPED_VERSION_KEY = stringPreferencesKey("skipped_version")
@@ -258,6 +260,7 @@ class SettingsRepository(private val context: Context) {
         private val DEFAULT_STATUS_BADGE_TRANSITION_MODE = StatusBadgeTransitionMode.FLY_TO_TITLE
         private val DEFAULT_CARD_INFO_LEFT = CardInfoField.PROGRESS
         private val DEFAULT_CARD_INFO_RIGHT = CardInfoField.RATING
+        private const val DEFAULT_CARD_COVER_FULLY_ROUNDED = false
         private val DEFAULT_LIST_SORT_MODE = ListSortMode.RECENT_PROGRESS
         private val DEFAULT_RATING_STANDARD = RatingStandard.SOURCE
         private const val DEFAULT_CRASH_REPORT_ENABLED = true
@@ -708,6 +711,16 @@ class SettingsRepository(private val context: Context) {
     /** 卡片右槽位的同步缓存值 */
     fun cachedCardInfoRightField(): CardInfoField =
         cachedEnumOrDefault(CARD_INFO_RIGHT_KEY, DEFAULT_CARD_INFO_RIGHT)
+
+    /** 卡片封面底部圆角风格：开启后封面四角全圆，关闭时保持历史样式（仅顶部两角） */
+    val cardCoverFullyRounded: Flow<Boolean> =
+        preferenceFlow(CARD_COVER_FULLY_ROUNDED_KEY, DEFAULT_CARD_COVER_FULLY_ROUNDED)
+
+    suspend fun setCardCoverFullyRounded(enabled: Boolean) = setPreference(CARD_COVER_FULLY_ROUNDED_KEY, enabled)
+
+    /** 封面圆角风格的同步缓存值：作为 CompositionLocal 初值，避免冷启动首帧圆角样式跳变 */
+    fun cachedCardCoverFullyRounded(): Boolean =
+        cachedOrDefault(CARD_COVER_FULLY_ROUNDED_KEY, DEFAULT_CARD_COVER_FULLY_ROUNDED)
 
     /** 主界面列表排序方式（默认为自动排序，历史持久化值沿用 RECENT_PROGRESS） */
     val listSortMode: Flow<ListSortMode> = enumPreference(LIST_SORT_MODE_KEY, DEFAULT_LIST_SORT_MODE)

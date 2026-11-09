@@ -219,6 +219,8 @@
     <string name="features_anime_display">Anime Display</string>
     <string name="features_series_stack">Series Stacking</string>
     <string name="features_series_stack_desc">Stack multi-season anime, long press to expand</string>
+    <string name="features_card_cover_fully_rounded">Rounded cover bottom</string>
+    <string name="features_card_cover_fully_rounded_desc">Round all four cover corners (16dp) so the bottom follows the card outline</string>
     <string name="features_status_badge_transition">Status Badge Transition</string>
     <string name="features_status_badge_transition_desc">How the status badge flies into the detail page</string>
     <string name="features_status_badge_transition_follow_cover">Follow Cover</string>

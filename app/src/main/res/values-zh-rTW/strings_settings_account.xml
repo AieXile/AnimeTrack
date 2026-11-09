@@ -219,6 +219,8 @@
     <string name="features_anime_display">番劇顯示</string>
     <string name="features_series_stack">多季堆疊</string>
     <string name="features_series_stack_desc">同系列多季合併為堆疊卡片</string>
+    <string name="features_card_cover_fully_rounded">封面底部圓角</string>
+    <string name="features_card_cover_fully_rounded_desc">封面四角皆為 16dp 圓角，底部貼合卡片輪廓</string>
     <string name="features_status_badge_transition">狀態角標轉場</string>
     <string name="features_status_badge_transition_desc">進入詳情頁時狀態角標的飛行動畫</string>
     <string name="features_status_badge_transition_follow_cover">跟隨封面</string>

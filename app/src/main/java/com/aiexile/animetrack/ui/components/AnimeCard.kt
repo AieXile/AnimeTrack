@@ -79,6 +79,7 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import com.aiexile.animetrack.ui.theme.LocalCardInfoFields
+import com.aiexile.animetrack.ui.theme.LocalCardCoverFullyRounded
 import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDateShort
 import com.aiexile.animetrack.util.isUnaired
@@ -656,14 +657,18 @@ private fun AnimeCoverWithStatus(
     } else {
         null
     }
+    // 封面圆角风格由设置下发：四角全圆时卡面与详情封面静止形态一致，
+    // 共享元素转场无需再做底部圆角插值，直接用统一静态形状即可
+    val coverFullyRounded = LocalCardCoverFullyRounded.current
 
     // 共享元素转场时圆角随进度连续插值（底部直角→圆角），避免两侧静态
     // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape。
     // 只有确认配对了对端封面、且共享转场确实在进行时才读取进度：
     // 飞行途中切页会打断转场，进度可能残留在中间值上，静止态若不
     // 回落到固定圆角，封面底部会一直保留圆角直到下一次完整转场。
-    val coverClipShape = if (enableSharedElement) {
-        rememberSharedCoverClipShape(
+    val coverClipShape = when {
+        coverFullyRounded -> CardShape
+        enableSharedElement -> rememberSharedCoverClipShape(
             animatedVisibilityScope = animatedVisibilityScope!!,
             cornerRadius = CardCornerRadius,
             detailSide = false,
@@ -671,8 +676,7 @@ private fun AnimeCoverWithStatus(
                 sharedTransitionScope!!.isTransitionActive && coverContentState!!.isMatchFound
             }
         )
-    } else {
-        CoverTopShape
+        else -> CoverTopShape
     }
 
     Box(

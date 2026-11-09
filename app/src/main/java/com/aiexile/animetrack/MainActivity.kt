@@ -45,6 +45,7 @@ import com.aiexile.animetrack.ui.icons.LocalIconPack
 import com.aiexile.animetrack.ui.theme.LocalChromeStyle
 import com.aiexile.animetrack.ui.theme.CardInfoFields
 import com.aiexile.animetrack.ui.theme.LocalCardInfoFields
+import com.aiexile.animetrack.ui.theme.LocalCardCoverFullyRounded
 import com.aiexile.animetrack.ui.theme.ThemePreset
 import com.aiexile.animetrack.ui.navigation.AnimeTrackApp
 import com.aiexile.animetrack.ui.navigation.WidgetEntry
@@ -264,6 +265,9 @@ class MainActivity : ComponentActivity() {
             val cardInfoFields = remember(cardInfoLeft, cardInfoRight) {
                 CardInfoFields(left = cardInfoLeft, right = cardInfoRight)
             }
+            // 卡片封面底部圆角风格：同步缓存作初值，避免冷启动首帧后圆角样式跳变
+            val cardCoverFullyRounded by settingsRepository.cardCoverFullyRounded
+                .collectAsStateWithLifecycle(settingsRepository.cachedCardCoverFullyRounded())
             // 高级模糊（HAZE 档）参数：全局下发一次，悬浮胶囊/悬浮按钮/顶栏共用
             val blurRadius by settingsRepository.advancedBlurRadius
                 .collectAsStateWithLifecycle(SettingsRepository.DEFAULT_ADVANCED_BLUR_RADIUS)
@@ -323,6 +327,7 @@ class MainActivity : ComponentActivity() {
                         ChromeStyle.STANDARD,
                     LocalAdvancedBlurConfig provides advancedBlurConfig,
                     LocalCardInfoFields provides cardInfoFields,
+                    LocalCardCoverFullyRounded provides cardCoverFullyRounded,
                     LocalStatusBadgeTransitionMode provides statusBadgeTransitionMode
                 ) {
                     val splashDismissed by splashDismissed.collectAsStateWithLifecycle()

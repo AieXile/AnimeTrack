@@ -56,6 +56,7 @@ import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
+import com.aiexile.animetrack.ui.theme.LocalCardCoverFullyRounded
 import com.aiexile.animetrack.util.coverImageRequestForList
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
@@ -498,11 +499,15 @@ private fun StackCardLayer(
         } else {
             null
         }
+        // 封面圆角风格由设置下发：四角全圆时与详情封面静止形态一致，
+        // 转场无需再做底部圆角插值
+        val coverFullyRounded = LocalCardCoverFullyRounded.current
         // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变。
         // 仅在配对成立且共享转场仍在进行时读取进度：转场被切页打断后进度
         // 可能残留，静止态需回落到固定的顶部圆角形态
-        val coverClipShape = if (enableSharedCover) {
-            rememberSharedCoverClipShape(
+        val coverClipShape = when {
+            coverFullyRounded -> CardShape
+            enableSharedCover -> rememberSharedCoverClipShape(
                 animatedVisibilityScope = animatedVisibilityScope!!,
                 cornerRadius = CardCornerRadius,
                 detailSide = false,
@@ -510,8 +515,7 @@ private fun StackCardLayer(
                     sharedTransitionScope!!.isTransitionActive && coverContentState!!.isMatchFound
                 }
             )
-        } else {
-            CoverTopShape
+            else -> CoverTopShape
         }
 
         // 封面共享元素：状态徽章是独立共享元素（落在详情页标题行），

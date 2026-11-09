@@ -63,6 +63,8 @@ fun FeaturesScreen(
         .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoLeftField())
     val cardInfoRightField by settingsRepository.cardInfoRightField
         .collectAsStateWithLifecycle(settingsRepository.cachedCardInfoRightField())
+    val cardCoverFullyRounded by settingsRepository.cardCoverFullyRounded
+        .collectAsStateWithLifecycle(settingsRepository.cachedCardCoverFullyRounded())
     val ratingStandard by settingsRepository.ratingStandard.collectAsStateWithLifecycle(RatingStandard.SOURCE)
     val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsStateWithLifecycle(true)
     val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsStateWithLifecycle(false)
@@ -125,6 +127,7 @@ fun FeaturesScreen(
         "feedback_reply_reminder" to 2,
         "calendar_button" to 2,
         "series_stack" to 3,
+        "card_cover_fully_rounded" to 3,
         "status_badge_transition" to 3,
         "card_info_left" to 3,
         "card_info_right" to 3,
@@ -226,6 +229,14 @@ fun FeaturesScreen(
                                 checked = seriesStackEnabled,
                                 onCheckedChange = { scope.launch { settingsRepository.setSeriesStackEnabled(it) } },
                                 itemKey = "series_stack",
+                                highlightKey = highlightKey
+                            )
+                            SwitchItem(
+                                title = stringResource(R.string.features_card_cover_fully_rounded),
+                                description = stringResource(R.string.features_card_cover_fully_rounded_desc),
+                                checked = cardCoverFullyRounded,
+                                onCheckedChange = { scope.launch { settingsRepository.setCardCoverFullyRounded(it) } },
+                                itemKey = "card_cover_fully_rounded",
                                 highlightKey = highlightKey
                             )
                             Spacer(modifier = Modifier.height(8.dp))

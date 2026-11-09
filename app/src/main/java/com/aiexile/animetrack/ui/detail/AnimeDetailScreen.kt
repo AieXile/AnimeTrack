@@ -188,6 +188,7 @@ import com.aiexile.animetrack.ui.components.liquidglass.DampedDragAnimation
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
 import com.aiexile.animetrack.ui.components.rememberShrinkOnScrollTopAppBarBehavior
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
+import com.aiexile.animetrack.ui.theme.LocalCardCoverFullyRounded
 import com.aiexile.animetrack.util.coverMemoryCacheKey
 import com.aiexile.animetrack.util.formatAirDateDisplay
 import com.aiexile.animetrack.util.isUnaired
@@ -1103,7 +1104,9 @@ private fun AnimeDetailContent(
                 // 避免底部圆角在两侧静态 clip 切换时 0↔16dp 硬跳变。
                 // 仅在配对成立且共享转场仍在进行时读取进度：转场被打断后
                 // 进度可能残留，静止态直接使用四角全圆的固定形态
-                val sharedCoverClipShape = if (enableSharedCover) {
+                // 卡片封面开启「底部圆角」时两侧静止形态一致，直接静态四角全圆
+                val coverFullyRounded = LocalCardCoverFullyRounded.current
+                val sharedCoverClipShape = if (enableSharedCover && !coverFullyRounded) {
                     rememberSharedCoverClipShape(
                         animatedVisibilityScope = animatedVisibilityScope!!,
                         cornerRadius = CardCornerRadius,
@@ -1113,7 +1116,7 @@ private fun AnimeDetailContent(
                         }
                     )
                 } else {
-                    SquircleShape(CardCornerRadius)
+                    remember { SquircleShape(CardCornerRadius) }
                 }
                 // 置顶/收藏小角标没有详情页落点，合并进封面共享元素内容一起
                 // 飞行，落位前淡出；详情页静止态不可见
