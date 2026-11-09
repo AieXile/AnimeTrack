@@ -55,14 +55,27 @@ private const val BadgeFadeOutPortion = 0.35f
  */
 private class SharedCoverClipShape(
     private val cornerRadius: Dp,
-    private val progressState: State<Float>
+    private val progressState: State<Float>,
+    private val detailSide: Boolean,
+    private val animationActive: () -> Boolean
 ) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
         density: Density
     ): Outline {
-        val bottom = cornerRadius * progressState.value.coerceIn(0f, 1f)
+        // 只有「本元素确实处于共享元素转场中」才使用进度值。转场被导航切换打断、
+        // 或页面在飞行途中被替换/重建时，animateFloat 的进度可能停留在中途值上
+        // （卡片侧常见为停留在 1，封面底部圆角由此一直保留）。静止态按所在侧的
+        // 固定形态裁剪，保证任何残留进度都不会漏到画面上。
+        val progress = if (animationActive()) {
+            progressState.value
+        } else if (detailSide) {
+            1f
+        } else {
+            0f
+        }
+        val bottom = cornerRadius * progress.coerceIn(0f, 1f)
         return SquircleShape(
             topStart = cornerRadius,
             topEnd = cornerRadius,
@@ -80,6 +93,9 @@ private class SharedCoverClipShape(
  *   手势中断/动画反向时自动从当前进度平滑重定向。
  * @param cornerRadius 圆角半径（需与两侧静态圆角一致，目前均为 16dp）
  * @param detailSide true=详情页侧（可见时四角全圆）；false=卡片侧（可见时仅顶部圆角）
+ * @param animationActive 当前是否真的处于这条封面共享元素的转场中。为 false
+ *   （静止态、转场被打断后残留、页面切换前后）时不使用进度值，直接按所在侧
+ *   的固定圆角裁剪，避免残留进度把卡片封面底部圆角永久留在画面上。
  *
  * 两侧映射互补：卡片侧 Visible→0、PreEnter/PostExit→1；详情侧 Visible→1、
  * PreEnter/PostExit→0。转场任意时刻（含被打断的中间态）两侧 p 相同，
@@ -90,10 +106,13 @@ private class SharedCoverClipShape(
 fun rememberSharedCoverClipShape(
     animatedVisibilityScope: AnimatedVisibilityScope,
     cornerRadius: Dp,
-    detailSide: Boolean
+    detailSide: Boolean,
+    animationActive: () -> Boolean = { true }
 ): Shape {
     val progressState = rememberSharedCoverProgress(animatedVisibilityScope, detailSide)
-    return remember(cornerRadius) { SharedCoverClipShape(cornerRadius, progressState) }
+    return remember(cornerRadius, detailSide) {
+        SharedCoverClipShape(cornerRadius, progressState, detailSide, animationActive)
+    }
 }
 
 /**

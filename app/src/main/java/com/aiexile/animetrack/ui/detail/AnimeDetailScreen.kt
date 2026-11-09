@@ -1089,17 +1089,6 @@ private fun AnimeDetailContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val enableSharedCover = sharedTransitionScope != null && animatedVisibilityScope != null
-                // 转场期间圆角随进度连续插值（与卡片侧同一形状曲线），
-                // 避免底部圆角在两侧静态 clip 切换时 0↔16dp 硬跳变
-                val sharedCoverClipShape = if (enableSharedCover) {
-                    rememberSharedCoverClipShape(
-                        animatedVisibilityScope = animatedVisibilityScope!!,
-                        cornerRadius = CardCornerRadius,
-                        detailSide = true
-                    )
-                } else {
-                    SquircleShape(CardCornerRadius)
-                }
                 // 封面共享元素状态：同时供 sharedElement 与飞行小角标的
                 // "是否真的匹配到卡片"判定（无匹配时角标不显示，避免从
                 // 无共享元素的入口进入详情时封面角标闪现一次）
@@ -1109,6 +1098,22 @@ private fun AnimeDetailContent(
                     }
                 } else {
                     null
+                }
+                // 转场期间圆角随进度连续插值（与卡片侧同一形状曲线），
+                // 避免底部圆角在两侧静态 clip 切换时 0↔16dp 硬跳变。
+                // 仅在配对成立且共享转场仍在进行时读取进度：转场被打断后
+                // 进度可能残留，静止态直接使用四角全圆的固定形态
+                val sharedCoverClipShape = if (enableSharedCover) {
+                    rememberSharedCoverClipShape(
+                        animatedVisibilityScope = animatedVisibilityScope!!,
+                        cornerRadius = CardCornerRadius,
+                        detailSide = true,
+                        animationActive = {
+                            sharedTransitionScope!!.isTransitionActive && coverContentState!!.isMatchFound
+                        }
+                    )
+                } else {
+                    SquircleShape(CardCornerRadius)
                 }
                 // 置顶/收藏小角标没有详情页落点，合并进封面共享元素内容一起
                 // 飞行，落位前淡出；详情页静止态不可见

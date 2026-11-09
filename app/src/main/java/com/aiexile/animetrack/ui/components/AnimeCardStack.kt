@@ -491,12 +491,24 @@ private fun StackCardLayer(
         // 飞入飞出；探边卡带旋转/缩放变换，参与会导致飞行起点歪斜。
         // 顶卡静止态 graphicsLayer 全 identity，bounds 干净
         val enableSharedCover = depth == 0 && sharedTransitionScope != null && animatedVisibilityScope != null
-        // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变
+        val coverContentState = if (enableSharedCover) {
+            with(sharedTransitionScope!!) {
+                rememberSharedContentState(key = "cover_${anime.id}")
+            }
+        } else {
+            null
+        }
+        // 转场期间圆角随进度连续插值，与详情页侧保持同一形状，消除跳变。
+        // 仅在配对成立且共享转场仍在进行时读取进度：转场被切页打断后进度
+        // 可能残留，静止态需回落到固定的顶部圆角形态
         val coverClipShape = if (enableSharedCover) {
             rememberSharedCoverClipShape(
                 animatedVisibilityScope = animatedVisibilityScope!!,
                 cornerRadius = CardCornerRadius,
-                detailSide = false
+                detailSide = false,
+                animationActive = {
+                    sharedTransitionScope!!.isTransitionActive && coverContentState!!.isMatchFound
+                }
             )
         } else {
             CoverTopShape
@@ -512,7 +524,7 @@ private fun StackCardLayer(
                     if (enableSharedCover) {
                         with(sharedTransitionScope!!) {
                             Modifier.sharedElement(
-                                rememberSharedContentState(key = "cover_${anime.id}"),
+                                coverContentState!!,
                                 animatedVisibilityScope = animatedVisibilityScope!!
                             )
                         }

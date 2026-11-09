@@ -649,14 +649,27 @@ private fun AnimeCoverWithStatus(
     modifier: Modifier = Modifier
 ) {
     val enableSharedElement = sharedTransitionScope != null && animatedVisibilityScope != null
+    val coverContentState = if (enableSharedElement) {
+        with(sharedTransitionScope!!) {
+            rememberSharedContentState(key = "${sharedElementKeyPrefix}cover_${animeId}")
+        }
+    } else {
+        null
+    }
 
     // 共享元素转场时圆角随进度连续插值（底部直角→圆角），避免两侧静态
-    // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape
+    // clip 切换导致的跳变；非转场场景保持静态 CoverTopShape。
+    // 只有确认配对了对端封面、且共享转场确实在进行时才读取进度：
+    // 飞行途中切页会打断转场，进度可能残留在中间值上，静止态若不
+    // 回落到固定圆角，封面底部会一直保留圆角直到下一次完整转场。
     val coverClipShape = if (enableSharedElement) {
         rememberSharedCoverClipShape(
             animatedVisibilityScope = animatedVisibilityScope!!,
             cornerRadius = CardCornerRadius,
-            detailSide = false
+            detailSide = false,
+            animationActive = {
+                sharedTransitionScope!!.isTransitionActive && coverContentState!!.isMatchFound
+            }
         )
     } else {
         CoverTopShape
@@ -672,9 +685,7 @@ private fun AnimeCoverWithStatus(
                 if (enableSharedElement) {
                     with(sharedTransitionScope!!) {
                         Modifier.sharedElement(
-                            rememberSharedContentState(
-                                key = "${sharedElementKeyPrefix}cover_${animeId}"
-                            ),
+                            coverContentState!!,
                             animatedVisibilityScope = animatedVisibilityScope!!
                         )
                     }
