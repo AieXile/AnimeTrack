@@ -99,7 +99,11 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         // 保证 rethrow 链为 xCrash 写 tombstone → AppLogManager 写崩溃日志 → 系统默认处理
         // （本地捕获落盘，不上传，可在隐私同意前初始化；上报见 initPrivacyGatedComponents）
         CrashReporter.init(this)
-        JPushInterface.setDebugMode(BuildConfig.DEBUG)
+        // 采集包不接触推送 SDK：其 :pushcore 进程会被厂商通道重新拉起，
+        // 而 Baseline Profile 采集需要等待应用全部进程退出，会因此永久等待。
+        if (!BuildConfig.BENCHMARK_MODE) {
+            JPushInterface.setDebugMode(BuildConfig.DEBUG)
+        }
         // 隐私合规：JPush 推送与崩溃 tombstone 上报涉及设备信息收集与对外上传，
         // 已同意隐私政策的用户立即初始化；未同意用户在弹窗同意后经 onPrivacyAccepted() 补初始化
         if (AppContainer.getSettingsRepository().isPrivacyPolicyAcceptedBlocking()) {
@@ -135,8 +139,10 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
     private fun initPrivacyGatedComponents() {
         if (privacyGatedInitialized) return
         privacyGatedInitialized = true
-        appScope.launch {
-            JPushInterface.init(this@AnimeTrackApp)
+        if (!BuildConfig.BENCHMARK_MODE) {
+            appScope.launch {
+                JPushInterface.init(this@AnimeTrackApp)
+            }
         }
         appScope.launch {
             delay(reportTombstoneDelayMs)

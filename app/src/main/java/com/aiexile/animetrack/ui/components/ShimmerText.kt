@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.takeOrElse
@@ -68,20 +69,17 @@ fun ShimmerText(
         label = "shimmerProgress"
     )
 
-    val brush = if (size != IntSize.Zero) {
-        shimmerBrush(
-            size = size,
-            progress = progress,
-            baseColor = baseColor,
-            glowColor = shimmerGlowColor(baseColor)
-        )
-    } else {
-        null
-    }
+    val brush = rememberAnimatedShimmerBrush(size, baseColor)
 
     Text(
         text = text,
-        modifier = modifier.onSizeChanged { size = it },
+        modifier = modifier
+            .onSizeChanged { size = it }
+            .drawWithContent {
+                // 动画只使绘制失效，不逐帧重组 Text / 重建 TextStyle 和渐变 shader。
+                brush?.updateProgress(progress)
+                drawContent()
+            },
         color = baseColor,
         fontSize = fontSize,
         fontWeight = fontWeight,

@@ -247,10 +247,10 @@ internal val BesideNavFabSlotWidth = BesideNavFabSize + BesideNavFabGap
  * 形变与胶囊让位逐帧锁定，无独立时序。
  */
 internal fun Modifier.besideNavFabSquish(
-    reserve: Dp,
+    reserve: () -> Dp,
     slotWidth: Dp = BesideNavFabSlotWidth
 ): Modifier = graphicsLayer {
-    val progress = (reserve / slotWidth).coerceIn(0f, 1f)
+    val progress = (reserve() / slotWidth).coerceIn(0f, 1f)
     val squash = (1f - progress) * 0.35f
     scaleX = 1f - squash
     scaleY = 1f + squash * 0.5f

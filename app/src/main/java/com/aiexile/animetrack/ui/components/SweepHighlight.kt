@@ -54,22 +54,29 @@ fun Modifier.sweepHighlight(
         }
     }
 
+    // 与文字微光复用同一移动画笔；只在尺寸或视觉参数变化时重建 shader。
+    val brush = remember(size, highlightColor, highlightAlpha, bandWidthRatio) {
+        if (size.width > 0 && size.height > 0) {
+            AnimatedShimmerBrush(
+                textSize = size,
+                baseColor = Color.Transparent,
+                glowColor = highlightColor.copy(alpha = highlightAlpha),
+                bandWidthRatio = bandWidthRatio
+            )
+        } else {
+            null
+        }
+    }
+
     return this
         .onSizeChanged { size = it }
         .drawWithContent {
             drawContent()
             val sweep = progress.value
-            if (size == IntSize.Zero || sweep <= ShimmerSweepStart || sweep >= ShimmerSweepEnd) {
+            if (brush == null || sweep <= ShimmerSweepStart || sweep >= ShimmerSweepEnd) {
                 return@drawWithContent
             }
-            drawRect(
-                brush = shimmerBrush(
-                    size = size,
-                    progress = sweep,
-                    baseColor = Color.Transparent,
-                    glowColor = highlightColor.copy(alpha = highlightAlpha),
-                    bandWidthRatio = bandWidthRatio
-                )
-            )
+            brush.updateProgress(sweep)
+            drawRect(brush = brush)
         }
 }

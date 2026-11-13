@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,8 +40,7 @@ import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.ui.components.ShimmerSweepDurationMs
 import com.aiexile.animetrack.ui.components.ShimmerSweepEnd
 import com.aiexile.animetrack.ui.components.ShimmerSweepStart
-import com.aiexile.animetrack.ui.components.shimmerBrush
-import com.aiexile.animetrack.ui.components.shimmerGlowColor
+import com.aiexile.animetrack.ui.components.rememberAnimatedShimmerBrush
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -89,20 +89,20 @@ fun GreetingText(
         }
     }
 
-    val sweep = sweepProgress.value
-    val sweepBrush = if (sweep > SWEEP_START && sweep < SWEEP_END && textSize != IntSize.Zero) {
-        shimmerBrush(
-            size = textSize,
-            progress = sweep,
-            baseColor = baseColor,
-            glowColor = shimmerGlowColor(baseColor)
-        )
-    } else {
-        null
+    // 只在扫光起止边界切换 TextStyle；中途的逐帧进度由绘制阶段消费。
+    // 非扫光时必须恢复 null，保留卢恩密文 SpanStyle 自己的颜色和透明度。
+    val isSweeping by remember(sweepProgress) {
+        derivedStateOf { sweepProgress.value > SWEEP_START && sweepProgress.value < SWEEP_END }
     }
+    val animatedBrush = rememberAnimatedShimmerBrush(textSize, baseColor)
+    val sweepBrush = animatedBrush.takeIf { isSweeping }
 
     val sweepModifier = Modifier
         .onSizeChanged { textSize = it }
+        .drawWithContent {
+            sweepBrush?.updateProgress(sweepProgress.value)
+            drawContent()
+        }
         .clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null

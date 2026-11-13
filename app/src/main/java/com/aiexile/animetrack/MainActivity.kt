@@ -60,6 +60,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
+/** 采集包启动参数：`am start --es benchmark_style LIQUID_GLASS`，正式包忽略。 */
+private const val BENCHMARK_STYLE_EXTRA = "benchmark_style"
+
 class MainActivity : ComponentActivity() {
 
     // 自定义字体异步加载结果：null 表示尚未加载完成，先用默认 FontFamily 渲染
@@ -88,6 +91,8 @@ class MainActivity : ComponentActivity() {
 
     /** 请求通知权限（已授权或系统不再弹窗时静默跳过）；供冷启动与隐私弹窗同意后复用 */
     fun requestNotificationPermissionIfNeeded() {
+        // 采集包跳过系统权限弹窗：它是独立窗口，会让 UIAutomation 流程阻塞。
+        if (BuildConfig.BENCHMARK_MODE) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
@@ -204,6 +209,17 @@ class MainActivity : ComponentActivity() {
 
         // attachBaseContext 已调用 AppContainer.initialize，此处不再重复调用
         enableEdgeToEdge()
+
+        // 采集包：按测试传入的材质与固定导航配置启动，避免依赖设置页 UI 自动化。
+        if (BuildConfig.BENCHMARK_MODE) {
+            val requestedStyle = intent?.getStringExtra(BENCHMARK_STYLE_EXTRA)
+            val repository = AppContainer.getSettingsRepository()
+            appScope.launch {
+                repository.setHideTopBarOnScrollEnabled(true)
+                ChromeStyle.entries.firstOrNull { it.name == requestedStyle }
+                    ?.let { repository.setChromeStyle(it) }
+            }
+        }
 
         // 隐私合规：未同意隐私政策前不申请通知权限、不初始化/上报极光推送
         // （首启弹窗同意后经 AnimeTrackApp composable 的回调补做）

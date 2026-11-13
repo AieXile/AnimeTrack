@@ -74,6 +74,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.BenchmarkFixture
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.NavigationStyle
@@ -85,6 +86,7 @@ import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.UpdateRepository
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeState
 import com.aiexile.animetrack.di.ImportBannerState
@@ -132,6 +134,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
@@ -158,6 +161,19 @@ fun AnimeTrackApp(
     val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsStateWithLifecycle(null)
     // 首启「帮助改进应用」弹窗：隐私同意后展示一次（崩溃追踪开关选择）
     val helpImproveDialogShown by settingsRepository.helpImproveDialogShown.collectAsStateWithLifecycle(null)
+    // 采集包跳过首启/隐私流程并预置测试数据；正式包 BENCHMARK_MODE 恒为 false，行为不变。
+    val benchmarkMode = BuildConfig.BENCHMARK_MODE
+    val effectiveFirstLaunch = if (benchmarkMode) false else isFirstLaunch
+    val effectivePrivacyAccepted = if (benchmarkMode) true else privacyAccepted
+    LaunchedEffect(benchmarkMode) {
+        if (!benchmarkMode) return@LaunchedEffect
+        val repository = AppContainer.getAnimeRepository()
+        withContext(Dispatchers.IO) {
+            if (repository.getAllAnimes().first().isEmpty()) {
+                repository.insertAnimes(BenchmarkFixture.animes())
+            }
+        }
+    }
 
     // 更新 / 公告两个子 ViewModel 由本层持有：HomeViewModel 只做编排，不再拥有它们
     val updateViewModel: UpdateViewModel = viewModel(
@@ -216,11 +232,11 @@ fun AnimeTrackApp(
     var startRoute by remember { mutableStateOf<String?>(null) }
     var isInitialRouteSet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isFirstLaunch, privacyAccepted) {
+    LaunchedEffect(effectiveFirstLaunch, effectivePrivacyAccepted) {
         // 隐私同意状态也加载完毕后才放行 splash：未同意用户由下方 privacy gate
         // 弹出同意弹窗（splash 消失瞬间弹窗出现，不闪主界面），已同意直接进主界面/引导
-        if (!isInitialRouteSet && isFirstLaunch != null && privacyAccepted != null) {
-            startRoute = if (isFirstLaunch!!) Routes.ONBOARDING else Routes.MAIN
+        if (!isInitialRouteSet && effectiveFirstLaunch != null && effectivePrivacyAccepted != null) {
+            startRoute = if (effectiveFirstLaunch) Routes.ONBOARDING else Routes.MAIN
             isInitialRouteSet = true
             isDataLoaded.set(true)
         }
@@ -489,18 +505,19 @@ fun AnimeTrackApp(
     // splash 未退出前不显示（同隐私弹窗：Dialog 独立 Window 会盖住 splash 遮罩）。
     // null = 加载中，不弹；点击「确定」标记已展示，之后在「设置 → 功能」中调整
     GlobalDialogs(
-        privacyConsentVisible = privacyAccepted == false && splashDismissed,
+        privacyConsentVisible = effectivePrivacyAccepted == false && splashDismissed,
         onAcceptPrivacy = {
             appScope.launch { settingsRepository.setPrivacyPolicyAccepted(true) }
         },
-        helpImproveVisible = privacyAccepted == true && helpImproveDialogShown == false && splashDismissed,
+        helpImproveVisible = !benchmarkMode && effectivePrivacyAccepted == true &&
+            helpImproveDialogShown == false && splashDismissed,
         settingsRepository = settingsRepository,
         onConfirmHelpImprove = {
             appScope.launch { settingsRepository.setHelpImproveDialogShown(true) }
         }
     )
     // 未同意隐私政策：主界面不加载（仅保留上方模态同意弹窗，与原早退一致）
-    if (privacyAccepted == false) return
+    if (effectivePrivacyAccepted == false) return
 
     // 等待初始路由确定
     val currentStartRoute = startRoute
@@ -1396,11 +1413,13 @@ private fun MainOverlay(
             // 「导航栏旁」FAB：主页时胶囊右端预留按钮槽宽度，离开主页预留动画归零、
             // 胶囊平滑回位重新居中（加号仅主页显示，与右下角 FAB 行为一致）
             val fabBesideNav = fabLocation == FabLocation.NAV_BAR
-            val navFabReserve by animateDpAsState(
+            val navFabReserve = animateDpAsState(
                 targetValue = if (fabBesideNav && isHomePage) BesideNavFabSlotWidth else 0.dp,
                 animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "navFabReserve"
             )
+            // 连续宽度只在测量、位移和图层阶段消费，不让整个 MainOverlay 逐帧重组。
+            val reserveEndWidth = remember(navFabReserve) { { navFabReserve.value } }
             // 导航栏四周磨砂层已下移到 CapsuleNavLayout（与采样源同层，避免转场后
             // 跨层坐标偏移导致屏幕最底部失去模糊），此处只渲染胶囊本体
             AnimatedVisibility(
@@ -1421,7 +1440,7 @@ private fun MainOverlay(
                         style = chromeStyle,
                         blurConfig = advancedBlurConfig,
                         backdrop = navBackdrop,
-                        reserveEndWidth = navFabReserve,
+                        reserveEndWidth = reserveEndWidth,
                         // 底边锁定 Box 底边：按钮槽（含回到顶部）比胶囊高会撑大本 Box，
                         // 不锁定则胶囊默认贴顶边、跟随按钮槽显隐上下浮动
                         modifier = Modifier.align(Alignment.BottomCenter)
@@ -1453,12 +1472,15 @@ private fun MainOverlay(
                                 // 与胶囊同一基准：胶囊底边距 24dp 只从窗口底算起，不叠系统栏 inset，
                                 // 故此处只叠 25dp 底边距（勿加 navigationBarsPadding，见上方说明）
                                 .padding(end = 32.dp, bottom = 25.dp)
-                                .offset(
-                                    x = besideNavFabSlideOut *
-                                        (1f - navFabReserve / BesideNavFabSlotWidth)
-                                )
+                                .offset {
+                                    IntOffset(
+                                        x = (besideNavFabSlideOut *
+                                            (1f - navFabReserve.value / BesideNavFabSlotWidth)).roundToPx(),
+                                        y = 0
+                                    )
+                                }
                                 // 挤压形变：随滑入进度压扁→回弹，与滑移同源无独立时序
-                                .besideNavFabSquish(navFabReserve)
+                                .besideNavFabSquish(reserveEndWidth)
                         )
                     }
                 }

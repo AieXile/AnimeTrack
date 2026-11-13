@@ -2,6 +2,7 @@ package com.aiexile.animetrack.ui.components
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
@@ -45,13 +46,19 @@ fun advancedHazeEffect(
     config: AdvancedBlurConfig,
     shape: Shape? = null
 ): Modifier {
-    val colorScheme = MaterialTheme.colorScheme
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
+    val background = remember(surfaceColor, config.backgroundColorAlpha) {
+        surfaceColor.copy(alpha = config.backgroundColorAlpha.coerceIn(0f, 1f))
+    }
+    val tintList = remember(surfaceColor, config.tintAlpha) {
+        listOf(HazeTint(surfaceColor.copy(alpha = config.tintAlpha.coerceIn(0f, 1f))))
+    }
     var modifier: Modifier = Modifier
     if (shape != null) modifier = modifier.clip(shape)
     return modifier.hazeEffect(state = hazeState) {
         blurRadius = config.blurRadius
-        backgroundColor = colorScheme.surfaceContainer.copy(alpha = config.backgroundColorAlpha.coerceIn(0f, 1f))
-        tints = listOf(HazeTint(colorScheme.surfaceContainer.copy(alpha = config.tintAlpha.coerceIn(0f, 1f))))
+        backgroundColor = background
+        tints = tintList
         noiseFactor = config.noiseFactor.coerceIn(0f, 1f)
     }
 }

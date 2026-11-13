@@ -1,9 +1,13 @@
 package com.aiexile.animetrack.ui.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.IntSize
@@ -65,4 +69,39 @@ internal fun shimmerBrush(
         start = Offset(centerX - halfBand, height),
         end = Offset(centerX + halfBand, 0f)
     )
+}
+
+/**
+ * 微光的可移动画笔（文字和内容叠加层共用）：原渐变的两个端点仅沿 X 轴平移，
+ * 因此复用 progress=0 的 shader 并平移其局部矩阵，与每帧重建渐变等价，不需要额外离屏合成。
+ *
+ * 必须在 drawWithContent 中先 [updateProgress] 再 drawContent；Compose 文字会直接调用
+ * createShader（不经过 Brush.applyTo），因此更新原生 shader，而非 ShaderBrush.transform。
+ * 每个文字节点独占实例，按实测尺寸和颜色重建，避免不同文字互相覆盖光带位置。
+ */
+internal class AnimatedShimmerBrush(
+    private val textSize: IntSize,
+    baseColor: Color,
+    glowColor: Color,
+    bandWidthRatio: Float = ShimmerBandWidthRatio,
+) : ShaderBrush() {
+    private val shader = (shimmerBrush(textSize, 0f, baseColor, glowColor, bandWidthRatio) as ShaderBrush)
+        .createShader(Size(textSize.width.toFloat(), textSize.height.toFloat()))
+    private val translation = android.graphics.Matrix()
+
+    override fun createShader(size: Size): Shader = shader
+
+    fun updateProgress(progress: Float) {
+        translation.setTranslate(textSize.width * progress, 0f)
+        shader.setLocalMatrix(translation)
+    }
+}
+
+/** 未测量时保留原色；尺寸、基础色或应用明暗导致的高光色变化时重建 shader。 */
+@Composable
+internal fun rememberAnimatedShimmerBrush(size: IntSize, baseColor: Color): AnimatedShimmerBrush? {
+    val glowColor = shimmerGlowColor(baseColor)
+    return remember(size, baseColor, glowColor) {
+        if (size.width > 0 && size.height > 0) AnimatedShimmerBrush(size, baseColor, glowColor) else null
+    }
 }

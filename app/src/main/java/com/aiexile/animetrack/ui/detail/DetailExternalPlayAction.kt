@@ -150,7 +150,7 @@ fun DetailExternalPlayAction(
  * 因此图层切换时不会出现两个图标叠影。目标集数文案为空时只显示标题。
  */
 @Composable
-private fun ExternalPlayMorphContent(
+internal fun ExternalPlayMorphContent(
     progress: Float,
     isResolving: Boolean,
     episodeText: String

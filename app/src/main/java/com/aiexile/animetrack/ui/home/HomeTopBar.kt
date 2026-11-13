@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -122,7 +123,7 @@ fun HomeTopBar(
     hasFilteredItems: Boolean,
     onAddClick: () -> Unit,
     alwaysShowAddButton: Boolean = false,
-    morphCollapse: Float = 0f,
+    morphCollapse: () -> Float = { 0f },
     morphTargetColor: Color? = null,
     /** 界面外壳材质档位：标准实色 / HAZE 毛玻璃 / LIQUID_GLASS 折射玻璃 */
     style: ChromeStyle = LocalChromeStyle.current,
@@ -151,13 +152,7 @@ fun HomeTopBar(
     val glassShape = if (rounded) TopBarGlassShape else TopBarGlassSquareShape
     val glassBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS && glassThemeEnabled }
     val hazeSource = hazeState.takeIf { style == ChromeStyle.HAZE && glassThemeEnabled }
-    val containerColor = if (glassBackdrop != null || hazeSource != null) {
-        Color.Transparent
-    } else if (morphTargetColor != null && morphCollapse > 0f) {
-        lerp(MaterialTheme.colorScheme.surface, morphTargetColor, morphCollapse)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     Column(
         modifier = modifier
@@ -184,7 +179,16 @@ fun HomeTopBar(
                     // 毛玻璃参数与 FAB 一致；收拢时被外层 morph 裁剪，与 FAB 无缝衔接
                     hazeSource != null -> advancedHazeEffect(hazeSource, blurConfig)
 
-                    else -> Modifier.background(containerColor)
+                    else -> Modifier.drawBehind {
+                        val progress = if (morphTargetColor != null) morphCollapse() else 0f
+                        drawRect(
+                            if (morphTargetColor != null && progress > 0f) {
+                                lerp(surfaceColor, morphTargetColor, progress)
+                            } else {
+                                surfaceColor
+                            }
+                        )
+                    }
                 }
             )
             .statusBarsPadding()
@@ -274,7 +278,7 @@ fun HomeTopBar(
                     onAnimated = { viewModel.onGreetingAnimated(it) },
                     // morph 收拢早期（0→0.35）问候语先行淡出，右侧按钮保留到终点与 FAB 图标交接
                     modifier = Modifier.graphicsLayer {
-                        alpha = 1f - (morphCollapse / 0.35f).coerceIn(0f, 1f)
+                        alpha = 1f - (morphCollapse() / 0.35f).coerceIn(0f, 1f)
                     }
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {

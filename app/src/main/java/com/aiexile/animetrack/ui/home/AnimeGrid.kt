@@ -92,6 +92,7 @@ import coil.request.ImageRequest
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.AnimeCardStack
+import com.aiexile.animetrack.ui.components.SeasonBadge
 import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.CardPixelBounds
 import com.aiexile.animetrack.ui.components.DeletionBurstOverlay
@@ -105,10 +106,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
-
-// 季数角标形状顶层化复用：位于滞动热路径（ExpandedSeriesCard 每卡渲染），
-// 提升为顶层 val 使 SquircleShape 内置 size 级缓存生效。
-private val SeasonBadgeShape = SquircleShape(6.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -429,7 +426,9 @@ internal fun AnimeGrid(
     // 每季占据一个独立网格格子，后续卡片自动顺延（真正网格回流）。
     // seriesStackEnabled=false 时，所有 Series 强制拆分为 Single，按主排序顺序排列（不按季数）。
     // seriesStackEnabled=true 时，Series 组内按季数升序排列（1,2,3...），哪怕第一季已看完也排在前面。
-    val displayList = remember(state.animeListItems, expandedSeriesKeys, state.seriesStackEnabled) {
+    // 系列排序只依赖数据和堆叠开关，不依赖展开集合。
+    // 展开/收起只拼装下面的 displayList，避免在动画启动时重新排序全部系列。
+    val preparedItems = remember(state.animeListItems, state.seriesStackEnabled) {
         if (!state.seriesStackEnabled) {
             // 堆叠开关关闭：所有 Series 拆分为 Single，保持主排序顺序
             buildList {
@@ -444,7 +443,7 @@ internal fun AnimeGrid(
         } else {
             // 堆叠开关开启：组内按季数升序排序
             // 季数优先级：Bangumi 关系链推导的 seasonNumber > 标题正则（extractSeasonNumber）> airDate 兜底
-            val seasonSortedItems = state.animeListItems.map { item ->
+            state.animeListItems.map { item ->
                 if (item is AnimeListItem.Series) {
                     item.copy(animeList = item.animeList.sortedWith(
                         compareBy<Anime> { it.seasonNumber ?: SeriesMatcher.extractSeasonNumber(it.title) }
@@ -455,26 +454,28 @@ internal fun AnimeGrid(
                     item
                 }
             }
-            if (expandedSeriesKeys.isEmpty()) {
-                seasonSortedItems
-            } else {
-                buildList {
-                    for (item in seasonSortedItems) {
-                        if (item is AnimeListItem.Series && item.stableKey in expandedSeriesKeys) {
-                            item.animeList.forEachIndexed { index, anime ->
-                                add(
-                                    AnimeListItem.ExpandedSeriesCard(
-                                        anime = anime,
-                                        baseTitle = item.baseTitle,
-                                        seasonIndex = index + 1,
-                                        totalSeasons = item.animeList.size,
-                                        seriesStableKey = item.stableKey
-                                    )
+        }
+    }
+    val displayList = remember(preparedItems, expandedSeriesKeys, state.seriesStackEnabled) {
+        if (!state.seriesStackEnabled || expandedSeriesKeys.isEmpty()) {
+            preparedItems
+        } else {
+            buildList {
+                for (item in preparedItems) {
+                    if (item is AnimeListItem.Series && item.stableKey in expandedSeriesKeys) {
+                        item.animeList.forEachIndexed { index, anime ->
+                            add(
+                                AnimeListItem.ExpandedSeriesCard(
+                                    anime = anime,
+                                    baseTitle = item.baseTitle,
+                                    seasonIndex = index + 1,
+                                    totalSeasons = item.animeList.size,
+                                    seriesStableKey = item.stableKey
                                 )
-                            }
-                        } else {
-                            add(item)
+                            )
                         }
+                    } else {
+                        add(item)
                     }
                 }
             }
@@ -855,21 +856,12 @@ internal fun AnimeGrid(
                             )
                         }
                         // 季数角标：左上角，避免与右上角 StatusBadge 重叠
-                        Surface(
+                        SeasonBadge(
+                            seasonIndex = item.seasonIndex,
                             modifier = Modifier
                                 .align(Alignment.TopStart)
-                                .offset(x = 6.dp, y = 6.dp),
-                            shape = SeasonBadgeShape,
-                            color = MaterialTheme.colorScheme.primary
-                        ) {
-                            Text(
-                                text = stringResource(R.string.home_season_format, item.seasonIndex),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                                .offset(x = 6.dp, y = 6.dp)
+                        )
                     }
                 }
             }

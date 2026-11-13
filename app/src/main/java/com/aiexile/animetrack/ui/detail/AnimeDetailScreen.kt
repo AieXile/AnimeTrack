@@ -1061,14 +1061,16 @@ private fun AnimeDetailContent(
         if (externalPlayActionVisible) ExternalPlayActionReserveHeight else 24.dp
 
     // 内容列末尾标记：只上报横向范围（宽度 = 内容卡片宽度），不参与末端判定。
-    // 纵向固定为 0，避免滚动时 y 变化触发页面层重组
+    // 纵向固定为 0，避免滚动时 y 变化触发页面层重组。
+    // 必须取未裁剪范围：快速回滚时标记可能先于收回动画结束滚出视口，
+    // 默认裁剪会返回 Rect.Zero，突变的宽度/右边距会让仍在形变的播放入口横跳。
     val contentHostMarker: @Composable () -> Unit = {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
                 .onGloballyPositioned { coordinates ->
-                    val bounds = coordinates.boundsInWindow()
+                    val bounds = coordinates.boundsInWindow(clipBounds = false)
                     onActionHostBoundsChanged(Rect(bounds.left, 0f, bounds.right, 1f))
                 }
         )

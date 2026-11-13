@@ -127,6 +127,17 @@ object SeriesMatcher {
         "VII" to 7, "VIII" to 8, "IX" to 9, "XI" to 11, "XII" to 12
     )
 
+    // 提取季数会被排序比较器重复调用；预编译相同规则，避免每次比较都编译正则。
+    private val splitPartPattern = Regex("""[前后後][编編篇]$""")
+    private val volumePartPattern = Regex("""[上下][卷巻]$""")
+    private val numberedSeasonPattern = Regex("""第([一二三四五六七八九十百\d]+)(?:季|期|部|章|篇|シリーズ|クール)""")
+    private val shortSeasonNumberPattern = Regex("""S(\d+)""", RegexOption.IGNORE_CASE)
+    private val seasonNumberPattern = Regex("""Season\s*(\d+)""", RegexOption.IGNORE_CASE)
+    private val ordinalSeasonNumberPattern = Regex("""(\d+)(?:st|nd|rd|th)\s+Season""", RegexOption.IGNORE_CASE)
+    private val suffixSeasonNumberPattern = Regex("""\s(\d+)(?:季|期|部|章|シリーズ|クール|シーズン)""")
+    private val cjkSeasonNumberPattern = Regex("""(?<=[一-鿿])(\d+)$""")
+    private val romanSeasonNumberPattern = Regex("""\s(II|III|IV|VI|VII|VIII|IX|XI|XII)$""")
+
     /**
      * 从标题中提取季数（1-based）。
      * - 无季数后缀（即 baseTitle，如"鬼灭之刃 游郭篇"）= 1，排序由 airDate 兜底
@@ -153,29 +164,29 @@ object SeriesMatcher {
         }
 
         // 前篇/上卷 = 1，後篇/下卷 = 2（同部拆分）
-        if (Regex("""[前后後][编編篇]$""").containsMatchIn(title)) {
+        if (splitPartPattern.containsMatchIn(title)) {
             return if (title.contains("前")) 1 else 2
         }
-        if (Regex("""[上下][卷巻]$""").containsMatchIn(title)) {
+        if (volumePartPattern.containsMatchIn(title)) {
             return if (title.contains("上")) 1 else 2
         }
 
         // "第X季/期/部/章/篇/シリーズ/クール"（中文数字或阿拉伯数字）
-        Regex("""第([一二三四五六七八九十百\d]+)(?:季|期|部|章|篇|シリーズ|クール)""").find(title)?.let { m ->
+        numberedSeasonPattern.find(title)?.let { m ->
             return parseChineseOrArabic(m.groupValues[1])
         }
 
         // "S2" / "Season 2" / "2nd Season" / "2期" / "2クール" / "2シリーズ" / "2シーズン"
-        Regex("""S(\d+)""", RegexOption.IGNORE_CASE).find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
-        Regex("""Season\s*(\d+)""", RegexOption.IGNORE_CASE).find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
-        Regex("""(\d+)(?:st|nd|rd|th)\s+Season""", RegexOption.IGNORE_CASE).find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
-        Regex("""\s(\d+)(?:季|期|部|章|シリーズ|クール|シーズン)""").find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
+        shortSeasonNumberPattern.find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
+        seasonNumberPattern.find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
+        ordinalSeasonNumberPattern.find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
+        suffixSeasonNumberPattern.find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
 
         // CJK 字符后直接跟数字（如"骸骨骑士大人异世界冒险中2"）
-        Regex("""(?<=[\u4e00-\u9fff])(\d+)$""").find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
+        cjkSeasonNumberPattern.find(title)?.let { return it.groupValues[1].toIntOrNull() ?: 1 }
 
         // 半角罗马数字（末尾独立单词）
-        Regex("""\s(II|III|IV|VI|VII|VIII|IX|XI|XII)$""").find(title)?.let { m ->
+        romanSeasonNumberPattern.find(title)?.let { m ->
             romanWordMap[m.groupValues[1]]?.let { return it }
         }
 
@@ -213,8 +224,12 @@ object SeriesMatcher {
         val seriesKeyMap = mutableMapOf<String, MutableList<Anime>>()
         val baseTitleMap = mutableMapOf<String, MutableList<Anime>>()
         val orderMap = mutableMapOf<String, Int>()
+        // 与 indexOf 一样保留相等条目的首次位置；排序时不再反复线性扫描原列表。
+        // 索引仅属于本次输入，不跨数据更新缓存，避免进度/标题修改后沿用旧位置。
+        val itemOrderMap = HashMap<Anime, Int>(animeList.size)
 
         for ((index, anime) in animeList.withIndex()) {
+            itemOrderMap.putIfAbsent(anime, index)
             // 优先使用 seriesKey
             val groupKey = anime.seriesKey ?: extractBaseTitle(anime.title)
             val useSeriesKey = anime.seriesKey != null
@@ -257,9 +272,9 @@ object SeriesMatcher {
 
         return result.sortedBy { item ->
             when (item) {
-                is AnimeListItem.Single -> animeList.indexOf(item.anime)
+                is AnimeListItem.Single -> itemOrderMap[item.anime] ?: -1
                 is AnimeListItem.Series -> orderMap[item.baseTitle] ?: Int.MAX_VALUE
-                is AnimeListItem.ExpandedSeriesCard -> animeList.indexOf(item.anime)
+                is AnimeListItem.ExpandedSeriesCard -> itemOrderMap[item.anime] ?: -1
             }
         }
     }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,11 +146,19 @@ fun HomeTopBarLayer(
             // 内容由 AnimeGrid contentPadding 预留顶栏高度，收拢/展开时内容零移动
             if (isHomePage) {
                 // 收拢进度（0=展开, 1=收拢为 FAB）：顶栏与迁移 FAB 共用，保证 morph 连续
-                val topBarCollapse by animateFloatAsState(
+                val topBarCollapse = animateFloatAsState(
                     targetValue = if (isTopBarHidden) 1f else 0f,
                     animationSpec = tween(300, easing = FastOutSlowInEasing),
                     label = "topBarCollapse"
                 )
+                // 组合只观察显隐边界；连续进度由裁剪、底色和 graphicsLayer 自行读取。
+                val collapseProgress = remember(topBarCollapse) { { topBarCollapse.value } }
+                val showTopBar by remember(topBarCollapse) {
+                    derivedStateOf { topBarCollapse.value < 1f }
+                }
+                val hasCollapse by remember(topBarCollapse) {
+                    derivedStateOf { topBarCollapse.value > 0f }
+                }
                 // 顶栏按钮构成决定收拢终点宽度：单按钮 48dp，搜索+添加组合 97dp
                 val topBarShowSearch = showSearchButton && hasAnime && hasFilteredItems
                 val topBarShowAdd = fabLocation == FabLocation.TOP_BAR || useSideNavigation
@@ -170,7 +179,7 @@ fun HomeTopBarLayer(
                 val topBarGlassEnabled = style != ChromeStyle.STANDARD && topBarGlassTheme
 
                 // 完全收拢后移除顶栏（避免透明区域拦截点击）
-                if (topBarCollapse < 1f) {
+                if (showTopBar) {
                     HomeTopBar(
                         viewModel = homeViewModel,
                         customGreeting = customGreeting,
@@ -183,7 +192,7 @@ fun HomeTopBarLayer(
                         hasAnime = hasAnime,
                         hasFilteredItems = hasFilteredItems,
                         onAddClick = onAddClick,
-                        morphCollapse = topBarCollapse,
+                        morphCollapse = collapseProgress,
                         // 玻璃档收拢全程保持玻璃（与 FAB 无缝衔接，不向实色插值）；
                         // 标准档收拢时向 FAB 容器色插值，避免收拢终点色块断层
                         morphTargetColor = if (topBarGlassEnabled) {
@@ -208,7 +217,7 @@ fun HomeTopBarLayer(
                                 if (hasTopBarActions) {
                                     // 真 morph：几何连续变形为按钮行位置的 Squircle / 全圆（问候语早期淡出在 TopBar 内处理）
                                     Modifier.topBarCollapseMorph(
-                                        collapseProgress = topBarCollapse,
+                                        collapseProgress = collapseProgress,
                                         targetWidth = morphTargetWidth,
                                         targetCornerRadius = if (circleTopBarSearchFab) {
                                             TopBarMorphCircleCorner
@@ -218,7 +227,7 @@ fun HomeTopBarLayer(
                                     )
                                 } else {
                                     // 无按钮无 morph 终点：整体随收拢进度淡出（问候语已在 TopBar 内先行淡出）
-                                    Modifier.graphicsLayer { alpha = 1f - topBarCollapse }
+                                    Modifier.graphicsLayer { alpha = 1f - topBarCollapse.value }
                                 }
                             )
                     )
@@ -230,7 +239,7 @@ fun HomeTopBarLayer(
                 // 高级模糊时顶栏为毛玻璃，实色条保证状态栏区域始终实底。
                 // 液态玻璃开启时实心条改为玻璃条（与 FAB/胶囊同质感），全屏/留白遮罩不受影响。
                 // 随收拢进度淡入，展开时被顶栏自身背景覆盖，无感知
-                if (hideTopBarOnScroll && topBarCollapse > 0f && statusBarMode != StatusBarMode.FULLSCREEN) {
+                if (hideTopBarOnScroll && hasCollapse && statusBarMode != StatusBarMode.FULLSCREEN) {
                     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                     val surfaceColor = MaterialTheme.colorScheme.surface
                     val scrimModifier = if (statusBarMode == StatusBarMode.SCRIM) {
@@ -273,7 +282,7 @@ fun HomeTopBarLayer(
                             .padding(end = paneWidth)
                             .fillMaxWidth()
                             .then(scrimModifier)
-                            .graphicsLayer { alpha = topBarCollapse }
+                            .graphicsLayer { alpha = topBarCollapse.value }
                     )
                 }
 
@@ -281,7 +290,7 @@ fun HomeTopBarLayer(
                 // 点击搜索 → 不展开顶栏，FAB 左边框向左展开为悬浮搜索条。
                 // 液态玻璃开启时 FAB/搜索条为折射玻璃渲染（与悬浮胶囊同质感）
                 TopBarActionsFloating(
-                    collapseProgress = topBarCollapse,
+                    collapseProgress = collapseProgress,
                     isSearchActive = homeUiState.isLocalSearchActive,
                     searchQuery = homeUiState.localSearchQuery,
                     onSearchQueryChange = { homeViewModel.updateLocalSearchQuery(it) },
@@ -303,8 +312,8 @@ fun HomeTopBarLayer(
                         )
                         .padding(end = paneWidth)
                         .statusBarsPadding()
-                        // 与原顶栏按钮对齐：顶栏 horizontal 20dp padding，按钮行自 statusBar 底起 48dp
-                        .padding(end = 20.dp)
+                        // 右缘与原顶栏按钮对齐，展开时填满可用宽度，左右各留 20dp
+                        .padding(horizontal = 20.dp)
                 )
             }
         }

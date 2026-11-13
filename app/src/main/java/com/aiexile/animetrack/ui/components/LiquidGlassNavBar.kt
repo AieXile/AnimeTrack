@@ -268,7 +268,8 @@ internal fun LiquidGlassNavBar(
                 GlassNavTab(
                     item = item,
                     selected = index == activeIndex,
-                    proximity = rememberTabProximity(dampedDragAnimation, index),
+                    index = index,
+                    dampedDragAnimation = dampedDragAnimation,
                     labelMode = labelMode,
                     onClick = {
                         if (index != currentIndex) {
@@ -440,10 +441,13 @@ internal fun LiquidGlassNavBar(
 private fun RowScope.GlassNavTab(
     item: BottomNavItem,
     selected: Boolean,
-    proximity: Float,
+    index: Int,
+    dampedDragAnimation: DampedDragAnimation,
     labelMode: NavigationLabelMode,
     onClick: () -> Unit
 ) {
+    // 接近度变化只重组这个 Tab，不让父级重新构建整条玻璃及镜像内容。
+    val proximity = rememberTabProximity(dampedDragAnimation, index)
     Box(
         modifier = Modifier
             .weight(1f)

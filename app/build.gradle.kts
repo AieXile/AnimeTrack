@@ -40,10 +40,14 @@ android {
         }
 
         buildConfigField("String", "GITHUB_TOKEN", "\"$githubToken\"")
+        // 采集变体专用：跳过首启/隐私弹窗并自动准备测试数据，正式包始终为 false。
+        buildConfigField("boolean", "BENCHMARK_MODE", "false")
 
         manifestPlaceholders["JPUSH_PKGNAME"] = applicationId!!
         manifestPlaceholders["JPUSH_APPKEY"] = "b9ce1be738b374cd17feed0c"
         manifestPlaceholders["JPUSH_CHANNEL"] = "developer-default"
+        // 采集变体置 false：推送进程会被厂商通道自动拉起，导致 Profile 采集等待进程退出时永久阻塞。
+        manifestPlaceholders["JPUSH_ENABLED"] = "true"
         manifestPlaceholders["MEIZU_APPKEY"] = ""
         manifestPlaceholders["MEIZU_APPID"] = ""
         manifestPlaceholders["OPPO_APPKEY"] = ""
@@ -78,7 +82,7 @@ android {
             manifestPlaceholders["JPUSH_PKGNAME"] = defaultConfig.applicationId + applicationIdSuffix
         }
         // benchmark 构建类型：继承 release 配置，供 macrobenchmark / baseline profile 录制使用。
-        // 可调试、不混淆，与正式包隔离，不影响正式 release 产物。
+        // 不可调试、不混淆；采集变体的包名隔离在下方 finalizeDsl 统一设置。
         create("benchmark") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
@@ -121,6 +125,24 @@ android {
             reset()
             include("armeabi-v7a", "arm64-v8a")
             isUniversalApk = true
+        }
+    }
+}
+
+// Profile 插件会另外生成 benchmarkRelease / nonMinifiedRelease；不能只隔离手写的
+// benchmark，否则 generateReleaseBaselineProfile 仍可能安装与正式版同名的采集 APK。
+androidComponents {
+    finalizeDsl { extension ->
+        extension.buildTypes.matching {
+            it.name.startsWith("benchmark") || it.name.startsWith("nonMinified")
+        }.configureEach {
+            applicationIdSuffix = ".benchmark"
+            versionNameSuffix = "-benchmark"
+            signingConfig = extension.signingConfigs.getByName("debug")
+            manifestPlaceholders["JPUSH_PKGNAME"] = "com.aiexile.animetrack.benchmark"
+            manifestPlaceholders["JPUSH_ENABLED"] = "false"
+            // 仅采集包：跳过首启/隐私流程、预置测试数据，避免 UIAutomation 依赖系统弹窗。
+            buildConfigField("boolean", "BENCHMARK_MODE", "true")
         }
     }
 }

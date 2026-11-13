@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +69,32 @@ internal fun StatusBadge(
             ),
             color = contentColor,
             fontSize = size.fontSize,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+/**
+ * 季数角标（纯展示）：堆叠卡右上角与展开系列卡左上角共用同一规格。
+ *
+ * 实底 primary + 9sp，与状态角标同为 6dp 圆角；[seasonIndex] 为该卡自身
+ * 在系列内的季序，堆叠滑动翻页后随顶层卡一起变化。
+ */
+@Composable
+internal fun SeasonBadge(
+    seasonIndex: Int,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = BadgeShape,
+        color = MaterialTheme.colorScheme.primary
+    ) {
+        Text(
+            text = stringResource(R.string.home_season_format, seasonIndex),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Medium
         )
     }

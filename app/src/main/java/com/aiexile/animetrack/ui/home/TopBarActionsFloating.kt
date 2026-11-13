@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,9 +91,6 @@ internal val TopBarMorphCorner = 14.dp
 /** morph 终点为圆形时的圆角（= 按钮半高）；「导航栏旁」加号状态下与圆形搜索 FAB 一致 */
 internal val TopBarMorphCircleCorner = TopBarActionsHeight / 2
 
-/** 悬浮搜索条最大宽度（向左展开） */
-private val FloatingSearchMaxWidth = 320.dp
-
 /**
  * 顶栏收拢（真 Morphing）修饰符：基于 [androidx.graphics.shapes.Morph] 的顶点级几何插值，
  * 顶栏整体（背景+内容）连续变形/裁剪为按钮行位置的平滑圆角方块——整个顶栏「真的
@@ -106,7 +104,7 @@ private val FloatingSearchMaxWidth = 320.dp
  * 高级模糊时顶栏背景本身即为毛玻璃（由 HomeTopBar 内 hazeEffect 提供），
  * 收拢全程保持毛玻璃，与 FAB 毛玻璃自然衔接，无需过渡。
  *
- * @param collapseProgress 收拢进度：0 = 顶栏完全展开，1 = 完全收拢为 FAB
+ * @param collapseProgress 绘制期读取的收拢进度：0 = 顶栏完全展开，1 = 完全收拢为 FAB
  * @param targetWidth 收拢终点宽度（单按钮 48dp / 组合 97dp），由顶栏按钮构成决定
  * @param endInset 终点右缘距顶栏右缘的距离（与顶栏 horizontal padding 一致，默认 20dp）
  * @param targetCornerRadius 收拢终点圆角：常规为 [TopBarMorphCorner]；
@@ -114,7 +112,7 @@ private val FloatingSearchMaxWidth = 320.dp
  */
 @Composable
 fun Modifier.topBarCollapseMorph(
-    collapseProgress: Float,
+    collapseProgress: () -> Float,
     targetWidth: Dp,
     endInset: Dp = 20.dp,
     targetCornerRadius: Dp = TopBarMorphCorner
@@ -131,11 +129,12 @@ fun Modifier.topBarCollapseMorph(
         }
     }
     return drawWithContent {
-        if (collapseProgress <= 0f) {
+        val progress = collapseProgress()
+        if (progress <= 0f) {
             drawContent()
         } else {
             // withTransform 的 block receiver 是 DrawScope，drawContent 需显式指回外层 ContentDrawScope
-            withTransform({ clipPath(morphShape.buildPath(size, collapseProgress)) }) {
+            withTransform({ clipPath(morphShape.buildPath(size, progress)) }) {
                 this@drawWithContent.drawContent()
             }
         }
@@ -155,19 +154,25 @@ private class TopBarMorphShape(
     private var cachedWidth = Float.NaN
     private var cachedHeight = Float.NaN
     private var cachedMorph: Morph? = null
+    private val androidPath = android.graphics.Path()
+    private val path = androidPath.asComposePath()
 
     fun buildPath(size: Size, progress: Float): Path {
         val p = progress.coerceIn(0f, 1f)
         val w = size.width
         val h = size.height
         if (w <= 0f || h <= 0f || targetWidthPx >= w || targetHeightPx >= h) {
-            return Path().apply { addRect(Rect(0f, 0f, w, h)) }
+            return path.apply {
+                rewind()
+                addRect(Rect(0f, 0f, w, h))
+            }
         }
         // 终点右缘 = 顶栏右缘 - endInset（与顶栏 horizontal padding 内的按钮行右缘对齐）
         val endRight = w - endInsetPx
         if (p >= 1f) {
             // 完全收拢：终点方块（与 FAB 完全重合）
-            return Path().apply {
+            return path.apply {
+                rewind()
                 addRect(Rect(endRight - targetWidthPx, h - targetHeightPx, endRight, h))
             }
         }
@@ -191,9 +196,9 @@ private class TopBarMorphShape(
             cachedWidth = w
             cachedHeight = h
         }
-        val androidPath = android.graphics.Path()
+        // toPath 会 rewind 目标路径，复用容器不会累积前一帧的轮廓。
         morph.toPath(p, androidPath)
-        return androidPath.asComposePath()
+        return path
     }
 }
 
@@ -217,7 +222,7 @@ private class TopBarMorphShape(
  */
 @Composable
 fun TopBarActionsFloating(
-    collapseProgress: Float,
+    collapseProgress: () -> Float,
     isSearchActive: Boolean,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
@@ -234,7 +239,10 @@ fun TopBarActionsFloating(
     modifier: Modifier = Modifier
 ) {
     // 顶栏本身无按钮时无需迁移（搜索激活时除外——搜索条需常驻可编辑）；顶栏展开时 FAB 不存在
-    if ((!showSearch && !showAdd && !isSearchActive) || collapseProgress <= 0f) return
+    val hasCollapse by remember(collapseProgress) {
+        derivedStateOf { collapseProgress() > 0f }
+    }
+    if ((!showSearch && !showAdd && !isSearchActive) || !hasCollapse) return
 
     val colorScheme = MaterialTheme.colorScheme
     val advancedBlurEnabled = style == ChromeStyle.HAZE
@@ -277,14 +285,15 @@ fun TopBarActionsFloating(
     // morph 出现：顶栏收拢后期（0.75→1）原位淡入，位置/尺寸与顶栏收拢终点完全重合
     Box(
         modifier = modifier.graphicsLayer {
-            alpha = ((collapseProgress - 0.75f) / 0.25f).coerceIn(0f, 1f)
+            alpha = ((collapseProgress() - 0.75f) / 0.25f).coerceIn(0f, 1f)
         }
     ) {
         // FAB ⇄ 悬浮搜索条：宽度驱动容器（容器本身锚定 TopEnd，右边框全程恒定不动，
         // 展开时仅左边框向左伸展，收回时仅左边框收回），内容随容器宽度即时重排
         BoxWithConstraints {
             val collapsedWidth = if (showSearch && showAdd) TopBarActionsCombinedWidth else TopBarActionsSingleWidth
-            val expandedWidth = minOf(maxWidth, FloatingSearchMaxWidth)
+            // 外层已预留对称边距，直接使用布局约束适配当前屏幕/内容区域宽度。
+            val expandedWidth = maxWidth
             val targetWidth = if (isSearchActive) expandedWidth else collapsedWidth
             val animatedWidth by animateDpAsState(
                 targetValue = targetWidth,

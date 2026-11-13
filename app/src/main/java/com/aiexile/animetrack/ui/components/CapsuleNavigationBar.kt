@@ -12,7 +12,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +50,7 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastCoerceIn
@@ -75,9 +78,10 @@ fun CapsuleNavigationBar(
     blurConfig: AdvancedBlurConfig = AdvancedBlurConfig.DEFAULT,
     backdrop: Backdrop? = null,
     /** 「导航栏旁」FAB 预留的右侧宽度（含按钮宽 + 间隔）：胶囊在剩余空间内 fillMaxWidth 让位 */
-    reserveEndWidth: Dp = 0.dp,
+    reserveEndWidth: () -> Dp = { 0.dp },
     modifier: Modifier = Modifier
 ) {
+    val endPadding = rememberCapsuleEndPadding(reserveEndWidth)
     val visibleItems = bottomNavItems.filter { it.route in visiblePages }
     val advancedBlur = style == ChromeStyle.HAZE
     val liquidBackdrop = backdrop.takeIf { style == ChromeStyle.LIQUID_GLASS }
@@ -90,7 +94,7 @@ fun CapsuleNavigationBar(
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp)
                 .padding(bottom = 24.dp)
-                .padding(end = reserveEndWidth)
+                .padding(endPadding)
         ) {
             LiquidGlassNavBar(
                 currentRoute = currentRoute,
@@ -120,7 +124,7 @@ fun CapsuleNavigationBar(
             .fillMaxWidth()
             .padding(horizontal = 32.dp)
             .padding(bottom = 24.dp)
-            .padding(end = reserveEndWidth)
+            .padding(endPadding)
             .pointerInput(pagerState) {
                 if (pagerState == null) return@pointerInput
                 detectHorizontalDragGestures(
@@ -280,41 +284,18 @@ fun CapsuleNavigationBar(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 指示器连续位置按 0.25 步长量化（与液态玻璃一致）：
-                    // 拖拽/飞行/Pager 滑动期间仅跨步长时重组一次，
-                    // 颜色/缩放过渡交给 CapsuleNavItem 内的 spring 动画平滑
-                    val dragPosition by remember(dragAnim) {
-                        derivedStateOf { (dragAnim.value * 4f).fastRoundToInt() / 4f }
-                    }
                     visibleItems.forEachIndexed { index, item ->
-                        // 选中态实时跟随指示器连续位置（Apple 液态玻璃 TabBar 行为）：
-                        // 指示器盖过哪个图标，哪个就渲染选中态，无需等松手导航
-                        val selected = index == dragPosition.fastRoundToInt()
-                        val proximity = if (itemCount > 1) {
-                            (1f - abs(dragPosition - index) / (itemCount - 1).toFloat())
-                                .fastCoerceIn(0f, 1f)
-                        } else if (selected) 1f else 0f
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    AppLogManager.i("CapsuleNav", "tab CLICK route=${item.route}")
-                                    onNavigate(item.route)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CapsuleNavItem(
-                                item = item,
-                                selected = selected,
-                                proximity = proximity,
-                                labelMode = labelMode
-                            )
-                        }
+                        CapsuleNavTab(
+                            item = item,
+                            index = index,
+                            itemCount = itemCount,
+                            dragAnim = dragAnim,
+                            labelMode = labelMode,
+                            onClick = {
+                                AppLogManager.i("CapsuleNav", "tab CLICK route=${item.route}")
+                                onNavigate(item.route)
+                            }
+                        )
                     }
                 }
 
@@ -359,6 +340,64 @@ fun CapsuleNavigationBar(
                 }
             }
         }
+    }
+}
+
+/** 标准 / Haze 胶囊的局部更新单元，不在父级读取拖拽动画位置。 */
+@Composable
+private fun RowScope.CapsuleNavTab(
+    item: BottomNavItem,
+    index: Int,
+    itemCount: Int,
+    dragAnim: DampedDragAnimation,
+    labelMode: NavigationLabelMode,
+    onClick: () -> Unit
+) {
+    // 保留先按 0.25 量化再计算接近度、选中项的规则，动画参数不变。
+    val dragPosition by remember(dragAnim) {
+        derivedStateOf { (dragAnim.value * 4f).fastRoundToInt() / 4f }
+    }
+    val selected = index == dragPosition.fastRoundToInt()
+    val proximity = if (itemCount > 1) {
+        (1f - abs(dragPosition - index) / (itemCount - 1).toFloat())
+            .fastCoerceIn(0f, 1f)
+    } else if (selected) 1f else 0f
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        CapsuleNavItem(
+            item = item,
+            selected = selected,
+            proximity = proximity,
+            labelMode = labelMode
+        )
+    }
+}
+
+/**
+ * 让位宽度在 PaddingValues 被测量时读取，保留 Modifier.padding 原有的约束、
+ * 像素取整和 RTL 规则；动画只请求重新测量，不逐帧重组整条导航。
+ */
+@Composable
+internal fun rememberCapsuleEndPadding(endWidth: () -> Dp): PaddingValues = remember(endWidth) {
+    object : PaddingValues {
+        override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp =
+            if (layoutDirection == LayoutDirection.Rtl) endWidth() else 0.dp
+
+        override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp =
+            if (layoutDirection == LayoutDirection.Ltr) endWidth() else 0.dp
+
+        override fun calculateTopPadding(): Dp = 0.dp
+        override fun calculateBottomPadding(): Dp = 0.dp
     }
 }
 

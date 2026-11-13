@@ -95,7 +95,7 @@
         </service> <!-- JPush SDK Service -->
         <service
             android:name=".push.PushService"
-            android:enabled="true"
+            android:enabled="${JPUSH_ENABLED}"
             android:exported="false"
             android:process=":pushcore">
             <intent-filter>
@@ -104,7 +104,7 @@
         </service> <!-- JPush SDK Receiver -->
         <receiver
             android:name=".push.PushReceiver"
-            android:enabled="true"
+            android:enabled="${JPUSH_ENABLED}"
             android:exported="false">
             <intent-filter>
                 <action android:name="cn.jpush.android.intent.RECEIVER_MESSAGE" />

@@ -57,6 +57,9 @@ half4 main(float2 coord) {
             null
         }
 
+    // uniform 逐帧更新，画笔与 shader 的绑定不变，无需每次绘制重新包装。
+    private val shaderBrush = shader?.let { ShaderBrush(it.asComposeShader()) }
+
     val modifier: Modifier =
         Modifier.drawWithContent {
             val progress = pressProgressAnimation.value
@@ -78,7 +81,7 @@ half4 main(float2 coord) {
                         )
                     }
                     drawRect(
-                        ShaderBrush(shader.asComposeShader()),
+                        shaderBrush!!,
                         blendMode = BlendMode.Plus
                     )
                 } else {

@@ -57,6 +57,7 @@ import coil.compose.AsyncImage
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.theme.LocalCardCoverFullyRounded
+import com.aiexile.animetrack.ui.theme.LocalCardInfoFields
 import com.aiexile.animetrack.util.coverImageRequestForList
 import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.util.resolveCoverModel
@@ -467,6 +468,8 @@ private fun StackCardLayer(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    // 右上角角标与信息栏都跟随卡片显示设置（左/右槽位字段）
+    val cardInfoFields = LocalCardInfoFields.current
     // 与普通卡片（AnimeCard）底部保持同色：亮色用最亮白，暗色 surfaceContainerLowest
     // 过深、与网格背景几乎无区分，改用 surfaceContainerLow
     val containerColor = if (isAppDarkTheme()) {
@@ -518,8 +521,7 @@ private fun StackCardLayer(
             else -> CoverTopShape
         }
 
-        // 封面共享元素：状态徽章是独立共享元素（落在详情页标题行），
-        // 与封面同步飞行但不参与封面内容的缩放
+        // 封面共享元素：季数角标叠在封面内容层内，随封面一起飞行
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -558,18 +560,28 @@ private fun StackCardLayer(
                 )
             }
 
-            // 观看状态角标（与普通卡片一致：右上角；策略由设置项切换）
-            CardStatusBadge(
-                status = anime.status,
-                unaired = isUnaired(anime.airDate),
-                animeId = anime.id,
-                sharedElementKeyPrefix = "",
-                sharedTransitionScope = sharedTransitionScope.takeIf { enableSharedCover },
-                animatedVisibilityScope = animatedVisibilityScope.takeIf { enableSharedCover },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
-            )
+            // 右上角角标：信息栏任意槽位在显示季数进度（"2/3"）时保持观看状态角标；
+            // 两侧都不显示进度文字后，季数改由角标呈现，避免季数信息丢失
+            if (cardInfoFieldsShowSeasonProgress(cardInfoFields)) {
+                CardStatusBadge(
+                    status = anime.status,
+                    unaired = isUnaired(anime.airDate),
+                    animeId = anime.id,
+                    sharedElementKeyPrefix = "",
+                    sharedTransitionScope = sharedTransitionScope.takeIf { enableSharedCover },
+                    animatedVisibilityScope = animatedVisibilityScope.takeIf { enableSharedCover },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                )
+            } else {
+                SeasonBadge(
+                    seasonIndex = seasonIndex,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                )
+            }
         }
 
         // 标题区域（含封面高度补偿，见 StackCoverHeightCompensation 注释）：
@@ -598,13 +610,12 @@ private fun StackCardLayer(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 季数进度：与普通卡片集数进度同款样式（左下角），
-            // 前为当前季序、后为总季数，滑动翻页后跟随顶层变化
-            Text(
-                text = "$seasonIndex/$totalSeasons",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // 信息栏与普通卡片共用 CardInfoRow（左右槽位跟随卡片显示设置）；
+            // 进度槽的文本换成本卡的季数进度，滑动翻页后跟随顶层变化
+            CardInfoRow(
+                anime = anime,
+                fields = cardInfoFields,
+                progressText = "$seasonIndex/$totalSeasons"
             )
         }
     }
