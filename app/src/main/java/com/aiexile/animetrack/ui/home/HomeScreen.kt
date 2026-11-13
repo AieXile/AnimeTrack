@@ -56,7 +56,6 @@ import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.StatusBarMode
 import com.aiexile.animetrack.ui.update.UpdateDialog
 import com.aiexile.animetrack.ui.update.UpdateViewModel
-import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -85,7 +84,6 @@ private const val RIDE_ITEMS = 30
 fun HomeScreen(
     viewModel: HomeViewModel,
     updateViewModel: UpdateViewModel,
-    announcementViewModel: AnnouncementViewModel,
     gridState: LazyGridState = rememberLazyGridState(),
     showBottomBar: Boolean = true,
     onNavigate: (String) -> Unit = {},
@@ -264,12 +262,7 @@ fun HomeScreen(
         }
     }
     
-    // 更新弹窗后组合，层级高于公告弹窗：更新检查期间公告可能先弹出，
-    // 若检查出新版，更新弹窗叠在其上方，确保公告不遮挡更新弹窗。
-    com.aiexile.animetrack.ui.announcement.AnnouncementDialog(
-        viewModel = announcementViewModel,
-        onNavigateLogin = onNavigateUserLogin
-    )
+    // 公告已由 MainPagerContent 在页面内容前统一组合，更新弹窗保持更高层级。
     UpdateDialog(viewModel = updateViewModel)
     
     Scaffold(

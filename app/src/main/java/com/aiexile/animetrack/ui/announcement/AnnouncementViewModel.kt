@@ -128,7 +128,8 @@ class AnnouncementViewModel(
                         announcements = sorted,
                         currentIndex = firstUnreadIndex,
                         isLoading = false,
-                        showDialog = immediate && hasUnread,
+                        // 手动查看不受已读状态限制；自动弹出仍只提示未读公告。
+                        showDialog = immediate && sorted.isNotEmpty(),
                         pendingShow = !immediate && hasUnread,
                         readAnnouncementIds = readIds,
                         error = null,

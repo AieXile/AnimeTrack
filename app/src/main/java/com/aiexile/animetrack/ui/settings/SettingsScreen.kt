@@ -61,6 +61,7 @@ import com.aiexile.animetrack.ui.components.BottomNavigationBar
 fun SettingsScreen(
     showBottomBar: Boolean = true,
     onNavigateAbout: () -> Unit,
+    onOpenAnnouncements: () -> Unit,
     onNavigatePrivacyPolicy: () -> Unit = {},
     onNavigateCustomize: () -> Unit = {},
     onNavigateAppearance: () -> Unit = {},
@@ -170,6 +171,13 @@ fun SettingsScreen(
         },
         actions = {
             if (!searchActive) {
+                IconButton(onClick = onOpenAnnouncements) {
+                    Icon(
+                        painter = rememberAppIconPainter(AppIcon.CAMPAIGN),
+                        contentDescription = stringResource(R.string.developer_announcement),
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
                 IconButton(onClick = { searchActive = true }) {
                     Icon(
                         painter = rememberAppIconPainter(AppIcon.SEARCH),

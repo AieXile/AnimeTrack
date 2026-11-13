@@ -94,6 +94,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.update.UpdateViewModel
+import com.aiexile.animetrack.ui.announcement.AnnouncementDialog
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
@@ -1116,11 +1117,19 @@ internal fun MainPagerContent(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    when (mainPages.getOrNull(page)?.route) {
+    val route = mainPages.getOrNull(page)?.route
+    // 公告由当前首页/设置页共用同一弹窗，避免 Pager 预组合相邻页时重复显示。
+    // 放在页面内容前组合，保持首页更新弹窗高于公告的既有层级。
+    if (pagerState.currentPage == page && (route == "home" || route == "settings")) {
+        AnnouncementDialog(
+            viewModel = announcementViewModel,
+            onNavigateLogin = { onNavigateToScreen(Routes.USER_LOGIN) }
+        )
+    }
+    when (route) {
         "home" -> HomeScreen(
             viewModel = homeViewModel,
             updateViewModel = updateViewModel,
-            announcementViewModel = announcementViewModel,
             gridState = gridState,
             showBottomBar = false,
             onNavigate = { },
@@ -1168,6 +1177,7 @@ internal fun MainPagerContent(
         "settings" -> SettingsScreen(
             showBottomBar = false,
             onNavigateAbout = { onNavigateToScreen(Routes.ABOUT) },
+            onOpenAnnouncements = { announcementViewModel.open() },
             onNavigatePrivacyPolicy = { onNavigateToScreen(Routes.PRIVACY_POLICY) },
             onNavigateCustomize = { onNavigateToScreen(Routes.NAVIGATION_CUSTOMIZE) },
             onNavigateAppearance = { onNavigateToScreen(Routes.APPEARANCE) },
