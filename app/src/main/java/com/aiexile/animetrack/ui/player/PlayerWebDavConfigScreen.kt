@@ -18,15 +18,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,16 +35,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.di.AppContainer
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 import kotlinx.coroutines.launch
 
 /**
  * 播放器专属 WebDAV 配置页。
  *
- * 与备份同步的 WebDAV 相互独立（可能是不同服务器/账号）；
- * 若备份侧已配置，可通过「从备份配置填入」一键带入后再自行修改保存。
+ * 与备份同步的 WebDAV 相互独立；播放器额外保存媒体根目录和最近浏览记忆。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,44 +57,30 @@ fun PlayerWebDavConfigScreen(
     val savedUrl by settingsRepository.playerWebdavUrl.collectAsStateWithLifecycle(initialValue = "")
     val savedUsername by settingsRepository.playerWebdavUsername.collectAsStateWithLifecycle(initialValue = "")
     val savedPassword by settingsRepository.playerWebdavPassword.collectAsStateWithLifecycle(initialValue = "")
+    val savedMediaRoot by settingsRepository.playerWebdavMediaRoot.collectAsStateWithLifecycle(initialValue = "")
+    val lastBrowsePath by settingsRepository.playerWebdavLastBrowsePath.collectAsStateWithLifecycle(initialValue = "")
     val trustAllCerts by settingsRepository.playerWebdavTrustAllCerts.collectAsStateWithLifecycle(initialValue = false)
     val backupUrl by settingsRepository.webdavUrl.collectAsStateWithLifecycle(initialValue = "")
     val backupUsername by settingsRepository.webdavUsername.collectAsStateWithLifecycle(initialValue = "")
     val backupPassword by settingsRepository.webdavPassword.collectAsStateWithLifecycle(initialValue = "")
 
     // null = 未接管，直接展示存储中的值；用户编辑/导入后接管为本地草稿。
-    // 这样既避免 DataStore 异步加载完成前的闪烁，也不会覆盖未编辑字段。
     var urlDraft by rememberSaveable { mutableStateOf<String?>(null) }
     var usernameDraft by rememberSaveable { mutableStateOf<String?>(null) }
     var passwordDraft by rememberSaveable { mutableStateOf<String?>(null) }
+    var mediaRootDraft by rememberSaveable { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.player_webdav_server),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+    AppScaffold(
+        title = stringResource(R.string.player_webdav_server),
+        onBack = onBack
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
                 .padding(horizontal = 24.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(chrome.content)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -109,7 +91,7 @@ fun PlayerWebDavConfigScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = urlDraft ?: savedUrl,
                 onValueChange = { urlDraft = it },
                 label = { Text(stringResource(R.string.webdav_sync_server_address)) },
@@ -120,7 +102,7 @@ fun PlayerWebDavConfigScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = usernameDraft ?: savedUsername,
                 onValueChange = { usernameDraft = it },
                 label = { Text(stringResource(R.string.webdav_sync_username)) },
@@ -130,7 +112,7 @@ fun PlayerWebDavConfigScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = passwordDraft ?: savedPassword,
                 onValueChange = { passwordDraft = it },
                 label = { Text(stringResource(R.string.webdav_sync_password)) },
@@ -138,6 +120,27 @@ fun PlayerWebDavConfigScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            AppOutlinedTextField(
+                value = mediaRootDraft ?: savedMediaRoot,
+                onValueChange = { mediaRootDraft = it },
+                label = { Text(stringResource(R.string.player_webdav_media_root)) },
+                placeholder = { Text(stringResource(R.string.player_webdav_media_root_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (lastBrowsePath.isNotBlank()) {
+                Text(
+                    text = "${stringResource(R.string.player_webdav_last_browse)}：$lastBrowsePath",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -149,6 +152,7 @@ fun PlayerWebDavConfigScreen(
                             username = (usernameDraft ?: savedUsername).trim(),
                             password = passwordDraft ?: savedPassword
                         )
+                        settingsRepository.setPlayerWebdavMediaRoot(mediaRootDraft ?: savedMediaRoot)
                         onBack()
                     }
                 },
@@ -164,10 +168,22 @@ fun PlayerWebDavConfigScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            OutlinedButton(
+                onClick = {
+                    scope.launch { settingsRepository.clearPlayerWebdavBrowseMemory() }
+                },
+                enabled = lastBrowsePath.isNotBlank(),
+                shape = SquircleShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = stringResource(R.string.player_webdav_clear_memory))
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // 从备份配置填入：仅当备份侧已配置服务器时可用
             OutlinedButton(
                 onClick = {
-                    // 仅填入草稿，由用户确认后再点保存
                     urlDraft = backupUrl
                     usernameDraft = backupUsername
                     passwordDraft = backupPassword
@@ -190,8 +206,6 @@ fun PlayerWebDavConfigScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 信任所有证书：IP 直连 NAS / 自签名证书场景（写入 DataStore；
-            // PlaybackService 的 OkHttp client 为懒加载单例，重启应用后生效）
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically

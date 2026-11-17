@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 视频输出用 SurfaceView（media3 默认）：暂停时不出新帧，尺寸变化由系统合成器
+     直接缩放上一帧，切全屏不会残留旧几何导致画面偏移。 -->
+<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:keep_content_on_player_reset="true"
+    app:resize_mode="fit"
+    app:show_buffering="never"
+    app:surface_type="surface_view"
+    app:use_controller="false" />

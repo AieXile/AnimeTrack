@@ -1,19 +1,25 @@
 package com.aiexile.animetrack.ui.player
 
-import android.app.Activity
+import android.app.Activity
+import android.content.res.Configuration
+
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import android.content.Context
 import android.media.AudioManager
 import android.net.Uri
+import android.view.LayoutInflater
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,20 +39,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -55,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -62,6 +70,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -78,6 +87,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -111,6 +121,10 @@ private val GestureEdgeExclusion = 28.dp
 @Composable
 fun PlayerScreen(
     animeId: Int,
+    initialLocalUri: String? = null,
+    initialLocalTitle: String? = null,
+    initialLocalMediaId: Long? = null,
+    initialWebPlay: Boolean = false,
     onBack: () -> Unit,
     onBrowseWebDAV: () -> Unit,
     onSelectLocalFile: () -> Unit = {},
@@ -118,9 +132,31 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = viewModel(factory = PlayerViewModel.Factory())
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val webParseRequest by viewModel.webParseRequest.collectAsStateWithLifecycle()
+    var webAssistExpanded by remember(webParseRequest) { mutableStateOf(false) }
+    var webAssistShowWeb by remember(webParseRequest) { mutableStateOf(false) }
+    val currentPlaybackState by rememberUpdatedState(uiState)
     val context = LocalContext.current
     val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
+
+    // 路由已带视频时，首帧等待 LaunchedEffect 交接请求，不能先展示选源界面。
+    var initialRequestHandled by remember(
+        initialLocalUri, initialLocalTitle, initialLocalMediaId, initialWebPlay
+    ) { mutableStateOf(false) }
+
+    LaunchedEffect(initialLocalUri, initialLocalTitle, initialLocalMediaId, initialWebPlay) {
+        when {
+            initialWebPlay -> com.aiexile.animetrack.data.player.PendingWebPlayback.consume()?.let {
+                if (it.resolvePage) viewModel.playWebPage(it) else viewModel.playWeb(
+                    it.url, it.mimeType, it.title, it.pageUrl, it.headers, it.userAgent, it.referer, it.queue
+                )
+            }
+            initialLocalMediaId != null -> viewModel.playLocalMedia(initialLocalMediaId)
+            initialLocalUri != null -> viewModel.playLocalUri(Uri.parse(initialLocalUri), initialLocalTitle)
+        }
+        initialRequestHandled = true
+    }
 
     // Local file picker
     val localFileLauncher = rememberLauncherForActivityResult(
@@ -133,6 +169,9 @@ fun PlayerScreen(
     // 用 StateFlow 单订阅：LiveData.observe 会随 LaunchedEffect 重启叠加多个 observer，
     // 且 LiveData 值分发是广播式的——曾导致 playWebDavUrl 被重复触发多次
     val navBackStackEntry = navController.currentBackStackEntryAsState()
+    // WebDAV 返回时请求还在 savedStateHandle 中，订阅处理前也属于已选源。
+    val hasPendingWebDavRequest = navBackStackEntry.value?.savedStateHandle
+        ?.get<String>("webdav_file_path") != null
     navBackStackEntry.value?.let { entry ->
         LaunchedEffect(entry) {
             entry.savedStateHandle.getStateFlow<String?>("webdav_file_path", null)
@@ -148,8 +187,10 @@ fun PlayerScreen(
     // 从番剧详情页进入（animeId > 0）时自动打开 WebDAV 浏览，让用户选择对应视频文件；
     // rememberSaveable 防止从浏览页返回后重复触发
     var autoBrowseTriggered by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(animeId) {
-        if (animeId > 0 && !autoBrowseTriggered) {
+    LaunchedEffect(animeId, initialLocalUri, initialLocalMediaId, initialWebPlay) {
+        if (initialLocalUri == null && initialLocalMediaId == null && !initialWebPlay &&
+            animeId > 0 && !autoBrowseTriggered
+        ) {
             autoBrowseTriggered = true
             onBrowseWebDAV()
         }
@@ -157,17 +198,25 @@ fun PlayerScreen(
 
     var showControls by remember { mutableStateOf(true) }
     var controlsHideJob by remember { mutableStateOf<Job?>(null) }
-    var showSpeedMenu by remember { mutableStateOf(false) }
 
-    // 字幕/音轨选择弹窗：null = 关闭；值为 C.TRACK_TYPE_TEXT / C.TRACK_TYPE_AUDIO
-    // 自建 Compose 弹窗替代 media3 TrackSelectionDialogBuilder（后者要求 FragmentActivity，本项目为 ComponentActivity 会闪退）
-    var trackDialogType by remember { mutableIntStateOf(-1) }
+    // 右侧抽屉层级栈：空 = 关闭；[Menu] = 一级「更多」；[Menu, 二级] = 从一级进入的二级。
+    // 从控制条直接打开的倍速/字幕只有一层，点外部直接关闭；
+    // 从「更多」进入的二级共用一个抽屉框，点外部只回退层级。
+    var drawerStack by remember { mutableStateOf<List<PlayerDrawerLevel>>(emptyList()) }
+    val drawerLevel = drawerStack.lastOrNull()
+    var detailsSheetType by remember { mutableStateOf<DetailsSheetType?>(null) }
 
-    // 右上角「更多」菜单：面板渲染在顶层，与控制条自动隐藏互不影响
-    var moreMenuExpanded by remember { mutableStateOf(false) }
+    val detailsGridState = rememberLazyGridState()
+    val hasChildDrawer = drawerStack.size > 1
+    // 半屏面板（字幕/音轨选择、更多菜单、选集）是否打开：用于联动隐藏上下控制条
+    val anyPanelOpen = drawerLevel != null || detailsSheetType != null
 
-    // 半屏面板（字幕/音轨选择、更多菜单）是否打开：用于联动隐藏上下控制条
-    val anyPanelOpen = trackDialogType >= 0 || moreMenuExpanded
+    LaunchedEffect(uiState.notice) {
+        uiState.notice?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearNotice()
+        }
+    }
 
     // Gesture feedback state
     var gestureFeedback by remember { mutableStateOf<GestureFeedback?>(null) }
@@ -222,9 +271,6 @@ fun PlayerScreen(
         if (anyPanelOpen) {
             controlsHideJob?.cancel()
             showControls = false
-        } else {
-            showControls = true
-            resetControlsTimer()
         }
     }
 
@@ -232,14 +278,79 @@ fun PlayerScreen(
     val insetsController = activity?.let {
         WindowCompat.getInsetsController(it.window, it.window.decorView)
     }
+    val configuration = LocalConfiguration.current
+
+    // 退出全屏时等待窗口先转回竖屏，再切回小窗布局。
+    // 进入/退出的时序与 Animeko 一致：进入是「先切布局、再改窗口」，
+    // 退出是「先改窗口、再切布局」；两个方向都要避免窗口还在过渡时反复重排视频槽位。
+    var exitFullscreenPending by remember { mutableStateOf(false) }
+
+    fun requestFullscreenToggle() {
+        if (!uiState.isFullscreen) {
+            // 立即切到全屏布局：视频按自身比例在竖屏窗口内留黑边，随后系统旋转，
+            // 不会像「等方向到了再切」那样把横屏下的详情分栏露出来。
+            if (exitFullscreenPending) return
+            viewModel.setFullscreen(true)
+            return
+        }
+        if (exitFullscreenPending) return
+        exitFullscreenPending = true
+        insetsController?.show(WindowInsetsCompat.Type.systemBars())
+        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
+
+    LaunchedEffect(exitFullscreenPending, configuration.orientation) {
+        if (!exitFullscreenPending) return@LaunchedEffect
+        if (configuration.orientation != Configuration.ORIENTATION_PORTRAIT) return@LaunchedEffect
+        exitFullscreenPending = false
+        viewModel.setFullscreen(false)
+    }
+
+    // 分屏/自由窗口下方向请求可能被系统忽略，超时后仍退出全屏，避免按钮失效
+    LaunchedEffect(exitFullscreenPending) {
+        if (!exitFullscreenPending) return@LaunchedEffect
+        delay(1200)
+        if (exitFullscreenPending) {
+            exitFullscreenPending = false
+            viewModel.setFullscreen(false)
+        }
+    }
+
+    val handleBack: () -> Unit = {
+        when {
+            // 退出全屏旋转中忽略返回，避免半途退出把布局留在过渡态
+            exitFullscreenPending -> Unit
+            uiState.isFullscreen -> requestFullscreenToggle()
+            else -> onBack()
+        }
+    }
+
+    androidx.activity.compose.BackHandler(uiState.isFullscreen && !anyPanelOpen && !webAssistExpanded) {
+        requestFullscreenToggle()
+    }
+    androidx.activity.compose.BackHandler(anyPanelOpen) {
+        drawerStack = if (hasChildDrawer) drawerStack.dropLast(1) else emptyList()
+        detailsSheetType = null
+    }
+
     // Fullscreen mode - hide/show system bars & change orientation。
     // 手动全屏按钮永远旋转到横向；「自动横屏」开关只控制播放横屏视频时
     // 是否自动进入全屏（见 PlayerViewModel.onVideoSizeChanged）
     LaunchedEffect(uiState.isFullscreen) {
+        showControls = true
+        resetControlsTimer()
         if (uiState.isFullscreen) {
+            // 全屏下用户下滑唤出的系统栏只做临时显示，超时后自动收起；
+            // 默认行为会把系统栏一直留在屏幕上。
+            insetsController?.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-            activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            activity?.requestedOrientation = if (uiState.fullscreenLandscape)
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
         } else {
+            insetsController?.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -248,6 +359,8 @@ fun PlayerScreen(
     // Restore system bars and orientation when leaving
     DisposableEffect(Unit) {
         onDispose {
+            insetsController?.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
@@ -286,339 +399,663 @@ fun PlayerScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        // Error state
-        if (uiState.error != null) {
-            ErrorOverlay(
-                error = uiState.error!!,
-                onRetry = {
-                    if (!viewModel.retryLast()) onBack()
-                },
-                onBack = onBack
-            )
-        } else if (!uiState.isControllerReady) {
-            // 后台播放服务连接中（通常不到一瞬，感知不到）
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        } else if (uiState.durationMs <= 0 && !uiState.isPlaying) {
-            // Empty state - no media loaded
-            EmptyMediaState(
-                onBrowseWebDAV = onBrowseWebDAV,
-                onSelectLocalFile = {
-                    localFileLauncher.launch(arrayOf("video/*"))
-                }
-            )
-        } else {
-            // Video surface
-            PlayerViewContainer(
-                viewModel = viewModel,
-                modifier = Modifier.fillMaxSize()
-            )
+    val pageTitle = uiState.seriesTitle?.takeIf { it.isNotBlank() }
+        ?: uiState.mediaTitle?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.settings_playback)
 
-            // Gesture overlay area
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { offset ->
-                                // 边缘防误触：不响应点按，避免与系统手势冲突
-                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
-                                    showControls = !showControls
-                                    if (showControls) resetControlsTimer()
-                                }
+    Box(Modifier.fillMaxSize()) {
+        PlayerPageLayout(
+            isFullscreen = uiState.isFullscreen,
+            title = pageTitle,
+            onBack = onBack,
+            onOpenSettings = { detailsSheetType = DetailsSheetType.MORE },
+            video = {
+                Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    // Error state
+                    if (uiState.error != null) {
+                        ErrorOverlay(
+                            error = uiState.error!!,
+                            onRetry = {
+                                if (!viewModel.retryLast()) handleBack()
                             },
-                            onDoubleTap = { offset ->
-                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
-                                    viewModel.togglePlayPause()
+                            onBack = handleBack,
+                            compact = !uiState.isFullscreen
+                        )
+                    } else if (!uiState.isControllerReady || !initialRequestHandled ||
+                        hasPendingWebDavRequest || uiState.isPreparingMedia
+                    ) {
+                        PlayerLoadingOverlay(
+                            message = stringResource(when {
+                                uiState.isResolvingMedia -> R.string.web_episode_resolving
+                                !uiState.isControllerReady -> R.string.player_connecting
+                                else -> R.string.player_preparing
+                            }),
+                            onBack = if (uiState.isFullscreen) handleBack else null,
+                            onAssist = if (webParseRequest != null) {
+                                {
+                                    webAssistShowWeb = true
+                                    webAssistExpanded = true
                                 }
-                            },
-                            onLongPress = { offset ->
-                                if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
-                                    viewModel.startLongPressSpeed()
+                            } else null
+                        )
+                    } else if (!uiState.hasPlaybackRequest) {
+                        // 只有从未选择视频时才显示选源，时长未知或暂停不会回退到这里。
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.player_select_source), color = Color.White)
+                        }
+                    } else {
+                        // Video surface
+                        PlayerViewContainer(
+                            viewModel = viewModel,
+                            videoScale = uiState.videoScale,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        // Gesture overlay area
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { offset ->
+                                            // 边缘防误触：不响应点按，避免与系统手势冲突
+                                            if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                                showControls = !showControls
+                                                if (showControls) resetControlsTimer()
+                                            }
+                                        },
+                                        onDoubleTap = { offset ->
+                                            if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                                viewModel.togglePlayPause()
+                                            }
+                                        },
+                                        onLongPress = { offset ->
+                                            if (!isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)) {
+                                                viewModel.startLongPressSpeed()
+                                            }
+                                        }
+                                    )
+                                }
+                                // 长按加速时，松手恢复：只以「手指全部抬起」结束。
+                                // 滑动会被其他手势消费，waitForUpOrCancellation 会把消费当成取消，
+                                // 导致手指还没抬起长按加速就提前恢复
+                                .pointerInput(viewModel) {
+                                    awaitEachGesture {
+                                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                        while (true) {
+                                            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                                            if (event.changes.none { it.pressed }) break
+                                        }
+                                        viewModel.stopLongPressSpeed()
+                                    }
+                                }
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures(
+                                        onDragStart = { offset ->
+                                            seekDeltaMs = 0L
+                                            // 起点在四边防误触区内则整段手势忽略且不消费事件，
+                                            // 让系统侧滑返回/下拉状态栏/上滑回桌面正常接管
+                                            ignoreVerticalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
+                                        },
+                                        onVerticalDrag = { change, dragAmount ->
+                                            if (ignoreVerticalGesture) return@detectVerticalDragGestures
+                                            change.consume()
+                                            val screenWidth = size.width
+                                            val isLeftHalf = change.position.x < screenWidth / 2
+
+                                            if (isLeftHalf) {
+                                                // Brightness adjustment
+                                                val delta = -dragAmount / size.height
+                                                currentBrightness =
+                                                    (currentBrightness + delta).coerceIn(0f, 1f)
+                                                activity?.window?.let { window ->
+                                                    val params = window.attributes
+                                                    params.screenBrightness = currentBrightness
+                                                    window.attributes = params
+                                                }
+                                                showGestureFeedback(
+                                                    GestureFeedback.Brightness(currentBrightness)
+                                                )
+                                            } else {
+                                                // Volume adjustment
+                                                val delta = -dragAmount / size.height
+                                                currentVolume = (currentVolume + delta).coerceIn(0f, 1f)
+                                                val audioManager =
+                                                    context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                                val targetVol =
+                                                    (currentVolume * maxVolume).toInt().coerceIn(0, maxVolume)
+                                                audioManager.setStreamVolume(
+                                                    AudioManager.STREAM_MUSIC,
+                                                    targetVol,
+                                                    0
+                                                )
+                                                showGestureFeedback(
+                                                    GestureFeedback.Volume(currentVolume)
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                                .pointerInput(Unit) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { offset ->
+                                            seekDeltaMs = 0L
+                                            ignoreHorizontalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
+                                        },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            if (ignoreHorizontalGesture) return@detectHorizontalDragGestures
+                                            change.consume()
+                                            // ~60 seconds per screen width
+                                            val seekPerPx = 60_000f / size.width
+                                            seekDeltaMs += (dragAmount * seekPerPx).toLong()
+                                        },
+                                        onDragEnd = {
+                                            if (seekDeltaMs != 0L && !ignoreHorizontalGesture) {
+                                                val newPosition =
+                                                    (currentPlaybackState.currentPositionMs + seekDeltaMs)
+                                                        .coerceIn(0, currentPlaybackState.durationMs)
+                                                viewModel.seekTo(newPosition)
+                                            }
+                                            seekDeltaMs = 0L
+                                        },
+                                        onDragCancel = {
+                                            seekDeltaMs = 0L
+                                        }
+                                    )
+                                }
+                        )
+
+                        // Long press speed boost indicator
+                        if (uiState.isLongPressSpeedActive) {
+                            LongPressSpeedIndicator(speed = uiState.playbackSpeed)
+                        }
+
+                        // Seek preview during horizontal drag
+                        if (seekDeltaMs != 0L) {
+                            val previewPosition =
+                                (uiState.currentPositionMs + seekDeltaMs).coerceIn(0, uiState.durationMs)
+                            SeekPreviewOverlay(
+                                currentPosition = uiState.currentPositionMs,
+                                seekPosition = previewPosition,
+                                duration = uiState.durationMs
+                            )
+                        }
+
+                        // Gesture feedback overlay (brightness/volume)
+                        gestureFeedback?.let { feedback ->
+                            GestureFeedbackOverlay(feedback = feedback)
+                        }
+
+                        if (uiState.isBuffering && uiState.playWhenReady && !isSeekDragging) {
+                            PlayerLoadingOverlay(message = stringResource(R.string.player_buffering))
+                        }
+
+                        // 只有用户/服务实际暂停才显示暂停，缓冲时 isPlaying 也会为 false。
+                        if (!uiState.playWhenReady) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(start = 12.dp)
+                                    .then(
+                                        if (uiState.isFullscreen) Modifier.padding(bottom = 56.dp)
+                                        else Modifier.padding(bottom = 48.dp)
+                                    )
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
+                                        contentDescription = stringResource(R.string.player_paused),
+                                        tint = Color.White.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.player_paused),
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 11.sp
+                                    )
                                 }
                             }
-                        )
-                    }
-                    // 长按加速时，松手恢复：常驻层从每次按下跟踪到全部抬起，
-                    // 抬起瞬间同步调用恢复（未激活时为 no-op），不依赖重组与状态置位，无延迟
-                    .pointerInput(viewModel) {
-                        awaitEachGesture {
-                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                            do {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                            } while (event.changes.any { it.pressed })
-                            viewModel.stopLongPressSpeed()
+                        }
+
+                        // Controls overlay
+                        AnimatedVisibility(
+                            visible = showControls && uiState.isFullscreen,
+                            enter = fadeIn(),
+                            exit = fadeOut()
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // Top bar
+                                TopControlBar(
+                                    title = uiState.mediaTitle,
+                                    isFullscreen = uiState.isFullscreen,
+                                    onBack = handleBack,
+                                    onSkipForward = {
+                                        viewModel.seekTo(uiState.currentPositionMs + 85_000L)
+                                        resetControlsTimer()
+                                    },
+                                    onOpenMoreMenu = { drawerStack = listOf(PlayerDrawerLevel.Menu) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                )
+
+                                // Center play/pause indicator (moved to bottom bar)
+
+                                // Bottom bar
+                                BottomControlBar(
+                                    currentPositionMs = if (isSeekDragging) seekDragPositionMs else uiState.currentPositionMs,
+                                    durationMs = uiState.durationMs,
+                                    bufferedPositionMs = uiState.bufferedPositionMs,
+                                    playbackSpeed = uiState.playbackSpeed,
+                                    isFullscreen = uiState.isFullscreen,
+                                    playWhenReady = uiState.playWhenReady,
+                                    hasNextEpisode = viewModel.hasNextEpisode(),
+                                    onOpenSpeed = { drawerStack = listOf(PlayerDrawerLevel.Speed) },
+                                    onSeekToRatio = { ratio ->
+                                        viewModel.seekToPositionRatio(ratio)
+                                        resetControlsTimer()
+                                    },
+                                    onSeekDragStart = {
+                                        isSeekDragging = true
+                                        seekDragPositionMs = uiState.currentPositionMs
+                                    },
+                                    onSeekDrag = { ratio ->
+                                        seekDragPositionMs = (uiState.durationMs * ratio).toLong()
+                                    },
+                                    onSeekDragEnd = {
+                                        isSeekDragging = false
+                                    },
+                                    onTogglePlayPause = {
+                                        viewModel.togglePlayPause()
+                                        resetControlsTimer()
+                                    },
+                                    onNextEpisode = {
+                                        viewModel.seekToNext()
+                                        resetControlsTimer()
+                                    },
+                                    onSelectSubtitles = {
+                                        drawerStack = listOf(PlayerDrawerLevel.Tracks(C.TRACK_TYPE_TEXT))
+                                        resetControlsTimer()
+                                    },
+                                    onToggleFullscreen = {
+                                        requestFullscreenToggle()
+                                        resetControlsTimer()
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                )
+                            }
                         }
                     }
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragStart = { offset ->
-                                seekDeltaMs = 0L
-                                // 起点在四边防误触区内则整段手势忽略且不消费事件，
-                                // 让系统侧滑返回/下拉状态栏/上滑回桌面正常接管
-                                ignoreVerticalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
-                            },
-                            onVerticalDrag = { change, dragAmount ->
-                                if (ignoreVerticalGesture) return@detectVerticalDragGestures
-                                change.consume()
-                                val screenWidth = size.width
-                                val isLeftHalf = change.position.x < screenWidth / 2
 
-                                if (isLeftHalf) {
-                                    // Brightness adjustment
-                                    val delta = -dragAmount / size.height
-                                    currentBrightness =
-                                        (currentBrightness + delta).coerceIn(0f, 1f)
-                                    activity?.window?.let { window ->
-                                        val params = window.attributes
-                                        params.screenBrightness = currentBrightness
-                                        window.attributes = params
-                                    }
-                                    showGestureFeedback(
-                                        GestureFeedback.Brightness(currentBrightness)
-                                    )
-                                } else {
-                                    // Volume adjustment
-                                    val delta = -dragAmount / size.height
-                                    currentVolume = (currentVolume + delta).coerceIn(0f, 1f)
-                                    val audioManager =
-                                        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                                    val targetVol =
-                                        (currentVolume * maxVolume).toInt().coerceIn(0, maxVolume)
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_MUSIC,
-                                        targetVol,
-                                        0
-                                    )
-                                    showGestureFeedback(
-                                        GestureFeedback.Volume(currentVolume)
-                                    )
-                                }
-                            }
+                    if (!uiState.isFullscreen && uiState.hasPlaybackRequest && uiState.error == null) {
+                        EmbeddedPlayerControls(
+                            state = uiState,
+                                visible = showControls,
+                            positionMs = if (isSeekDragging) seekDragPositionMs else uiState.currentPositionMs,
+                            isSeeking = isSeekDragging || seekDeltaMs != 0L,
+                            onTogglePlayPause = { viewModel.togglePlayPause() },
+                            onToggleFullscreen = { requestFullscreenToggle() },
+                            onSeekToRatio = viewModel::seekToPositionRatio,
+                            onSeekDragStart = {
+                                isSeekDragging = true
+                                seekDragPositionMs = uiState.currentPositionMs
+                            },
+                            onSeekDrag = { ratio -> seekDragPositionMs = (uiState.durationMs * ratio).toLong() },
+                            onSeekDragEnd = { isSeekDragging = false }
                         )
                     }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { offset ->
-                                seekDeltaMs = 0L
-                                ignoreHorizontalGesture = isInGestureEdgeZone(offset.x, offset.y, size.width, size.height)
-                            },
-                            onHorizontalDrag = { change, dragAmount ->
-                                if (ignoreHorizontalGesture) return@detectHorizontalDragGestures
-                                change.consume()
-                                // ~60 seconds per screen width
-                                val seekPerPx = 60_000f / size.width
-                                seekDeltaMs += (dragAmount * seekPerPx).toLong()
-                            },
-                            onDragEnd = {
-                                if (seekDeltaMs != 0L && !ignoreHorizontalGesture) {
-                                    val newPosition =
-                                        (uiState.currentPositionMs + seekDeltaMs)
-                                            .coerceIn(0, uiState.durationMs)
-                                    viewModel.seekTo(newPosition)
-                                }
-                                seekDeltaMs = 0L
-                            },
-                            onDragCancel = {
-                                seekDeltaMs = 0L
-                            }
-                        )
+
+                    // 解析或播放失败后仍允许切换线路与选集。
+                    if (uiState.error != null && uiState.hasPlaybackRequest && !anyPanelOpen) {
+                        IconButton(onClick = { detailsSheetType = DetailsSheetType.MORE },
+                            modifier = Modifier.align(Alignment.TopEnd)) {
+                            Icon(rememberAppIconPainter(AppIcon.SETTINGS),
+                                contentDescription = stringResource(R.string.player_settings_title), tint = Color.White)
+                        }
                     }
-            )
 
-            // Long press speed boost indicator
-            if (uiState.isLongPressSpeedActive) {
-                LongPressSpeedIndicator(speed = uiState.playbackSpeed)
+                }
+            },
+            details = {
+                if (initialRequestHandled && uiState.isControllerReady &&
+                    !hasPendingWebDavRequest && !uiState.hasPlaybackRequest) {
+                    EmptyMediaState(
+                        onBrowseWebDAV = onBrowseWebDAV,
+                        onSelectLocalFile = { localFileLauncher.launch(arrayOf("video/*")) }
+                    )
+                } else {
+                    PlayerDetailsContent(
+                        state = uiState,
+                        gridState = detailsGridState,
+                        onSelectEpisode = viewModel::selectEpisode,
+                        onSelectChannel = viewModel::selectWebChannel,
+                        onOpenQuality = { detailsSheetType = DetailsSheetType.QUALITY },
+                        onOpenSpeed = { detailsSheetType = DetailsSheetType.SPEED },
+                        onOpenSubtitles = { detailsSheetType = DetailsSheetType.SUBTITLES },
+                        onOpenSettings = { detailsSheetType = DetailsSheetType.MORE }
+                    )
+                }
             }
+        )
 
-            // Seek preview during horizontal drag
-            if (seekDeltaMs != 0L) {
-                val previewPosition =
-                    (uiState.currentPositionMs + seekDeltaMs).coerceIn(0, uiState.durationMs)
-                SeekPreviewOverlay(
-                    currentPosition = uiState.currentPositionMs,
-                    seekPosition = previewPosition,
-                    duration = uiState.durationMs
-                )
-            }
-
-            // Gesture feedback overlay (brightness/volume)
-            gestureFeedback?.let { feedback ->
-                GestureFeedbackOverlay(feedback = feedback)
-            }
-
-            // Pause indicator (always visible when paused, outside controls)
-            if (!uiState.isPlaying) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 12.dp)
-                        .then(
-                            if (uiState.isFullscreen) Modifier.padding(bottom = 56.dp)
-                            else Modifier.padding(bottom = 48.dp)
-                        )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // 播放器抽屉：一级「更多」与字幕/音轨、线路、选集、清晰度、倍速、画面比例等
+        // 二级界面共用同一个抽屉框与遮罩。二级状态下点外部/返回键只回退到一级，
+        // 一级状态下才关闭抽屉；层级切换只替换框内内容，一级面板不会被卸载重建。
+        drawerLevel?.let { level ->
+            PlayerDrawerHost(
+                level = level,
+                onDismissed = { drawerStack = emptyList() },
+                onStepBack = if (hasChildDrawer) {
+                    { drawerStack = drawerStack.dropLast(1) }
+                } else null
+            ) { target, requestClose ->
+                when (target) {
+                    // 横屏全屏时抽屉高度有限，一级菜单内容随高度滚动
+                    PlayerDrawerLevel.Menu -> Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState())
                     ) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                            contentDescription = stringResource(R.string.player_paused),
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.player_paused),
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
-
-            // Controls overlay
-            AnimatedVisibility(
-                visible = showControls,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Top bar
-                    TopControlBar(
-                        title = uiState.mediaTitle,
-                        onBack = onBack,
-                        onSkipForward = {
-                            viewModel.seekTo(uiState.currentPositionMs + 85_000L)
-                            resetControlsTimer()
-                        },
-                        onOpenMoreMenu = { moreMenuExpanded = true },
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .then(
-                                if (!uiState.isFullscreen) Modifier.statusBarsPadding()
-                                else Modifier
+                        PlayerMenuSectionTitle(stringResource(R.string.player_menu_common))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PlayerMenuGridItem(
+                                icon = rememberAppIconPainter(AppIcon.CLOSED_CAPTION),
+                                label = stringResource(R.string.player_subtitles),
+                                onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Tracks(C.TRACK_TYPE_TEXT) },
+                                modifier = Modifier.weight(1f)
                             )
+                            PlayerMenuGridItem(
+                                icon = rememberAppIconPainter(AppIcon.MUSIC_NOTE),
+                                label = stringResource(R.string.player_audio_track),
+                                onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Tracks(C.TRACK_TYPE_AUDIO) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            PlayerMenuGridItem(
+                                icon = rememberAppIconPainter(AppIcon.SPEED),
+                                label = stringResource(R.string.player_playback_speed),
+                                onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Speed },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PlayerMenuGridItem(
+                                icon = rememberAppIconPainter(AppIcon.FULLSCREEN),
+                                label = stringResource(R.string.player_video_scale),
+                                onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Scale },
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (uiState.channels.size > 1) {
+                                PlayerMenuGridItem(
+                                    icon = rememberAppIconPainter(AppIcon.SYNC),
+                                    label = stringResource(R.string.player_channels),
+                                    onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Channels },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Spacer(Modifier.weight(1f))
+                            }
+                            Spacer(Modifier.weight(1f))
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+                        PlayerMenuSectionTitle(stringResource(R.string.player_menu_more))
+                        PlayerMenuItemToggle(
+                            icon = rememberAppIconPainter(AppIcon.SCREEN_ROTATION),
+                            label = stringResource(R.string.player_auto_landscape),
+                            checked = uiState.autoLandscape,
+                            onCheckedChange = { viewModel.setAutoLandscape(it) }
+                        )
+                        PlayerMenuItemToggle(rememberAppIconPainter(AppIcon.SKIP_NEXT),
+                            stringResource(R.string.player_settings_auto_play_next), uiState.autoPlayNext,
+                            viewModel::setAutoPlayNext)
+                        PlayerMenuItemToggle(rememberAppIconPainter(AppIcon.HISTORY),
+                            stringResource(R.string.player_settings_remember_position), uiState.rememberPosition,
+                            viewModel::setRememberPosition)
+                        PlayerMenuItem(rememberAppIconPainter(AppIcon.REPLAY),
+                            stringResource(if (uiState.isWebPlayback) R.string.web_playback_reparse else R.string.common_retry), {
+                                requestClose()
+                                viewModel.retryLast()
+                            })
+                    }
+
+                    is PlayerDrawerLevel.Tracks -> {
+                        if (uiState.isControllerReady) {
+                            TrackSelectionContent(
+                                trackType = target.trackType,
+                                player = viewModel.player,
+                                requestClose = requestClose
+                            )
+                        }
+                    }
+
+                    PlayerDrawerLevel.Episodes -> EpisodeSelectionContent(
+                        episodes = uiState.episodes,
+                        selectedIndex = uiState.currentEpisodeIndex,
+                        progress = uiState.episodeProgress,
+                        onSelect = { index ->
+                            viewModel.selectEpisode(index)
+                            resetControlsTimer()
+                        }
                     )
 
-                    // Center play/pause indicator (moved to bottom bar)
+                    PlayerDrawerLevel.Channels -> PlayerSelectionContent(
+                        labels = uiState.channels.mapIndexed { index, name ->
+                            name ?: stringResource(R.string.web_source_channel, index + 1)
+                        },
+                        selectedIndex = uiState.currentChannelIndex,
+                        onSelect = { index ->
+                            viewModel.selectWebChannel(index)
+                            requestClose()
+                        }
+                    )
 
-                    // Bottom bar
-                    BottomControlBar(
-                        currentPositionMs = if (isSeekDragging) seekDragPositionMs else uiState.currentPositionMs,
-                        durationMs = uiState.durationMs,
-                        bufferedPositionMs = uiState.bufferedPositionMs,
-                        playbackSpeed = uiState.playbackSpeed,
-                        isFullscreen = uiState.isFullscreen,
-                        isPlaying = uiState.isPlaying,
-                        hasNextEpisode = viewModel.hasNextEpisode(),
-                        showSpeedMenu = showSpeedMenu,
-                        onSpeedMenuChange = { showSpeedMenu = it },
-                        onSpeedSelected = { speed ->
-                            viewModel.setPlaybackSpeed(speed)
-                        },
-                        onSeekToRatio = { ratio ->
-                            viewModel.seekToPositionRatio(ratio)
-                            resetControlsTimer()
-                        },
-                        onSeekDragStart = {
-                            isSeekDragging = true
-                            seekDragPositionMs = uiState.currentPositionMs
-                        },
-                        onSeekDrag = { ratio ->
-                            seekDragPositionMs = (uiState.durationMs * ratio).toLong()
-                        },
-                        onSeekDragEnd = {
-                            isSeekDragging = false
-                        },
-                        onTogglePlayPause = {
-                            viewModel.togglePlayPause()
-                            resetControlsTimer()
-                        },
-                        onNextEpisode = {
-                            viewModel.seekToNext()
-                            resetControlsTimer()
-                        },
-                        onSelectSubtitles = {
-                            trackDialogType = C.TRACK_TYPE_TEXT
-                            resetControlsTimer()
-                        },
-                        onToggleFullscreen = {
-                            viewModel.toggleFullscreen()
-                            resetControlsTimer()
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .then(
-                                if (!uiState.isFullscreen) Modifier.statusBarsPadding()
-                                else Modifier
+                    PlayerDrawerLevel.Quality -> {
+                        if (uiState.isControllerReady) {
+                            PlayerQualityContent(
+                                player = viewModel.player,
+                                sources = uiState.webSources,
+                                selectedSource = uiState.selectedWebSource,
+                                onSelectSource = viewModel::selectWebSource,
+                                requestClose = requestClose
                             )
+                        }
+                    }
+
+                    PlayerDrawerLevel.Speed -> {
+                        val speeds = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+                        PlayerSelectionContent(
+                            labels = speeds.map { "${it}×" },
+                            selectedIndex = speeds.indexOf(uiState.playbackSpeed),
+                            onSelect = { index ->
+                                viewModel.setPlaybackSpeed(speeds[index])
+                                requestClose()
+                            }
+                        )
+                    }
+
+                    PlayerDrawerLevel.Scale -> PlayerSelectionContent(
+                        labels = listOf(
+                            stringResource(R.string.player_scale_fit),
+                            stringResource(R.string.player_scale_fill),
+                            stringResource(R.string.player_scale_crop)
+                        ),
+                        selectedIndex = uiState.videoScale,
+                        onSelect = { index ->
+                            viewModel.setVideoScale(index)
+                            requestClose()
+                        }
                     )
                 }
             }
         }
-
-        // 字幕/音轨选择面板（右侧半透明抽屉，实现见 PlayerPanels.kt）
-        if (trackDialogType >= 0) {
-            TrackSelectionPanel(
-                trackType = trackDialogType,
+        detailsSheetType?.let { type ->
+            PlayerDetailsSheet(
+                type = type,
+                state = uiState,
                 player = viewModel.player,
-                onDismiss = { trackDialogType = -1 }
+                onDismiss = { detailsSheetType = null },
+                onSelectSource = { index ->
+                    viewModel.selectWebSource(index)
+                    detailsSheetType = null
+                },
+                onSetSpeed = { viewModel.setPlaybackSpeed(it) },
+                onSetScale = viewModel::setVideoScale,
+                onSetAutoNext = viewModel::setAutoPlayNext,
+                onSetRememberPosition = viewModel::setRememberPosition,
+                onSetAutoLandscape = viewModel::setAutoLandscape,
+                onRetry = { viewModel.retryLast() }
             )
         }
+    }
 
-        // 右上角「更多」菜单：与字幕抽屉同一套视觉语言（1/2 屏宽右侧抽屉），
-        // 渲染在控制条之外，打开期间控制条由 anyPanelOpen 联动隐藏
-        if (moreMenuExpanded) {
-            PlayerMenuPanel(
-                onDismiss = { moreMenuExpanded = false }
-            ) { requestClose ->
-                PlayerMenuItem(
-                    icon = rememberAppIconPainter(AppIcon.MUSIC_NOTE),
-                    label = stringResource(R.string.player_audio_track),
-                    onClick = {
-                        requestClose()
-                        trackDialogType = C.TRACK_TYPE_AUDIO
-                    }
-                )
-                PlayerMenuItemToggle(
-                    icon = rememberAppIconPainter(AppIcon.SCREEN_ROTATION),
-                    label = stringResource(R.string.player_auto_landscape),
-                    checked = uiState.autoLandscape,
-                    onCheckedChange = { viewModel.setAutoLandscape(it) }
-                )
-            }
-        }    }
+    webParseRequest?.let { request ->
+        key(request) {
+            WebMediaSnifferOverlay(
+                pageUrl = request.pageUrl ?: request.url,
+                userAgent = request.userAgent,
+                referer = request.referer,
+                expanded = webAssistExpanded,
+                showWeb = webAssistShowWeb,
+                onExpandChange = { webAssistExpanded = it },
+                onShowWebChange = { webAssistShowWeb = it },
+                onDismiss = viewModel::cancelWebResolution,
+                onSourcesAvailable = { viewModel.updateWebSources(request, it) },
+                onPlay = { target, _, headers, actualUserAgent, mimeType ->
+                    viewModel.completeWebPage(request, target, mimeType, headers, actualUserAgent)
+                }
+            )
+        }
+    }
 }
 
+/** 起播覆盖层和播放中缓冲共用，缓冲时保留下面的视频画面与控制条。 */
+@Composable
+private fun PlayerLoadingOverlay(
+    message: String,
+    onBack: (() -> Unit)? = null,
+    onAssist: (() -> Unit)? = null
+) {
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            CircularProgressIndicator(color = Color.White)
+            Text(message, color = Color.White, fontSize = 14.sp)
+            if (onAssist != null) {
+                OutlinedButton(
+                    onClick = onAssist,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text(stringResource(R.string.web_episode_assist), fontSize = 12.sp)
+                }
+            }
+        }
+        if (onBack != null) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.TopStart)) {
+                Icon(painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
+                    contentDescription = stringResource(R.string.common_back), tint = Color.White)
+            }
+        }
+    }
+}
+
+@androidx.media3.common.util.UnstableApi
 @Composable
 private fun PlayerViewContainer(
     viewModel: PlayerViewModel,
+    videoScale: Int,
     modifier: Modifier = Modifier
 ) {
+    var playerView by remember { mutableStateOf<PlayerView?>(null) }
     AndroidView(
         factory = { ctx ->
-            PlayerView(ctx).apply {
+            (LayoutInflater.from(ctx)
+                .inflate(R.layout.player_view, null, false) as PlayerView).apply {
+                // API 34 上 SurfaceView 在 Compose AndroidView 内可能丢失尺寸事务（画面拉伸/裁切），
+                // media3 提供了官方 workaround（更高版本系统已修复，仅 API 34 生效）
+                setEnableComposeSurfaceSyncWorkaround(true)
                 player = viewModel.player
-                useController = false
+            }.also { playerView = it }
+        },
+        update = { view ->
+            if (view.player !== viewModel.player) view.player = viewModel.player
+            view.resizeMode = when (videoScale) {
+                1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
             }
         },
         modifier = modifier
     )
+
+    // 特效字幕（ass-media 调用 setVideoEffects）会让 media3 停止上报 VideoSize，
+    // PlayerView 的内容框比例保持为 0，画面被拉伸填满任意容器（全屏与旋转时尤其明显）。
+    // 这里退回当前视频轨的 Format 计算显示比例，比例正确后全屏/竖屏过渡按原比例留黑边。
+    val player = viewModel.player
+    val view = playerView
+    if (view != null) {
+        DisposableEffect(view, player) {
+            val listener = object : Player.Listener {
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) =
+                    applyVideoAspectFallback(view, player)
+
+                override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) =
+                    applyVideoAspectFallback(view, player)
+            }
+            player.addListener(listener)
+            applyVideoAspectFallback(view, player)
+            onDispose { player.removeListener(listener) }
+        }
+    }
+
+    // 暂停时固定 SurfaceView 缓冲区：特效字幕管线暂停不重绘，
+    // 布局变化（进/出全屏）若让缓冲区跟随尺寸，会裁切/偏移最后一帧
+    val surfaceView = playerView?.videoSurfaceView as? android.view.SurfaceView
+    if (surfaceView != null) {
+        DisposableEffect(surfaceView, player, videoScale) {
+            val keeper = VideoSurfaceBuffer(surfaceView, player) { videoScale == 0 }
+            keeper.refresh()
+            onDispose { keeper.release() }
+        }
+    }
+}
+
+/**
+ * 特效字幕管线下 PlayerView 收不到 VideoSize，内容框比例会停在 0（画面填满容器被拉伸）。
+ * 用当前选中视频轨的 Format 计算显示宽高比补上；media3 正常上报尺寸时不做处理。
+ */
+@androidx.media3.common.util.UnstableApi
+private fun applyVideoAspectFallback(view: PlayerView, player: Player) {
+    if (player.videoSize.width > 0 && player.videoSize.height > 0) return
+    val group = player.currentTracks.groups.firstOrNull {
+        it.type == C.TRACK_TYPE_VIDEO && it.isSelected
+    } ?: return
+    val index = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: 0
+    val format = group.getTrackFormat(index)
+    if (format.width <= 0 || format.height <= 0) return
+    val quarterTurn = format.rotationDegrees % 180 != 0
+    val displayWidth = if (quarterTurn) format.height else format.width
+    val displayHeight = if (quarterTurn) format.width else format.height
+    val pixelRatio = format.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
+    val contentFrame = view.findViewById<androidx.media3.ui.AspectRatioFrameLayout>(
+        androidx.media3.ui.R.id.exo_content_frame
+    ) ?: return
+    val aspect = displayWidth * pixelRatio / displayHeight
+    contentFrame.setAspectRatio(aspect)
 }
 
 @Composable
 private fun TopControlBar(
     title: String?,
+    isFullscreen: Boolean,
     onBack: () -> Unit,
     onSkipForward: () -> Unit,
     onOpenMoreMenu: () -> Unit,
@@ -632,13 +1069,13 @@ private fun TopControlBar(
                     colors = listOf(ControlsBarColor, Color.Transparent)
                 )
             )
-            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .padding(horizontal = 4.dp, vertical = if (isFullscreen) 8.dp else 0.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = onBack) {
+            if (isFullscreen) IconButton(onClick = onBack) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
                     contentDescription = stringResource(R.string.common_back),
@@ -660,7 +1097,7 @@ private fun TopControlBar(
             )
 
             // 快进85秒按钮
-            IconButton(onClick = onSkipForward) {
+            if (isFullscreen) IconButton(onClick = onSkipForward) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = rememberAppIconPainter(AppIcon.REPLAY),
@@ -701,11 +1138,9 @@ private fun BottomControlBar(
     bufferedPositionMs: Long,
     playbackSpeed: Float,
     isFullscreen: Boolean,
-    isPlaying: Boolean,
+    playWhenReady: Boolean,
     hasNextEpisode: Boolean,
-    showSpeedMenu: Boolean,
-    onSpeedMenuChange: (Boolean) -> Unit,
-    onSpeedSelected: (Float) -> Unit,
+    onOpenSpeed: () -> Unit,
     onSeekToRatio: (Float) -> Unit,
     onSeekDragStart: () -> Unit,
     onSeekDrag: (Float) -> Unit,
@@ -727,38 +1162,50 @@ private fun BottomControlBar(
             .padding(horizontal = 12.dp)
             .padding(top = 16.dp, bottom = 8.dp)
     ) {
-        // Main control row: [Play/Pause] [Next] [SeekBar] [Speed] [Fullscreen]
+        // 小窗口把进度条单独放一行，给时间和播放按钮留出空间。
+        if (!isFullscreen) {
+            PlayerSeekBar(
+                currentPositionMs = currentPositionMs,
+                durationMs = durationMs,
+                bufferedPositionMs = bufferedPositionMs,
+                onSeekToRatio = onSeekToRatio,
+                onSeekDragStart = onSeekDragStart,
+                onSeekDrag = onSeekDrag,
+                onSeekDragEnd = onSeekDragEnd
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Play/Pause button
-            Icon(
-                painter = if (isPlaying) rememberAppIconPainter(AppIcon.PAUSE) else rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                contentDescription = if (isPlaying) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
-                tint = Color.White,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onTogglePlayPause() }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(0.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onTogglePlayPause, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        painter = if (playWhenReady) rememberAppIconPainter(AppIcon.PAUSE) else rememberAppIconPainter(AppIcon.PLAY_ARROW),
+                        contentDescription = if (playWhenReady) stringResource(R.string.player_pause) else stringResource(R.string.player_play),
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Next episode button (only if available)
-            if (hasNextEpisode) {
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.SKIP_NEXT),
-                    contentDescription = stringResource(R.string.player_next_episode),
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { onNextEpisode() }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                // Next episode button (only if available)
+                if (hasNextEpisode) {
+                    IconButton(onClick = onNextEpisode, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            painter = rememberAppIconPainter(AppIcon.SKIP_NEXT),
+                            contentDescription = stringResource(R.string.player_next_episode),
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
-            // Seek bar
-            Box(
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // 全屏时沿用横向控制栏的进度条。
+            if (isFullscreen) Box(
                 modifier = Modifier.weight(1f)
             ) {
                 PlayerSeekBar(
@@ -779,36 +1226,28 @@ private fun BottomControlBar(
                 text = "${formatDuration(currentPositionMs)} / ${formatDuration(durationMs)}",
                 color = Color.White,
                 fontSize = 11.sp,
+                maxLines = 1,
+                modifier = if (isFullscreen) Modifier else Modifier.weight(1f),
                 style = TextStyle(shadow = Shadow(Color.Black, Offset(1f, 1f), 2f))
             )
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Speed text (no icon)
-            Box {
+            // 小窗口的倍速与字幕入口位于下方详情区。
+            if (isFullscreen) Box {
                 Text(
                     text = "${playbackSpeed}x",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
-                        .clickable { onSpeedMenuChange(true) }
+                        .clickable(onClick = onOpenSpeed)
                         .padding(horizontal = 6.dp, vertical = 4.dp)
-                )
-
-                SpeedDropdownMenu(
-                    expanded = showSpeedMenu,
-                    currentSpeed = playbackSpeed,
-                    onDismiss = { onSpeedMenuChange(false) },
-                    onSpeedSelected = { speed ->
-                        onSpeedMenuChange(false)
-                        onSpeedSelected(speed)
-                    }
                 )
             }
 
             // 字幕轨选择（无字幕轨时面板显示空提示）
-            IconButton(onClick = onSelectSubtitles) {
+            if (isFullscreen) IconButton(onClick = onSelectSubtitles) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.CLOSED_CAPTION),
                     contentDescription = stringResource(R.string.player_subtitles),
@@ -833,7 +1272,7 @@ private fun BottomControlBar(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun PlayerSeekBar(
+internal fun PlayerSeekBar(
     currentPositionMs: Long,
     durationMs: Long,
     bufferedPositionMs: Long,
@@ -841,14 +1280,15 @@ private fun PlayerSeekBar(
     onSeekDragStart: () -> Unit,
     onSeekDrag: (Float) -> Unit,
     onSeekDragEnd: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    progressColor: Color = MaterialTheme.colorScheme.primary
 ) {
     val progress = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
     val buffered = if (durationMs > 0) bufferedPositionMs.toFloat() / durationMs else 0f
 
     var sliderValue by remember(progress) { mutableFloatStateOf(progress) }
     var isDragging by remember { mutableStateOf(false) }
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val primaryColor = progressColor
 
     Box(modifier = modifier.fillMaxWidth()) {
         // Custom track with buffered indicator
@@ -934,56 +1374,19 @@ private fun PlayerSeekBar(
 }
 
 @Composable
-private fun SpeedDropdownMenu(
-    expanded: Boolean,
-    currentSpeed: Float,
-    onDismiss: () -> Unit,
-    onSpeedSelected: (Float) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        modifier = modifier.background(
-            color = Color(0xFF1A1A1A),
-            shape = SquircleShape(8.dp)
-        )
-    ) {
-        speeds.forEach { speed ->
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = "${speed}x",
-                        color = if (speed == currentSpeed) MaterialTheme.colorScheme.primary
-                        else Color.White,
-                        fontWeight = if (speed == currentSpeed) FontWeight.SemiBold
-                        else FontWeight.Normal
-                    )
-                },
-                onClick = { onSpeedSelected(speed) },
-                contentPadding = PaddingValues(
-                    horizontal = 16.dp,
-                    vertical = 8.dp
-                )
-            )
-        }
-    }
-}
-
-@Composable
 private fun ErrorOverlay(
     error: String,
     onRetry: () -> Unit,
     onBack: () -> Unit,
+    compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .padding(32.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(if (compact) 12.dp else 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -991,21 +1394,21 @@ private fun ErrorOverlay(
             painter = rememberAppIconPainter(AppIcon.ERROR),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(if (compact) 24.dp else 48.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 16.dp))
 
         Text(
             text = error,
             color = Color.White,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
-            maxLines = 3,
+            maxLines = if (compact) 2 else 3,
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 24.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
@@ -1209,36 +1612,48 @@ private fun LongPressSpeedIndicator(
     speed: Float,
     modifier: Modifier = Modifier
 ) {
+    // 长按开始直接是紧凑提示，不再有放大版；持续一会儿后上移并淡掉底色，
+    // 只留图标和倍速文字，减少对画面的遮挡
+    var raised by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(1_500)
+        raised = true
+    }
+    val topPadding by animateDpAsState(
+        targetValue = if (raised) 16.dp else 35.dp,
+        animationSpec = tween(320), label = "speedHintTop"
+    )
+    val backgroundAlpha by animateFloatAsState(
+        targetValue = if (raised) 0f else 0.8f,
+        animationSpec = tween(320), label = "speedHintBackground"
+    )
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
     ) {
         Surface(
             shape = SquircleShape(8.dp),
-            color = GestureOverlayColor,
-            modifier = Modifier.padding(top = 80.dp)
+            color = Color.Black.copy(alpha = backgroundAlpha),
+            contentColor = Color.White,
+            modifier = Modifier.padding(top = topPadding)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     painter = rememberAppIconPainter(AppIcon.SPEED),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "${speed}x",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = stringResource(R.string.player_long_press_speed),
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.7f), blurRadius = 4f))
                 )
             }
         }

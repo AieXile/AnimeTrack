@@ -26,12 +26,14 @@ import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -93,6 +95,7 @@ import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.model.AuthSource
 import com.aiexile.animetrack.push.PushRegistrationHelper
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.update.UpdateViewModel
@@ -134,7 +137,10 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
@@ -207,9 +213,18 @@ fun AnimeTrackApp(
         snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
             .collect { (index, offset) -> homeViewModel.updateGridScrollPosition(index, offset) }
     }
-    // 滚回顶部信号：即使 HomeScreen 未组合（详情页打开期间）也立即滚到顶部
-    LaunchedEffect(gridState, homeViewModel) {
-        homeViewModel.scrollToTopRequests.collect { gridState.scrollToItem(0) }
+    // 定位信号：新增 / 进度或状态变更后把网格滚到目标番剧所在位置。
+    // 详情页打开期间 HomeScreen 未组合，但 LazyGridState 在此层持有，定位仍会先生效，
+    // 返回主页时卡片已在可视区域内。
+    // 目标卡不贴屏幕顶端：让出状态栏 + 顶栏高度，避免卡片被顶栏图层遮住上半部分。
+    val density = LocalDensity.current
+    val statusBarTopPx = WindowInsets.statusBars.getTop(density)
+    val scrollTargetInsetPx = statusBarTopPx + with(density) { 48.dp.roundToPx() }
+    LaunchedEffect(gridState, homeViewModel, scrollTargetInsetPx) {
+        homeViewModel.scrollToAnimeRequests.collect { target ->
+            val targetIndex = homeViewModel.resolveGridIndexForAnime(target) ?: return@collect
+            gridState.scrollToItem(targetIndex, scrollOffset = -scrollTargetInsetPx)
+        }
     }
     val hazeState = rememberHazeState()
     val navBackdrop = rememberLayerBackdrop()
@@ -642,12 +657,41 @@ fun AnimeTrackApp(
                     arguments = Routes.playerArguments
                 ) { backStackEntry ->
                     val animeId = backStackEntry.arguments?.getInt("animeId") ?: return@composable
+                    val localUri = backStackEntry.arguments?.getString("localUri")
+                    val localTitle = backStackEntry.arguments?.getString("localTitle")
+                    val localMediaId = backStackEntry.arguments?.getString("localMediaId")
+                        ?.toLongOrNull()
+                    val webPlay = backStackEntry.arguments?.getString("webPlay") == "true"
                     PlayerScreen(
                         animeId = animeId,
+                        initialLocalUri = localUri,
+                        initialLocalTitle = localTitle,
+                        initialLocalMediaId = localMediaId,
+                        initialWebPlay = webPlay,
                         onBack = { navController.popBackStack() },
                         onBrowseWebDAV = { navController.navigate(Routes.WEBDAV_BROWSE) },
                         onSelectLocalFile = { /* handled within PlayerScreen */ },
                         navController = navController
+                    )
+                }
+
+                // 本地媒体库
+                composable(Routes.LOCAL_MEDIA) {
+                    com.aiexile.animetrack.ui.player.LocalMediaLibraryScreen(
+                        onBack = { navController.popBackStack() },
+                        onPlayMedia = { mediaId ->
+                            navController.navigate(Routes.player(0, localMediaId = mediaId))
+                        }
+                    )
+                }
+
+                // 网页播放
+                composable(Routes.WEB_PLAYBACK) {
+                    com.aiexile.animetrack.ui.player.WebPlaybackScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenPlayer = {
+                            navController.navigate(Routes.player(0, webPlay = true))
+                        }
                     )
                 }
 
@@ -1351,7 +1395,26 @@ private fun MainOverlay(
     }
 
     // 搜索关闭后顶栏保持收拢（搜索条收回为 FAB 的动画可见，不被顶栏展开覆盖）；
-    // 顶栏仅在列表滚回顶部时重新展开，上滑回滚途中不触发
+    // 顶栏仅在列表滚回顶部时重新展开，上滑回滚途中不触发。
+    // 但搜索期间列表可能因结果集缩小自动归顶，位置之后不再变化、没有滚动事件驱动展开，
+    // 顶栏会永久停在收拢态；故搜索结束后补一次判断：列表仍在顶部则展开。
+    // 延迟到搜索条收回 FAB 的动画走完再展开，避免顶栏展开盖住收起动画
+    LaunchedEffect(gridState, hideTopBarOnScroll, isHomePage) {
+        if (!hideTopBarOnScroll) return@LaunchedEffect
+        homeViewModel.uiState
+            .map { it.isLocalSearchActive }
+            .distinctUntilChanged()
+            .drop(1)
+            .collect { active ->
+                if (active) return@collect
+                delay(SEARCH_CLOSE_SETTLE_MS)
+                // 延迟期间又重新进入搜索则不处理
+                if (homeViewModel.uiState.value.isLocalSearchActive) return@collect
+                if (gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0) {
+                    homeViewModel.updateTopBarHidden(false)
+                }
+            }
+    }
 
     // 路由级显隐状态：三种导航形态与 FAB 各持一份（同一时刻只有一个 AnimatedVisibility
     // 实例在组合中，但切换导航样式时新旧分支会短暂并存，故不共用状态对象）。
@@ -1532,6 +1595,9 @@ private fun MainOverlay(
 /** 顶栏滚动方向检测：跨 item 位置换算基数与触发阈值（px），阈值过滤微小抖动 */
 private const val TOPBAR_SCROLL_DIRECTION_SCALE = 100000
 private const val TOPBAR_SCROLL_DIRECTION_THRESHOLD = 24
+
+/** 退出搜索后等待悬浮搜索条收回 FAB 的时长（与搜索条宽度动画一致），之后才允许顶栏展开 */
+private const val SEARCH_CLOSE_SETTLE_MS = 300L
 
 /** 导航栏/FAB 路由级进出场时长（与主页顶栏退出时长一致），调用方按此延迟卸载 MainOverlay */
 private const val NAV_OVERLAY_ANIM_DURATION = 200

@@ -21,13 +21,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -129,25 +132,28 @@ private fun PanelScrimLayer(visible: Boolean, onClose: () -> Unit) {
 
 /**
  * 播放器右侧抽屉面板容器：约 1/2 屏宽、全高，半透明黑底 + 左缘渐隐 + 右侧滑入，
- * 点击面板外任意处关闭。字幕/音轨选择与右上角「更多」菜单共用同一视觉语言。
+ * 点击面板外任意处关闭。
  *
- * 内容起始缩进大于左缘渐隐宽度，保证条目文字不压在模糊渐变区上。
- * 内容 lambda 的参数为「带退场动画的关闭回调」，条目点击后调用它可平滑收起面板。
+ * [stepBack] 非空表示当前处于二级界面：点击面板外只回退到一级，抽屉本身保持挂载；
+ * 一级界面传 null，点击外部才播退场动画并关闭。
+ *
+ * 内容 lambda 的参数为关闭回调：二级界面为「回退一级」，一级界面为「关闭抽屉」。
  */
 @Composable
-private fun SideDrawerPanel(
-    title: String,
+internal fun SideDrawerPanel(
     onDismissed: () -> Unit,
+    stepBack: (() -> Unit)? = null,
     content: @Composable ColumnScope.(requestClose: () -> Unit) -> Unit
 ) {
     val (close, visible) = rememberPanelCloseController(onDismissed)
+    val dismissRequest: () -> Unit = { stepBack?.invoke() ?: close() }
 
     // 面板宽度：横屏约 1/2 屏；竖屏按 300dp 下限兜底（保证竖屏也有足够宽度）
     val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-    val panelWidth = maxOf(screenWidthDp * 0.5f, 300.dp)
+    val panelWidth = maxOf(screenWidthDp * 0.5f, 300.dp).coerceAtMost(screenWidthDp)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PanelScrimLayer(visible = visible, onClose = close)
+        PanelScrimLayer(visible = visible, onClose = dismissRequest)
 
         // 右侧半透明黑色面板，从右滑入/向右滑出（动画规格统一在 TransitionSpecs.kt）
         AnimatedVisibility(
@@ -164,22 +170,12 @@ private fun SideDrawerPanel(
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
-                    ) { close() }
+                    ) { dismissRequest() }
                     .padding(start = DrawerContentStartPadding, end = 24.dp)
             ) {
                 Spacer(modifier = Modifier.height(48.dp))
 
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.15f))
-
-                content(close)
+                content(dismissRequest)
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -188,90 +184,119 @@ private fun SideDrawerPanel(
 }
 
 /**
- * 字幕/音轨选择面板（右侧半透明抽屉，自建 Compose 实现）。
+ * 字幕/音轨选择内容（自建 Compose 实现，由 [PlayerDrawerHost] 套抽屉框）。
  *
  * 不使用 media3 的 TrackSelectionDialogBuilder：它要求 Context 为 FragmentActivity，
  * 本项目 MainActivity 是 ComponentActivity，调用会直接 ClassCastException 闪退。
  */
 @Composable
-fun TrackSelectionPanel(
+internal fun ColumnScope.TrackSelectionContent(
     trackType: Int,
     player: Player,
-    onDismiss: () -> Unit
+    requestClose: () -> Unit
 ) {
     // 打开时快照轨道组（模态短生命周期，无需持续订阅）
     val groups = remember(trackType) {
         player.currentTracks.groups.filter { it.type == trackType }
     }
 
-    SideDrawerPanel(
-        title = stringResource(
-            if (trackType == C.TRACK_TYPE_TEXT) R.string.player_subtitles
-            else R.string.player_audio_track
-        ),
-        onDismissed = onDismiss
-    ) { requestClose ->
-        if (groups.isEmpty()) {
-            Text(
-                text = stringResource(R.string.player_track_none_available),
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.padding(vertical = 20.dp)
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // 字幕轨提供「关闭」选项（与 media3 官方弹窗行为一致）
-                if (trackType == C.TRACK_TYPE_TEXT) {
-                    val disabled =
-                        player.trackSelectionParameters.disabledTrackTypes.contains(trackType)
+    if (groups.isEmpty()) {
+        Text(
+            text = stringResource(R.string.player_track_none_available),
+            fontSize = 13.sp,
+            color = Color.White.copy(alpha = 0.6f),
+            modifier = Modifier.padding(vertical = 20.dp)
+        )
+    } else {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // 字幕轨提供「关闭」选项（与 media3 官方弹窗行为一致）
+            if (trackType == C.TRACK_TYPE_TEXT) {
+                val disabled =
+                    player.trackSelectionParameters.disabledTrackTypes.contains(trackType)
+                TrackPanelItem(
+                    label = stringResource(R.string.player_track_disable),
+                    selected = disabled,
+                    onClick = {
+                        player.trackSelectionParameters =
+                            player.trackSelectionParameters.buildUpon()
+                                .setTrackTypeDisabled(trackType, true)
+                                .build()
+                        requestClose()
+                    }
+                )
+            }
+
+            groups.forEach { group ->
+                repeat(group.length) { trackIndex ->
+                    val selected = group.isTrackSelected(trackIndex)
+                    val label = trackLabel(group, trackIndex, trackIndex + 1)
                     TrackPanelItem(
-                        label = stringResource(R.string.player_track_disable),
-                        selected = disabled,
+                        label = label,
+                        selected = selected,
                         onClick = {
                             player.trackSelectionParameters =
                                 player.trackSelectionParameters.buildUpon()
-                                    .setTrackTypeDisabled(trackType, true)
+                                    .setTrackTypeDisabled(trackType, false)
+                                    .setOverrideForType(
+                                        TrackSelectionOverride(
+                                            group.mediaTrackGroup,
+                                            listOf(trackIndex)
+                                        )
+                                    )
                                     .build()
                             requestClose()
                         }
                     )
-                }
-
-                groups.forEach { group ->
-                    repeat(group.length) { trackIndex ->
-                        val selected = group.isTrackSelected(trackIndex)
-                        val label = trackLabel(group, trackIndex, trackIndex + 1)
-                        TrackPanelItem(
-                            label = label,
-                            selected = selected,
-                            onClick = {
-                                player.trackSelectionParameters =
-                                    player.trackSelectionParameters.buildUpon()
-                                        .setTrackTypeDisabled(trackType, false)
-                                        .setOverrideForType(
-                                            TrackSelectionOverride(
-                                                group.mediaTrackGroup,
-                                                listOf(trackIndex)
-                                            )
-                                        )
-                                        .build()
-                                requestClose()
-                            }
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-/** 面板内的单个轨道条目：选中项白色高亮加勾，未选中半透明白 */
+/**
+ * 本地媒体选集内容：只列出本地队列中的正片；点击即切换播放项。
+ */
 @Composable
-private fun TrackPanelItem(
+internal fun ColumnScope.EpisodeSelectionContent(
+    episodes: List<PlayerEpisode>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    progress: Map<Int, com.aiexile.animetrack.model.PlaybackProgress> = emptyMap()
+) {
+    val labels = episodes.map { episode ->
+        val record = progress[episode.index]
+        val suffix = when {
+            record?.completed == true -> stringResource(R.string.web_watch_completed)
+            record != null && record.positionMs > 0 -> stringResource(R.string.web_watch_position,
+                formatDuration(record.positionMs))
+            else -> null
+        }
+        listOfNotNull(episode.label, suffix).joinToString(" · ")
+    }
+    PlayerSelectionContent(labels, episodes.indexOfFirst { it.index == selectedIndex }, onSelect)
+}
+
+/** 复用同一抽屉选择线路、剧集和倍速；长列表仅组合可见项。 */
+@Composable
+internal fun ColumnScope.PlayerSelectionContent(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex.coerceAtLeast(0))
+    LazyColumn(Modifier.weight(1f), state = state) {
+        itemsIndexed(labels) { index, label ->
+            TrackPanelItem(label, index == selectedIndex) { onSelect(index) }
+        }
+    }
+}
+
+/** 面板内的单个轨道条目：选中项白色高亮加勾，未选中半透明白 */@Composable
+internal fun TrackPanelItem(
     label: String,
     selected: Boolean,
     onClick: () -> Unit
@@ -316,28 +341,44 @@ private fun trackLabel(group: Tracks.Group, trackIndex: Int, fallbackIndex: Int)
         ?: "#${fallbackIndex}"
 }
 
-/**
- * 播放器右上角「更多」菜单面板：与字幕/音轨抽屉同一套视觉语言——
- * 右侧约 1/2 屏宽的全高抽屉（半透明黑底 + 左缘渐隐 + 右侧滑入），
- * 打开期间由调用方联动隐藏播放控制条，点击面板外任意处关闭。
- */
+/** 更多面板中的常用功能卡片，使用紧凑网格减少层级和点击距离。 */
 @Composable
-fun PlayerMenuPanel(
-    onDismiss: () -> Unit,
-    content: @Composable ColumnScope.(requestClose: () -> Unit) -> Unit
+fun PlayerMenuGridItem(
+    icon: Painter,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    SideDrawerPanel(
-        title = stringResource(R.string.player_menu_more),
-        onDismissed = onDismiss
-    ) { requestClose ->
+    Surface(
+        modifier = modifier
+            .height(60.dp)
+            .clip(SquircleShape(12.dp))
+            .clickable(onClick = onClick),
+        color = Color.White.copy(alpha = 0.10f),
+        contentColor = Color.White
+    ) {
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
-            content(requestClose)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(label, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
+}
+
+/** 更多面板的分组标题。 */
+@Composable
+fun PlayerMenuSectionTitle(title: String) {
+    Text(
+        text = title,
+        color = Color.White.copy(alpha = 0.62f),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+    )
 }
 
 /** 菜单面板的单个条目：图标 + 文字，风格对齐字幕抽屉条目 */

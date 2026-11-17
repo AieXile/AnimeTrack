@@ -65,6 +65,8 @@ private val LongPressSpeedOptions = listOf(1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 5
 fun PlayerSettingsScreen(
     onBack: () -> Unit,
     onNavigateToPlayer: () -> Unit = {},
+    onNavigateToLocalMedia: () -> Unit = {},
+    onNavigateToWebPlayback: () -> Unit = {},
     onNavigateToWebDAVBrowse: () -> Unit = {},
     onNavigateToPlayerWebDavConfig: () -> Unit = {},
     settingsRepository: SettingsRepository
@@ -75,8 +77,10 @@ fun PlayerSettingsScreen(
     val hardwareAcceleration by settingsRepository.playerHardwareAcceleration.collectAsStateWithLifecycle(initialValue = true)
     val rememberPosition by settingsRepository.playerRememberPosition.collectAsStateWithLifecycle(initialValue = true)
     val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsStateWithLifecycle(initialValue = false)
+    val updateProgressOnComplete by settingsRepository.playerUpdateProgressOnComplete.collectAsStateWithLifecycle(initialValue = false)
     val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsStateWithLifecycle(initialValue = 2f)
-    val webdavMediaPath by settingsRepository.webdavMediaPath.collectAsStateWithLifecycle(initialValue = "")
+    val webdavMediaRoot by settingsRepository.playerWebdavMediaRoot.collectAsStateWithLifecycle(initialValue = "")
+    val webdavLastBrowsePath by settingsRepository.playerWebdavLastBrowsePath.collectAsStateWithLifecycle(initialValue = "")
     val playerWebdavUrl by settingsRepository.playerWebdavUrl.collectAsStateWithLifecycle(initialValue = "")
 
     AppScaffold(
@@ -154,6 +158,17 @@ fun PlayerSettingsScreen(
                     }
                 )
 
+                // 播放完成后更新追番进度（默认关闭）
+                SwitchRow(
+                    icon = rememberAppIconPainter(AppIcon.CHECK_CIRCLE),
+                    title = stringResource(R.string.player_settings_update_progress),
+                    subtitle = stringResource(R.string.player_settings_update_progress_hint),
+                    checked = updateProgressOnComplete,
+                    onCheckedChange = { enabled ->
+                        scope.launch { settingsRepository.setPlayerUpdateProgressOnComplete(enabled) }
+                    }
+                )
+
                 // 硬件加速
                 SwitchRow(
                     icon = rememberAppIconPainter(AppIcon.MEMORY),
@@ -170,14 +185,33 @@ fun PlayerSettingsScreen(
                 // ==================== 媒体来源 ====================
                 SectionTitle(text = stringResource(R.string.player_section_source))
 
+                // 本地媒体库
+                WebDavEntryRow(
+                    icon = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
+                    title = stringResource(R.string.local_media_title),
+                    subtitle = stringResource(R.string.local_media_add_hint),
+                    onClick = onNavigateToLocalMedia
+                )
+
+                // 网页播放
+                WebDavEntryRow(
+                    icon = rememberAppIconPainter(AppIcon.LINK),
+                    title = stringResource(R.string.web_playback_title),
+                    subtitle = stringResource(R.string.web_playback_entry_subtitle),
+                    onClick = onNavigateToWebPlayback
+                )
+
                 // WebDAV 媒体浏览
                 WebDavEntryRow(
                     icon = rememberAppIconPainter(AppIcon.FOLDER_OPEN),
                     title = stringResource(R.string.player_webdav_browse),
-                    subtitle = if (webdavMediaPath.isBlank()) {
-                        stringResource(R.string.common_not_set)
-                    } else {
-                        webdavMediaPath
+                    subtitle = when {
+                        webdavMediaRoot.isNotBlank() && webdavLastBrowsePath.isNotBlank() ->
+                            "${webdavMediaRoot.trimEnd('/')} · ${webdavLastBrowsePath.trimEnd('/')}"
+                        webdavMediaRoot.isNotBlank() -> webdavMediaRoot
+                        webdavLastBrowsePath.isNotBlank() ->
+                            "${stringResource(R.string.player_webdav_last_browse)}：$webdavLastBrowsePath"
+                        else -> stringResource(R.string.common_not_set)
                     },
                     onClick = onNavigateToWebDAVBrowse
                 )

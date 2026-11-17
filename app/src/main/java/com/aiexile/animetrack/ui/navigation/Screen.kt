@@ -32,9 +32,11 @@ object Routes {
     const val UPDATE_NOTIFICATION = "updateNotification"
     const val WIDGET_GUIDE = "widgetGuide"
     const val DAILY_BROADCAST = "dailyBroadcast"
-    const val PLAYER = "player/{animeId}"
+    const val PLAYER = "player/{animeId}?localUri={localUri}&localTitle={localTitle}&localMediaId={localMediaId}&webPlay={webPlay}"
     const val WEBDAV_BROWSE = "webdavBrowse"
     const val PLAYER_SETTINGS = "playerSettings"
+    const val LOCAL_MEDIA = "localMedia"
+    const val WEB_PLAYBACK = "webPlayback"
     const val PLAYER_WEBDAV_CONFIG = "playerWebdavConfig"
     const val BANGUMI_PROXY = "bangumiProxy"
     const val USER_LOGIN = "userLogin"
@@ -75,8 +77,22 @@ object Routes {
     /** 绑定邮箱路由（bindToken 为服务端签发的短期 JWT） */
     fun emailBind(bindToken: String) = "emailBind/$bindToken"
 
-    /** 播放器路由 */
-    fun player(animeId: Int) = "player/$animeId"
+    /** 播放器路由，可选传入本地 content URI；无 URI 时保持原有空播放器行为 */
+    fun player(
+        animeId: Int,
+        localUri: String? = null,
+        localTitle: String? = null,
+        localMediaId: Long? = null,
+        webPlay: Boolean = false
+    ): String {
+        val query = buildList {
+            localUri?.let { add("localUri=${android.net.Uri.encode(it)}") }
+            localTitle?.let { add("localTitle=${android.net.Uri.encode(it)}") }
+            localMediaId?.let { add("localMediaId=$it") }
+            if (webPlay) add("webPlay=true")
+        }
+        return "player/$animeId" + if (query.isEmpty()) "" else "?${query.joinToString("&")}"
+    }
 
     /** 详情页 navArguments */
     val animeDetailArguments = listOf(
@@ -118,7 +134,27 @@ object Routes {
 
     /** 播放器 navArguments */
     val playerArguments = listOf(
-        navArgument("animeId") { type = NavType.IntType }
+        navArgument("animeId") { type = NavType.IntType },
+        navArgument("localUri") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        },
+        navArgument("localTitle") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        },
+        navArgument("localMediaId") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        },
+        navArgument("webPlay") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        }
     )
 
     /** 设置子页面路由集合（用于动画判断） */
@@ -127,7 +163,7 @@ object Routes {
         DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
         DEVELOPER, UPDATE_NOTIFICATION, WIDGET_GUIDE, DAILY_BROADCAST,
-        PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
+        PLAYER, WEBDAV_BROWSE, PLAYER_SETTINGS, LOCAL_MEDIA, WEB_PLAYBACK, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
         USER_LOGIN, USER_REGISTER, EMAIL_BIND, FORGOT_PASSWORD, FONT_SETTINGS,
         DEVICE_FONT_PICKER,
         FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION, PRIVACY_POLICY,
@@ -147,7 +183,7 @@ object Routes {
         ANIME_DETAIL, ABOUT, NAVIGATION_CUSTOMIZE, APPEARANCE, FEATURES,
         DATA_MANAGE, WEBDAV_SYNC, WEBDAV_AUTO_SYNC,
         LOGIN, BILIBILI_LOGIN, BANGUMI_LOGIN, BANGUMI_ACCOUNT,
-        DEVELOPER, UPDATE_NOTIFICATION, WIDGET_GUIDE, DAILY_BROADCAST, PLAYER_SETTINGS, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
+        DEVELOPER, UPDATE_NOTIFICATION, WIDGET_GUIDE, DAILY_BROADCAST, PLAYER_SETTINGS, LOCAL_MEDIA, WEB_PLAYBACK, PLAYER_WEBDAV_CONFIG, BANGUMI_PROXY,
         USER_LOGIN, USER_REGISTER, EMAIL_BIND, FORGOT_PASSWORD, FONT_SETTINGS,
         DEVICE_FONT_PICKER,
         FEEDBACK, FEEDBACK_HISTORY, FEEDBACK_SESSION, PRIVACY_POLICY,
@@ -182,6 +218,8 @@ object Routes {
         // 视频播放设置 → WebDAV 媒体浏览：pop 返回时走 isSecondaryBackward，
         // 底层页放大淡入就位（否则误入"设置子页间过渡"分支，底层页从右滑入导致退出观感异常）
         PLAYER_SETTINGS to WEBDAV_BROWSE,
+        PLAYER_SETTINGS to LOCAL_MEDIA,
+        PLAYER_SETTINGS to WEB_PLAYBACK,
         // 反馈层级链：聊天主页 → 历史 → 会话详情
         FEEDBACK to FEEDBACK_HISTORY,
         FEEDBACK_HISTORY to FEEDBACK_SESSION,

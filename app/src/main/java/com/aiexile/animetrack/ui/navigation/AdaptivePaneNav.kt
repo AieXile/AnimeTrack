@@ -50,6 +50,8 @@ import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
+import com.aiexile.animetrack.ui.player.LocalMediaLibraryScreen
+import com.aiexile.animetrack.ui.player.WebPlaybackScreen
 import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.schedule.DailyBroadcastScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
@@ -651,9 +653,29 @@ internal fun NavGraphBuilder.sharedDestinations(
         com.aiexile.animetrack.ui.player.PlayerSettingsScreen(
             onBack = navigateBack,
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
+            onNavigateToLocalMedia = { onNavigate(Routes.LOCAL_MEDIA) },
+            onNavigateToWebPlayback = { onNavigate(Routes.WEB_PLAYBACK) },
             onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
             onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
             settingsRepository = settingsRepository
+        )
+    }
+
+    // 网页播放
+    composable(Routes.WEB_PLAYBACK) {
+        WebPlaybackScreen(
+            onBack = navigateBack,
+            onOpenPlayer = { onNavigate(Routes.player(0, webPlay = true)) }
+        )
+    }
+
+    // 本地媒体库
+    composable(Routes.LOCAL_MEDIA) {
+        LocalMediaLibraryScreen(
+            onBack = navigateBack,
+            onPlayMedia = { mediaId ->
+                onNavigate(Routes.player(0, localMediaId = mediaId))
+            }
         )
     }
 

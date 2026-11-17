@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,16 +18,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.chrome.AppScaffold
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,46 +56,78 @@ fun WebDAVBrowseScreen(
         viewModel.browseDirectory()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.webdav_browse_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                            contentDescription = stringResource(R.string.common_back)
-                        )
-                    }
-                }
-            )
+    AppScaffold(
+        title = stringResource(R.string.webdav_browse_title),
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { viewModel.browseDirectory(uiState.currentPath) }) {
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.SYNC),
+                    contentDescription = stringResource(R.string.webdav_browse_refresh)
+                )
+            }
+            IconButton(
+                onClick = viewModel::navigateToMediaRoot,
+                enabled = uiState.mediaRootPath.isNotBlank()
+            ) {
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.HOME),
+                    contentDescription = stringResource(R.string.webdav_browse_media_root)
+                )
+            }
+            IconButton(
+                onClick = viewModel::setCurrentAsMediaRoot,
+                enabled = uiState.currentPath.isNotBlank()
+            ) {
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.FOLDER),
+                    contentDescription = stringResource(R.string.webdav_browse_set_media_root)
+                )
+            }
+            IconButton(onClick = viewModel::clearBrowseMemory) {
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.DELETE),
+                    contentDescription = stringResource(R.string.webdav_browse_clear_memory)
+                )
+            }
         }
-    ) { paddingValues ->
+    ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .then(chrome.layout)
+                .padding(horizontal = 16.dp)
+                .padding(chrome.content)
         ) {
-            // Current path display
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceContainerLowest
             ) {
-                Text(
-                    text = uiState.currentPath.ifBlank { "/" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        text = uiState.currentPath.ifBlank { "/" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (uiState.mediaRootPath.isNotBlank()) {
+                        Text(
+                            text = stringResource(
+                                R.string.webdav_browse_root_format,
+                                uiState.mediaRootPath
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             when {
                 uiState.isLoading -> {
@@ -132,6 +165,10 @@ fun WebDAVBrowseScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.browseDirectory(uiState.currentPath) }) {
+                            Text(stringResource(R.string.common_retry))
+                        }
                     }
                 }
 
@@ -158,9 +195,7 @@ fun WebDAVBrowseScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(uiState.files, key = { it.path }) { item ->
                             FileItemRow(
                                 item = item,
@@ -168,6 +203,7 @@ fun WebDAVBrowseScreen(
                                     if (item.isDirectory) {
                                         viewModel.browseDirectory(item.path)
                                     } else {
+                                        viewModel.markFileSelected(item.path)
                                         onFileClick(item.path, item.name)
                                     }
                                 }

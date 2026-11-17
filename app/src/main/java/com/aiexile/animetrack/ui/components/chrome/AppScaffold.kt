@@ -66,6 +66,7 @@ fun AppScaffold(
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
     topBarModifier: Modifier = Modifier,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    showTopBar: Boolean = true,
     content: @Composable (AppScaffoldPadding) -> Unit
 ) {
     val style = LocalChromeStyle.current
@@ -74,21 +75,23 @@ fun AppScaffold(
         modifier = modifier,
         contentWindowInsets = contentWindowInsets,
         topBar = {
-            AppTopBar(
-                title = title,
-                onBack = onBack,
-                sources = sources,
-                style = style,
-                actions = actions,
-                titleContent = titleContent,
-                scrollBehavior = scrollBehavior,
-                modifier = topBarModifier
-            )
+            if (showTopBar) {
+                AppTopBar(
+                    title = title,
+                    onBack = onBack,
+                    sources = sources,
+                    style = style,
+                    actions = actions,
+                    titleContent = titleContent,
+                    scrollBehavior = scrollBehavior,
+                    modifier = topBarModifier
+                )
+            }
         },
         bottomBar = bottomBar,
         snackbarHost = snackbarHost
     ) { inner ->
-        val glass = style != ChromeStyle.STANDARD
+        val glass = showTopBar && style != ChromeStyle.STANDARD
         val contentPadding = if (glass) {
             PaddingValues(
                 top = inner.calculateTopPadding(),
