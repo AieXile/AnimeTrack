@@ -1,0 +1,334 @@
+[
+  {
+    "name": "7sefun",
+    "version": "1.3",
+    "baseURL": "https://www.7sefun.top/",
+    "searchURL": "https://www.7sefun.top/vodsearch/-------------.html?wd=@keyword",
+    "searchList": "//div[2]/div[2]/div[2]/div[2]/div",
+    "searchName": "//div[2]/text()",
+    "searchResult": "//a",
+    "chapterRoads": "//div[2]/div[2]/div[2]/div/div[2]/div[1]//div",
+    "chapterResult": "//a",
+    "referer": "",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  },
+  {
+    "name": "aafun",
+    "version": "1.2",
+    "baseURL": "https://www.moonci.com/",
+    "searchURL": "https://www.moonci.com/search/-------------.html?wd=@keyword&submit=",
+    "searchList": "//div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/div[2]/div[1]/ul[1]/li",
+    "searchName": "//div/div/div[2]/div/a",
+    "searchResult": "//div/div/div[2]/div/a",
+    "chapterRoads": "//",
+    "chapterResult": "//div[2]/div[2]/div[1]/div[1]/div[2]/div[1]/div[1]/div[2]/div[2]/div[1]/div[1]/ul[1]/li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "AGE",
+    "version": "1.6",
+    "baseURL": "https://www.agedm.io/",
+    "searchURL": "https://www.agedm.io/search?query=@keyword",
+    "searchList": "//div[2]/div/section/div/div/div/div",
+    "searchName": "//div/div[2]/h5/a",
+    "searchResult": "//div/div[2]/h5/a",
+    "chapterRoads": "//div[2]/div/section/div/div[2]/div[2]/div[2]/div",
+    "chapterResult": "//ul/li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "akianime",
+    "version": "1.4",
+    "baseURL": "https://www.akianime.cc/",
+    "searchURL": "https://www.akianime.cc/bgmsearch/-------------.html?wd=@keyword",
+    "searchList": "//div[@class='vod-detail style-detail cor4 search-list']",
+    "searchName": "//div/div[2]/a/h3",
+    "searchResult": "//div/div[2]/div/div[1]/a",
+    "chapterRoads": "//ul[@class='anthology-list-play size']",
+    "chapterResult": "//li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "baimao",
+    "version": "1.0",
+    "baseURL": "https://www.baimaodm.com/",
+    "searchURL": "https://www.baimaodm.com/s_all?ex=1&kw=@keyword",
+    "searchList": "//div[4]/div[2]/div[1]/ul/li",
+    "searchName": "//h2/a",
+    "searchResult": "//h2/a",
+    "chapterRoads": "//div[2]/div[2]/div[8]/div/div/ul",
+    "chapterResult": "//li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "DM84",
+    "version": "1.4",
+    "baseURL": "https://dmbus.cc/",
+    "searchURL": "https://dmbus.cc/s----------.html?wd=@keyword",
+    "searchList": "//div/div[3]/ul/li",
+    "searchName": "//div/a[2]",
+    "searchResult": "//div/a[2]",
+    "chapterRoads": "//div/div[4]/div/ul",
+    "chapterResult": "//li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "ezdmw",
+    "version": "1.2",
+    "baseURL": "https://m.ezdmw.org/",
+    "searchURL": "https://m.ezdmw.org/Index/search.html?searchText=@keyword",
+    "searchList": "//section[@id='some_drama']/div",
+    "searchName": "//p",
+    "searchResult": "//a",
+    "chapterRoads": "//section[@class='anthology'][1]/div[contains(@class,'line_button')]",
+    "chapterResult": "/self::*[@class='line_button_ban']/following-sibling::a[@class='circuit_switch_ban'] | /self::*[@class='line_button1']/following-sibling::a[@class='circuit_switch1'] | /self::*[@class='line_button3']/following-sibling::a[@class='circuit_switch3'] | /self::*[@class='line_button2']/following-sibling::a[@class='circuit_switch2']",
+    "referer": "https://m.ezdmw.org/",
+    "userAgent": ""
+  },
+  {
+    "name": "MXdm",
+    "version": "2.4",
+    "baseURL": "https://www.dcc3.com",
+    "searchURL": "https://www.dcc3.com/search/?wd=@keyword",
+    "searchList": "//div[contains(@class, 'search')]/ul/li",
+    "searchName": "//h3/a",
+    "searchResult": "//h3/a",
+    "chapterRoads": "//div[@class='playlist']/div[@class='row']/ul",
+    "chapterResult": "//li/a",
+    "referer": "",
+    "userAgent": ""
+  },
+  {
+    "name": "囧次元",
+    "version": "2026.11.16",
+    "baseURL": "https://jciyuan.com",
+    "searchURL": "https://jciyuan.com/acgsearch/-------------.html?wd=@keyword",
+    "searchList": "//a[contains(@href, '/acgdetail/') and (contains(@class, 'anime-home-card') or contains(@class, 'module-item-pic'))] | //div[contains(@class, 'module-search-item')]",
+    "searchName": ".//h3 | .//h2/a | .//img/@alt | ./@title",
+    "searchResult": "./@href | .//a[contains(@href, '/acgdetail/')]/@href",
+    "chapterRoads": "//div[contains(@class, 'anime-detail-episodes')] | //div[contains(@class, 'anime-episode-grid')]",
+    "chapterResult": ".//a[contains(@href, '/acgplay/')]",
+    "referer": "https://jciyuan.com/",
+    "userAgent": ""
+  },
+  {
+    "name": "giriGiriLove",
+    "version": "2.7",
+    "baseURL": "https://ani.girigirilove.com",
+    "searchMode": "api",
+    "chapterMode": "api",
+    "searchApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://m3u8.girigirilove.com/api.php/Vod/get_list",
+        "query": {
+          "vod_name": "@keyword",
+          "offset": "0",
+          "limit": "24"
+        }
+      },
+      "listPath": "$.info.rows[*]",
+      "namePath": "$.vod_name",
+      "sourcePath": "$.vod_id"
+    },
+    "chapterApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://m3u8.girigirilove.com/api.php/Vod/get_detail",
+        "query": {
+          "vod_id": "@source"
+        }
+      },
+      "format": "delimited",
+      "roadNamesPath": "$.info.vod_play_from",
+      "roadEpisodesPath": "$.info.vod_play_url",
+      "roadSeparator": "$$$",
+      "episodeSeparator": "#",
+      "fieldSeparator": "$",
+      "episodePage": {
+        "url": "https://pl.girigirilove.com/addons/aplyer/atom.php",
+        "query": {
+          "key": "0",
+          "url": "@episodeUrl"
+        }
+      }
+    },
+    "userAgent": "",
+    "referer": ""
+  },
+  {
+    "name": "LMM",
+    "version": "2.4",
+    "baseURL": "https://www.lmm22.com/",
+    "searchMode": "api",
+    "chapterMode": "xpath",
+    "searchApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://www.lmm22.com/index.php/ajax/suggest",
+        "query": {
+          "mid": "1",
+          "wd": "@keyword"
+        }
+      },
+      "listPath": "$.list[*]",
+      "namePath": "$.name",
+      "sourcePath": "$.id",
+      "sourceTemplate": "https://www.lmm22.com/index.php/vod/detail/id/@source.html"
+    },
+    "chapterRoads": "//div[contains(@class, 'module-player-list')]",
+    "chapterResult": ".//a[contains(@href, '/play/')]",
+    "userAgent": "",
+    "referer": ""
+  },
+  {
+    "name": "TvTFun",
+    "version": "1.3",
+    "baseURL": "https://www.tvtfun.net",
+    "searchMode": "api",
+    "chapterMode": "xpath",
+    "searchApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://www.tvtfun.net/api/client/anime",
+        "query": {
+          "keyword": "@keyword",
+          "page": "1",
+          "pageSize": "24"
+        }
+      },
+      "listPath": "$.data.items[*]",
+      "namePath": "$.name",
+      "sourcePath": "$.slug",
+      "sourceTemplate": "https://www.tvtfun.net/watch/@source/1"
+    },
+    "chapterRoads": "//ol[@class*='tvt-watch-episodes']",
+    "chapterResult": "//li/a",
+    "userAgent": "",
+    "referer": ""
+  },
+  {
+    "name": "dalvdm",
+    "version": "1.2",
+    "baseURL": "https://www.sbdl.cc/",
+    "searchMode": "api",
+    "chapterMode": "xpath",
+    "searchApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://www.sbdl.cc/index.php/ajax/suggest",
+        "query": {
+          "mid": "1",
+          "wd": "@keyword"
+        }
+      },
+      "listPath": "$.list[*]",
+      "namePath": "$.name",
+      "sourcePath": "$.id",
+      "sourceTemplate": "https://www.sbdl.cc/index.php/vod/detail/id/@source.html"
+    },
+    "chapterRoads": "//div[starts-with(@id, 'playlist')][contains(@class, 'lists-box')]",
+    "chapterResult": ".//a[contains(@href, '/index.php/vod/play/')]",
+    "userAgent": "",
+    "referer": ""
+  },
+  {
+    "name": "sorani",
+    "version": "1.0",
+    "baseURL": "https://www.sorani.net/",
+    "searchMode": "api",
+    "chapterMode": "api",
+    "searchApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://api.sorani.cc/sorani-cms/api/video",
+        "query": {
+          "page": "1",
+          "size": "50",
+          "keyword": "@keyword",
+          "enabled": "true",
+          "sortMode": "latest",
+          "sortDesc": "false"
+        }
+      },
+      "listPath": "$.data.records[*]",
+      "namePath": "$.title",
+      "sourcePath": "$.id"
+    },
+    "chapterApiConfig": {
+      "request": {
+        "method": "GET",
+        "url": "https://api.sorani.cc/sorani-cms/api/video/@source"
+      },
+      "format": "nested",
+      "roadsPath": "$.data",
+      "roadNamePath": "",
+      "episodesPath": "$.episodes[*]",
+      "episodeNamePath": "$.episodeLabel",
+      "episodeUrlPath": "$.episodeOrder",
+      "episodePage": {
+        "url": "https://www.sorani.net/anime/mal/@source/episode/@episodeUrl",
+        "query": {}
+      }
+    },
+    "userAgent": "",
+    "referer": "https://www.sorani.net/"
+  },
+  {
+    "name": "xfdmnext",
+    "version": "1.1",
+    "baseURL": "https://next.xifanacg.com/",
+    "searchMode": "api",
+    "chapterMode": "api",
+    "searchApiConfig": {
+      "request": {
+        "method": "POST",
+        "url": "https://api.xifanacg.com/rest/v1/rpc/search_animes",
+        "headers": {
+          "apikey": "sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA",
+          "Authorization": "Bearer sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA"
+        },
+        "bodyType": "json",
+        "body": {
+          "search_term": "@keyword",
+          "page_number": 1,
+          "items_per_page": 24
+        }
+      },
+      "listPath": "$[*]",
+      "namePath": "$.title",
+      "sourcePath": "$.id"
+    },
+    "chapterApiConfig": {
+      "request": {
+        "method": "POST",
+        "url": "https://api.xifanacg.com/rest/v1/rpc/get_anime_detail",
+        "headers": {
+          "apikey": "sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA",
+          "Authorization": "Bearer sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA"
+        },
+        "bodyType": "json",
+        "body": {
+          "p_id": "@source"
+        }
+      },
+      "format": "nested",
+      "roadsPath": "$.sources[*]",
+      "roadNamePath": "$.name",
+      "episodesPath": "$.episodes[*]",
+      "episodeNamePath": "$.title",
+      "episodeUrlPath": "$.id",
+      "episodePage": {
+        "url": "https://next.xifanacg.com/anime/@source/play/@episodeUrl",
+        "query": {}
+      }
+    },
+    "userAgent": "",
+    "referer": ""
+  }
+]

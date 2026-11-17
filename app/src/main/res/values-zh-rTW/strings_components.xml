@@ -96,8 +96,10 @@
     <string name="player_audio_track">音軌</string>
     <string name="player_track_none_available">未偵測到可用的字幕或音軌</string>
     <string name="player_track_disable">關閉</string>
+    <string name="player_menu_common">常用功能</string>
     <string name="player_menu_more">更多</string>
     <string name="player_auto_landscape">自動橫向</string>
+    <string name="player_episodes">選集</string>
 
     <!-- 影片播放聚合頁 -->
     <string name="settings_playback">影片播放</string>
@@ -112,6 +114,10 @@
     <string name="player_webdav_backup_empty_hint">備份同步尚未配置 WebDAV，無可填入的配置</string>
     <string name="player_webdav_trust_all_certs">信任所有證書</string>
     <string name="player_webdav_trust_all_certs_desc">IP 直連或自簽名證書時開啟，重新啟動生效</string>
+    <string name="player_webdav_media_root">媒體根目錄</string>
+    <string name="player_webdav_media_root_hint">未設定時使用伺服器根目錄</string>
+    <string name="player_webdav_last_browse">最近瀏覽</string>
+    <string name="player_webdav_clear_memory">清除瀏覽記憶</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">播放器設定</string>
@@ -124,6 +130,8 @@
     <string name="player_settings_remember_position_hint">繼續上次播放進度</string>
     <string name="player_settings_auto_play_next">自動播放下一集</string>
     <string name="player_settings_auto_play_next_hint">當前視訊播放結束後自動播放下一個</string>
+    <string name="player_settings_update_progress">播放完成後更新追番進度</string>
+    <string name="player_settings_update_progress_hint">僅對已確認關聯的正片生效，直接拖到片尾不算看完</string>
     <string name="player_settings_webdav_path">WebDAV 媒體路徑</string>
     <string name="player_settings_open_player">開啟播放器</string>
 
@@ -134,6 +142,33 @@
     <string name="webdav_browse_not_configured">未設定 WebDAV</string>
     <string name="webdav_browse_not_configured_hint">請先在設定中設定 WebDAV 伺服器位址</string>
     <string name="webdav_browse_parent_dir">返回上層</string>
+    <string name="webdav_browse_refresh">重新整理目錄</string>
+    <string name="webdav_browse_media_root">返回媒體根目錄</string>
+    <string name="webdav_browse_set_media_root">設為媒體根目錄</string>
+    <string name="webdav_browse_clear_memory">清除瀏覽記憶</string>
+    <string name="webdav_browse_root_format">根目錄：%1$s</string>
+
+    <!-- LocalMediaLibraryScreen -->
+    <string name="local_media_title">本機媒體庫</string>
+    <string name="local_media_add_folder">新增本機資料夾</string>
+    <string name="local_media_add_title">新增本機媒體資料夾</string>
+    <string name="local_media_add_hint">只會讀取影片檔名與檔案屬性，不會複製或上傳影片。</string>
+    <string name="local_media_choose_folder">選擇資料夾</string>
+    <string name="local_media_default_folder">本機資料夾</string>
+    <string name="local_media_empty">尚未新增本機媒體資料夾</string>
+    <string name="local_media_permission_revoked">資料夾授權已失效，請重新新增</string>
+    <string name="local_media_scanning">掃描中...</string>
+    <string name="local_media_video_count">%1$d 個影片</string>
+    <string name="local_media_scan_summary">掃描與匹配</string>
+    <string name="local_media_scan_count">已掃描 %1$d 個檔案，發現 %2$d 個影片</string>
+    <string name="local_media_scan_again">重新掃描</string>
+    <string name="local_media_files">媒體檔案</string>
+    <string name="local_media_match_action">關聯番劇</string>
+    <string name="local_media_match_title">關聯到番劇</string>
+    <string name="local_media_match_search_hint">搜尋番劇標題</string>
+    <string name="local_media_match_clear">解除關聯</string>
+    <string name="local_media_match_none">沒有符合的番劇</string>
+    <string name="local_media_match_pending">待確認</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">未知錯誤</string>
@@ -161,4 +196,100 @@
     <!-- 設定項選項彈層（SettingsOptionRow / SettingsOptionMenu） -->
     <string name="settings_option_expand">展開選項</string>
     <string name="settings_option_current">目前：%1$s</string>
+
+    <!-- 網頁播放 -->
+    <string name="web_playback_title">網頁播放</string>
+    <string name="web_playback_entry_subtitle">輸入網頁或影片網址播放</string>
+    <string name="web_playback_url_hint">輸入網頁或影片網址</string>
+    <string name="web_playback_play_direct">直接播放</string>
+    <string name="web_playback_parse_page">解析網頁</string>
+    <string name="web_playback_hint">輸入番劇詳情頁或播放頁，點擊「解析網頁」即可選集；媒體直鏈可直接播放。</string>
+    <string name="web_playback_loading_page">正在載入網頁...</string>
+    <string name="web_playback_reparse">重新解析</string>
+    <string name="web_playback_candidates">找到 %1$d 個可播放資源</string>
+    <string name="web_playback_no_candidates">暫未找到可播放資源，可在頁面中點擊播放後再試。</string>
+    <string name="web_playback_history">最近網址</string>
+    <string name="web_playback_clear_history">清空</string>
+    <string name="web_playback_history_empty">尚無播放記錄</string>
+
+    <!-- 網頁資料源（Kazumi 規則） -->
+    <string name="web_source_section_title">規則資料源</string>
+    <string name="web_source_manage">管理</string>
+    <string name="web_source_select">選擇資料源</string>
+    <string name="web_source_empty">尚未匯入資料源規則。匯入後可自動搜尋站點並定位播放頁。</string>
+    <string name="web_source_keyword_hint">番劇名稱</string>
+    <string name="web_source_hint">搜尋並選擇劇集後，會自動開啟播放頁並解析影片位址。</string>
+    <string name="web_source_episodes">選集</string>
+    <string name="web_source_channel">線路 %1$d</string>
+    <string name="web_source_loading">正在請求站點…</string>
+    <string name="web_source_no_results">沒有找到結果，站點結構可能已變更。</string>
+    <string name="web_source_error_network">網路請求失敗，請檢查網路或站點是否可存取。</string>
+    <string name="web_source_error_http">站點傳回 HTTP %1$d。</string>
+    <string name="web_source_error_parse">頁面解析失敗，規則可能已過期。</string>
+    <string name="web_source_error_invalid_rule">規則缺少必要欄位，無法解析。</string>
+    <string name="web_source_manage_title">資料源管理</string>
+    <string name="web_source_manage_hint">可直接使用內建規則，也可貼上 Kazumi 規則 JSON 或連結匯入。請只使用你有權存取的來源。</string>
+    <string name="web_source_import_json_label">規則 JSON</string>
+    <string name="web_source_import_text">匯入文字</string>
+    <string name="web_source_import_url_hint">規則 JSON 連結</string>
+    <string name="web_source_import_url">從連結匯入</string>
+    <string name="web_source_import_loading">正在匯入…</string>
+    <string name="web_source_import_success">已匯入 %1$d 個規則。</string>
+    <string name="web_source_import_success_skipped">已匯入 %1$d 個規則，略過 %2$d 個項目。</string>
+    <string name="web_source_compatibility_hint">支援 GET 搜尋、HTML XPath 選集及 WebView 嗅探後使用內建播放器。暫不支援 POST、舊版解析、自動人機驗證或網頁播放器專用規則；不提供廣告過濾。</string>
+    <string name="web_source_import_no_supported_rules">沒有可匯入的規則，原因如下。</string>
+    <string name="web_source_import_issue">已略過「%1$s」：%2$s</string>
+    <string name="web_source_import_warning">「%1$s」：%2$s</string>
+    <string name="web_source_unnamed_rule">未命名規則</string>
+    <string name="web_source_issue_incomplete">缺少必要欄位或搜尋詞佔位符。</string>
+    <string name="web_source_issue_duplicate">同一批匯入中名稱重複，保留第一條。</string>
+    <string name="web_source_issue_post">暫不支援 POST 搜尋（usePost）。</string>
+    <string name="web_source_issue_web_player">規則要求使用網頁播放器（useNativePlayer=false）。</string>
+    <string name="web_source_issue_legacy_parser">暫不支援舊版解析（useLegacyParser）。</string>
+    <string name="web_source_issue_non_webview">暫不支援關閉 WebView 的解析方式（useWebview=false）。</string>
+    <string name="web_source_issue_anti_crawler">暫不支援規則要求的自動人機驗證（antiCrawlerEnabled）。</string>
+    <string name="web_source_issue_deprecated">規則已被標記為停用（deprecated）。</string>
+    <string name="web_source_issue_invalid_option">規則開關必須為 true 或 false。</string>
+    <string name="web_source_issue_invalid_headers">UA 或 Referer 格式無效，Referer 必須是 HTTP(S) 網址。</string>
+    <string name="web_source_issue_ad_blocking">已匯入；暫不提供規則指定的廣告過濾（adBlocker）。</string>
+    <string name="web_source_import_failed">匯入失敗，請檢查 JSON 格式與必要欄位。</string>
+    <string name="web_source_rules_count">已匯入 %1$d 個規則</string>
+    <string name="web_source_no_rules_yet">還沒有匯入資料源。</string>
+    <string name="web_episode_loading">正在讀取線路和劇集…</string>
+    <string name="web_episode_resolving">正在解析播放位址…</string>
+    <string name="web_episode_empty">未識別到劇集列表，可匯入本站規則，或使用網頁輔助解析。</string>
+    <string name="web_episode_assist">顯示網頁輔助解析</string>
+    <string name="web_episode_timeout">暫未取得可播放位址，可顯示網頁完成載入或選擇已發現的資源。</string>
+    <string name="web_episode_summary">%1$d 條線路 · 目前線路 %2$d 集</string>
+    <string name="player_connecting">正在連線播放服務…</string>
+    <string name="player_preparing">正在準備影片…</string>
+    <string name="player_buffering">正在緩衝…</string>
+    <string name="player_resolve_cancelled">網頁解析已取消，請重試或返回選集。</string>
+    <string name="player_previous_episode">上一集</string>
+    <string name="player_channels">切換線路</string>
+    <string name="player_quality">畫質</string>
+    <string name="player_quality_auto">自動</string>
+    <string name="player_quality_website">來源網站畫質</string>
+    <string name="player_quality_stream">串流畫質</string>
+    <string name="player_quality_single">目前串流未提供多種畫質，僅顯示實際可用的軌道。</string>
+    <string name="player_video_source">影片來源 %1$d</string>
+    <string name="player_channel_missing_episode">該線路沒有可匹配的目前集數，請選擇其他線路。</string>
+    <string name="player_playback_speed">播放速度</string>
+    <string name="player_video_scale">畫面比例</string>
+    <string name="player_scale_fit">適應螢幕</string>
+    <string name="player_scale_fill">拉伸填滿</string>
+    <string name="player_scale_crop">裁切填滿</string>
+    <string name="web_watch_continue">繼續播放</string>
+    <string name="web_watch_view_episodes">查看選集</string>
+    <string name="web_watch_replay">重新播放</string>
+    <string name="web_watch_completed">已看完</string>
+    <string name="web_watch_not_started">未觀看</string>
+    <string name="web_watch_position">看到 %1$s</string>
+    <string name="web_watch_position_total">看到 %1$s / 共 %2$s</string>
+    <string name="web_watch_continue_next">接著看：%1$s</string>
+    <string name="player_source_label">來源：%1$s</string>
+    <string name="player_speed_value">倍速 %1$s×</string>
+    <string name="player_current_episode">目前集數</string>
+    <string name="player_no_episode_list">目前影片沒有可用的選集清單。</string>
+    <string name="player_local_source">本機檔案</string>
 </resources>

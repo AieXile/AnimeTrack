@@ -96,8 +96,10 @@
     <string name="player_audio_track">Audio track</string>
     <string name="player_track_none_available">No subtitles or audio tracks detected</string>
     <string name="player_track_disable">Off</string>
+    <string name="player_menu_common">Common</string>
     <string name="player_menu_more">More</string>
     <string name="player_auto_landscape">Auto-rotate to landscape</string>
+    <string name="player_episodes">Episodes</string>
 
     <!-- Video playback hub -->
     <string name="settings_playback">Video Playback</string>
@@ -112,6 +114,10 @@
     <string name="player_webdav_backup_empty_hint">Backup sync has no WebDAV configured yet, nothing to fill in</string>
     <string name="player_webdav_trust_all_certs">Trust all certificates</string>
     <string name="player_webdav_trust_all_certs_desc">For IP/self-signed certs; restart to apply</string>
+    <string name="player_webdav_media_root">Media root</string>
+    <string name="player_webdav_media_root_hint">Uses the server root when unset</string>
+    <string name="player_webdav_last_browse">Recent location</string>
+    <string name="player_webdav_clear_memory">Clear browse memory</string>
 
     <!-- PlayerSettingsScreen -->
     <string name="player_settings_title">Player Settings</string>
@@ -124,6 +130,8 @@
     <string name="player_settings_remember_position_hint">Resume from last position</string>
     <string name="player_settings_auto_play_next">Auto-play Next Episode</string>
     <string name="player_settings_auto_play_next_hint">Automatically play next when current ends</string>
+    <string name="player_settings_update_progress">Update progress after playback</string>
+    <string name="player_settings_update_progress_hint">Only for confirmed main episodes; seeking to the end does not count</string>
     <string name="player_settings_webdav_path">WebDAV Media Path</string>
     <string name="player_settings_open_player">Open Player</string>
 
@@ -134,6 +142,33 @@
     <string name="webdav_browse_not_configured">WebDAV Not Configured</string>
     <string name="webdav_browse_not_configured_hint">Please configure WebDAV server address in settings first</string>
     <string name="webdav_browse_parent_dir">Parent Directory</string>
+    <string name="webdav_browse_refresh">Refresh directory</string>
+    <string name="webdav_browse_media_root">Go to media root</string>
+    <string name="webdav_browse_set_media_root">Set as media root</string>
+    <string name="webdav_browse_clear_memory">Clear browse memory</string>
+    <string name="webdav_browse_root_format">Root: %1$s</string>
+
+    <!-- LocalMediaLibraryScreen -->
+    <string name="local_media_title">Local Media Library</string>
+    <string name="local_media_add_folder">Add local folder</string>
+    <string name="local_media_add_title">Add local media folder</string>
+    <string name="local_media_add_hint">Only file names and metadata are read. Videos are not copied or uploaded.</string>
+    <string name="local_media_choose_folder">Choose folder</string>
+    <string name="local_media_default_folder">Local folder</string>
+    <string name="local_media_empty">No local media folders added</string>
+    <string name="local_media_permission_revoked">Folder permission expired; add it again</string>
+    <string name="local_media_scanning">Scanning...</string>
+    <string name="local_media_video_count">%1$d videos</string>
+    <string name="local_media_scan_summary">Scan and matching</string>
+    <string name="local_media_scan_count">Scanned %1$d files, found %2$d videos</string>
+    <string name="local_media_scan_again">Scan again</string>
+    <string name="local_media_files">Media files</string>
+    <string name="local_media_match_action">Match anime</string>
+    <string name="local_media_match_title">Match to anime</string>
+    <string name="local_media_match_search_hint">Search anime title</string>
+    <string name="local_media_match_clear">Remove match</string>
+    <string name="local_media_match_none">No matching anime</string>
+    <string name="local_media_match_pending">Needs confirmation</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">Unknown error</string>
@@ -161,4 +196,100 @@
     <!-- Settings option menu (SettingsOptionRow / SettingsOptionMenu) -->
     <string name="settings_option_expand">Expand options</string>
     <string name="settings_option_current">Current: %1$s</string>
+
+    <!-- Web playback -->
+    <string name="web_playback_title">Web Playback</string>
+    <string name="web_playback_entry_subtitle">Play a web page or video URL</string>
+    <string name="web_playback_url_hint">Enter a page or video URL</string>
+    <string name="web_playback_play_direct">Play URL</string>
+    <string name="web_playback_parse_page">Parse page</string>
+    <string name="web_playback_hint">Enter a series or episode page and tap Resolve page to select episodes. Media URLs can be played directly.</string>
+    <string name="web_playback_loading_page">Loading page...</string>
+    <string name="web_playback_reparse">Re-parse</string>
+    <string name="web_playback_candidates">Found %1$d playable sources</string>
+    <string name="web_playback_no_candidates">No playable source yet; tap play in the page and retry.</string>
+    <string name="web_playback_history">Recent addresses</string>
+    <string name="web_playback_clear_history">Clear</string>
+    <string name="web_playback_history_empty">No playback history yet</string>
+
+    <!-- Web source rules (Kazumi-compatible) -->
+    <string name="web_source_section_title">Rule sources</string>
+    <string name="web_source_manage">Manage</string>
+    <string name="web_source_select">Select a source</string>
+    <string name="web_source_empty">No source rules imported yet. Import one to search a site and locate play pages.</string>
+    <string name="web_source_keyword_hint">Anime title</string>
+    <string name="web_source_hint">Pick an episode after searching; the play page opens and its video URL is parsed automatically.</string>
+    <string name="web_source_episodes">Episodes</string>
+    <string name="web_source_channel">Line %1$d</string>
+    <string name="web_source_loading">Requesting the site…</string>
+    <string name="web_source_no_results">No results. The site layout may have changed.</string>
+    <string name="web_source_error_network">Network request failed. Check your connection or whether the site is reachable.</string>
+    <string name="web_source_error_http">The site returned HTTP %1$d.</string>
+    <string name="web_source_error_parse">Failed to parse the page; the rule may be outdated.</string>
+    <string name="web_source_error_invalid_rule">The rule is missing required fields.</string>
+    <string name="web_source_manage_title">Manage sources</string>
+    <string name="web_source_manage_hint">Built-in rules are ready to use. You can also paste Kazumi rule JSON or a link to import. Only use sources you are allowed to access.</string>
+    <string name="web_source_import_json_label">Rule JSON</string>
+    <string name="web_source_import_text">Import text</string>
+    <string name="web_source_import_url_hint">Rule JSON URL</string>
+    <string name="web_source_import_url">Import from URL</string>
+    <string name="web_source_import_loading">Importing…</string>
+    <string name="web_source_import_success">Imported %1$d rules.</string>
+    <string name="web_source_import_success_skipped">Imported %1$d rules, skipped %2$d entries.</string>
+    <string name="web_source_compatibility_hint">Supports GET search, HTML XPath episode lists, and WebView extraction for the built-in player. POST, legacy parsing, automatic verification, and web-player-only rules are not supported. Ad filtering is unavailable.</string>
+    <string name="web_source_import_no_supported_rules">No rules could be imported. See the reasons below.</string>
+    <string name="web_source_import_issue">Skipped “%1$s”: %2$s</string>
+    <string name="web_source_import_warning">“%1$s”: %2$s</string>
+    <string name="web_source_unnamed_rule">Unnamed rule</string>
+    <string name="web_source_issue_incomplete">Missing required fields or a search keyword placeholder.</string>
+    <string name="web_source_issue_duplicate">Duplicate name in this batch. The first rule was kept.</string>
+    <string name="web_source_issue_post">POST search is not supported (usePost).</string>
+    <string name="web_source_issue_web_player">This rule requires the web player (useNativePlayer=false).</string>
+    <string name="web_source_issue_legacy_parser">Legacy parsing is not supported (useLegacyParser).</string>
+    <string name="web_source_issue_non_webview">Extraction without WebView is not supported (useWebview=false).</string>
+    <string name="web_source_issue_anti_crawler">Automatic verification required by this rule is not supported (antiCrawlerEnabled).</string>
+    <string name="web_source_issue_deprecated">This rule is marked as deprecated.</string>
+    <string name="web_source_issue_invalid_option">Rule switches must be true or false.</string>
+    <string name="web_source_issue_invalid_headers">Invalid UA or Referer. Referer must be an HTTP(S) URL.</string>
+    <string name="web_source_issue_ad_blocking">Imported; the requested ad filtering is unavailable (adBlocker).</string>
+    <string name="web_source_import_failed">Import failed. Check the JSON format and required fields.</string>
+    <string name="web_source_rules_count">%1$d rules imported</string>
+    <string name="web_source_no_rules_yet">No sources imported yet.</string>
+    <string name="web_episode_loading">Loading sources and episodes…</string>
+    <string name="web_episode_resolving">Resolving playback URL…</string>
+    <string name="web_episode_empty">No episode list found. Import a rule for this site or use the web assistant.</string>
+    <string name="web_episode_assist">Show web assistant</string>
+    <string name="web_episode_timeout">No playable URL resolved yet. Open the web assistant or choose a detected resource.</string>
+    <string name="web_episode_summary">%1$d sources · %2$d episodes in this source</string>
+    <string name="player_connecting">Connecting to playback service…</string>
+    <string name="player_preparing">Preparing video…</string>
+    <string name="player_buffering">Buffering…</string>
+    <string name="player_resolve_cancelled">Page resolution was cancelled. Retry or return to episodes.</string>
+    <string name="player_previous_episode">Previous episode</string>
+    <string name="player_channels">Switch source</string>
+    <string name="player_quality">Quality</string>
+    <string name="player_quality_auto">Auto</string>
+    <string name="player_quality_website">Website quality</string>
+    <string name="player_quality_stream">Stream quality</string>
+    <string name="player_quality_single">This stream does not offer multiple quality levels. Only available tracks are shown.</string>
+    <string name="player_video_source">Video source %1$d</string>
+    <string name="player_channel_missing_episode">No matching episode on this source. Please choose another source.</string>
+    <string name="player_playback_speed">Playback speed</string>
+    <string name="player_video_scale">Video scaling</string>
+    <string name="player_scale_fit">Fit to screen</string>
+    <string name="player_scale_fill">Stretch to fill</string>
+    <string name="player_scale_crop">Crop to fill</string>
+    <string name="web_watch_continue">Continue</string>
+    <string name="web_watch_view_episodes">Episodes</string>
+    <string name="web_watch_replay">Watch again</string>
+    <string name="web_watch_completed">Watched</string>
+    <string name="web_watch_not_started">Not watched</string>
+    <string name="web_watch_position">Watched to %1$s</string>
+    <string name="web_watch_position_total">Watched to %1$s / %2$s</string>
+    <string name="web_watch_continue_next">Up next: %1$s</string>
+    <string name="player_source_label">Source: %1$s</string>
+    <string name="player_speed_value">Speed %1$s×</string>
+    <string name="player_current_episode">Current episode</string>
+    <string name="player_no_episode_list">No episode list is available for this video.</string>
+    <string name="player_local_source">Local file</string>
 </resources>
