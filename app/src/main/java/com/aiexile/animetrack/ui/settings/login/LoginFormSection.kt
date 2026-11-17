@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
@@ -80,7 +80,7 @@ internal fun LoginFormSection(
         tint = MaterialTheme.colorScheme.primary
     )
     Spacer(modifier = Modifier.height(24.dp))
-    OutlinedTextField(
+    AppOutlinedTextField(
         value = username,
         onValueChange = onUsernameChange,
         label = { Text(stringResource(R.string.user_login_username)) },
@@ -89,7 +89,7 @@ internal fun LoginFormSection(
         modifier = Modifier.fillMaxWidth()
     )
     Spacer(modifier = Modifier.height(12.dp))
-    OutlinedTextField(
+    AppOutlinedTextField(
         value = password,
         onValueChange = onPasswordChange,
         label = { Text(stringResource(R.string.user_login_password)) },

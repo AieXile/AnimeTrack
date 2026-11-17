@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,7 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,7 +56,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -107,7 +104,7 @@ fun AddAnimeForm(
             .fillMaxWidth()
     ) {
         
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = formState.title,
             onValueChange = { onFormStateChange(formState.copy(title = it)) },
             label = { Text(stringResource(R.string.add_anime_title_label)) },
@@ -207,7 +204,7 @@ fun AddAnimeForm(
         
         Spacer(modifier = Modifier.height(20.dp))
         
-        OutlinedTextField(
+        AppOutlinedTextField(
             value = formState.notes,
             onValueChange = { onFormStateChange(formState.copy(notes = it)) },
             label = { Text(stringResource(R.string.add_anime_notes)) },
@@ -235,7 +232,7 @@ private fun NumberInputField(
     error: String? = null
 ) {
     var isEditing by remember { mutableStateOf(false) }
-    var editValue by remember { mutableStateOf(TextFieldValue()) }
+    var editValue by remember { mutableStateOf("") }
     val focusReq = remember { FocusRequester() }
 
     Column(modifier = modifier) {
@@ -267,12 +264,12 @@ private fun NumberInputField(
                 contentAlignment = Alignment.Center
             ) {
                 if (isEditing) {
-                    BasicTextField(
+                    AppBasicTextField(
                         value = editValue,
                         onValueChange = { input ->
-                            val filtered = input.copy(text = input.text.filter { it.isDigit() })
+                            val filtered = input.filter { it.isDigit() }
                             editValue = filtered
-                            val num = filtered.text.toIntOrNull()
+                            val num = filtered.toIntOrNull()
                             if (num != null) {
                                 val clamped = num.coerceIn(minValue, maxValue)
                                 onValueChange(clamped)
@@ -297,10 +294,7 @@ private fun NumberInputField(
 
                     LaunchedEffect(isEditing) {
                         if (isEditing) {
-                            editValue = TextFieldValue(
-                                text = value.toString(),
-                                selection = androidx.compose.ui.text.TextRange(value.toString().length)
-                            )
+                            editValue = value.toString()
                             focusReq.requestFocus()
                         }
                     }
@@ -312,10 +306,7 @@ private fun NumberInputField(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.clickable {
                             isEditing = true
-                            editValue = TextFieldValue(
-                                text = value.toString(),
-                                selection = androidx.compose.ui.text.TextRange(value.toString().length)
-                            )
+                            editValue = value.toString()
                         }
                     )
                 }
@@ -336,13 +327,10 @@ private fun NumberInputField(
 
         LaunchedEffect(isEditing) {
             if (!isEditing) return@LaunchedEffect
-            val currentText = editValue.text
+            val currentText = editValue
             val currentValue = currentText.toIntOrNull() ?: value
             if (currentValue != value) {
-                editValue = TextFieldValue(
-                    text = value.toString(),
-                    selection = androidx.compose.ui.text.TextRange(value.toString().length)
-                )
+                editValue = value.toString()
             }
         }
         
@@ -394,7 +382,7 @@ private fun StatusDropdown(
             onExpandedChange = { expanded = it },
             modifier = Modifier.fillMaxWidth()
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = selectedStatus.displayName,
                 onValueChange = {},
                 readOnly = true,

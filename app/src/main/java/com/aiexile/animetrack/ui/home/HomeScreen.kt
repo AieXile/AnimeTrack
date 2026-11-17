@@ -164,8 +164,9 @@ fun HomeScreen(
     BackHandler(enabled = isCurrentPage && (uiState.isSortEditMode || uiState.isLocalSearchActive || uiState.selectedAnimeId != null)) {
         when {
             uiState.isSortEditMode -> viewModel.cancelSortEditMode()
-            uiState.isLocalSearchActive -> viewModel.clearLocalSearch()
+            // 选中态是搜索之上的临时层，先退出选中再退出搜索，避免搜索结果先消失
             uiState.selectedAnimeId != null -> viewModel.clearSelection()
+            uiState.isLocalSearchActive -> viewModel.clearLocalSearch()
         }
     }
 
@@ -227,13 +228,6 @@ fun HomeScreen(
         }
     }
     
-    LaunchedEffect(uiState.shouldScrollToTop) {
-        if (uiState.shouldScrollToTop) {
-            gridState.smoothScrollToTop()
-            viewModel.onScrollCompleted()
-        }
-    }
-
     // 回到顶部到达后的顶部拉伸回弹：系统 overscroll 只响应手势，程序化回顶不会触发，
     // 这里用同一视觉语言补一个——顶部锚定的纵向拉伸（无空隙）+ 弹簧回弹
     val topStretch = remember { Animatable(0f) }
@@ -354,8 +348,7 @@ fun HomeScreen(
                         }
                     },
                     onAnimeLongPress = { anime ->
-                        // 长按卡片结束本地搜索栏状态
-                        viewModel.clearLocalSearch()
+                        // 只进入卡片选中态；保留本地搜索结果，避免长按后列表恢复全量导致结果与卡片消失
                         viewModel.selectAnime(anime.id.toLong())
                     },
                     onStatusChange = { anime, status -> viewModel.updateAnimeStatus(anime, status) },

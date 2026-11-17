@@ -16,7 +16,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import com.aiexile.animetrack.data.network.ForgotPasswordRequest
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.serverMessage
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -127,7 +127,7 @@ fun ForgotPasswordScreen(
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(24.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputEmail,
                 onValueChange = { inputEmail = it },
                 label = { Text(stringResource(R.string.forgot_password_email)) },
@@ -146,7 +146,7 @@ fun ForgotPasswordScreen(
                 enabled = !isLoading
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputNewPassword,
                 onValueChange = { inputNewPassword = it },
                 label = { Text(stringResource(R.string.forgot_password_new_password)) },
@@ -159,7 +159,7 @@ fun ForgotPasswordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputConfirmPassword,
                 onValueChange = { inputConfirmPassword = it },
                 label = { Text(stringResource(R.string.forgot_password_confirm_password)) },

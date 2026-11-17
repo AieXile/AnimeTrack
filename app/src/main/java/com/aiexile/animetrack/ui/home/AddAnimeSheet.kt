@@ -44,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
@@ -79,10 +78,12 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.aiexile.animetrack.util.resolveCoverModel
+import com.aiexile.animetrack.util.isUnaired
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AddAnimeForm
 import com.aiexile.animetrack.ui.components.AddAnimeFormState
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.theme.LocalAnimeColors
 import kotlinx.coroutines.launch
 
@@ -152,7 +153,7 @@ internal fun AddAnimeBottomSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
                     modifier = Modifier
@@ -507,14 +508,14 @@ private fun SearchResultItem(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Text(
                     text = result.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
@@ -553,30 +554,31 @@ private fun SearchResultItem(
             }
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!result.airDate.isNullOrBlank()) {
-                    val formattedDate = try {
+                // 未放送时 episodeCountText 已包含完整放送日期（如「2026/11/20 放送」），
+                // 不再重复展示年月；整行单行省略，避免逐字竖排换行
+                val airDatePart = if (!isUnaired(result.airDate) && !result.airDate.isNullOrBlank()) {
+                    try {
                         val parts = result.airDate.split("-")
                         if (parts.size >= 2) String.format(yearMonthFormat, parts[0], parts[1].toInt()) else result.airDate
-                    } catch (_: Exception) { result.airDate }
-                    Text(
-                        text = formattedDate,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = "·",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                    } catch (_: Exception) {
+                        result.airDate
+                    }
+                } else {
+                    null
                 }
+                val metaText = listOfNotNull(airDatePart, result.episodeCountText).joinToString(" · ")
 
                 Text(
-                    text = result.episodeCountText,
+                    text = metaText,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
 
                 // 来源标识
@@ -592,6 +594,8 @@ private fun SearchResultItem(
                         SearchSource.ALL -> allText
                     },
                     fontSize = 11.sp,
+                    maxLines = 1,
+                    softWrap = false,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                 )
             }

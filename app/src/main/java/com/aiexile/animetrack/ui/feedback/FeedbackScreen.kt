@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import com.aiexile.animetrack.ui.components.AppBasicTextField
 import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
@@ -452,7 +453,7 @@ fun FeedbackChatInput(
                 .padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
             Column {
-                androidx.compose.foundation.text.BasicTextField(
+                AppBasicTextField(
                     value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier

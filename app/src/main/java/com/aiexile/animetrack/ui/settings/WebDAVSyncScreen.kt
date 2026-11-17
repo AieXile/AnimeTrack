@@ -18,7 +18,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -147,7 +147,7 @@ fun WebDAVSyncScreen(
                     item {
                         SettingsGroup(title = stringResource(R.string.webdav_sync_title)) {
                             Column {
-                                OutlinedTextField(
+                                AppOutlinedTextField(
                                     value = webdavUrl,
                                     onValueChange = { viewModel.webdavUrl.value = it },
                                     label = { Text(stringResource(R.string.webdav_sync_server_address)) },
@@ -158,7 +158,7 @@ fun WebDAVSyncScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                OutlinedTextField(
+                                AppOutlinedTextField(
                                     value = webdavUsername,
                                     onValueChange = { viewModel.webdavUsername.value = it },
                                     label = { Text(stringResource(R.string.webdav_sync_username)) },
@@ -168,7 +168,7 @@ fun WebDAVSyncScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                OutlinedTextField(
+                                AppOutlinedTextField(
                                     value = webdavPassword,
                                     onValueChange = { viewModel.webdavPassword.value = it },
                                     label = { Text(stringResource(R.string.webdav_sync_password)) },

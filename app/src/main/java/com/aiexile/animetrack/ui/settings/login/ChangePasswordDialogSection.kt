@@ -9,7 +9,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
@@ -62,7 +62,7 @@ internal fun ChangePasswordDialogSection(
             },
             text = {
                 Column {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = oldPassword,
                         onValueChange = onOldPasswordChange,
                         label = { Text(stringResource(R.string.user_login_old_password)) },
@@ -74,7 +74,7 @@ internal fun ChangePasswordDialogSection(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = newPassword,
                         onValueChange = onNewPasswordChange,
                         label = { Text(stringResource(R.string.user_login_new_password)) },
@@ -87,7 +87,7 @@ internal fun ChangePasswordDialogSection(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = confirmNewPassword,
                         onValueChange = onConfirmNewPasswordChange,
                         label = { Text(stringResource(R.string.user_login_confirm_new_password)) },

@@ -59,7 +59,6 @@ import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.isExpandedWidth
 import com.aiexile.animetrack.ui.components.rememberSharedCoverClipShape
 import com.aiexile.animetrack.ui.components.rememberSharedCoverBadgeAlpha
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -75,7 +74,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -125,11 +123,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
@@ -177,6 +173,8 @@ import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.ui.components.AirDateEditor
+import com.aiexile.animetrack.ui.components.AppBasicTextField
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.CoverCornerBadges
 import com.aiexile.animetrack.ui.components.DetailCoverStatusBadge
 import com.aiexile.animetrack.ui.components.DetailTitleStatusBadge
@@ -748,7 +746,7 @@ private fun CoverSearchOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = query,
                     onValueChange = onQueryChange,
                     modifier = Modifier.weight(1f),
@@ -1293,7 +1291,7 @@ private fun AnimeDetailContent(
                             val focusRequester = remember { FocusRequester() }
                             val keyboardController = LocalSoftwareKeyboardController.current
 
-                            BasicTextField(
+                            AppBasicTextField(
                                 value = editState.title,
                                 onValueChange = onEditTitleChange,
                                 textStyle = MaterialTheme.typography.headlineSmall.copy(
@@ -1827,7 +1825,7 @@ private fun SummaryCard(
         Spacer(modifier = Modifier.height(10.dp))
 
         if (isEditing) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = summary ?: "",
                 onValueChange = onSummaryChange,
                 modifier = Modifier
@@ -1932,7 +1930,7 @@ private fun ProgressCard(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     var isEditing by remember { mutableStateOf(false) }
-    var editValue by remember { mutableStateOf(TextFieldValue()) }
+    var editValue by remember { mutableStateOf("") }
     val focusReq = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -1966,12 +1964,12 @@ private fun ProgressCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isEditing) {
-                BasicTextField(
+                AppBasicTextField(
                     value = editValue,
                     onValueChange = { input ->
-                        val filtered = input.copy(text = input.text.filter { it.isDigit() })
+                        val filtered = input.filter { it.isDigit() }
                         editValue = filtered
-                        val num = filtered.text.toIntOrNull()
+                        val num = filtered.toIntOrNull()
                         if (num != null && num >= 0) {
                             if (isEditMode) {
                                 onUpdateEditTotalEpisodes(num)
@@ -2012,10 +2010,7 @@ private fun ProgressCard(
                         modifier = Modifier.clickable {
                             isEditing = true
                             val text = editTotalEpisodes.toString()
-                            editValue = TextFieldValue(
-                                text = text,
-                                selection = TextRange(text.length)
-                            )
+                            editValue = text
                         }
                     )
                 } else {
@@ -2029,10 +2024,7 @@ private fun ProgressCard(
                         modifier = Modifier.clickable {
                             isEditing = true
                             val text = anime.watchedEpisodes.toString()
-                            editValue = TextFieldValue(
-                                text = text,
-                                selection = TextRange(text.length)
-                            )
+                            editValue = text
                         }
                     )
                 }
@@ -2041,11 +2033,7 @@ private fun ProgressCard(
 
         LaunchedEffect(isEditing) {
             if (isEditing) {
-                val text = currentDisplayValue.toString()
-                editValue = TextFieldValue(
-                    text = text,
-                    selection = TextRange(text.length)
-                )
+                editValue = currentDisplayValue.toString()
                 focusReq.requestFocus()
             }
         }
@@ -2330,7 +2318,7 @@ private fun NotesCard(
         Spacer(modifier = Modifier.height(10.dp))
 
         if (isEditingNotes) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = notesText,
                 onValueChange = onNotesChange,
                 modifier = Modifier
@@ -2988,7 +2976,7 @@ private fun ShareNotesDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -3047,7 +3035,7 @@ private fun MatchDialog(
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = searchQuery,
                     onValueChange = onQueryChange,
                     modifier = Modifier.fillMaxWidth(),

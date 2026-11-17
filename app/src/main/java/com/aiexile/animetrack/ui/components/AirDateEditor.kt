@@ -21,7 +21,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -190,7 +189,7 @@ fun AirDatePickerDialog(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = yearText,
                             onValueChange = { v ->
                                 val filtered = v.filter { it.isDigit() }
@@ -203,7 +202,7 @@ fun AirDatePickerDialog(
                             modifier = Modifier.weight(1f),
                             shape = SquircleShape(12.dp)
                         )
-                        OutlinedTextField(
+                        AppOutlinedTextField(
                             value = monthText,
                             onValueChange = { v ->
                                 val filtered = v.filter { it.isDigit() }

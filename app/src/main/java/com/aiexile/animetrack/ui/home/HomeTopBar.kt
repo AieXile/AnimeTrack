@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,8 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import com.aiexile.animetrack.R
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -54,6 +52,7 @@ import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.FabLocation
 import com.aiexile.animetrack.data.GreetingEffectStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.AppBasicTextField
 import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.advancedHazeEffect
@@ -208,13 +207,10 @@ fun HomeTopBar(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
                 )
-                BasicTextField(
-                    value = TextFieldValue(
-                        text = uiState.localSearchQuery,
-                        selection = TextRange(uiState.localSearchQuery.length)
-                    ),
+                AppBasicTextField(
+                    value = uiState.localSearchQuery,
                     onValueChange = { newValue ->
-                        viewModel.updateLocalSearchQuery(newValue.text)
+                        viewModel.updateLocalSearchQuery(newValue)
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -236,27 +232,26 @@ fun HomeTopBar(
                         }
                     }
                 )
-                if (uiState.localSearchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { viewModel.updateLocalSearchQuery("") },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.CLOSE),
-                            contentDescription = stringResource(R.string.common_clear),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                // 单一 X 递进：有输入时清空文本并留在搜索态，无输入时退出搜索，
+                // 避免关闭搜索与清除按钮并排出现两个 X
                 IconButton(
                     onClick = {
-                        viewModel.clearLocalSearch()
+                        if (uiState.localSearchQuery.isNotEmpty()) {
+                            viewModel.updateLocalSearchQuery("")
+                        } else {
+                            viewModel.clearLocalSearch()
+                        }
                     }
                 ) {
                     Icon(
-                        painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                        contentDescription = stringResource(R.string.home_close_search),
+                        painter = rememberAppIconPainter(AppIcon.CLOSE),
+                        contentDescription = stringResource(
+                            if (uiState.localSearchQuery.isNotEmpty()) {
+                                R.string.common_clear
+                            } else {
+                                R.string.home_close_search
+                            }
+                        ),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }

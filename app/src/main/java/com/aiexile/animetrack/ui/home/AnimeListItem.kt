@@ -5,6 +5,13 @@ import com.aiexile.animetrack.model.Anime
 sealed class AnimeListItem {
     abstract val stableKey: String
 
+    /** 取出该项（含系列堆叠里的分季）中指定 id 的番剧，不存在则返回 null */
+    fun findAnime(animeId: Long): Anime? = when (this) {
+        is Single -> anime.takeIf { it.id.toLong() == animeId }
+        is Series -> animeList.firstOrNull { it.id.toLong() == animeId }
+        is ExpandedSeriesCard -> anime.takeIf { it.id.toLong() == animeId }
+    }
+
     data class Single(
         val anime: Anime,
         override val stableKey: String = "single_${anime.id}"

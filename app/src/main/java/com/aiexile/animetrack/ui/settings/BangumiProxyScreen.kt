@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ProxyType
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -200,7 +200,7 @@ fun BangumiProxyScreen(
 
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = serverInput,
                                 onValueChange = { serverInput = it },
                                 label = { Text(stringResource(R.string.bangumi_proxy_server)) },
@@ -217,7 +217,7 @@ fun BangumiProxyScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = portInput,
                                 onValueChange = { portInput = it.filter(Char::isDigit).take(5) },
                                 label = { Text(stringResource(R.string.bangumi_proxy_port)) },
@@ -248,7 +248,7 @@ fun BangumiProxyScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = usernameInput,
                                 onValueChange = { usernameInput = it },
                                 label = { Text(stringResource(R.string.bangumi_proxy_username)) },
@@ -264,7 +264,7 @@ fun BangumiProxyScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppOutlinedTextField(
                                 value = passwordInput,
                                 onValueChange = { passwordInput = it },
                                 label = { Text(stringResource(R.string.bangumi_proxy_password)) },
@@ -329,7 +329,7 @@ fun BangumiProxyScreen(
             shape = SquircleShape(24.dp),
             title = { Text(stringResource(R.string.bangumi_proxy_dialog_title)) },
             text = {
-                OutlinedTextField(
+                AppOutlinedTextField(
                     value = bangumiHostInput,
                     onValueChange = { bangumiHostInput = it },
                     label = { Text(stringResource(R.string.bangumi_proxy_domain)) },

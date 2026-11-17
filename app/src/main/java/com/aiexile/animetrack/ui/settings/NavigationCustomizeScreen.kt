@@ -33,8 +33,8 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.aiexile.animetrack.ui.components.AppSwitch
+import com.aiexile.animetrack.ui.components.AppTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -797,7 +797,7 @@ private fun CustomGreetingField(
     }
 
     Column {
-        TextField(
+        AppTextField(
             value = textFieldValue,
             onValueChange = { newValue ->
                 textFieldValue = newValue

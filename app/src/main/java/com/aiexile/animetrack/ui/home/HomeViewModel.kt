@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -72,7 +73,6 @@ data class HomeUiState(
     val formState: AddAnimeFormState = AddAnimeFormState(),
     val formError: String? = null,
     val newlyAddedAnimeId: Long? = null,
-    val shouldScrollToTop: Boolean = false,
     val selectedAnimeId: Long? = null,
     val searchQuery: String = "",
     val searchResults: List<SearchResult> = emptyList(),
@@ -125,6 +125,8 @@ class HomeViewModel(
         private const val SORT_LOG_TOP_N = 8
         /** 单条日志里标题的最大长度，防止超长标题撑爆单行 */
         private const val SORT_LOG_TITLE_MAX = 20
+        /** 定位目标解析的等待上限：目标始终不在当前列表（被筛选/搜索排除）时放弃滚动 */
+        private const val SCROLL_TARGET_TIMEOUT_MS = 2_000L
         private val greetingPrefixes = listOf("Hi", "Hey", "Hello")
     }
     
@@ -147,9 +149,35 @@ class HomeViewModel(
         gridScrollOffset = offset
     }
 
-    /** 滚回顶部的执行信号：由 UI 层的 LazyGridState 消费，ViewModel 不直接操作 Compose 状态 */
-    private val _scrollToTopRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val scrollToTopRequests = _scrollToTopRequests.asSharedFlow()
+    /**
+     * 把网格定位到指定番剧所在位置的执行信号（携带目标番剧的期望快照）。
+     * 由 UI 层的 LazyGridState 消费。
+     */
+    private val _scrollToAnimeRequests = MutableSharedFlow<Anime>(extraBufferCapacity = 1)
+    val scrollToAnimeRequests = _scrollToAnimeRequests.asSharedFlow()
+
+    /**
+     * 解析番剧在当前网格中的项下标（顶部筛选头固定占 1 项）。
+     *
+     * 等待派生列表产出「目标番剧已是 [target] 状态」的那一版：变更刚写入 DB 时
+     * [filteredAnimeListItems] 里可能还留着变更前的排序结果，直接用旧值会算错位置。
+     * 目标被当前筛选/搜索排除（或迟迟未更新）时返回 null，不打断当前浏览位置。
+     */
+    suspend fun resolveGridIndexForAnime(target: Anime): Int? {
+        val items = withTimeoutOrNull(SCROLL_TARGET_TIMEOUT_MS) {
+            filteredAnimeListItems.first { list -> list.any { it.matchesScrollTarget(target) } }
+        } ?: return null
+        val index = items.indexOfFirst { it.matchesScrollTarget(target) }
+        return if (index >= 0) index + 1 else null
+    }
+
+    /** 列表项里的目标番剧是否已反映变更（进度时间不早于目标快照；并发多次更新以更晚的为准） */
+    private fun AnimeListItem.matchesScrollTarget(target: Anime): Boolean {
+        val current = findAnime(target.id.toLong()) ?: return false
+        val currentAt = current.lastProgressAt ?: Long.MIN_VALUE
+        val targetAt = target.lastProgressAt ?: Long.MIN_VALUE
+        return currentAt >= targetAt
+    }
 
     /**
      * 程序化回顶到达后的顶部拉伸回弹信号（系统 overscroll 只响应手势，程序化滚动不会触发，
@@ -454,9 +482,9 @@ class HomeViewModel(
                 .collect { updateViewModel.checkForUpdate(force = true) }
         }
 
-        // 观看状态/进度变更后卡片会重排到列表顶部：同步将网格滚回顶部，
-        // 保证变更后的卡片在可视区域内（详见 observeProgressChangesAndScrollToTop）
-        observeProgressChangesAndScrollToTop()
+        // 观看状态/进度变更后卡片会重排：同步把网格定位到变更后的卡片位置，
+        // 保证卡片仍在可视区域内（详见 observeProgressChangesAndScrollToTarget）
+        observeProgressChangesAndScrollToTarget()
     }
 
     /**
@@ -865,10 +893,11 @@ class HomeViewModel(
                         showFormDialog = false,
                         formState = AddAnimeFormState(),
                         formError = null,
-                        newlyAddedAnimeId = id,
-                        shouldScrollToTop = true
+                        newlyAddedAnimeId = id
                     )
                 }
+                // 新增完成：把网格定位到新番剧所在位置（排序模式不同位置也不同，不再回顶）
+                _scrollToAnimeRequests.tryEmit(anime.copy(id = id.toInt()))
 
                 repository.downloadCoverAsync(
                     animeId = id.toInt(),
@@ -912,46 +941,36 @@ class HomeViewModel(
         }
     }
     
-    fun onScrollCompleted() {
-        _uiState.update { it.copy(shouldScrollToTop = false) }
-    }
-
     /**
-     * 监听观看状态/进度变更（特征：已有番剧的 lastProgressAt 被刷新），把主界面网格滚回顶部。
+     * 监听观看状态/进度变更（特征：已有番剧的 lastProgressAt 被刷新），
+     * 把主界面网格定位到该番剧变更后的位置。
      *
-     * 变更后的卡片会按最近进度重排到列表顶部，若网格停留在原滚动位置：
-     * - 主页卡片菜单改状态：卡片直接从可视区域消失；
-     * - 详情页改进度/状态：返回时卡片不在可视区域，共享元素退出动画丢失。
-     * 因此检测到变更立即滚回顶部。详情页打开期间 HomeScreen 虽未组合，
-     * 但 LazyGridState 由 MainOverlay 所在组合持有，滚回顶部的执行信号仍会被消费，
-     * 返回主页时网格自顶部开始组合，卡片位于首屏，退出动画正常匹配。
+     * 自动排序下卡片会按状态区块与最近进度重排（可能落到其他区块、不再位于首屏），
+     * 若网格停留在原滚动位置，卡片会从可视区域消失；因此在变更后立即定位到卡片新位置，
+     * 返回主页时卡片已在可视区域内，共享元素退出动画也能正常匹配。
      *
      * 仅比对已有条目的 lastProgressAt（同步流程只改 status/进度不写此字段），
-     * 避免自动同步引起的列表变动误触发跳顶。
+     * 避免自动同步引起的列表变动误触发定位。
      */
-    private fun observeProgressChangesAndScrollToTop() {
+    private fun observeProgressChangesAndScrollToTarget() {
         viewModelScope.launch {
             var previousById: Map<Int, Anime>? = null
             animeList.collect { current ->
                 val previous = previousById
                 previousById = current.associateBy { it.id }
                 if (previous == null) return@collect
-                val progressChanged = current.any { new ->
+                val changed = current.firstOrNull { new ->
                     val old = previous[new.id]
                     old != null && old.lastProgressAt != new.lastProgressAt
-                }
-                if (progressChanged) {
-                    // 只有自动排序会因进度变更重排并需要跳顶；首字母与手动顺序不随进度变化，
-                    // 跳顶反而打断用户浏览，跳过
-                    val mode = listSortMode.value
-                    if (mode == ListSortMode.RECENT_PROGRESS) {
-                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 自动排序重排并滚回顶部（mode=$mode）")
-                        // 立即跳顶（非动画），即使 HomeScreen 未组合也生效；同步归零快照供重建恢复
-                        updateGridScrollPosition(0, 0)
-                        _scrollToTopRequests.tryEmit(Unit)
-                    } else {
-                        AppLogManager.i(SORT_LOG_TAG, "进度变更: 当前排序不受影响、不跳顶（mode=$mode）")
-                    }
+                } ?: return@collect
+                // 只有自动排序会因进度变更重排并需要定位；首字母与手动顺序不随进度变化，
+                // 定位反而打断用户浏览，跳过
+                val mode = listSortMode.value
+                if (mode == ListSortMode.RECENT_PROGRESS) {
+                    AppLogManager.i(SORT_LOG_TAG, "进度变更: 自动排序重排并定位到 ${changed.title}（mode=$mode）")
+                    _scrollToAnimeRequests.tryEmit(changed)
+                } else {
+                    AppLogManager.i(SORT_LOG_TAG, "进度变更: 当前排序不受影响、不定位（mode=$mode）")
                 }
             }
         }

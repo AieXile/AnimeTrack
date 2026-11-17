@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +34,7 @@ import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.data.network.SendCodeRequest
 import com.aiexile.animetrack.data.network.UserAuthRegisterRequest
 import com.aiexile.animetrack.data.network.serverMessage
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -116,7 +116,7 @@ fun UserRegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputUsername,
                 onValueChange = { inputUsername = it },
                 label = { Text(stringResource(R.string.user_register_username)) },
@@ -126,7 +126,7 @@ fun UserRegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputPassword,
                 onValueChange = { inputPassword = it },
                 label = { Text(stringResource(R.string.user_register_password)) },
@@ -138,7 +138,7 @@ fun UserRegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputConfirmPassword,
                 onValueChange = { inputConfirmPassword = it },
                 label = { Text(stringResource(R.string.user_register_confirm_password)) },
@@ -149,7 +149,7 @@ fun UserRegisterScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            AppOutlinedTextField(
                 value = inputEmail,
                 onValueChange = { inputEmail = it },
                 label = { Text(stringResource(R.string.user_register_email)) },

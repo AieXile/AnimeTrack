@@ -9,7 +9,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.VerificationCodeField
 import com.aiexile.animetrack.ui.components.dialogBlurBehind
@@ -60,7 +60,7 @@ internal fun ChangeEmailDialogSection(
             },
             text = {
                 Column {
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = password,
                         onValueChange = onPasswordChange,
                         label = { Text(stringResource(R.string.user_login_current_password)) },
@@ -72,7 +72,7 @@ internal fun ChangeEmailDialogSection(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    AppOutlinedTextField(
                         value = newEmail,
                         onValueChange = onNewEmailChange,
                         label = { Text(stringResource(R.string.user_login_new_email)) },

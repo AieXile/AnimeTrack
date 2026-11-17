@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,8 +45,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -61,6 +59,7 @@ import androidx.graphics.shapes.toPath
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
+import com.aiexile.animetrack.ui.components.AppBasicTextField
 import com.aiexile.animetrack.ui.components.LiquidGlassKind
 import com.aiexile.animetrack.ui.components.LiquidGlassSpec
 import com.aiexile.animetrack.ui.components.SquircleShape
@@ -403,12 +402,9 @@ private fun FloatingSearchBar(
                 .padding(start = 12.dp)
                 .size(24.dp)
         )
-        BasicTextField(
-            value = TextFieldValue(
-                text = query,
-                selection = TextRange(query.length)
-            ),
-            onValueChange = { onQueryChange(it.text) },
+        AppBasicTextField(
+            value = query,
+            onValueChange = { onQueryChange(it) },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = MaterialTheme.colorScheme.onSurface
@@ -432,23 +428,22 @@ private fun FloatingSearchBar(
                 }
             }
         )
-        if (query.isNotEmpty()) {
-            IconButton(
-                onClick = { onQueryChange("") },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    painter = rememberAppIconPainter(AppIcon.CLOSE),
-                    contentDescription = stringResource(R.string.common_clear),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
+        // 单一 X 递进：有输入时清空文本并留在搜索态，无输入时收起搜索条，
+        // 与顶栏搜索保持一致，避免并排出现两个 X
+        IconButton(
+            onClick = {
+                if (query.isNotEmpty()) {
+                    onQueryChange("")
+                } else {
+                    onClose()
+                }
             }
-        }
-        IconButton(onClick = onClose) {
+        ) {
             Icon(
-                painter = rememberAppIconPainter(AppIcon.ARROW_BACK),
-                contentDescription = stringResource(R.string.home_close_search),
+                painter = rememberAppIconPainter(AppIcon.CLOSE),
+                contentDescription = stringResource(
+                    if (query.isNotEmpty()) R.string.common_clear else R.string.home_close_search
+                ),
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
