@@ -8,18 +8,29 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.media.LocalMediaDao
+import com.aiexile.animetrack.data.media.LocalEpisodeProgressEntity
+import com.aiexile.animetrack.data.media.LocalMediaEntity
+import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.PendingDeletion
 
 @Database(
-    entities = [Anime::class, PendingDeletion::class],
-    version = 28,
+    entities = [
+        Anime::class,
+        PendingDeletion::class,
+        LocalMediaSourceEntity::class,
+        LocalMediaEntity::class,
+        LocalEpisodeProgressEntity::class
+    ],
+    version = 30,
     exportSchema = true
 )
 @TypeConverters(AnimeTypeConverters::class)
 abstract class AnimeDatabase : RoomDatabase() {
     
     abstract fun animeDao(): AnimeDao
+    abstract fun localMediaDao(): LocalMediaDao
     
     companion object {
         private const val TAG = "Database"
@@ -475,6 +486,98 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 28→29 迁移：新增本地媒体来源与扫描文件索引。
+         * 媒体表独立于 anime，避免本地文件路径进入订阅同步模型。
+         */
+        private val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `local_source` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `treeUri` TEXT NOT NULL,
+                        `displayName` TEXT NOT NULL,
+                        `lastScanAt` INTEGER,
+                        `videoCount` INTEGER NOT NULL,
+                        `scanState` TEXT NOT NULL,
+                        `scanError` TEXT,
+                        `permissionState` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_source_treeUri` " +
+                        "ON `local_source` (`treeUri`)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `local_media` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `sourceId` INTEGER NOT NULL,
+                        `documentUri` TEXT NOT NULL,
+                        `relativePath` TEXT NOT NULL,
+                        `fileName` TEXT NOT NULL,
+                        `size` INTEGER NOT NULL,
+                        `lastModified` INTEGER NOT NULL,
+                        `parsedTitle` TEXT,
+                        `seasonNumber` INTEGER,
+                        `episodeNumber` INTEGER,
+                        `episodeEndNumber` INTEGER,
+                        `matchState` TEXT NOT NULL,
+                        `matchedAnimeId` INTEGER,
+                        `confidence` REAL NOT NULL,
+                        `isUserOverride` INTEGER NOT NULL,
+                        `isMissing` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        FOREIGN KEY(`sourceId`) REFERENCES `local_source`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_media_sourceId_relativePath` " +
+                        "ON `local_media` (`sourceId`, `relativePath`)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_sourceId` ON `local_media` (`sourceId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_matchedAnimeId` ON `local_media` (`matchedAnimeId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_matchState` ON `local_media` (`matchState`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_episodeNumber` ON `local_media` (`episodeNumber`)")
+            }
+        }
+
+        /**
+         * 29→30 迁移：本地播放联动。
+         * - local_media 增加 episodeType / parentDocumentId（可空，旧数据保持未知）；
+         * - 新增单集完成记录表，用于计算连续观看进度。
+         */
+        private val MIGRATION_29_30 = object : Migration(29, 30) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE local_media ADD COLUMN episodeType TEXT")
+                db.execSQL("ALTER TABLE local_media ADD COLUMN parentDocumentId TEXT")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `local_episode_progress` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `animeId` INTEGER NOT NULL,
+                        `seasonNumber` INTEGER,
+                        `episodeNumber` INTEGER NOT NULL,
+                        `completedAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_local_episode_progress_animeId_episodeNumber` " +
+                        "ON `local_episode_progress` (`animeId`, `episodeNumber`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_local_episode_progress_animeId` " +
+                        "ON `local_episode_progress` (`animeId`)"
+                )
+            }
+        }
+
         /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
         private val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
@@ -485,7 +588,7 @@ abstract class AnimeDatabase : RoomDatabase() {
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
             MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
-            MIGRATION_26_27, MIGRATION_27_28
+            MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30
         ).map { LoggingMigration(it) }.toTypedArray()
 
         /**
