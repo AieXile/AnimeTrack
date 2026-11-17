@@ -24,6 +24,10 @@ import io.github.peerless2012.ass.media.AssHandlerConfig
 import io.github.peerless2012.ass.media.kt.buildWithAssSupport
 import io.github.peerless2012.ass.media.type.AssRenderType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -44,6 +48,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     private var mediaSession: MediaSession? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** onCreate 初始化一次；凭据变化经 DataSource.Factory 每次实时读取，此处只涉及证书信任模式 */
     private lateinit var okHttpClient: OkHttpClient
@@ -81,6 +86,11 @@ class PlaybackService : MediaSessionService() {
         }
 
         mediaSession = MediaSession.Builder(this, player).build()
+        serviceScope.launch {
+            settingsRepository.playerAutoPlayNext.collect { enabled ->
+                player.setPauseAtEndOfMediaItems(!enabled)
+            }
+        }
     }
 
     /** libass 特效字幕模式的播放器构建（ass-media 桥接，EFFECTS_OPEN_GL 渲染） */
@@ -141,12 +151,8 @@ class PlaybackService : MediaSessionService() {
      * DefaultDataSource 对 http(s) 委托给 WebDAV 认证源，file:// 等本地协议自行处理——
      * 一个工厂同时覆盖 WebDAV 流式播放与本地文件播放。
      */
-    private fun createDataSourceFactory(): DataSource.Factory = DataSource.Factory {
-        val username = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().playerWebdavUsername.first() }
-        val password = runBlocking(Dispatchers.IO) { AppContainer.getSettingsRepository().playerWebdavPassword.first() }
-        val webdavSource = WebDAVDataSourceFactory(okHttpClient, username, password).createDataSource()
-        DefaultDataSource(this, webdavSource)
-    }
+    private fun createDataSourceFactory(): DataSource.Factory =
+        PlaybackDataSourceFactory(this, okHttpClient)
 
     /**
      * 收紧缓冲（历史 OOM 缓解措施，保留）：
@@ -207,6 +213,7 @@ class PlaybackService : MediaSessionService() {
     // onTaskRemoved 无需覆写：media3 默认行为即“未在播放则 stopSelf，播放中保活”
 
     override fun onDestroy() {
+        serviceScope.cancel()
         mediaSession?.run {
             player.release()
             release()

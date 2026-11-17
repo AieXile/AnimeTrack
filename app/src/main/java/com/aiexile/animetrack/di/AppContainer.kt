@@ -10,7 +10,10 @@ import com.aiexile.animetrack.data.UsageStatsRepository
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
+import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.player.WebPlaybackHistoryRepository
+import com.aiexile.animetrack.domain.media.LocalWatchProgressUseCase
 import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.FeedbackRepository
@@ -18,6 +21,9 @@ import com.aiexile.animetrack.data.sse.SseClient
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.data.sync.BilibiliSyncManager
 import com.aiexile.animetrack.data.sync.WebDAVAutoSyncManager
+import com.aiexile.animetrack.data.websource.WebSourceEngine
+import com.aiexile.animetrack.data.websource.WebSourceHttpClient
+import com.aiexile.animetrack.data.websource.WebSourceRuleRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -68,6 +74,11 @@ object AppContainer {
     private var syncManager: BangumiSyncManager? = null
     private var bilibiliSyncManager: BilibiliSyncManager? = null
     private var playerRepository: PlayerRepository? = null
+    private var localMediaRepository: LocalMediaRepository? = null
+    private var localWatchProgressUseCase: LocalWatchProgressUseCase? = null
+    private var webPlaybackHistoryRepository: WebPlaybackHistoryRepository? = null
+    private var webSourceRuleRepository: WebSourceRuleRepository? = null
+    private var webSourceEngine: WebSourceEngine? = null
     private var usageStatsRepository: UsageStatsRepository? = null
     private var feedbackRepository: FeedbackRepository? = null
     private var adminFeedbackRepository: AdminFeedbackRepository? = null
@@ -130,6 +141,16 @@ object AppContainer {
         syncManager = BangumiSyncManager(authManager!!, repository!!)
         bilibiliSyncManager = BilibiliSyncManager(bilibiliAuthManager!!, repository!!)
         playerRepository = PlayerRepository(this.context!!)
+        localMediaRepository = LocalMediaRepository(this.context!!, database!!.localMediaDao())
+        localWatchProgressUseCase = LocalWatchProgressUseCase(
+            localMediaRepository = localMediaRepository!!,
+            animeRepository = repository!!,
+            settingsRepository = settingsRepository!!,
+            bangumiSyncManager = syncManager!!
+        )
+        webPlaybackHistoryRepository = WebPlaybackHistoryRepository(this.context!!)
+        webSourceRuleRepository = WebSourceRuleRepository(this.context!!)
+        webSourceEngine = WebSourceEngine(WebSourceHttpClient())
         usageStatsRepository = UsageStatsRepository(this.context!!)
         feedbackRepository = FeedbackRepository(this.context!!)
         adminFeedbackRepository = AdminFeedbackRepository()
@@ -189,6 +210,31 @@ object AppContainer {
 
     fun getPlayerRepository(): PlayerRepository {
         return playerRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getLocalMediaRepository(): LocalMediaRepository {
+        return localMediaRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getLocalWatchProgressUseCase(): LocalWatchProgressUseCase {
+        return localWatchProgressUseCase
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getWebPlaybackHistoryRepository(): WebPlaybackHistoryRepository {
+        return webPlaybackHistoryRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getWebSourceRuleRepository(): WebSourceRuleRepository {
+        return webSourceRuleRepository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getWebSourceEngine(): WebSourceEngine {
+        return webSourceEngine
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
 

@@ -185,6 +185,12 @@ class SettingsRepository(private val context: Context) {
         private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
         private val PLAYER_WEBDAV_USERNAME_KEY = stringPreferencesKey("player_webdav_username")
         private val PLAYER_WEBDAV_PASSWORD_KEY = stringPreferencesKey("player_webdav_password")
+        /** 播放器媒体根目录；旧 webdav_media_path 仅用于一次性迁移 */
+        private val PLAYER_WEBDAV_MEDIA_ROOT_KEY = stringPreferencesKey("player_webdav_media_root")
+        /** 最近一次成功列举的目录，不等同于固定媒体根目录 */
+        private val PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY = stringPreferencesKey("player_webdav_last_browse_path")
+        /** 最近一次从浏览页选择的文件 */
+        private val PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY = stringPreferencesKey("player_webdav_last_selected_file")
         private val PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY = booleanPreferencesKey("player_webdav_trust_all_certs")
         private val PLAYER_DEFAULT_SPEED_KEY = floatPreferencesKey("player_default_speed")
         private val PLAYER_HARDWARE_ACCELERATION_KEY = booleanPreferencesKey("player_hardware_acceleration")
@@ -192,6 +198,9 @@ class SettingsRepository(private val context: Context) {
         private val PLAYER_AUTO_PLAY_NEXT_KEY = booleanPreferencesKey("player_auto_play_next")
         private val PLAYER_LONG_PRESS_SPEED_KEY = floatPreferencesKey("player_long_press_speed")
         private val PLAYER_AUTO_LANDSCAPE_KEY = booleanPreferencesKey("player_auto_landscape")
+        /** 播放完成后更新追番进度：默认关闭，避免误播推进记录 */
+        private val PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY =
+            booleanPreferencesKey("player_update_progress_on_complete")
 
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
@@ -399,6 +408,26 @@ class SettingsRepository(private val context: Context) {
      * 「家族名 + 文件 + ttcIndex」持久化。文件不存在时回退系统字体，
      * 避免继续停留在已失效的 CUSTOM 类型。
      */
+    /**
+     * 迁移旧播放器媒体路径：旧 key 实际只被播放器浏览页使用，但没有区分
+     * 固定媒体根目录与最近浏览目录。新版本把它当作一次性媒体根目录来源，
+     * 后续不再从旧 key 读取播放器状态。
+     */
+    private suspend fun migratePlayerWebdavMediaPathIfNeeded() {
+        var migratedRoot: String? = null
+        context.dataStore.edit { prefs ->
+            if (prefs[PLAYER_WEBDAV_MEDIA_ROOT_KEY] == null) {
+                val legacy = prefs[WEBDAV_MEDIA_PATH_KEY].orEmpty().trim()
+                if (legacy.isNotBlank()) {
+                    val normalized = normalizeWebdavPath(legacy)
+                    prefs[PLAYER_WEBDAV_MEDIA_ROOT_KEY] = normalized
+                    migratedRoot = normalized
+                }
+            }
+        }
+        migratedRoot?.let { prefCache[PLAYER_WEBDAV_MEDIA_ROOT_KEY] = it }
+    }
+
     private suspend fun migrateCustomFontToDeviceIfNeeded() {
         var migratedToDevice = false
         context.dataStore.edit { prefs ->
@@ -439,6 +468,8 @@ class SettingsRepository(private val context: Context) {
                 migrateChromeStyleIfNeeded()
                 // 旧「自定义字体」→ 本机字体迁移同样必须先于首读，避免 UI 先显示 CUSTOM
                 migrateCustomFontToDeviceIfNeeded()
+                // 旧播放器媒体路径迁移必须先于缓存填充，保证首帧直接读取新 key
+                migratePlayerWebdavMediaPathIfNeeded()
 
                 val prefs = context.dataStore.data.first()
                 currentTmdbApiKey = prefs[TMDB_API_KEY_KEY] ?: DEFAULT_TMDB_API_KEY
@@ -1041,11 +1072,56 @@ class SettingsRepository(private val context: Context) {
     val playerWebdavUrl: Flow<String> = preferenceFlow(PLAYER_WEBDAV_URL_KEY, "")
     val playerWebdavUsername: Flow<String> = preferenceFlow(PLAYER_WEBDAV_USERNAME_KEY, "")
     val playerWebdavPassword: Flow<String> = preferenceFlow(PLAYER_WEBDAV_PASSWORD_KEY, "")
+    val playerWebdavMediaRoot: Flow<String> = preferenceFlow(PLAYER_WEBDAV_MEDIA_ROOT_KEY, "")
+    val playerWebdavLastBrowsePath: Flow<String> =
+        preferenceFlow(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY, "")
+    val playerWebdavLastSelectedFile: Flow<String> =
+        preferenceFlow(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY, "")
 
+    /** 凭据与地址一次事务写入，避免配置页观察到半成品状态。 */
     suspend fun setPlayerWebdavCredentials(url: String, username: String, password: String) {
-        setPreference(PLAYER_WEBDAV_URL_KEY, url)
-        setPreference(PLAYER_WEBDAV_USERNAME_KEY, username)
-        setPreference(PLAYER_WEBDAV_PASSWORD_KEY, password)
+        val normalizedUrl = url.trim().trimEnd('/')
+        val normalizedUsername = username.trim()
+        prefCache[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
+        prefCache[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
+        prefCache[PLAYER_WEBDAV_PASSWORD_KEY] = password
+        try {
+            context.dataStore.edit { prefs ->
+                prefs[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
+                prefs[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
+                prefs[PLAYER_WEBDAV_PASSWORD_KEY] = password
+            }
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "播放器 WebDAV 配置写入失败", e)
+        }
+    }
+
+    suspend fun setPlayerWebdavMediaRoot(path: String) =
+        setPreference(PLAYER_WEBDAV_MEDIA_ROOT_KEY, normalizeWebdavPath(path))
+
+    suspend fun setPlayerWebdavLastBrowsePath(path: String) =
+        setPreference(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY, normalizeWebdavPath(path))
+
+    suspend fun setPlayerWebdavLastSelectedFile(path: String) =
+        setPreference(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY, path.trim())
+
+    /** 清除最近浏览/选择记忆，但保留用户设定的媒体根目录。 */
+    suspend fun clearPlayerWebdavBrowseMemory() {
+        prefCache.remove(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY)
+        prefCache.remove(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY)
+        try {
+            context.dataStore.edit { prefs ->
+                prefs.remove(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY)
+                prefs.remove(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY)
+            }
+        } catch (e: Exception) {
+            AppLogManager.e(TAG, "播放器 WebDAV 浏览记忆清除失败", e)
+        }
+    }
+
+    private fun normalizeWebdavPath(path: String): String {
+        val trimmed = path.trim()
+        return if (trimmed.isBlank()) "" else trimmed.trimEnd('/') + "/"
     }
 
     /** 信任所有证书（自签名/IP 直连 NAS 场景），仅作用于播放器 WebDAV 链路 */
@@ -1080,6 +1156,13 @@ class SettingsRepository(private val context: Context) {
     val playerAutoLandscape: Flow<Boolean> = preferenceFlow(PLAYER_AUTO_LANDSCAPE_KEY, false)
 
     suspend fun setPlayerAutoLandscape(enabled: Boolean) = setPreference(PLAYER_AUTO_LANDSCAPE_KEY, enabled)
+
+    /** 播放完成（有效观看达到阈值）后推进追番进度，默认关闭 */
+    val playerUpdateProgressOnComplete: Flow<Boolean> =
+        preferenceFlow(PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY, false)
+
+    suspend fun setPlayerUpdateProgressOnComplete(enabled: Boolean) =
+        setPreference(PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY, enabled)
 
     val fontFamilyFlow: Flow<String> = preferenceFlow(FONT_FAMILY_KEY, FontFamilyType.SYSTEM.name)
 
