@@ -130,6 +130,20 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.enterTransition(): EnterTr
             (isImmersiveRoute(fromRoute) && isMainRoute(toRoute)) ->
             enterFromSettings()
 
+        // 详情页 ↔ 播放器：封面由共享元素 Morph 成小窗，页面本身只做淡入淡出，
+        // 延迟一点淡入，让飞行的封面先到位（与主页→详情的节奏一致）
+        isDetailRoute(fromRoute) && isImmersiveRoute(toRoute) ->
+            fadeIn(
+                animationSpec = tween(
+                    durationMillis = ANIM_DURATION,
+                    delayMillis = DETAIL_ENTER_DELAY,
+                    easing = ANIM_EASING
+                )
+            )
+
+        isImmersiveRoute(fromRoute) && isDetailRoute(toRoute) ->
+            fadeIn(animationSpec = tween(durationMillis = ANIM_DURATION))
+
         // 引导页 → 主页：瞬间切换
         isMainRoute(fromRoute) && toRoute == Routes.ONBOARDING ->
             fadeIn(animationSpec = tween(0))
@@ -196,6 +210,13 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.exitTransition(): ExitTran
         (fromRoute == Routes.WEBDAV_BROWSE && toRoute == Routes.PLAYER) ||
             (isImmersiveRoute(fromRoute) && isMainRoute(toRoute)) ->
             exitToSettings()
+
+        // 详情页 ↔ 播放器：页面淡出，封面由共享元素飞回详情页
+        isDetailRoute(fromRoute) && isImmersiveRoute(toRoute) ->
+            fadeOut(animationSpec = tween(durationMillis = ANIM_DURATION, easing = ANIM_EASING))
+
+        isImmersiveRoute(fromRoute) && isDetailRoute(toRoute) ->
+            fadeOut(animationSpec = tween(durationMillis = ANIM_DURATION))
 
         // 引导页 → 主页：瞬间切换
         isMainRoute(fromRoute) && toRoute == Routes.ONBOARDING ->

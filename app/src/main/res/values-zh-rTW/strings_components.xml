@@ -288,8 +288,12 @@
     <string name="web_watch_position_total">看到 %1$s / 共 %2$s</string>
     <string name="web_watch_continue_next">接著看：%1$s</string>
     <string name="player_source_label">來源：%1$s</string>
+    <string name="player_source_line">來源 · %1$s</string>
     <string name="player_speed_value">倍速 %1$s×</string>
     <string name="player_current_episode">目前集數</string>
     <string name="player_no_episode_list">目前影片沒有可用的選集清單。</string>
     <string name="player_local_source">本機檔案</string>
+    <string name="player_watched_progress">已看 %1$d/%2$d 集</string>
+    <string name="player_jump_current">跳至目前集數</string>
+    <string name="media_notification_channel_name">影片播放控制</string>
 </resources>

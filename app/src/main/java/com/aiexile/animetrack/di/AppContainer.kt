@@ -12,8 +12,8 @@ import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.player.PlayerRepository
-import com.aiexile.animetrack.data.player.WebPlaybackHistoryRepository
-import com.aiexile.animetrack.domain.media.LocalWatchProgressUseCase
+import com.aiexile.animetrack.data.player.web.WebPlaybackHistoryRepository
+import com.aiexile.animetrack.domain.playback.LocalWatchProgressUseCase
 import com.aiexile.animetrack.data.remote.AdminFeedbackRepository
 import com.aiexile.animetrack.data.remote.AnimeQuote
 import com.aiexile.animetrack.data.remote.FeedbackRepository

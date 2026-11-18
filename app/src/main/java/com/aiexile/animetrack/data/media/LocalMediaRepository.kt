@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import com.aiexile.animetrack.data.player.VideoFormats
-import com.aiexile.animetrack.domain.media.EpisodeFileNameParser
+import com.aiexile.animetrack.domain.playback.EpisodeFileNameParser
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +29,13 @@ class LocalMediaRepository(
     fun observeSources(): Flow<List<LocalMediaSourceEntity>> = dao.observeSources()
 
     fun observeMedia(sourceId: Long): Flow<List<LocalMediaEntity>> = dao.observeMedia(sourceId)
+
+    /** 详情页播放入口：只返回已确认关联且仍在盘上的剧集。 */
+    fun observeConfirmedEpisodesForAnime(animeId: Int): Flow<List<LocalMediaEntity>> =
+        dao.observeConfirmedEpisodesForAnime(animeId)
+
+    fun observeCompletedEpisodeNumbers(animeId: Int): Flow<List<Int>> =
+        dao.observeCompletedEpisodeNumbers(animeId)
 
     suspend fun addOrGetSource(treeUri: Uri, displayName: String): LocalMediaSourceEntity {
         val uriString = treeUri.toString()

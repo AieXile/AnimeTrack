@@ -22,8 +22,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,9 +53,9 @@ import com.aiexile.animetrack.ui.feedback.FeedbackSessionScreen
 import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
-import com.aiexile.animetrack.ui.player.LocalMediaLibraryScreen
-import com.aiexile.animetrack.ui.player.WebPlaybackScreen
-import com.aiexile.animetrack.ui.player.PlayerSettingsScreen
+import com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen
+import com.aiexile.animetrack.ui.player.web.WebPlaybackScreen
+import com.aiexile.animetrack.ui.player.settings.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.schedule.DailyBroadcastScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
 import com.aiexile.animetrack.ui.settings.AppearanceScreen
@@ -367,6 +370,19 @@ internal fun NavGraphBuilder.sharedDestinations(
         val coverUrl = backStackEntry.arguments?.getString("coverUrl")
         // 共享元素命名空间：收藏页入口带前缀，与主页卡片区分 key
         val sharedKeyPrefix = backStackEntry.arguments?.getString("sharedKeyPrefix").orEmpty()
+        // 识别当前是否正与播放器页做封面 Morph（详情↔播放器两侧均是四角 16dp squircle，
+        // 不能走卡片侧的「底部圆角 0↔16dp 插值」或显示卡片角标）。
+        // 通过 sharedTransitionScope.isTransitionActive 锁存到弹簧完全收尾，避免 NavHost
+        // 300ms 转场先结束时最后一小段动画退回 0dp 底部圆角。
+        val visibleEntries by hostController.visibleEntries.collectAsState()
+        val playerVisible = !isInPane && visibleEntries.any { it.destination.route == Routes.PLAYER }
+        var playerTransitionLatched by remember { mutableStateOf(false) }
+        if (playerVisible) {
+            playerTransitionLatched = true
+        } else if (playerTransitionLatched && !sharedTransitionScope.isTransitionActive) {
+            playerTransitionLatched = false
+        }
+        val isPlayerCoverTransition = !isInPane && (playerVisible || playerTransitionLatched)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -376,9 +392,25 @@ internal fun NavGraphBuilder.sharedDestinations(
                 animeId = animeId,
                 coverUrl = coverUrl,
                 sharedKeyPrefix = sharedKeyPrefix,
+                isPlayerCoverTransition = isPlayerCoverTransition,
                 onNavigateBack = navigateBack,
                 onNavigateToPlayer = { id ->
-                    onNavigate(Routes.player(id))
+                    onNavigate(Routes.player(id, sharedKeyPrefix = sharedKeyPrefix))
+                },
+                onPlayLocalMedia = { mediaId ->
+                    onNavigate(
+                        Routes.player(
+                            animeId,
+                            localMediaId = mediaId,
+                            sharedKeyPrefix = sharedKeyPrefix
+                        )
+                    )
+                },
+                onPlayWeb = { id ->
+                    onNavigate(Routes.player(id, webPlay = true, sharedKeyPrefix = sharedKeyPrefix))
+                },
+                onOpenWebPlayback = { id, title ->
+                    onNavigate(Routes.webPlayback(id, title))
                 },
                 isInPane = isInPane,
                 // pane 模式禁用 sharedElement 飞行动画（pane 展开动画已提供进入动效）
@@ -650,11 +682,11 @@ internal fun NavGraphBuilder.sharedDestinations(
 
     // 播放器设置（视频播放聚合页）
     composable(Routes.PLAYER_SETTINGS) {
-        com.aiexile.animetrack.ui.player.PlayerSettingsScreen(
+        com.aiexile.animetrack.ui.player.settings.PlayerSettingsScreen(
             onBack = navigateBack,
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
             onNavigateToLocalMedia = { onNavigate(Routes.LOCAL_MEDIA) },
-            onNavigateToWebPlayback = { onNavigate(Routes.WEB_PLAYBACK) },
+            onNavigateToWebPlayback = { onNavigate(Routes.webPlayback()) },
             onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
             onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
             settingsRepository = settingsRepository
@@ -662,10 +694,14 @@ internal fun NavGraphBuilder.sharedDestinations(
     }
 
     // 网页播放
-    composable(Routes.WEB_PLAYBACK) {
+    composable(Routes.WEB_PLAYBACK, arguments = Routes.webPlaybackArguments) { backStackEntry ->
         WebPlaybackScreen(
             onBack = navigateBack,
-            onOpenPlayer = { onNavigate(Routes.player(0, webPlay = true)) }
+            animeId = backStackEntry.arguments?.getInt("animeId") ?: 0,
+            animeTitle = backStackEntry.arguments?.getString("animeTitle").orEmpty(),
+            onOpenPlayer = { animeId ->
+                onNavigate(Routes.player(animeId, webPlay = true))
+            }
         )
     }
 
@@ -681,7 +717,7 @@ internal fun NavGraphBuilder.sharedDestinations(
 
     // 播放器专属 WebDAV 配置（与备份同步独立）
     composable(Routes.PLAYER_WEBDAV_CONFIG) {
-        com.aiexile.animetrack.ui.player.PlayerWebDavConfigScreen(
+        com.aiexile.animetrack.ui.player.settings.PlayerWebDavConfigScreen(
             onBack = navigateBack,
             settingsRepository = settingsRepository
         )

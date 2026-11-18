@@ -8,8 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.media.LocalMediaRepository
+import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.player.web.WebPlaybackHistoryRepository
+import com.aiexile.animetrack.domain.playback.WebPlaybackResume
+import com.aiexile.animetrack.domain.playback.WebPlaybackResumeTarget
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.domain.SearchUseCase
+import com.aiexile.animetrack.domain.playback.LocalPlaybackResume
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
@@ -71,6 +77,12 @@ sealed class MatchSearchState {
     data class Failed(val message: String) : MatchSearchState()
 }
 
+/** 详情页播放入口：用户确认关联的本地剧集与续播目标。 */
+data class LocalPlaybackEntry(
+    val mediaId: Long,
+    val episodeNumber: Int?
+)
+
 data class AnimeDetailUiState(
     val anime: Anime? = null,
     val isLoading: Boolean = true,
@@ -91,7 +103,10 @@ class AnimeDetailViewModel(
     private val repository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
     private val animeId: Int,
-    private val searchUseCase: SearchUseCase
+    private val searchUseCase: SearchUseCase,
+    private val localMediaRepository: LocalMediaRepository,
+    private val webPlaybackHistoryRepository: WebPlaybackHistoryRepository,
+    playerRepository: PlayerRepository
 ) : ViewModel() {
 
     companion object {
@@ -106,6 +121,46 @@ class AnimeDetailViewModel(
         )
 
     private val _notesText = MutableStateFlow<String?>(null)
+
+    /**
+     * 详情页续播目标：只在「用户确认关联 + 文件仍在」的本地剧集里挑选。
+     * 未确认的自动匹配结果不进入详情页，避免把文件播错番。
+     */
+    val localPlayback: StateFlow<LocalPlaybackEntry?> = combine(
+        localMediaRepository.observeConfirmedEpisodesForAnime(animeId),
+        playerRepository.progress,
+        localMediaRepository.observeCompletedEpisodeNumbers(animeId)
+    ) { episodes, progress, completed ->
+        LocalPlaybackResume.pick(episodes, progress, completed.toSet())?.let { media ->
+            LocalPlaybackEntry(
+                mediaId = media.id,
+                episodeNumber = media.episodeNumber
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
+    /**
+     * 该番剧最近一次网页播放的续播目标。
+     * 只有从本详情页进入网页播放后写下的历史才带 animeId，全局入口的历史不参与。
+     */
+    val webResume: StateFlow<WebPlaybackResumeTarget?> = combine(
+        webPlaybackHistoryRepository.entries,
+        playerRepository.progress
+    ) { entries, progress ->
+        entries.filter { it.animeId == animeId }
+            .maxByOrNull { it.lastPlayedAt }
+            ?.let { entry ->
+                WebPlaybackResume.target(entry, progress[WebPlaybackResume.mediaKey(entry)])
+            }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
     private val _isEditingNotes = MutableStateFlow(false)
 
@@ -1269,7 +1324,19 @@ class AnimeDetailViewModel(
             val repository = AppContainer.getAnimeRepository()
             val settingsRepository = AppContainer.getSettingsRepository()
             val searchUseCase = SearchUseCase(repository)
-            return AnimeDetailViewModel(application, repository, settingsRepository, animeId, searchUseCase) as T
+            val localMediaRepository = AppContainer.getLocalMediaRepository()
+            val webPlaybackHistoryRepository = AppContainer.getWebPlaybackHistoryRepository()
+            val playerRepository = AppContainer.getPlayerRepository()
+            return AnimeDetailViewModel(
+                application,
+                repository,
+                settingsRepository,
+                animeId,
+                searchUseCase,
+                localMediaRepository,
+                webPlaybackHistoryRepository,
+                playerRepository
+            ) as T
         }
     }
 }

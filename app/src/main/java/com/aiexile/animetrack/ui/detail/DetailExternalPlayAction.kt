@@ -32,13 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.ui.components.AdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.AppFabMorphSurface
@@ -79,6 +77,8 @@ fun DetailExternalPlayAction(
     backdrop: Backdrop?,
     blurConfig: AdvancedBlurConfig,
     isResolving: Boolean,
+    /** 入口主文案：本地续播为「继续观看」，仅外部播放时为「外部播放」 */
+    title: String,
     episodeText: String,
     expandedWidth: Dp,
     expandedEndInset: Dp,
@@ -138,6 +138,7 @@ fun DetailExternalPlayAction(
                 ExternalPlayMorphContent(
                     progress = progress,
                     isResolving = isResolving,
+                    title = title,
                     episodeText = episodeText
                 )
             }
@@ -153,6 +154,7 @@ fun DetailExternalPlayAction(
 internal fun ExternalPlayMorphContent(
     progress: Float,
     isResolving: Boolean,
+    title: String,
     episodeText: String
 ) {
     val fabAlpha = (1f - progress / FabContentFadeOutFraction).coerceIn(0f, 1f)
@@ -167,7 +169,7 @@ internal fun ExternalPlayMorphContent(
                     .graphicsLayer { alpha = fabAlpha },
                 contentAlignment = Alignment.Center
             ) {
-                ExternalPlayIcon(isResolving = isResolving, iconSize = 24.dp)
+                ExternalPlayIcon(isResolving = isResolving, iconSize = 24.dp, contentDescription = title)
             }
         }
 
@@ -186,7 +188,7 @@ internal fun ExternalPlayMorphContent(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    ExternalPlayIcon(isResolving = isResolving, iconSize = 22.dp)
+                    ExternalPlayIcon(isResolving = isResolving, iconSize = 22.dp, contentDescription = title)
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -196,7 +198,7 @@ internal fun ExternalPlayMorphContent(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.external_player_watch),
+                        text = title,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -223,7 +225,11 @@ internal fun ExternalPlayMorphContent(
 
 /** 播放图标 / 解析中的加载指示器，FAB 与卡片内容共用同一视觉 */
 @Composable
-private fun ExternalPlayIcon(isResolving: Boolean, iconSize: Dp) {
+private fun ExternalPlayIcon(
+    isResolving: Boolean,
+    iconSize: Dp,
+    contentDescription: String
+) {
     if (isResolving) {
         CircularProgressIndicator(
             modifier = Modifier.size(18.dp),
@@ -233,7 +239,7 @@ private fun ExternalPlayIcon(isResolving: Boolean, iconSize: Dp) {
     } else {
         Icon(
             painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-            contentDescription = stringResource(R.string.external_player_watch),
+            contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(iconSize)
         )

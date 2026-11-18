@@ -124,7 +124,7 @@ import com.aiexile.animetrack.ui.schedule.ScheduleScreen
 import com.aiexile.animetrack.ui.settings.EmailBindDialog
 import com.aiexile.animetrack.ui.settings.SettingsScreen
 import com.aiexile.animetrack.ui.player.PlayerScreen
-import com.aiexile.animetrack.ui.player.WebDAVBrowseScreen
+import com.aiexile.animetrack.ui.player.webdav.WebDAVBrowseScreen
 import com.aiexile.animetrack.ui.favorites.FavoritesScreen
 import com.aiexile.animetrack.ui.timeline.TimelineScreen
 import dev.chrisbanes.haze.HazeState
@@ -570,10 +570,13 @@ fun AnimeTrackApp(
         AppLogManager.i("Nav", "页面: $route${if (extras.isEmpty()) "" else " ${extras.joinToString()}"}")
     }
 
-    // NavHost 容器背景随路由切换：沉浸式黑色页面（播放器/WebDAV 浏览）互转时容器底色同步变黑，
-    // 避免转场中页面缩放淡入露出浅色底造成白闪（浏览页退出动画观感与其他二级页不一致的根因）；
-    // 返回浅色页面时恢复主题背景，表现与二三级页面一致。currentBackStackEntry 在导航触发瞬间即更新，与转场同步
-    val navHostContainerColor = if (isImmersiveRoute(currentNavRoute?.destination?.route)) {
+    // NavHost 容器背景：只有在「黑底页 ↔ 黑底页」互转（播放器 ↔ WebDAV 浏览）时才切成黑，
+    // 避免转场中页面缩放淡入露出浅色底造成白闪；
+    // 从浅色页进入播放器时保持页面底色——否则退场页缩小后，四周空白会被填成黑色（详情页→播放器即如此）。
+    val immersiveToImmersive =
+        isImmersiveRoute(currentNavRoute?.destination?.route) &&
+            isImmersiveRoute(navController.previousBackStackEntry?.destination?.route)
+    val navHostContainerColor = if (immersiveToImmersive) {
         Color.Black
     } else {
         MaterialTheme.colorScheme.background
@@ -662,22 +665,36 @@ fun AnimeTrackApp(
                     val localMediaId = backStackEntry.arguments?.getString("localMediaId")
                         ?.toLongOrNull()
                     val webPlay = backStackEntry.arguments?.getString("webPlay") == "true"
+                    // 详情页进入时携带的共享元素命名空间：小窗封面 Morph 与详情页封面配对。
+                    // null 表示不是从详情页进入，不参与共享元素（避免误配主页列表里的同 key 封面）
+                    val sharedKeyPrefix = backStackEntry.arguments?.getString("sharedKeyPrefix")
                     PlayerScreen(
                         animeId = animeId,
                         initialLocalUri = localUri,
                         initialLocalTitle = localTitle,
                         initialLocalMediaId = localMediaId,
                         initialWebPlay = webPlay,
+                        sharedKeyPrefix = sharedKeyPrefix,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@composable,
                         onBack = { navController.popBackStack() },
                         onBrowseWebDAV = { navController.navigate(Routes.WEBDAV_BROWSE) },
                         onSelectLocalFile = { /* handled within PlayerScreen */ },
+                        onOpenAnimeDetail = {
+                            if (animeId > 0) {
+                                // 带上播放器拿到的命名空间，返回详情时封面才能原路飞回
+                                navController.navigate(
+                                    Routes.animeDetail(animeId, null, sharedKeyPrefix)
+                                )
+                            }
+                        },
                         navController = navController
                     )
                 }
 
                 // 本地媒体库
                 composable(Routes.LOCAL_MEDIA) {
-                    com.aiexile.animetrack.ui.player.LocalMediaLibraryScreen(
+                    com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen(
                         onBack = { navController.popBackStack() },
                         onPlayMedia = { mediaId ->
                             navController.navigate(Routes.player(0, localMediaId = mediaId))
@@ -686,11 +703,13 @@ fun AnimeTrackApp(
                 }
 
                 // 网页播放
-                composable(Routes.WEB_PLAYBACK) {
-                    com.aiexile.animetrack.ui.player.WebPlaybackScreen(
+                composable(Routes.WEB_PLAYBACK, arguments = Routes.webPlaybackArguments) { backStackEntry ->
+                    com.aiexile.animetrack.ui.player.web.WebPlaybackScreen(
                         onBack = { navController.popBackStack() },
-                        onOpenPlayer = {
-                            navController.navigate(Routes.player(0, webPlay = true))
+                        animeId = backStackEntry.arguments?.getInt("animeId") ?: 0,
+                        animeTitle = backStackEntry.arguments?.getString("animeTitle").orEmpty(),
+                        onOpenPlayer = { animeId ->
+                            navController.navigate(Routes.player(animeId, webPlay = true))
                         }
                     )
                 }

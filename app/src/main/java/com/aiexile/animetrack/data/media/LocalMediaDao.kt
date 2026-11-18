@@ -73,6 +73,21 @@ interface LocalMediaDao {
     )
     suspend fun getEpisodesForAnime(animeId: Int): List<LocalMediaEntity>
 
+    /**
+     * 详情页播放入口使用的剧集列表：只取用户确认过关联、文件仍在的正片。
+     * 未确认的自动匹配结果不进入详情页，避免播错番。
+     */
+    @Query(
+        "SELECT * FROM local_media WHERE matchedAnimeId = :animeId AND matchState = 'CONFIRMED' " +
+            "AND isMissing = 0 AND (episodeType IS NULL OR episodeType != 'EXTRA') " +
+            "AND (seasonNumber IS NULL OR seasonNumber != 99) " +
+            "ORDER BY COALESCE(seasonNumber, 1), COALESCE(episodeNumber, 9999), id"
+    )
+    fun observeConfirmedEpisodesForAnime(animeId: Int): Flow<List<LocalMediaEntity>>
+
+    @Query("SELECT episodeNumber FROM local_episode_progress WHERE animeId = :animeId")
+    fun observeCompletedEpisodeNumbers(animeId: Int): Flow<List<Int>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun markEpisodeCompleted(progress: LocalEpisodeProgressEntity)
 

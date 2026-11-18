@@ -82,6 +82,11 @@
     <string name="detail_unknown_episodes">Unknown episodes</string>
     <string name="detail_watched_progress_format">Ep %1$d / %2$d</string>
     <string name="detail_watched_only_format">Ep %1$d</string>
+    <string name="detail_play_continue">Continue watching</string>
+    <string name="detail_play_action">Play</string>
+    <string name="detail_play_local">Local file</string>
+    <string name="detail_play_source_title">Choose a source</string>
+    <string name="detail_play_web_subtitle">Enter a web address</string>
     <string name="detail_notes">Notes</string>
     <string name="detail_add_notes_hint">Add notes...</string>
     <string name="detail_click_to_add_notes">Tap to add notes...</string>

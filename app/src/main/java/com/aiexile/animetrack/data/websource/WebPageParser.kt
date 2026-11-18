@@ -1,6 +1,6 @@
 package com.aiexile.animetrack.data.websource
 
-import com.aiexile.animetrack.data.player.WebSourceClassifier
+import com.aiexile.animetrack.domain.playback.WebSourceClassifier
 import com.aiexile.animetrack.model.WebSourceChannel
 import com.aiexile.animetrack.model.WebSourceEpisode
 import com.aiexile.animetrack.model.WebSourcePage

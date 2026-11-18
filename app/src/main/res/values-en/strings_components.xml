@@ -288,8 +288,12 @@
     <string name="web_watch_position_total">Watched to %1$s / %2$s</string>
     <string name="web_watch_continue_next">Up next: %1$s</string>
     <string name="player_source_label">Source: %1$s</string>
+    <string name="player_source_line">Source · %1$s</string>
     <string name="player_speed_value">Speed %1$s×</string>
     <string name="player_current_episode">Current episode</string>
     <string name="player_no_episode_list">No episode list is available for this video.</string>
     <string name="player_local_source">Local file</string>
+    <string name="player_watched_progress">Watched %1$d/%2$d</string>
+    <string name="player_jump_current">Jump to current episode</string>
+    <string name="media_notification_channel_name">Video playback controls</string>
 </resources>

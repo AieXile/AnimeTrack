@@ -86,7 +86,7 @@
 
         <!-- 后台播放服务：锁屏/切后台持续播放 + 通知栏媒体控制 -->
         <service
-            android:name="com.aiexile.animetrack.data.player.PlaybackService"
+            android:name="com.aiexile.animetrack.data.player.service.PlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>

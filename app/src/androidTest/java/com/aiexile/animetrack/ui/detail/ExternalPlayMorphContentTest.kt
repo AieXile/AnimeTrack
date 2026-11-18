@@ -99,7 +99,12 @@ class ExternalPlayMorphContentTest {
     @Composable
     private fun OptimizedContent(progress: State<Float>, episode: String) {
         Box(frame(OptimizedTag)) {
-            ExternalPlayMorphContent(progress.value, false, episode)
+            ExternalPlayMorphContent(
+                progress.value,
+                false,
+                stringResource(R.string.external_player_watch),
+                episode
+            )
         }
     }
 

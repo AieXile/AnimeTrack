@@ -82,6 +82,11 @@
     <string name="detail_unknown_episodes">未知集數</string>
     <string name="detail_watched_progress_format">第 %1$d / %2$d 集</string>
     <string name="detail_watched_only_format">第 %1$d 集</string>
+    <string name="detail_play_continue">繼續觀看</string>
+    <string name="detail_play_action">播放</string>
+    <string name="detail_play_local">本機檔案</string>
+    <string name="detail_play_source_title">選擇播放來源</string>
+    <string name="detail_play_web_subtitle">輸入網址</string>
     <string name="detail_notes">備註</string>
     <string name="detail_add_notes_hint">新增備註...</string>
     <string name="detail_click_to_add_notes">點擊新增備註...</string>

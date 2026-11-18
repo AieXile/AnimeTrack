@@ -32,11 +32,11 @@ object Routes {
     const val UPDATE_NOTIFICATION = "updateNotification"
     const val WIDGET_GUIDE = "widgetGuide"
     const val DAILY_BROADCAST = "dailyBroadcast"
-    const val PLAYER = "player/{animeId}?localUri={localUri}&localTitle={localTitle}&localMediaId={localMediaId}&webPlay={webPlay}"
+    const val PLAYER = "player/{animeId}?localUri={localUri}&localTitle={localTitle}&localMediaId={localMediaId}&webPlay={webPlay}&sharedKeyPrefix={sharedKeyPrefix}"
     const val WEBDAV_BROWSE = "webdavBrowse"
     const val PLAYER_SETTINGS = "playerSettings"
     const val LOCAL_MEDIA = "localMedia"
-    const val WEB_PLAYBACK = "webPlayback"
+    const val WEB_PLAYBACK = "webPlayback?animeId={animeId}&animeTitle={animeTitle}"
     const val PLAYER_WEBDAV_CONFIG = "playerWebdavConfig"
     const val BANGUMI_PROXY = "bangumiProxy"
     const val USER_LOGIN = "userLogin"
@@ -83,16 +83,42 @@ object Routes {
         localUri: String? = null,
         localTitle: String? = null,
         localMediaId: Long? = null,
-        webPlay: Boolean = false
+        webPlay: Boolean = false,
+        /** 详情页共享元素命名空间：从详情页进入时携带，播放器小窗按同一 key 做封面 Morph */
+        sharedKeyPrefix: String? = null
     ): String {
         val query = buildList {
             localUri?.let { add("localUri=${android.net.Uri.encode(it)}") }
             localTitle?.let { add("localTitle=${android.net.Uri.encode(it)}") }
             localMediaId?.let { add("localMediaId=$it") }
             if (webPlay) add("webPlay=true")
+            // null 表示「不是从详情页进入」，不参与封面 Morph；空串是合法的默认命名空间
+            sharedKeyPrefix?.let { add("sharedKeyPrefix=${android.net.Uri.encode(it)}") }
         }
         return "player/$animeId" + if (query.isEmpty()) "" else "?${query.joinToString("&")}"
     }
+
+    /** 网页播放页路由；从详情页进入时携带番剧上下文，用于绑定历史与进度 */
+    fun webPlayback(animeId: Int? = null, animeTitle: String? = null): String {
+        val query = buildList {
+            animeId?.takeIf { it > 0 }?.let { add("animeId=$it") }
+            animeTitle?.takeIf { it.isNotBlank() }
+                ?.let { add("animeTitle=${android.net.Uri.encode(it)}") }
+        }
+        return "webPlayback" + if (query.isEmpty()) "" else "?${query.joinToString("&")}"
+    }
+
+    /** 网页播放页 navArguments */
+    val webPlaybackArguments = listOf(
+        navArgument("animeId") {
+            type = NavType.IntType
+            defaultValue = 0
+        },
+        navArgument("animeTitle") {
+            type = NavType.StringType
+            defaultValue = ""
+        }
+    )
 
     /** 详情页 navArguments */
     val animeDetailArguments = listOf(
@@ -154,6 +180,11 @@ object Routes {
             type = NavType.StringType
             nullable = true
             defaultValue = null
+        },
+        navArgument("sharedKeyPrefix") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
         }
     )
 
@@ -196,7 +227,9 @@ object Routes {
 
     /** 判断路由（可带参数）是否属于 pane 路由：按首段路由名匹配，忽略参数段 */
     fun isPaneRoute(route: String): Boolean =
-        paneRoutes.any { it.substringBefore('/') == route.substringBefore('/') }
+        paneRoutes.any { pane ->
+            pane.substringBefore('/') == route.substringBefore('/').substringBefore('?')
+        }
 
     /** 二级页面过渡对（parent → child），使用 Set<Pair> 避免重复 key 覆盖 */
     val secondaryTransitions = setOf(
