@@ -9,6 +9,7 @@ object LocalMediaScanState {
     const val IDLE = "IDLE"
     const val SCANNING = "SCANNING"
     const val COMPLETED = "COMPLETED"
+    const val CANCELLED = "CANCELLED"
     const val FAILED = "FAILED"
 }
 

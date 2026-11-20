@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,21 +28,31 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaPermissionState
-import com.aiexile.animetrack.data.media.LocalMediaScanState
+import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
+import com.aiexile.animetrack.data.media.LocalScanFailure
+import com.aiexile.animetrack.data.media.LocalScanPhase
 import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -136,10 +147,19 @@ fun LocalMediaLibraryScreen(
         )
     }
 
+    var reauthorizeSourceId by rememberSaveable { mutableStateOf<Long?>(null) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshPermissions() }
+
     val folderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
+        val originalSource = reauthorizeSourceId
+        reauthorizeSourceId = null
         uri ?: return@rememberLauncherForActivityResult
+        if (originalSource != null) {
+            viewModel.reauthorize(originalSource, uri)
+            return@rememberLauncherForActivityResult
+        }
         val displayName = uri.lastPathSegment
             ?.substringAfterLast(':')
             ?.takeIf { it.isNotBlank() }
@@ -170,8 +190,10 @@ fun LocalMediaLibraryScreen(
         )
     }
 
+    val pages = viewModel.mediaPages.collectAsLazyPagingItems()
     LocalMediaLibraryContent(
         state = state,
+        pages = pages,
         onBack = onBack,
         onPlayMedia = onPlayMedia,
         onAddFolder = { showAddHint = true },
@@ -179,6 +201,11 @@ fun LocalMediaLibraryScreen(
         onSelectSource = viewModel::selectSource,
         onDeleteSource = viewModel::deleteSource,
         onScanSelectedSource = viewModel::scanSelectedSource,
+        onCancelScan = viewModel::cancelSelectedScan,
+        onReauthorize = { source ->
+            reauthorizeSourceId = source.id
+            folderLauncher.launch(Uri.parse(source.treeUri))
+        },
         onMatchMedia = { media -> matchTarget = media }
     )
 }
@@ -195,7 +222,10 @@ internal fun LocalMediaLibraryContent(
     onSelectSource: (Long) -> Unit,
     onDeleteSource: (Long) -> Unit,
     onScanSelectedSource: () -> Unit,
-    onMatchMedia: (LocalMediaEntity) -> Unit = {}
+    onCancelScan: () -> Unit = {},
+    onReauthorize: (LocalMediaSourceEntity) -> Unit = {},
+    onMatchMedia: (LocalMediaEntity) -> Unit = {},
+    pages: LazyPagingItems<LocalMediaEntity>
 ) {
     AppScaffold(
         title = stringResource(R.string.local_media_title),
@@ -209,10 +239,13 @@ internal fun LocalMediaLibraryContent(
             }
         }
     ) { chrome ->
+        val listState = key(state.selectedSourceId) { rememberLazyListState() }
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(chrome.layout),
+                .then(chrome.layout)
+                .testTag("local-media-list"),
             contentPadding = chrome.content
         ) {
             item {
@@ -233,10 +266,38 @@ internal fun LocalMediaLibraryContent(
                 }
             }
 
-            if (state.error != null) {
-                item {
+            val revoked = state.sources.firstOrNull {
+                it.id == state.selectedSourceId && it.permissionState == LocalMediaPermissionState.REVOKED
+            } ?: state.sources.firstOrNull { it.permissionState == LocalMediaPermissionState.REVOKED }
+            if (revoked != null) {
+                item(key = "reauthorize-${revoked.id}") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.local_media_reauthorize_hint, revoked.displayName),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { onReauthorize(revoked) }, modifier = Modifier.testTag("local-reauthorize")) {
+                            Text(stringResource(R.string.local_media_reauthorize))
+                        }
+                    }
+                }
+            }
+
+            state.error?.let { error ->
+                item(key = "local-media-error") {
                     Text(
-                        text = state.error ?: "",
+                        text = stringResource(when (error) {
+                            LocalMediaActionError.ADD_FOLDER -> R.string.local_media_add_failed
+                            LocalMediaActionError.WRONG_FOLDER -> R.string.local_media_wrong_folder
+                            LocalMediaActionError.REAUTHORIZE -> R.string.local_media_permission_revoked
+                            LocalMediaActionError.SCAN_REQUEST -> R.string.local_media_scan_request_failed
+                            LocalMediaActionError.REMOVE_SOURCE -> R.string.local_media_remove_failed
+                            LocalMediaActionError.MATCH -> R.string.local_media_match_failed
+                        }),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -296,8 +357,6 @@ internal fun LocalMediaLibraryContent(
                                 text = when {
                                     source.permissionState != LocalMediaPermissionState.GRANTED ->
                                         stringResource(R.string.local_media_permission_revoked)
-                                    source.scanState == LocalMediaScanState.SCANNING ->
-                                        stringResource(R.string.local_media_scanning)
                                     else -> stringResource(
                                         R.string.local_media_video_count,
                                         source.videoCount
@@ -318,43 +377,44 @@ internal fun LocalMediaLibraryContent(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
             }
 
-            state.selectedSourceId?.let { selectedId ->
-                item(key = "scan-$selectedId") {
+            state.sources.firstOrNull { it.id == state.selectedSourceId }?.let { source ->
+                item(key = "scan-${source.id}") {
+                    val scan = state.scan
+                    val active = scan?.isActive == true
+                    val message = when (scan?.phase) {
+                        LocalScanPhase.QUEUED -> stringResource(R.string.local_media_scan_queued)
+                        LocalScanPhase.SCANNING -> stringResource(R.string.local_media_scanning)
+                        LocalScanPhase.MATCHING -> stringResource(R.string.local_media_scan_matching)
+                        LocalScanPhase.CANCELLED -> stringResource(R.string.local_media_scan_cancelled)
+                        LocalScanPhase.FAILED -> when (scan.failure) {
+                            LocalScanFailure.PERMISSION -> stringResource(R.string.local_media_permission_revoked)
+                            LocalScanFailure.READ -> stringResource(R.string.local_media_scan_read_failed)
+                            else -> stringResource(R.string.local_media_scan_failed)
+                        }
+                        else -> stringResource(R.string.local_media_video_count, source.videoCount)
+                    }
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.local_media_scan_summary),
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            if (state.isScanning) {
+                            Text(stringResource(R.string.local_media_scan_summary), style = MaterialTheme.typography.titleSmall)
+                            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (scan != null && (scan.phase == LocalScanPhase.SCANNING || scan.phase == LocalScanPhase.MATCHING)) {
                                 Text(
-                                    text = "${state.scannedFiles} · ${state.currentPath}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(
-                                        R.string.local_media_scan_count,
-                                        state.scannedFiles,
-                                        state.videoFiles
-                                    ),
+                                    stringResource(R.string.local_media_scan_count, scan.scannedFiles, scan.videoFiles),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        if (state.isScanning) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        } else {
-                            TextButton(onClick = onScanSelectedSource) {
+                        if (active) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                            TextButton(onClick = onCancelScan, modifier = Modifier.testTag("local-scan-cancel")) {
+                                Text(stringResource(R.string.local_media_scan_cancel))
+                            }
+                        } else if (source.permissionState == LocalMediaPermissionState.GRANTED) {
+                            TextButton(onClick = onScanSelectedSource, modifier = Modifier.testTag("local-scan-start")) {
                                 Text(stringResource(R.string.local_media_scan_again))
                             }
                         }
@@ -370,21 +430,46 @@ internal fun LocalMediaLibraryContent(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
                     )
                 }
+                val selectedId = state.selectedSourceId
                 items(
-                    items = state.media.filterNot { it.isMissing },
-                    key = { "media-${it.id}" }
-                ) { media ->
-                    LocalMediaRow(
-                        media = media,
-                        animeTitle = media.matchedAnimeId?.let(state.animeTitles::get),
-                        onPlay = { onPlayMedia(media.id) },
-                        onMatch = { onMatchMedia(media) }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+                    count = pages.itemCount,
+                    key = { index -> pages.peek(index)?.let { "media-${it.id}" } ?: "placeholder-$index" },
+                    contentType = { "media" }
+                ) { index ->
+                    val media = pages[index]?.takeIf { it.sourceId == selectedId }
+                    if (media != null) MediaListItem(media, state.animeTitles, onPlayMedia, onMatchMedia)
+                    else Spacer(Modifier.fillMaxWidth().height(72.dp))
+                }
+                val failed = pages.loadState.refresh is LoadState.Error || pages.loadState.append is LoadState.Error ||
+                    pages.loadState.prepend is LoadState.Error
+                if (failed) {
+                    item(key = "media-load-error") {
+                        TextButton(onClick = pages::retry) { Text(stringResource(R.string.local_media_list_retry)) }
+                    }
+                } else if (pages.loadState.refresh is LoadState.Loading && pages.itemCount == 0) {
+                    item(key = "media-loading") {
+                        CircularProgressIndicator(modifier = Modifier.padding(20.dp).size(24.dp))
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MediaListItem(
+    media: LocalMediaEntity,
+    animeTitles: Map<Int, String>,
+    onPlayMedia: (Long) -> Unit,
+    onMatchMedia: (LocalMediaEntity) -> Unit
+) {
+    LocalMediaRow(
+        media = media,
+        animeTitle = media.matchedAnimeId?.let(animeTitles::get),
+        onPlay = { onPlayMedia(media.id) },
+        onMatch = { onMatchMedia(media) }
+    )
+    HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
 }
 
 @Composable

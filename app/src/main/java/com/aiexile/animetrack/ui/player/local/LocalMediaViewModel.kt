@@ -3,248 +3,194 @@ package com.aiexile.animetrack.ui.player.local
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.work.WorkManager
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.media.LocalMediaEntity
-import com.aiexile.animetrack.data.media.LocalMediaMatchState
-import com.aiexile.animetrack.data.media.LocalMediaPermissionState
 import com.aiexile.animetrack.data.media.LocalMediaRepository
-import com.aiexile.animetrack.data.media.LocalMediaScanState
+import com.aiexile.animetrack.data.media.LocalMediaScanScheduler
+import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
+import com.aiexile.animetrack.data.media.LocalScanStatus
 import com.aiexile.animetrack.di.AppContainer
-import com.aiexile.animetrack.domain.playback.LocalMediaMatcher
-import com.aiexile.animetrack.model.Anime
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
- data class LocalMediaUiState(
-    val sources: List<com.aiexile.animetrack.data.media.LocalMediaSourceEntity> = emptyList(),
+enum class LocalMediaActionError { ADD_FOLDER, WRONG_FOLDER, REAUTHORIZE, SCAN_REQUEST, REMOVE_SOURCE, MATCH }
+
+internal data class LocalMediaUiState(
+    val sources: List<LocalMediaSourceEntity> = emptyList(),
     val selectedSourceId: Long? = null,
-    val media: List<LocalMediaEntity> = emptyList(),
     val animeTitles: Map<Int, String> = emptyMap(),
-    /** 匹配确认候选：番剧 id → 标题 */
     val animeOptions: List<Pair<Int, String>> = emptyList(),
-    val isScanning: Boolean = false,
-    val scannedFiles: Int = 0,
-    val videoFiles: Int = 0,
-    val currentPath: String = "",
-    val error: String? = null
+    val scan: LocalScanStatus? = null,
+    val error: LocalMediaActionError? = null
 )
 
-class LocalMediaViewModel(
+class LocalMediaViewModel internal constructor(
     private val application: Application,
-    private val localMediaRepository: LocalMediaRepository,
-    private val animeRepository: AnimeRepository
+    private val mediaRepository: LocalMediaRepository,
+    animeRepository: AnimeRepository,
+    private val scheduler: LocalMediaScanScheduler,
+    private val savedState: SavedStateHandle
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LocalMediaUiState())
-    val uiState: StateFlow<LocalMediaUiState> = _uiState.asStateFlow()
+    internal val uiState: StateFlow<LocalMediaUiState> = _uiState.asStateFlow()
 
-    private var mediaJob: Job? = null
+    @OptIn(ExperimentalCoroutinesApi::class)
+    internal val mediaPages: Flow<PagingData<LocalMediaEntity>> = uiState
+        .map { it.selectedSourceId }
+        .distinctUntilChanged()
+        .flatMapLatest { id -> if (id == null) flowOf(PagingData.empty()) else mediaRepository.pagePresentMedia(id) }
+        .cachedIn(viewModelScope)
+
+    private var selectionJob: Job? = null
+    private var permissionCheckJob: Job? = null
 
     init {
         viewModelScope.launch {
             animeRepository.getAllAnimes().collect { animes ->
-                _uiState.update {
-                    it.copy(animeOptions = animes.map { anime -> anime.id to anime.title })
+                val (options, titles) = withContext(Dispatchers.Default) {
+                    val entries = animes.map { it.id to it.title }
+                    entries to entries.toMap()
                 }
+                _uiState.update { it.copy(animeOptions = options, animeTitles = titles) }
             }
         }
         viewModelScope.launch {
-            localMediaRepository.observeSources().collect { sources ->
-                val previousSelected = _uiState.value.selectedSourceId
-                val selected = previousSelected
-                    ?.takeIf { id -> sources.any { it.id == id } }
-                    ?: sources.firstOrNull()?.id
-                _uiState.update { it.copy(sources = sources, selectedSourceId = selected) }
-                if (selected != null && selected != previousSelected) {
-                    observeMedia(selected)
+            var initial = true
+            mediaRepository.observeSources().collect { sources ->
+                val previous = _uiState.value.selectedSourceId ?: savedState.get<Long>(SELECTED_SOURCE)
+                val selected = previous?.takeIf { id -> sources.any { it.id == id } } ?: sources.firstOrNull()?.id
+                val changed = _uiState.value.selectedSourceId != selected
+                _uiState.update {
+                    if (changed) it.copy(sources = sources, selectedSourceId = selected, scan = null)
+                    else it.copy(sources = sources)
+                }
+                if (changed) observeSelection(selected)
+                if (initial) {
+                    initial = false
+                    refreshPermissions()
                 }
             }
         }
     }
 
-    fun addFolder(uri: Uri, displayName: String) {
-        viewModelScope.launch {
+    fun refreshPermissions() {
+        val sources = _uiState.value.sources
+        if (sources.isEmpty() || permissionCheckJob?.isActive == true) return
+        permissionCheckJob = viewModelScope.launch {
             try {
-                application.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-                val source = localMediaRepository.addOrGetSource(uri, displayName)
-                selectSource(source.id)
-                scanSource(source.id)
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "无法添加本地文件夹") }
+                mediaRepository.refreshMissingGrants(sources)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // 系统暂时不可用时保留现状，扫描时会再次检查授权。
             }
         }
+    }
+
+    fun addFolder(uri: Uri, displayName: String) = launchAction(LocalMediaActionError.ADD_FOLDER) {
+        val source = withContext(Dispatchers.IO) {
+            application.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            mediaRepository.addOrGetSource(uri, displayName)
+        }
+        selectSource(source.id)
+        scheduler.enqueue(source.id)
+    }
+
+    fun reauthorize(sourceId: Long, uri: Uri) = launchAction(LocalMediaActionError.REAUTHORIZE) {
+        if (!mediaRepository.reauthorizeSource(sourceId, uri)) {
+            _uiState.update { it.copy(error = LocalMediaActionError.WRONG_FOLDER) }
+            return@launchAction
+        }
+        selectSource(sourceId)
+        scheduler.enqueue(sourceId)
     }
 
     fun selectSource(sourceId: Long) {
-        _uiState.update { it.copy(selectedSourceId = sourceId, error = null) }
-        observeMedia(sourceId)
+        if (_uiState.value.selectedSourceId == sourceId) return
+        _uiState.update { it.copy(selectedSourceId = sourceId, scan = null, error = null) }
+        observeSelection(sourceId)
     }
 
-    fun scanSelectedSource() {
-        _uiState.value.selectedSourceId?.let(::scanSource)
+    fun scanSelectedSource() = launchAction(LocalMediaActionError.SCAN_REQUEST) {
+        _uiState.value.selectedSourceId?.let { scheduler.enqueue(it) }
     }
 
-    private fun scanSource(sourceId: Long) {
-        if (_uiState.value.isScanning) return
+    fun cancelSelectedScan() = launchAction(LocalMediaActionError.SCAN_REQUEST) {
+        _uiState.value.selectedSourceId?.let { scheduler.cancel(it) }
+    }
+
+    fun confirmMatch(mediaId: Long, animeId: Int?) = launchAction(LocalMediaActionError.MATCH) {
+        mediaRepository.updateUserMatch(mediaId, animeId)
+    }
+
+    fun clearMatch(mediaId: Long) = confirmMatch(mediaId, null)
+
+    fun deleteSource(sourceId: Long) = launchAction(LocalMediaActionError.REMOVE_SOURCE) {
+        scheduler.cancel(sourceId)
+        mediaRepository.getSource(sourceId)?.let { mediaRepository.deleteSource(it) }
+    }
+
+    private fun launchAction(error: LocalMediaActionError, action: suspend () -> Unit) {
         viewModelScope.launch {
-            val source = localMediaRepository.observeSources().first().firstOrNull { it.id == sourceId }
-                ?: return@launch
-            _uiState.update {
-                it.copy(
-                    selectedSourceId = sourceId,
-                    isScanning = true,
-                    scannedFiles = 0,
-                    videoFiles = 0,
-                    currentPath = "",
-                    error = null
-                )
-            }
+            _uiState.update { it.copy(error = null) }
             try {
-                localMediaRepository.scanSource(source) { progress ->
-                    _uiState.update {
-                        it.copy(
-                            scannedFiles = progress.scannedFiles,
-                            videoFiles = progress.videoFiles,
-                            currentPath = progress.currentPath
-                        )
-                    }
-                }
-                autoMatch(sourceId)
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "扫描失败") }
-            } finally {
-                _uiState.update { it.copy(isScanning = false) }
+                action()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _uiState.update { it.copy(error = error) }
             }
         }
     }
 
-    /** 先本地标题匹配，再对唯一未匹配标题请求 Bangumi，避免按文件重复请求。 */
-    private suspend fun autoMatch(sourceId: Long) {
-        val animes = animeRepository.getAllAnimes().first()
-        val media = localMediaRepository.observeMedia(sourceId).first()
-        val remoteCache = mutableMapOf<String, List<com.aiexile.animetrack.data.network.BangumiSubject>>()
-        var remoteQueries = 0
-
-        for (item in media) {
-            if (item.isMissing || item.matchState == LocalMediaMatchState.IGNORED || item.isUserOverride) continue
-            val title = item.parsedTitle.orEmpty()
-            if (title.isBlank()) continue
-
-            val localMatch = LocalMediaMatcher.match(title, item.seasonNumber, animes)
-            if (localMatch.anime != null && localMatch.confidence >= 0.90f) {
-                localMediaRepository.updateMatch(
-                    mediaId = item.id,
-                    animeId = localMatch.anime.id,
-                    confidence = localMatch.confidence,
-                    confirmed = false,
-                    userOverride = false
-                )
-                continue
-            }
-
-            if (remoteQueries >= MAX_REMOTE_QUERIES) continue
-            val candidates = remoteCache.getOrPut(title) {
-                remoteQueries++
-                runCatching { animeRepository.searchBangumi(title) }.getOrDefault(emptyList())
-            }
-            val matched = candidates.firstNotNullOfOrNull { candidate ->
-                animes.firstOrNull { anime ->
-                    anime.bangumiId == candidate.id ||
-                        normalize(anime.title) == normalize(candidate.displayName)
-                }
-            }
-            if (matched != null) {
-                localMediaRepository.updateMatch(
-                    mediaId = item.id,
-                    animeId = matched.id,
-                    confidence = 0.91f,
-                    confirmed = false,
-                    userOverride = false
-                )
+    private fun observeSelection(sourceId: Long?) {
+        savedState[SELECTED_SOURCE] = sourceId
+        selectionJob?.cancel()
+        if (sourceId == null) return
+        selectionJob = viewModelScope.launch {
+            scheduler.observe(sourceId).collect { scan ->
+                _uiState.update { if (it.selectedSourceId == sourceId) it.copy(scan = scan) else it }
             }
         }
-    }
-
-    fun confirmMatch(mediaId: Long, animeId: Int?) {
-        viewModelScope.launch {
-            localMediaRepository.updateMatch(
-                mediaId = mediaId,
-                animeId = animeId,
-                confidence = if (animeId == null) 0f else 1f,
-                confirmed = true,
-                userOverride = true
-            )
-        }
-    }
-
-    /** 解除错误关联；仍保留用户覆盖标记，重扫/自动匹配不会再次改回 */
-    fun clearMatch(mediaId: Long) {
-        viewModelScope.launch {
-            localMediaRepository.updateMatch(
-                mediaId = mediaId,
-                animeId = null,
-                confidence = 0f,
-                confirmed = true,
-                userOverride = true
-            )
-        }
-    }
-
-    fun deleteSource(sourceId: Long) {
-        viewModelScope.launch {
-            val source = localMediaRepository.observeSources().first().firstOrNull { it.id == sourceId }
-                ?: return@launch
-            localMediaRepository.deleteSource(source)
-        }
-    }
-
-    fun clearError() = _uiState.update { it.copy(error = null) }
-
-    private fun observeMedia(sourceId: Long) {
-        mediaJob?.cancel()
-        mediaJob = viewModelScope.launch {
-            localMediaRepository.observeMedia(sourceId).collect { media ->
-                val ids = media.mapNotNull { it.matchedAnimeId }.toSet()
-                val titles = animeRepository.getAllAnimes().first()
-                    .filter { it.id in ids }
-                    .associate { it.id to it.title }
-                _uiState.update { it.copy(media = media, animeTitles = titles) }
-            }
-        }
-    }
-
-    private fun normalize(value: String): String =
-        value.lowercase().replace(Regex("[\\s._·•:：,，!！?？()（）\\[\\]{}【】\\-–—~～]+"), "")
-
-    override fun onCleared() {
-        mediaJob?.cancel()
-        super.onCleared()
     }
 
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
+            val application = AppContainer.getApplication()
             return LocalMediaViewModel(
-                application = AppContainer.getApplication(),
-                localMediaRepository = AppContainer.getLocalMediaRepository(),
-                animeRepository = AppContainer.getAnimeRepository()
+                application,
+                AppContainer.getLocalMediaRepository(),
+                AppContainer.getAnimeRepository(),
+                LocalMediaScanScheduler(WorkManager.getInstance(application)),
+                extras.createSavedStateHandle()
             ) as T
         }
     }
 
     private companion object {
-        const val MAX_REMOTE_QUERIES = 30
+        const val SELECTED_SOURCE = "localMediaSourceId"
     }
 }

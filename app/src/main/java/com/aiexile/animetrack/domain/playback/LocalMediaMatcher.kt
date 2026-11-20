@@ -61,7 +61,7 @@ object LocalMediaMatcher {
         }
     }
 
-    private fun normalize(value: String): String = value
+    internal fun normalize(value: String): String = value
         .lowercase(Locale.ROOT)
         .replace(Regex("[\\s._·•:：,，!！?？()（）\\[\\]{}【】\\-–—~～]+"), "")
 }
