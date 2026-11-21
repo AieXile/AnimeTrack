@@ -117,6 +117,7 @@
     <string name="player_webdav_media_root">Media root</string>
     <string name="player_webdav_media_root_hint">Uses the server root when unset</string>
     <string name="player_webdav_last_browse">Recent location</string>
+    <string name="player_webdav_recent_location">Recent location: %1$s</string>
     <string name="player_webdav_clear_memory">Clear browse memory</string>
 
     <!-- PlayerSettingsScreen -->
@@ -331,6 +332,9 @@
     <string name="player_failure_drm">Could not play the protected video. Check your playback license.</string>
     <string name="player_failure_invalid_address">The playback address is invalid or outside the configured media folder.</string>
     <string name="player_failure_webdav_prepare">Could not prepare the WebDAV video. Check the server settings and try again.</string>
+    <string name="player_webdav_subtitle_too_large">Oversized external subtitles were skipped.</string>
+    <string name="player_webdav_subtitle_skipped">An external subtitle could not be loaded or exceeded the size limit. Video playback continues.</string>
+    <string name="player_webdav_subtitle_http_failed">An external subtitle could not be downloaded (HTTP %1$d). Video playback continues.</string>
     <string name="player_failure_no_local_media">No playable local videos found. Rescan the library.</string>
     <string name="player_failure_service">Could not connect to the playback service. Go back and try again.</string>
     <string name="player_failure_io">Could not read the video data. Check the file or the playback source.</string>

@@ -117,6 +117,7 @@
     <string name="player_webdav_media_root">媒體根目錄</string>
     <string name="player_webdav_media_root_hint">未設定時使用伺服器根目錄</string>
     <string name="player_webdav_last_browse">最近瀏覽</string>
+    <string name="player_webdav_recent_location">最近瀏覽：%1$s</string>
     <string name="player_webdav_clear_memory">清除瀏覽記憶</string>
 
     <!-- PlayerSettingsScreen -->
@@ -329,6 +330,9 @@
     <string name="player_failure_drm">無法播放受保護的影片，請檢查播放授權。</string>
     <string name="player_failure_invalid_address">播放網址無效，或不在已設定的媒體資料夾內。</string>
     <string name="player_failure_webdav_prepare">無法準備 WebDAV 影片，請檢查伺服器設定後再試。</string>
+    <string name="player_webdav_subtitle_too_large">已略過體積過大的外掛字幕。</string>
+    <string name="player_webdav_subtitle_skipped">有外掛字幕載入失敗或超過大小限制，影片仍會繼續播放。</string>
+    <string name="player_webdav_subtitle_http_failed">有外掛字幕下載失敗（HTTP %1$d），影片仍會繼續播放。</string>
     <string name="player_failure_no_local_media">找不到可播放的本機影片，請重新掃描媒體庫。</string>
     <string name="player_failure_service">無法連線至播放服務，請返回後再試。</string>
     <string name="player_failure_io">讀取影片資料失敗，請檢查檔案或播放來源。</string>

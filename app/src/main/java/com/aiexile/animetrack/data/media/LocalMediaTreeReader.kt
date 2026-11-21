@@ -64,7 +64,8 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
             val directory = pending.removeLast()
             if (!visited.add(directory.documentId)) throw IOException("文件夹目录结构异常")
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, directory.documentId)
-            queryChildren(childrenUri).use { cursor ->
+            (resolver.queryLocalDocuments(childrenUri, PROJECTION)
+                ?: throw IOException("无法读取文件夹内容")).use { cursor ->
                 cursor.requireComplete()
                 val idColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
@@ -101,20 +102,6 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
         }
     }
 
-    private suspend fun queryChildren(uri: Uri): Cursor = suspendCancellableCoroutine { continuation ->
-        val signal = CancellationSignal()
-        continuation.invokeOnCancellation { signal.cancel() }
-        if (!continuation.isActive) return@suspendCancellableCoroutine
-        val cursor = try {
-            resolver.query(uri, PROJECTION, null, null, null, signal)
-                ?: throw IOException("无法读取文件夹内容")
-        } catch (e: Exception) {
-            continuation.resumeWithException(e)
-            return@suspendCancellableCoroutine
-        }
-        continuation.resume(cursor) { _, result, _ -> result.close() }
-    }
-
     private fun Cursor.requireComplete() {
         val status = extras
         if (status.getBoolean(DocumentsContract.EXTRA_LOADING) ||
@@ -137,3 +124,18 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
         )
     }
 }
+
+/** 目录查询随协程取消；结果尚未交给调用方时由这里关闭游标。 */
+internal suspend fun ContentResolver.queryLocalDocuments(uri: Uri, projection: Array<String>): Cursor? =
+    suspendCancellableCoroutine { continuation ->
+        val signal = CancellationSignal()
+        continuation.invokeOnCancellation { signal.cancel() }
+        if (!continuation.isActive) return@suspendCancellableCoroutine
+        val cursor = try {
+            query(uri, projection, null, null, null, signal)
+        } catch (e: Exception) {
+            continuation.resumeWithException(e)
+            return@suspendCancellableCoroutine
+        }
+        continuation.resume(cursor) { _, result, _ -> result?.close() }
+    }

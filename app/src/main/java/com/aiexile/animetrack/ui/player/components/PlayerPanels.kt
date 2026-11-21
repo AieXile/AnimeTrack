@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -198,8 +199,35 @@ internal fun ColumnScope.TrackSelectionContent(
     player: Player,
     requestClose: () -> Unit
 ) {
-    // 打开时快照轨道组（模态短生命周期，无需持续订阅）
-    val groups = remember(trackType) {
+    if (trackType == C.TRACK_TYPE_TEXT) {
+        val choices = rememberPlayerTrackChoices(player, trackType)
+        if (choices.isEmpty()) {
+            Text(
+                text = stringResource(R.string.player_track_none_available),
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+        } else {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                choices.forEach { choice ->
+                    TrackPanelItem(
+                        label = choice.label,
+                        selected = choice.selected,
+                        subtitleLanguage = choice.subtitleLanguage,
+                        preserveLabelEnd = true
+                    ) {
+                        choice.select()
+                        requestClose()
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    // 音轨沿用原来的快照和选择方式。
+    val groups = remember(player, trackType) {
         player.currentTracks.groups.filter { it.type == trackType }
     }
 
@@ -216,23 +244,6 @@ internal fun ColumnScope.TrackSelectionContent(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 字幕轨提供「关闭」选项（与 media3 官方弹窗行为一致）
-            if (trackType == C.TRACK_TYPE_TEXT) {
-                val disabled =
-                    player.trackSelectionParameters.disabledTrackTypes.contains(trackType)
-                TrackPanelItem(
-                    label = stringResource(R.string.player_track_disable),
-                    selected = disabled,
-                    onClick = {
-                        player.trackSelectionParameters =
-                            player.trackSelectionParameters.buildUpon()
-                                .setTrackTypeDisabled(trackType, true)
-                                .build()
-                        requestClose()
-                    }
-                )
-            }
-
             groups.forEach { group ->
                 repeat(group.length) { trackIndex ->
                     val selected = group.isTrackSelected(trackIndex)
@@ -303,6 +314,15 @@ internal fun TrackPanelItem(
     label: String,
     selected: Boolean,
     onClick: () -> Unit
+) = TrackPanelItem(label, selected, subtitleLanguage = null, preserveLabelEnd = false, onClick = onClick)
+
+@Composable
+private fun TrackPanelItem(
+    label: String,
+    selected: Boolean,
+    subtitleLanguage: String?,
+    preserveLabelEnd: Boolean,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -316,15 +336,29 @@ internal fun TrackPanelItem(
             .padding(vertical = 14.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            fontSize = 15.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.65f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        val labelColor = if (selected) Color.White else Color.White.copy(alpha = 0.65f)
+        val labelWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+        if (preserveLabelEnd) {
+            PlayerSubtitleTrackLabel(
+                label = label,
+                language = subtitleLanguage,
+                titleStyle = TextStyle(fontSize = 15.sp, fontWeight = labelWeight),
+                detailStyle = TextStyle(fontSize = 12.sp),
+                titleColor = labelColor,
+                detailColor = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Text(
+                text = label,
+                fontSize = 15.sp,
+                fontWeight = labelWeight,
+                color = labelColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
         if (selected) {
             Icon(
                 painter = rememberAppIconPainter(AppIcon.CHECK),

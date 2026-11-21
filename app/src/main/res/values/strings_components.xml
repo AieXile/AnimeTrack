@@ -117,6 +117,7 @@
     <string name="player_webdav_media_root">媒体根目录</string>
     <string name="player_webdav_media_root_hint">未设置时使用服务器根目录</string>
     <string name="player_webdav_last_browse">最近浏览</string>
+    <string name="player_webdav_recent_location">最近浏览：%1$s</string>
     <string name="player_webdav_clear_memory">清除浏览记忆</string>
 
     <!-- PlayerSettingsScreen -->
@@ -329,6 +330,9 @@
     <string name="player_failure_drm">无法播放受保护的视频，请检查播放授权。</string>
     <string name="player_failure_invalid_address">播放地址无效或不在已配置的媒体目录内。</string>
     <string name="player_failure_webdav_prepare">无法准备 WebDAV 视频，请检查服务器配置后重试。</string>
+    <string name="player_webdav_subtitle_too_large">已跳过体积过大的外挂字幕。</string>
+    <string name="player_webdav_subtitle_skipped">有外挂字幕加载失败或超过大小限制，视频继续播放。</string>
+    <string name="player_webdav_subtitle_http_failed">有外挂字幕下载失败（HTTP %1$d），视频继续播放。</string>
     <string name="player_failure_no_local_media">找不到可播放的本地视频，请重新扫描媒体库。</string>
     <string name="player_failure_service">无法连接播放服务，请返回后重试。</string>
     <string name="player_failure_io">读取视频数据失败，请检查文件或播放来源。</string>

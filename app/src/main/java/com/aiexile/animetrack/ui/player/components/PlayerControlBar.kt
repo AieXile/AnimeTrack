@@ -51,7 +51,7 @@ import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 
 private val ControlsBarColor = Color.Black.copy(alpha = 0.5f)
-private val TopPlaybackActionIconSize = 24.dp
+private val TopPlaybackActionIconSize = 22.dp
 
 @Composable
 internal fun TopControlBar(

@@ -33,6 +33,10 @@ internal object WebDavPlaybackIdentity {
     fun sameOrigin(first: HttpUrl, second: HttpUrl): Boolean =
         first.scheme == second.scheme && first.host == second.host && first.port == second.port
 
+    fun sameDirectory(file: HttpUrl, directory: HttpUrl): Boolean =
+        sameOrigin(file, directory) && !file.encodedPath.endsWith('/') &&
+            pathSegments(file).dropLast(1) == pathSegments(directory)
+
     fun isWithin(candidate: HttpUrl, root: HttpUrl): Boolean {
         if (!sameOrigin(candidate, root)) return false
         val rootPath = pathSegments(root)

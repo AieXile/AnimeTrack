@@ -6,8 +6,7 @@ import java.security.SecureRandom
 /**
  * HTTP Digest 认证（RFC 2617）Authorization 头构建。
  *
- * 仅支持 MD5 算法与 qop=auth（服务器侧最普遍的组合）；auth-int 与 SHA-256 等暂不支持，
- * 不支持时返回 null 由调用方回退 Basic。
+ * 支持 MD5 / MD5-sess 与 qop=auth/auth-int；播放 GET 没有请求体，auth-int 的实体摘要为空。
  */
 internal object DigestAuth {
 
@@ -24,9 +23,9 @@ internal object DigestAuth {
         val realm = params["realm"] ?: return null
         val nonce = params["nonce"] ?: return null
         val algorithm = params["algorithm"] ?: "MD5"
-        if (!algorithm.equals("MD5", ignoreCase = true)) return null
+        val isSess = algorithm.equals("MD5-sess", ignoreCase = true)
+        if (!algorithm.equals("MD5", ignoreCase = true) && !isSess) return null
 
-        // 服务器可能给出 qop="auth,auth-int"，取我们支持的 auth；未提供 qop 则按旧版 RFC 2069
         val qop = params["qop"]
             ?.split(',')
             ?.map { it.trim() }
@@ -35,12 +34,16 @@ internal object DigestAuth {
         val nc = "00000001"
         val cnonce = randomHex(8)
 
-        val ha1 = md5Hex("$username:$realm:$password")
-        val ha2 = md5Hex("$method:$uri")
+        val ha1Base = md5Hex("$username:$realm:$password")
+        val ha1 = if (isSess) md5Hex("$ha1Base:$nonce:$cnonce") else ha1Base
+        val ha2 = if (qop.equals("auth-int", ignoreCase = true)) null else md5Hex("$method:$uri")
+        if (qop == null && ha2 == null) return null
         val responseHash = if (qop == null) {
-            md5Hex("$ha1:$nonce:$ha2")
+            md5Hex("$ha1:$nonce:${checkNotNull(ha2)}")
         } else {
-            md5Hex("$ha1:$nonce:$nc:$cnonce:$qop:$ha2")
+            // auth-int requires the entity hash; all playback requests are empty GETs.
+            val effectiveHa2 = if (qop.equals("auth-int", true)) md5Hex("$method:$uri:${md5Hex("")}") else checkNotNull(ha2)
+            md5Hex("$ha1:$nonce:$nc:$cnonce:$qop:$effectiveHa2")
         }
 
         return buildString {

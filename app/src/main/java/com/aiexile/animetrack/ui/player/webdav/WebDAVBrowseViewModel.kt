@@ -11,7 +11,9 @@ import com.aiexile.animetrack.data.player.VideoFormats
 import com.aiexile.animetrack.data.player.webdav.WebDavDirectoryCache
 import com.aiexile.animetrack.di.AppContainer
 import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,21 +61,28 @@ class WebDAVBrowseViewModel(
 
     private val _uiState = MutableStateFlow(BrowseUiState())
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
+    private var browseJob: Job? = null
 
     /**
      * 浏览目录。path 为空时恢复最近一次成功目录；显式 path 则只加载用户指定位置。
      */
     fun browseDirectory(path: String? = null) {
-        viewModelScope.launch {
+        browseJob?.cancel()
+        browseJob = viewModelScope.launch {
             val config = readConfig() ?: run {
                 _uiState.value = BrowseUiState(isConfigured = false)
                 return@launch
             }
 
             val remembered = settingsRepository.playerWebdavLastBrowsePath.first()
-            val normalizedRequested = path?.let(::normalizeUrl)
+            val lastSelected = settingsRepository.playerWebdavLastSelectedFile.first()
             val rememberedIsValid = remembered.isNotBlank() &&
                 isWithinRoot(remembered, config.mediaRootPath)
+            _uiState.update { it.copy(
+                lastBrowsePath = remembered.takeIf { rememberedIsValid }.orEmpty(),
+                lastSelectedFile = lastSelected.takeIf { isWithinRoot(it, config.mediaRootPath) }.orEmpty()
+            ) }
+            val normalizedRequested = path?.let(::normalizeUrl)
             val targetPath = normalizedRequested
                 ?.takeIf { isWithinRoot(it, config.mediaRootPath) }
                 ?: if (rememberedIsValid) normalizeUrl(remembered) else config.mediaRootPath
@@ -196,11 +205,12 @@ class WebDAVBrowseViewModel(
                 lastBrowsePath = targetPath,
                 error = null
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogManager.e(TAG, "Failed to browse directory: $targetPath", e)
             if (fallbackToRootOnFailure && !samePath(targetPath, config.mediaRootPath)) {
-                // 最近路径失效时清掉两项临时记忆，再只回退到固定媒体根目录一次。
-                settingsRepository.clearPlayerWebdavBrowseMemory()
+                // 可能只是暂时断网；回退一次，但不让失败请求抹掉已保存的位置。
                 loadDirectory(
                     config = config,
                     targetPath = config.mediaRootPath,

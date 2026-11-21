@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
@@ -41,6 +42,7 @@ import com.aiexile.animetrack.ui.components.settings.SettingsOptionHost
 import com.aiexile.animetrack.ui.components.settings.SettingsOptionRow
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.player.webdav.webDavDisplayPath
 import kotlinx.coroutines.launch
 
 /** 设置项选项弹层的行距：与播放器设置已有的行距保持一致 */
@@ -206,14 +208,13 @@ fun PlayerSettingsScreen(
                     icon = rememberAppIconPainter(AppIcon.FOLDER_OPEN),
                     title = stringResource(R.string.player_webdav_browse),
                     subtitle = when {
-                        webdavMediaRoot.isNotBlank() && webdavLastBrowsePath.isNotBlank() ->
-                            "${webdavMediaRoot.trimEnd('/')} · ${webdavLastBrowsePath.trimEnd('/')}"
-                        webdavMediaRoot.isNotBlank() -> webdavMediaRoot
                         webdavLastBrowsePath.isNotBlank() ->
-                            "${stringResource(R.string.player_webdav_last_browse)}：$webdavLastBrowsePath"
+                            stringResource(R.string.player_webdav_recent_location, webDavDisplayPath(webdavLastBrowsePath))
+                        webdavMediaRoot.isNotBlank() -> webDavDisplayPath(webdavMediaRoot)
                         else -> stringResource(R.string.common_not_set)
                     },
-                    onClick = onNavigateToWebDAVBrowse
+                    onClick = onNavigateToWebDAVBrowse,
+                    subtitleOverflow = TextOverflow.MiddleEllipsis
                 )
 
                 // 播放器专属 WebDAV 配置（与备份同步独立）
@@ -282,6 +283,7 @@ private fun WebDavEntryRow(
     icon: Painter,
     title: String,
     subtitle: String,
+    subtitleOverflow: TextOverflow = TextOverflow.Ellipsis,
     onClick: () -> Unit
 ) {
     Row(
@@ -313,6 +315,7 @@ private fun WebDavEntryRow(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
+                overflow = subtitleOverflow,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }

@@ -53,6 +53,11 @@ internal fun PlayerViewContainer(
                 view.visibility = targetVisibility
             }
         },
+        onRelease = { view ->
+            // 退出或错误页替换画面时卸下监听和 Surface；全屏切换仍复用原视图。
+            view.player = null
+            if (playerView === view) playerView = null
+        },
         modifier = modifier
     )
 

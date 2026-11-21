@@ -220,12 +220,17 @@ internal class PlaybackSessionCoordinator(
         }
     }
 
-    fun syncWebNavigation(queue: WebPlaybackQueue?) {
+    fun syncWebNavigation(queue: WebPlaybackQueue?) = syncSingleItemQueueNavigation(
+        hasQueue = queue != null,
+        hasPrevious = queue != null && queue.episodeIndex > 0,
+        hasNext = queue != null && queue.episodeIndex + 1 < queue.episodes.size
+    )
+
+    /** 网页与 WebDAV 都只向服务提交当前集；通知栏切集由页面队列处理。 */
+    fun syncSingleItemQueueNavigation(hasQueue: Boolean, hasPrevious: Boolean, hasNext: Boolean) {
         val c = controller ?: return
         val args = PlaybackSessionCommands.buildWebNavigationArgs(
-            isWebQueue = queue != null,
-            hasPrevious = queue != null && queue.episodeIndex > 0,
-            hasNext = queue != null && queue.episodeIndex + 1 < queue.episodes.size
+            isWebQueue = hasQueue, hasPrevious = hasPrevious, hasNext = hasNext
         )
         c.sendCustomCommand(
             SessionCommand(PlaybackSessionCommands.ACTION_SET_WEB_NAVIGATION, Bundle.EMPTY),

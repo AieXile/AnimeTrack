@@ -398,9 +398,17 @@ class LocalMediaRepository internal constructor(
     suspend fun getCompletedEpisodes(animeId: Int): Set<Int> =
         dao.getCompletedEpisodes(animeId).toSet()
 
-    suspend fun findLocalSubtitles(media: LocalMediaEntity): List<LocalSubtitle> {
-        val source = dao.getSource(media.sourceId) ?: return emptyList()
-        return LocalSubtitleLocator.find(context, Uri.parse(source.treeUri), media)
+    internal suspend fun findLocalSubtitles(
+        videos: List<LocalMediaEntity>,
+        directoryTimeoutMs: Long
+    ): Map<Long, List<LocalSubtitle>> {
+        val sourceUris = mutableMapOf<Long, Uri?>()
+        return LocalSubtitleLocator.findAll(videos, directoryTimeoutMs) { sourceId, parentId ->
+            val treeUri = if (sourceId in sourceUris) sourceUris[sourceId] else {
+                dao.getSource(sourceId)?.let { Uri.parse(it.treeUri) }.also { sourceUris[sourceId] = it }
+            }
+            treeUri?.let { LocalSubtitleLocator.readDirectory(context, it, parentId) }.orEmpty()
+        }
     }
 
     suspend fun updateUserMatch(mediaId: Long, animeId: Int?) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.ShimmerText
 import com.aiexile.animetrack.ui.components.SquircleShape
 import androidx.compose.material3.Button
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +53,11 @@ fun WebDAVBrowseScreen(
 ) {
     val viewModel: WebDAVBrowseViewModel = viewModel(factory = WebDAVBrowseViewModel.Factory())
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
-        viewModel.browseDirectory()
+    // 返回同一浏览实例时保留目录列表；仅首次进入或进程重建后重新查询。
+    LaunchedEffect(viewModel) {
+        if (uiState.currentPath.isBlank() && !uiState.isLoading) viewModel.browseDirectory()
     }
 
     AppScaffold(
@@ -121,6 +125,16 @@ fun WebDAVBrowseScreen(
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    if (uiState.lastBrowsePath.isNotBlank()) {
+                        Text(
+                            text = stringResource(R.string.player_webdav_recent_location, webDavDisplayPath(uiState.lastBrowsePath)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.MiddleEllipsis,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -195,7 +209,7 @@ fun WebDAVBrowseScreen(
                 }
 
                 else -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
                         items(uiState.files, key = { it.path }) { item ->
                             FileItemRow(
                                 item = item,
@@ -296,6 +310,10 @@ private fun FileItemRow(
         }
     }
 }
+
+/** 展示目录层级，不把服务器地址、认证信息和 URL 查询参数塞进最近浏览摘要。 */
+internal fun webDavDisplayPath(url: String): String = url.toHttpUrlOrNull()
+    ?.pathSegments?.dropLastWhile(String::isEmpty)?.joinToString(separator = "/", prefix = "/") ?: "/"
 
 private fun formatFileSize(size: Long): String {
     return when {

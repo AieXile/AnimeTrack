@@ -29,13 +29,14 @@ import java.util.concurrent.TimeUnit
  */
 @UnstableApi
 class RoutingHttpDataSource(
-    private val webDavFactory: DataSource.Factory?,
+    private val webDavFactory: WebDAVDataSourceFactory?,
     private val webDavHost: String?,
     private val webDavPort: Int,
     private val webFactory: DataSource.Factory
 ) : DataSource {
 
     private var webDavSource: DataSource? = null
+    private var webDavSourceUri: Uri? = null
     private var webSource: DataSource? = null
     private var openedSource: DataSource? = null
     private var transferListener: TransferListener? = null
@@ -52,10 +53,13 @@ class RoutingHttpDataSource(
             uri.host.equals(webDavHost, ignoreCase = true) &&
             effectivePort(uri) == webDavPort
         return if (isWebDav) {
-            webDavSource ?: requireNotNull(webDavFactory) {
+            webDavSource?.takeIf { webDavSourceUri == uri } ?: requireNotNull(webDavFactory) {
                 "WebDAV 数据源未初始化"
-            }.createDataSource()
-                .also { webDavSource = it; transferListener?.let(it::addTransferListener) }
+            }.createDataSource(uri).also {
+                webDavSource = it
+                webDavSourceUri = uri
+                transferListener?.let(it::addTransferListener)
+            }
         } else {
             webSource ?: webFactory.createDataSource()
                 .also { webSource = it; transferListener?.let(it::addTransferListener) }

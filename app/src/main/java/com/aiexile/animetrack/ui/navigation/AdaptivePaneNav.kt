@@ -399,7 +399,7 @@ internal fun NavGraphBuilder.sharedDestinations(
                 isPlayerCoverTransition = isPlayerCoverTransition,
                 onNavigateBack = navigateBack,
                 onNavigateToPlayer = { id ->
-                    onNavigate(Routes.player(id, sharedKeyPrefix = sharedKeyPrefix))
+                    onNavigate(Routes.webDavBrowse(id))
                 },
                 onPlayLocalMedia = { mediaId ->
                     onNavigate(
@@ -691,7 +691,7 @@ internal fun NavGraphBuilder.sharedDestinations(
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
             onNavigateToLocalMedia = { onNavigate(Routes.LOCAL_MEDIA) },
             onNavigateToWebPlayback = { onNavigate(Routes.webPlayback()) },
-            onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
+            onNavigateToWebDAVBrowse = { onNavigate(Routes.webDavBrowse()) },
             onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
             settingsRepository = settingsRepository
         )

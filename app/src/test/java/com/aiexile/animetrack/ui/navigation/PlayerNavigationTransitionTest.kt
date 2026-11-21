@@ -15,7 +15,8 @@ class PlayerNavigationTransitionTest {
             Routes.WEB_PLAYBACK to Routes.PLAYER,
             Routes.PLAYER_SETTINGS to Routes.PLAYER,
             Routes.PLAYER_SETTINGS to Routes.WEBDAV_BROWSE,
-            Routes.PLAYER to Routes.WEBDAV_BROWSE,
+            Routes.WEBDAV_BROWSE to Routes.PLAYER,
+            Routes.ANIME_DETAIL to Routes.WEBDAV_BROWSE,
             Routes.ANIME_DETAIL to Routes.WEB_PLAYBACK
         )
         routes.forEach { (parent, child) ->
