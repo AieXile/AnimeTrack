@@ -99,16 +99,46 @@ private fun isSettingsSubRoute(route: String?): Boolean {
     return route in Routes.settingsSubRoutes
 }
 
-/** 判断是否为二级页面过渡（从 parent 进入 child） */
-private fun isSecondaryForward(from: String?, to: String?): Boolean {
-    if (from == null || to == null) return false
-    return Routes.secondaryTransitions.any { it.first == from && it.second == to }
+internal enum class NavigationPushPull { FORWARD, BACKWARD }
+
+/** 只在详情和播放器共享同一个番剧封面键时保留 Morph。 */
+internal fun canMorphPlayerCover(detailAnimeId: Int, playerAnimeId: Int, detailPrefix: String?, playerPrefix: String?): Boolean =
+    detailAnimeId > 0 && detailAnimeId == playerAnimeId && playerPrefix != null && detailPrefix.orEmpty() == playerPrefix
+
+internal fun navigationPushPull(from: String?, to: String?, playerCoverMorph: Boolean = false): NavigationPushPull? {
+    if (from == null || to == null) return null
+    val detailPlayerForward = isDetailRoute(from) && to == Routes.PLAYER
+    val detailPlayerBack = from == Routes.PLAYER && isDetailRoute(to)
+    if (playerCoverMorph && (detailPlayerForward || detailPlayerBack)) return null
+    return when {
+        detailPlayerForward || (from to to) in Routes.secondaryTransitions ||
+            (isMainRoute(from) && isImmersiveRoute(to)) -> NavigationPushPull.FORWARD
+        detailPlayerBack || (to to from) in Routes.secondaryTransitions ||
+            (isImmersiveRoute(from) && isMainRoute(to)) -> NavigationPushPull.BACKWARD
+        else -> null
+    }
 }
 
-/** 判断是否为二级页面返回（从 child 返回 parent） */
-private fun isSecondaryBackward(from: String?, to: String?): Boolean {
-    if (from == null || to == null) return false
-    return Routes.secondaryTransitions.any { it.first == to && it.second == from }
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.navigationPushPull(): NavigationPushPull? {
+    val from = initialState.destination.route
+    val to = targetState.destination.route
+    val player = when (Routes.PLAYER) {
+        from -> initialState
+        to -> targetState
+        else -> null
+    }
+    val detail = when {
+        isDetailRoute(from) -> initialState
+        isDetailRoute(to) -> targetState
+        else -> null
+    }
+    val morph = player != null && detail != null && canMorphPlayerCover(
+        detail.arguments?.getInt("animeId") ?: 0,
+        player.arguments?.getInt("animeId") ?: 0,
+        detail.arguments?.getString("sharedKeyPrefix"),
+        player.arguments?.getString("sharedKeyPrefix")
+    )
+    return navigationPushPull(from, to, morph)
 }
 
 /**
@@ -118,18 +148,12 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.enterTransition(): EnterTr
     val fromRoute = initialState.destination.route
     val toRoute = targetState.destination.route
 
+    when (navigationPushPull()) {
+        NavigationPushPull.FORWARD -> return enterSettings()
+        NavigationPushPull.BACKWARD -> return enterFromSettings()
+        null -> Unit
+    }
     return when {
-        // ===== 沉浸式全屏页（播放器 / WebDAV 浏览）：与二三级页面一致的水平推拉 =====
-        // push：新页从右滑入（主页→播放器 / 播放器→浏览页）
-        (isMainRoute(fromRoute) && isImmersiveRoute(toRoute)) ||
-            (fromRoute == Routes.PLAYER && toRoute == Routes.WEBDAV_BROWSE) ->
-            enterSettings()
-
-        // pop 返回（浏览页→播放器 / 播放器→主页）：旧页右滑出，本页放大淡入
-        (fromRoute == Routes.WEBDAV_BROWSE && toRoute == Routes.PLAYER) ||
-            (isImmersiveRoute(fromRoute) && isMainRoute(toRoute)) ->
-            enterFromSettings()
-
         // 详情页 ↔ 播放器：封面由共享元素 Morph 成小窗，页面本身只做淡入淡出，
         // 延迟一点淡入，让飞行的封面先到位（与主页→详情的节奏一致）
         isDetailRoute(fromRoute) && isImmersiveRoute(toRoute) ->
@@ -176,14 +200,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.enterTransition(): EnterTr
         isSettingsSubRoute(fromRoute) && isMainRoute(toRoute) ->
             enterFromSettings()
 
-        // 二级页面前进
-        isSecondaryForward(fromRoute, toRoute) ->
-            enterSettings()
-
-        // 二级页面返回
-        isSecondaryBackward(fromRoute, toRoute) ->
-            enterFromSettings()
-
         // 设置子页面之间的过渡（如从 Login 返回时经过其他设置页）
         isSettingsSubRoute(fromRoute) && isSettingsSubRoute(toRoute) ->
             enterSettings()
@@ -199,18 +215,12 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.exitTransition(): ExitTran
     val fromRoute = initialState.destination.route
     val toRoute = targetState.destination.route
 
+    when (navigationPushPull()) {
+        NavigationPushPull.FORWARD -> return exitSettings()
+        NavigationPushPull.BACKWARD -> return exitToSettings()
+        null -> Unit
+    }
     return when {
-        // ===== 沉浸式全屏页（播放器 / WebDAV 浏览）：与二三级页面一致的水平推拉 =====
-        // push 时旧页缩小淡出（主页→播放器 / 播放器→浏览页）
-        (isMainRoute(fromRoute) && isImmersiveRoute(toRoute)) ||
-            (fromRoute == Routes.PLAYER && toRoute == Routes.WEBDAV_BROWSE) ->
-            exitSettings()
-
-        // pop 时当前沉浸式页向右滑出（浏览页→播放器 / 播放器→主页）
-        (fromRoute == Routes.WEBDAV_BROWSE && toRoute == Routes.PLAYER) ||
-            (isImmersiveRoute(fromRoute) && isMainRoute(toRoute)) ->
-            exitToSettings()
-
         // 详情页 ↔ 播放器：页面淡出，封面由共享元素飞回详情页
         isDetailRoute(fromRoute) && isImmersiveRoute(toRoute) ->
             fadeOut(animationSpec = tween(durationMillis = ANIM_DURATION, easing = ANIM_EASING))
@@ -240,14 +250,6 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.exitTransition(): ExitTran
 
         // 设置子页面 → 主页
         isSettingsSubRoute(fromRoute) && isMainRoute(toRoute) ->
-            exitToSettings()
-
-        // 二级页面前进
-        isSecondaryForward(fromRoute, toRoute) ->
-            exitSettings()
-
-        // 二级页面返回
-        isSecondaryBackward(fromRoute, toRoute) ->
             exitToSettings()
 
         // 设置子页面之间的过渡

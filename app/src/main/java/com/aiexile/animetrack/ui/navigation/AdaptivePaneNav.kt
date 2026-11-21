@@ -323,7 +323,11 @@ private fun PaneNavHost(
         startDestination = Routes.PANE_ROOT,
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface),
+        enterTransition = { enterTransition() },
+        exitTransition = { exitTransition() },
+        popEnterTransition = { enterTransition() },
+        popExitTransition = { exitTransition() }
     ) {
         composable(Routes.PANE_ROOT) { /* 空白根：pane 收起状态 */ }
         // pane 内返回（返回键/顶栏返回箭头）：详情模式直接收起，设置层级链逐级返回

@@ -692,16 +692,6 @@ fun AnimeTrackApp(
                     )
                 }
 
-                // 本地媒体库
-                composable(Routes.LOCAL_MEDIA) {
-                    com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen(
-                        onBack = { navController.popBackStack() },
-                        onPlayMedia = { mediaId ->
-                            navController.navigate(Routes.player(0, localMediaId = mediaId))
-                        }
-                    )
-                }
-
                 // 网页播放
                 composable(Routes.WEB_PLAYBACK, arguments = Routes.webPlaybackArguments) { backStackEntry ->
                     com.aiexile.animetrack.ui.player.web.WebPlaybackScreen(
