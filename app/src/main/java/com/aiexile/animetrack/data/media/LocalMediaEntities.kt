@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.data.media
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -65,7 +66,9 @@ data class LocalMediaSourceEntity(
         Index(value = ["sourceId"]),
         Index(value = ["matchedAnimeId"]),
         Index(value = ["matchState"]),
-        Index(value = ["episodeNumber"])
+        Index(value = ["episodeNumber"]),
+        Index(value = ["sourceId", "groupKey"]),
+        Index(value = ["sourceId", "archiveKey"])
     ]
 )
 data class LocalMediaEntity(
@@ -90,7 +93,56 @@ data class LocalMediaEntity(
     val episodeType: String? = null,
     /** 文件所在目录的 documentId，用于查找同目录外挂字幕 */
     val parentDocumentId: String? = null,
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    /** 用户显式隐藏，与扫描缺失和匹配状态独立。 */
+    @ColumnInfo(defaultValue = "0") val isHidden: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val parserVersion: Int = 0,
+    val groupKey: String? = null,
+    val archiveKey: String? = null,
+    val titleEvidence: String? = null,
+    val baseTitle: String? = null,
+    val releaseYear: Int? = null,
+    val decimalEpisode: String? = null,
+    val originalEpisode: String? = null,
+    val bangumiHint: Int? = null,
+    val tmdbHint: Int? = null,
+    val episodeOffset: Int? = null,
+    val sidecarFingerprint: String? = null,
+    @ColumnInfo(defaultValue = "0") val movie: Boolean = false,
+    @ColumnInfo(defaultValue = "'NONE'") val scrapeState: String = LocalMediaScrapeState.NONE,
+    @ColumnInfo(defaultValue = "0") val explicitEpisodeNumbers: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val groupOverride: Boolean = false
+)
+
+object LocalMediaScrapeState {
+    const val NONE = "NONE"
+    const val WAITING = "WAITING"
+    const val REVIEW = "REVIEW"
+    const val IDENTIFIED = "IDENTIFIED"
+    const val ENRICH = "ENRICH"
+}
+
+/** 只属于媒体来源，不能代替追番记录，也不参与订阅同步。 */
+@Entity(
+    tableName = "local_media_archive",
+    primaryKeys = ["sourceId", "key"],
+    foreignKeys = [ForeignKey(
+        entity = LocalMediaSourceEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["sourceId"],
+        onDelete = ForeignKey.CASCADE
+    )]
+)
+data class LocalMediaArchiveEntity(
+    val sourceId: Long,
+    val key: String,
+    val title: String,
+    val coverUrl: String? = null,
+    val bangumiId: Int? = null,
+    val tmdbId: Int? = null,
+    val year: Int? = null,
+    val summary: String? = null,
+    val episodeCount: Int? = null
 )
 
 /**

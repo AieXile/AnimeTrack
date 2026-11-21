@@ -23,12 +23,14 @@ class LocalMediaScanWorker(context: Context, parameters: WorkerParameters) : Cor
         val timings = if (BuildConfig.DEBUG) LocalMediaRepository.ScanTimings() else null
         return try {
             if (media.getSource(sourceId) == null) return Result.success()
-            val scanned = media.scanSource(sourceId, timings) { progress ->
+            val scanned = media.scanSource(sourceId, timings, inputData.getBoolean(REIDENTIFY, false)) { progress ->
                 setProgress(workDataOf(SCANNED to progress.scannedFiles, VIDEOS to progress.videoFiles))
             }
             val matchStarted = SystemClock.elapsedRealtime()
             setProgress(workDataOf(MATCHING to true, SCANNED to scanned.scannedFiles, VIDEOS to scanned.videoFiles))
-            LocalMediaAutoMatchUseCase(media, AppContainer.getAnimeRepository()).run(sourceId)
+            if (LocalMediaAutoMatchUseCase(media, AppContainer.getAnimeRepository()).run(sourceId, online = false)) {
+                LocalMediaScrapeWorker.enqueue(applicationContext, sourceId)
+            }
             if (timings != null) {
                 Log.i("LocalMediaScan", "files=${scanned.scannedFiles} videos=${scanned.videoFiles} missing=${scanned.missingFiles} " +
                     "parsed=${scanned.parsedFiles} written=${scanned.writtenFiles} " +
@@ -56,6 +58,7 @@ class LocalMediaScanWorker(context: Context, parameters: WorkerParameters) : Cor
 
     internal companion object {
         const val SOURCE_ID = "sourceId"
+        const val REIDENTIFY = "reidentify"
         const val MATCHING = "matching"
         const val SCANNED = "scanned"
         const val VIDEOS = "videos"

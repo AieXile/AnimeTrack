@@ -191,4 +191,4 @@ AnimeTrack 已作为发送方实现该协议（详情页一键唤起外部播放
 
 <h2 align="center">许可证</h2>
 
-本项目基于 [Apache License 2.0](LICENSE) 开源。
+本项目基于 [Apache License 2.0](LICENSE) 开源。文件名解析依赖 [kotlin-anitomy v1.0 源码](https://github.com/TraceLTRC/kotlin-anitomy/tree/v1.0)，该依赖按 [MPL 2.0](https://www.mozilla.org/MPL/2.0/) 分发。

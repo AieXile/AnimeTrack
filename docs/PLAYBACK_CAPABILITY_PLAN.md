@@ -57,10 +57,11 @@
 
 ### 3.2 本地媒体库 ✅
 
-**数据层**（数据库 28 → 29 → 30）：
+**数据层**（数据库 28 → 32）：
 
 - `local_source(id, treeUri*, displayName, lastScanAt, videoCount, scanState, scanError, permissionState, createdAt, updatedAt)`
-- `local_media(id, sourceId→local_source CASCADE, documentUri, relativePath, fileName, size, lastModified, parsedTitle, seasonNumber, episodeNumber, episodeEndNumber, matchState, matchedAnimeId, confidence, isUserOverride, isMissing, episodeType, parentDocumentId, updatedAt)`，唯一键 `(sourceId, relativePath)`
+- `local_media` 以 `(sourceId, relativePath)` 唯一识别文件；持久化 SAF URI、解析版本、边车证据、隐藏/缺失、归档键和独立的追番绑定。
+- `local_media_archive` 以 `(sourceId, key)` 保存已识别标题、海报和平台 ID，不进入追番表。
 - `local_episode_progress(id, animeId, episodeNumber*, seasonNumber, completedAt)`，唯一键 `(animeId, episodeNumber)`
 
 完成记录单独成表，比原方案更清楚：**位置表达续播点，完成记录表达这一集是否看完**，跳看和重看不靠删除位置记录推断。
@@ -77,22 +78,22 @@
 
 **命名解析**（`EpisodeFileNameParser`，纯文本、可单测）：
 
-- 支持 `S01E03`、`Season 2 Episode 04`、`第03集`、`EP03`、`[字幕组] 番剧名 - 01`、`01-02` 区间、`03v2`。
-- 识别字幕组前缀、分辨率、编码、音轨、字幕语言等噪声。
-- 识别 `NCOP/NCED/PV/特典/预告` 为非正片，标为 `EXTRA` 不参与选集。
-- 输出标题、季数、集数、结束集数、是否正片、置信度。
+- 复用 Kotlin Anitomy 解析字幕组标签、集数、年份与校验码；仅对中文区间、全括号命名、别名和季目录补充适配。
+- `NCOP/NCED/PV/特典/预告` 和小数集不进入整数正片连播。保留完整标题、基础标题和原始集号。
+- SAF 同次遍历收集 `tvshow.nfo`、`season.nfo`、同名 NFO 和 `bangumi.ini`，不写回原文件。边车 ID 优先，Ani-RSS 偏移仅在正片表验证后应用。
 
 **自动匹配**：
 
-- 先与本地 Anime 做归一化标题精确匹配（含季数加成），≥ 0.90 自动绑定。
-- 未命中时按「清洗后标题」查 Bangumi，每次扫描最多 30 次远程查询，同标题结果缓存复用。
-- 自动匹配结果不覆盖 `isUserOverride`；用户确认/解除关联后标记覆盖，重扫不会改回。
-- 低置信度进入待确认列表，可在本地库页面手动关联或解除。
+- Room 31 → 32 新增独立媒体归档，空追番库也能自动归档、选集和续播，不新增收藏、不修改订阅。
+- 先使用已知 ID 和已识别结果，再按同证据组查 Bangumi；现有 TMDB 接口补充动画/剧场版或季信息。不按搜索排序自动绑定，季、年份、类型不符即不采用。
+- 断网、超时或限流保留等待状态；WorkManager 在联网后补刮，不重复遍历文件。真实歧义可一次匹配整组或单独修正。
+- 外层卡片可整组匹配、确认或解除；解除只让文件回到未归类，不删除视频或播放记录，也不会自动绑回这些文件。
+- 「重新识别」只重试等待或待确认的文件，保留已归档结果与手动操作；普通重扫仍跳过文件内容与证据未变的项。
 
 ### 3.3 本地播放联动 ✅
 
 - 稳定媒体键：`local:<id>`（`LocalPlaybackQueue.mediaKey`）。
-- 选集队列按「同一来源 + 同一匹配番剧 + 同一季」构建，S1 与未标季视为同季，S2+ 必须完全一致；同集多版本取用户绑定优先、其次 id 最小。
+- 选集队列按「同一来源 + 同一媒体归档 + 同一季」构建；旧记录回退到追番关联。S1 与未标季视为同季，S2+ 必须完全一致；同集多版本取选中项、用户绑定优先，其次 ID 最小。
 - 起播时自动查找同目录外挂字幕（srt/ass/ssa/vtt），3 秒超时静默降级，不阻塞起播。
 - 播放列表自动连播；切集时用采样值结算上一集，避免 ExoPlayer 不触发 `STATE_ENDED` 导致丢进度。
 - 完成判定基于**有效观看时长**：观看 ≥ 90% 时长，或位置 ≥ 95% 且实际观看 ≥ 60%。直接拖到片尾不算看完。

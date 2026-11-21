@@ -29,9 +29,9 @@ internal class LocalMediaScanScheduler(
     private val workManager: WorkManager,
     private val initialDelayMs: Long = 0L
 ) {
-    suspend fun enqueue(sourceId: Long) {
+    suspend fun enqueue(sourceId: Long, reidentify: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<LocalMediaScanWorker>()
-            .setInputData(workDataOf(LocalMediaScanWorker.SOURCE_ID to sourceId))
+            .setInputData(workDataOf(LocalMediaScanWorker.SOURCE_ID to sourceId, LocalMediaScanWorker.REIDENTIFY to reidentify))
             .setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
             .build()
         workManager.enqueueUniqueWork(name(sourceId), ExistingWorkPolicy.KEEP, request).await()
@@ -39,6 +39,7 @@ internal class LocalMediaScanScheduler(
 
     suspend fun cancel(sourceId: Long) {
         workManager.cancelUniqueWork(name(sourceId)).await()
+        workManager.cancelUniqueWork(LocalMediaScrapeWorker.workName(sourceId)).await()
     }
 
     fun observe(sourceId: Long): Flow<LocalScanStatus?> = workManager.getWorkInfosForUniqueWorkFlow(name(sourceId))

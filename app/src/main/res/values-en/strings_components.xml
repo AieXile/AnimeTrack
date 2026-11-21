@@ -174,15 +174,47 @@
     <string name="local_media_video_count">%1$d videos</string>
     <string name="local_media_scan_summary">Scan and matching</string>
     <string name="local_media_scan_count">Scanned %1$d files, found %2$d videos</string>
+    <string name="local_media_reidentify">Identify again</string>
+    <string name="local_media_waiting_metadata">Waiting for online metadata</string>
+    <string name="local_media_match_group">Match group</string>
+    <string name="local_media_confirm_group">Confirm group</string>
+    <string name="local_media_clear_group">Remove group match</string>
+    <string name="local_media_clear_group_hint">Move “%1$s” to Unclassified. Videos and playback history are kept, and these files will not be matched again automatically.</string>
+    <string name="local_media_change_group">Change group match</string>
+    <string name="local_media_match_tracking">Tracked anime</string>
+    <string name="local_media_match_search_failed">Online search did not finish. Retry or choose a tracked anime.</string>
+    <string name="local_media_episode_decimal">Episode %1$s</string>
     <string name="local_media_scan_again">Scan again</string>
     <string name="local_media_list_retry">Could not load media. Tap to retry.</string>
     <string name="local_media_files">Media files</string>
+    <string name="local_media_unclassified">Unclassified</string>
+    <string name="local_media_files_empty">No videos found. Add videos to this folder, then tap Scan again.</string>
+    <string name="local_media_episode">Episode %1$d</string>
+    <string name="local_media_episode_range">Episodes %1$d–%2$d</string>
+    <string name="local_media_episode_unknown">Unknown episode</string>
+    <string name="local_media_episode_extra">Extra or special</string>
+    <plurals name="local_media_group_video_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
+    <plurals name="local_media_group_pending_count">
+        <item quantity="one">%1$d match to confirm</item>
+        <item quantity="other">%1$d matches to confirm</item>
+    </plurals>
     <string name="local_media_match_action">Match anime</string>
     <string name="local_media_match_title">Match to anime</string>
     <string name="local_media_match_search_hint">Search anime title</string>
     <string name="local_media_match_clear">Remove match</string>
     <string name="local_media_match_none">No matching anime</string>
     <string name="local_media_match_pending">Needs confirmation</string>
+    <string name="local_media_match_confirm">Confirm current match</string>
+    <string name="local_media_match_change">Change match</string>
+    <string name="local_media_hide">Hide video</string>
+    <string name="local_media_hidden_title">Hidden videos</string>
+    <string name="local_media_hidden_count">Hidden (%1$d)</string>
+    <string name="local_media_restore">Unhide</string>
+    <string name="local_media_no_visible_files">No visible videos. Open Hidden to restore them.</string>
+    <string name="local_media_visibility_failed">Could not update visibility. Try again.</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">Unknown error</string>

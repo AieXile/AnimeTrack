@@ -60,7 +60,8 @@ data class TmdbTvDetail(
     @SerializedName("status")
     val status: String?,
     @SerializedName("genres")
-    val genres: List<TmdbGenre>?
+    val genres: List<TmdbGenre>?,
+    val seasons: List<TmdbSeasonSummary>? = null
 ) {
     val coverUrl: String?
         get() = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
@@ -95,6 +96,29 @@ data class TmdbGenre(
     val name: String
 )
 
+data class TmdbSeasonSummary(
+    @SerializedName("season_number") val seasonNumber: Int,
+    @SerializedName("air_date") val date: String?,
+    @SerializedName("episode_count") val episodeCount: Int?,
+    @SerializedName("poster_path") val posterPath: String?
+) {
+    val coverUrl: String? get() = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+}
+
+data class TmdbMovieResponse(val results: List<TmdbMovie>)
+
+data class TmdbMovie(
+    val id: Int,
+    val title: String,
+    @SerializedName("original_title") val originalTitle: String?,
+    @SerializedName("release_date") val date: String?,
+    @SerializedName("poster_path") val posterPath: String?,
+    val overview: String?,
+    @SerializedName("genre_ids") val genreIds: List<Int>? = null
+) {
+    val coverUrl: String? get() = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+}
+
 interface TmdbApiService {
     @GET("search/tv")
     suspend fun searchTv(
@@ -108,4 +132,10 @@ interface TmdbApiService {
         @Path("series_id") seriesId: Int,
         @Query("language") language: String = "zh-CN"
     ): TmdbTvDetail
+
+    @GET("search/movie")
+    suspend fun searchMovie(@Query("query") query: String, @Query("language") language: String = "zh-CN"): TmdbMovieResponse
+
+    @GET("movie/{movie_id}")
+    suspend fun getMovie(@Path("movie_id") id: Int, @Query("language") language: String = "zh-CN"): TmdbMovie
 }

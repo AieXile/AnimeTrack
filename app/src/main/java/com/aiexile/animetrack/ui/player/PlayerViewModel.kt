@@ -269,7 +269,8 @@ class PlayerViewModel(
             _uiState.update {
                 it.copy(
                     mediaTitle = localFile?.let(localCoordinator::localDisplayTitle) ?: it.mediaTitle,
-                    seriesTitle = localFile?.parsedTitle ?: it.seriesTitle,
+                    seriesTitle = if (localFile?.archiveKey != null) it.seriesTitle ?: localFile.parsedTitle
+                    else localFile?.parsedTitle ?: it.seriesTitle,
                     currentEpisodeIndex = webCoordinator.webQueue?.episodeIndex ?: localIndex
                 )
             }

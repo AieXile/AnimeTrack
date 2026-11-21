@@ -47,7 +47,7 @@ class LocalPlaybackQueueTest {
     }
 
     @Test
-    fun `特典和缺失文件不进入连播`() {
+    fun `特典和缺失或隐藏的文件不进入连播`() {
         val selected = media(1, 1)
         val queue = LocalPlaybackQueue.build(
             selected,
@@ -55,11 +55,18 @@ class LocalPlaybackQueueTest {
                 selected,
                 media(2, 2, type = LocalEpisodeType.EXTRA),
                 media(3, 3).copy(isMissing = true),
-                media(4, 4, animeId = 9)
+                media(4, 4, animeId = 9),
+                media(5, 5).copy(isHidden = true)
             )
         )
 
         assertEquals(listOf(1L), queue.map { it.id })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `隐藏的点播文件不能进入队列`() {
+        val selected = media(1, 1).copy(isHidden = true)
+        LocalPlaybackQueue.build(selected, listOf(selected))
     }
 
     @Test
@@ -80,6 +87,17 @@ class LocalPlaybackQueueTest {
 
         val noEpisode = media(3, null)
         assertEquals(listOf(noEpisode), LocalPlaybackQueue.build(noEpisode, listOf(noEpisode, media(4, 2))))
+    }
+
+    @Test
+    fun `独立媒体库不依赖追番绑定且不会跨季选集`() {
+        val selected = media(1, 1, season = 2, animeId = null).copy(archiveKey = "bgm:42")
+        val queue = LocalPlaybackQueue.build(selected, listOf(selected,
+            selected.copy(id = 2, episodeNumber = 2),
+            selected.copy(id = 3, episodeNumber = 3, seasonNumber = 1),
+            selected.copy(id = 4, episodeNumber = 4, archiveKey = "bgm:43"),
+            selected.copy(id = 5, episodeNumber = null, decimalEpisode = "1.5")))
+        assertEquals(listOf(1L, 2L), queue.map { it.id })
     }
 
     @Test

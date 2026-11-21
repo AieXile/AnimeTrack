@@ -174,15 +174,45 @@
     <string name="local_media_video_count">%1$d 个视频</string>
     <string name="local_media_scan_summary">扫描与匹配</string>
     <string name="local_media_scan_count">已扫描 %1$d 个文件，发现 %2$d 个视频</string>
+    <string name="local_media_reidentify">重新识别</string>
+    <string name="local_media_waiting_metadata">正在等待在线元数据</string>
+    <string name="local_media_match_group">匹配整组</string>
+    <string name="local_media_confirm_group">确认整组</string>
+    <string name="local_media_clear_group">解除整组识别</string>
+    <string name="local_media_clear_group_hint">将「%1$s」移回未归类。不会删除视频或播放记录，也不会自动重新关联这些文件。</string>
+    <string name="local_media_change_group">更改整组关联</string>
+    <string name="local_media_match_tracking">已有追番</string>
+    <string name="local_media_match_search_failed">在线搜索未全部完成，可重试或选择已有追番。</string>
+    <string name="local_media_episode_decimal">第 %1$s 集</string>
     <string name="local_media_scan_again">重新扫描</string>
     <string name="local_media_list_retry">无法加载媒体，点此重试</string>
     <string name="local_media_files">媒体文件</string>
+    <string name="local_media_unclassified">未归类</string>
+    <string name="local_media_files_empty">未发现视频。将视频放入此文件夹后，点「重新扫描」。</string>
+    <string name="local_media_episode">第 %1$d 集</string>
+    <string name="local_media_episode_range">第 %1$d–%2$d 集</string>
+    <string name="local_media_episode_unknown">未知集数</string>
+    <string name="local_media_episode_extra">特典 / 特别篇</string>
+    <plurals name="local_media_group_video_count">
+        <item quantity="other">%1$d 个视频</item>
+    </plurals>
+    <plurals name="local_media_group_pending_count">
+        <item quantity="other">%1$d 个待确认</item>
+    </plurals>
     <string name="local_media_match_action">关联番剧</string>
     <string name="local_media_match_title">关联到番剧</string>
     <string name="local_media_match_search_hint">搜索番剧标题</string>
     <string name="local_media_match_clear">解除关联</string>
     <string name="local_media_match_none">没有匹配的番剧</string>
     <string name="local_media_match_pending">待确认</string>
+    <string name="local_media_match_confirm">确认当前关联</string>
+    <string name="local_media_match_change">更改关联</string>
+    <string name="local_media_hide">隐藏视频</string>
+    <string name="local_media_hidden_title">已隐藏的视频</string>
+    <string name="local_media_hidden_count">已隐藏（%1$d）</string>
+    <string name="local_media_restore">恢复显示</string>
+    <string name="local_media_no_visible_files">没有可显示的视频。可以从「已隐藏」恢复。</string>
+    <string name="local_media_visibility_failed">无法更新隐藏状态，请重试。</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">未知错误</string>

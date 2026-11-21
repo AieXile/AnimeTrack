@@ -5,6 +5,7 @@ import androidx.media3.session.MediaController
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.domain.playback.LocalPlaybackQueue
 import com.aiexile.animetrack.domain.playback.LocalWatchProgressUseCase
 import com.aiexile.animetrack.domain.playback.WatchProgressRules
 import com.aiexile.animetrack.model.PlaybackProgress
@@ -260,7 +261,7 @@ internal class PlaybackProgressTracker(
     private fun notifyLocalEpisodeCompleted(file: LocalMediaEntity) {
         val animeId = file.matchedAnimeId ?: return
         val episode = file.episodeNumber ?: return
-        if (!file.isUserOverride || file.episodeEndNumber != null) {
+        if (!file.isUserOverride || !LocalPlaybackQueue.isEpisode(file) || file.episodeEndNumber != null) {
             AppLogManager.i(
                 TAG,
                 "Skip local progress update: mediaId=${file.id}, userOverride=${file.isUserOverride}, endEp=${file.episodeEndNumber}"

@@ -107,6 +107,8 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    sourceSets.getByName("androidTest").assets.srcDir("schemas")
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -223,6 +225,7 @@ dependencies {
     implementation(libs.pinyin4j)
     // 网页数据源：把站点 HTML 解析为 W3C DOM，供 Kazumi 兼容的 XPath 规则提取条目与剧集
     implementation(libs.jsoup)
+    implementation(libs.kotlin.anitomy)
     // xCrash：崩溃捕获（Java + Native + ANR），tombstone 落盘后下次启动静默上报自建服务器
     implementation(libs.xcrash.android.lib)
     implementation(project(":jiguang"))

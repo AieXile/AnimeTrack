@@ -7,6 +7,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import com.aiexile.animetrack.data.player.VideoFormats
 import com.aiexile.animetrack.domain.playback.EpisodeFileNameParser
+import com.aiexile.animetrack.util.normalizeTitleForMatch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -47,10 +48,51 @@ class LocalMediaRepository internal constructor(
 
     fun observeSources(): Flow<List<LocalMediaSourceEntity>> = dao.observeSources()
 
-    fun pagePresentMedia(sourceId: Long) = Pager(
-        config = PagingConfig(pageSize = 50, initialLoadSize = 100, prefetchDistance = 20, maxSize = 250, jumpThreshold = 150),
-        pagingSourceFactory = { dao.pagePresentMedia(sourceId) }
-    ).flow
+    fun pageAnimeGroups(sourceId: Long) = Pager(libraryPagingConfig) { dao.pageAnimeGroups(sourceId) }.flow
+
+    fun pageUnclassifiedMedia(sourceId: Long) = Pager(libraryPagingConfig) { dao.pageUnclassifiedMedia(sourceId) }.flow
+
+    fun pageAnimeMedia(sourceId: Long, animeId: Int) = Pager(libraryPagingConfig) { dao.pageAnimeMedia(sourceId, animeId) }.flow
+
+    fun pageArchiveMedia(sourceId: Long, archiveKey: String?, reviewKey: String?) =
+        Pager(libraryPagingConfig) { dao.pageArchiveMedia(sourceId, archiveKey, reviewKey) }.flow
+
+    suspend fun getArchive(sourceId: Long, key: String) = dao.getArchive(sourceId, key)
+
+    internal suspend fun getScrapeQueue(sourceId: Long) = dao.getScrapeQueue(sourceId)
+
+    internal suspend fun archivesForEvidence(sourceId: Long, groupKey: String) = dao.findArchivesForEvidence(sourceId, groupKey)
+
+    internal suspend fun manualArchivesForEvidence(sourceId: Long, groupKey: String) = dao.findManualArchivesForEvidence(sourceId, groupKey)
+
+    internal suspend fun commitScrape(
+        expected: List<LocalMediaEntity>, archive: LocalMediaArchiveEntity?, state: String, animeId: Int? = null,
+        episodeMapping: Map<Long, Pair<Int, Int?>> = emptyMap()
+    ) = dao.commitScrape(expected, archive, state, animeId, episodeMapping, System.currentTimeMillis())
+
+    internal suspend fun saveManualArchive(
+        sourceId: Long, mediaId: Long?, archive: LocalMediaArchiveEntity?, animeId: Int?,
+        card: LocalMediaAnimeGroup? = null
+    ) = dao.saveManualArchive(sourceId, mediaId, archive, animeId, System.currentTimeMillis(), card)
+
+    internal suspend fun confirmCardMatch(card: LocalMediaAnimeGroup) = dao.confirmCardMatch(card, System.currentTimeMillis())
+
+    internal suspend fun getPlayableGroup(selected: LocalMediaEntity): List<LocalMediaEntity> =
+        selected.archiveKey?.let { dao.getPlayableArchive(selected.sourceId, it) }
+            ?: selected.matchedAnimeId?.let { dao.getMedia(selected.sourceId) }
+            ?: listOf(selected)
+
+    fun pageHiddenMedia(sourceId: Long) = Pager(libraryPagingConfig) { dao.pageHiddenMedia(sourceId) }.flow
+
+    fun observeHiddenCount(sourceId: Long): Flow<Int> = dao.observeHiddenCount(sourceId)
+
+    suspend fun setHidden(sourceId: Long, mediaId: Long, hidden: Boolean) {
+        check(dao.setHidden(sourceId, mediaId, hidden, System.currentTimeMillis()) == 1) { "本地媒体已移除" }
+    }
+
+    private val libraryPagingConfig = PagingConfig(
+        pageSize = 50, initialLoadSize = 100, prefetchDistance = 20, maxSize = 250, jumpThreshold = 150
+    )
 
     suspend fun getSource(sourceId: Long): LocalMediaSourceEntity? = dao.getSource(sourceId)
 
@@ -95,16 +137,17 @@ class LocalMediaRepository internal constructor(
     suspend fun scanSource(
         sourceId: Long,
         onProgress: suspend (ScanProgress) -> Unit = {}
-    ): ScanResult = scanSource(sourceId, null, onProgress)
+    ): ScanResult = scanSource(sourceId, null, onProgress = onProgress)
 
     internal suspend fun scanSource(
         sourceId: Long,
         timings: ScanTimings?,
+        reidentify: Boolean = false,
         onProgress: suspend (ScanProgress) -> Unit = {}
     ): ScanResult {
         if (!activeScans.add(sourceId)) throw LocalMediaScanBusyException()
         try {
-            return withContext(Dispatchers.IO) { runScan(sourceId, timings, onProgress) }
+            return withContext(Dispatchers.IO) { runScan(sourceId, timings, onProgress, reidentify) }
         } catch (e: CancellationException) {
             withContext(NonCancellable + Dispatchers.IO) {
                 stopScanPreservingFailure(sourceId, LocalMediaScanState.CANCELLED, e)
@@ -136,7 +179,8 @@ class LocalMediaRepository internal constructor(
     private suspend fun runScan(
         sourceId: Long,
         timings: ScanTimings?,
-        onProgress: suspend (ScanProgress) -> Unit
+        onProgress: suspend (ScanProgress) -> Unit,
+        reidentify: Boolean
     ): ScanResult {
         val source = measured(timings, { checkNotNull(dao.getSource(sourceId)) { "本地来源已移除" } }) { databaseNs += it }
         measured(timings, {
@@ -150,6 +194,8 @@ class LocalMediaRepository internal constructor(
         val existing = measured(timings, { dao.getScanSnapshot(sourceId) }) { databaseNs += it }
             .associateBy { it.relativePath }
         val seenPaths = HashSet<String>(existing.size)
+        val videos = ArrayList<LocalMediaScanFile>(existing.size)
+        val sidecars = ArrayList<LocalMediaScanFile>()
         val pending = ArrayList<LocalMediaEntity>(BATCH_SIZE)
         var scannedFiles = 0
         var parsedFiles = 0
@@ -158,7 +204,7 @@ class LocalMediaRepository internal constructor(
         val scanContext = currentCoroutineContext()
 
         suspend fun commitBatch() {
-            measured(timings, { dao.commitScanBatch(pending) }) { databaseNs += it }
+            measured(timings, { dao.commitScanBatch(pending, reidentify) }) { databaseNs += it }
             writtenFiles += pending.size
             pending.clear()
         }
@@ -171,13 +217,19 @@ class LocalMediaRepository internal constructor(
             scannedFiles++
             if (VideoFormats.isVideoFile(file.fileName)) {
                 if (!seenPaths.add(file.relativePath)) throw IOException("目录返回了重复的视频路径")
+                videos += file
                 val old = existing[file.relativePath]
-                val unchanged = old != null && file.hasUnchangedContent(old)
-                if (!unchanged) parsedFiles++
-                val update = if (unchanged) buildScanUpdate(sourceId, file, old, true)
-                else measured(timings, { buildScanUpdate(sourceId, file, old, false) }) { parsingNs += it }
-                update?.let(pending::add)
-                if (pending.size >= BATCH_SIZE) commitBatch()
+                val unchanged = old != null && file.hasUnchangedContent(old) && old.parserVersion == EpisodeFileNameParser.VERSION
+                // 待识别项留到边车读取后统一重判；已经归档的文件仍使用增量扫描。
+                if (old?.sidecarFingerprint == null && !(reidentify && old?.canRetryRecognition() == true)) {
+                    if (!unchanged) parsedFiles++
+                    val update = if (unchanged) buildScanUpdate(sourceId, file, old, true)
+                    else measured(timings, { buildScanUpdate(sourceId, file, old, false, rootTitle = source.displayName) }) { parsingNs += it }
+                    update?.let(pending::add)
+                    if (pending.size >= BATCH_SIZE) commitBatch()
+                }
+            } else if (LocalMediaSidecarIndex.supports(file.fileName)) {
+                sidecars += file
             }
             val now = SystemClock.elapsedRealtime()
             if (lastProgressAt == 0L || now - lastProgressAt >= PROGRESS_INTERVAL_MS) {
@@ -194,6 +246,27 @@ class LocalMediaRepository internal constructor(
             throw SecurityException("本地文件夹授权已失效")
         }
         if (pending.isNotEmpty()) commitBatch()
+        if (sidecars.isNotEmpty() || reidentify || existing.values.any { it.sidecarFingerprint != null }) {
+            val sidecarIndex = LocalMediaSidecarIndex(sidecars)
+            val rows = dao.getScanSnapshot(sourceId).associateBy { it.relativePath }
+            for (file in videos) {
+                scanContext.ensureActive()
+                val evidence = sidecarIndex.readFor(file.relativePath, file.fileName, treeReader::readSidecar)
+                    .takeUnless { it == LocalMediaSidecarEvidence() }
+                val old = rows[file.relativePath]
+                val evidenceKey = evidence?.toString()
+                val retry = reidentify && old?.canRetryRecognition() == true
+                val unchanged = !retry && old != null && file.hasUnchangedContent(old) &&
+                    old.parserVersion == EpisodeFileNameParser.VERSION && old.sidecarFingerprint == evidenceKey
+                if (!unchanged) parsedFiles++
+                val update = measured(timings, {
+                    buildScanUpdate(sourceId, file, old, unchanged, source.displayName, evidence, retry)
+                }) { parsingNs += it }
+                update?.let(pending::add)
+                if (pending.size >= BATCH_SIZE) commitBatch()
+            }
+            if (pending.isNotEmpty()) commitBatch()
+        }
         onProgress(ScanProgress(scannedFiles, seenPaths.size))
         val missingIds = existing.values.mapNotNull { old ->
             old.id.takeIf { !old.isMissing && old.relativePath !in seenPaths }
@@ -215,7 +288,10 @@ class LocalMediaRepository internal constructor(
         sourceId: Long,
         file: LocalMediaScanFile,
         old: LocalMediaEntity?,
-        unchanged: Boolean
+        unchanged: Boolean,
+        rootTitle: String = "",
+        evidence: LocalMediaSidecarEvidence? = null,
+        reidentify: Boolean = false
     ): LocalMediaEntity? {
         if (old != null && unchanged) {
             if (!old.isMissing && old.documentUri == file.documentUri && old.parentDocumentId == file.parentDocumentId) {
@@ -229,7 +305,29 @@ class LocalMediaRepository internal constructor(
             )
         }
 
-        val parsed = EpisodeFileNameParser.parse(file.fileName, file.relativePath.substringBeforeLast('/', ""))
+        val folder = file.relativePath.substringBeforeLast('/', "")
+        val parentPath = listOf(rootTitle, folder).filter(String::isNotBlank).joinToString("/")
+        val parsed = EpisodeFileNameParser.parse(file.fileName, parentPath)
+        val sidecarYear = evidence?.year
+        val year = sidecarYear ?: parsed.year
+        val season = evidence?.season ?: parsed.seasonNumber
+        val isMovie = evidence?.movie == true || parsed.isMovie
+        val name = evidence?.title ?: parsed.parsedTitle
+        val names = (listOfNotNull(evidence?.title, evidence?.originalTitle).ifEmpty { parsed.titleCandidates })
+            .map { it.replace('\u001f', ' ').trim() }.filter { it.isNotBlank() }.distinctBy(::normalizeTitleForMatch)
+        val groupKey = if (names.isEmpty() && evidence?.bangumiId == null && evidence?.tmdbId == null) null else
+            listOf(folder, names.map(::normalizeTitleForMatch).sorted().joinToString("|"), season, year, isMovie, evidence?.bangumiId, evidence?.tmdbId,
+                evidence?.conflict == true, evidence?.offset).joinToString("\u001f")
+        val nfoEpisode = evidence?.episode
+        val episode = if (nfoEpisode != null) nfoEpisode.toIntOrNull() else parsed.episodeNumber
+        val decimal = if (nfoEpisode != null) nfoEpisode.takeIf { '.' in it } else parsed.decimalEpisode
+        val isMain = parsed.isMainFeature && season != 0 && decimal == null
+        val scrapeState = when {
+            groupKey == null -> LocalMediaScrapeState.NONE
+            evidence?.conflict == true -> LocalMediaScrapeState.REVIEW
+            !parsed.isMainFeature && evidence?.bangumiId == null && evidence?.tmdbId == null -> LocalMediaScrapeState.NONE
+            else -> LocalMediaScrapeState.WAITING
+        }
         val refreshed = LocalMediaEntity(
             id = old?.id ?: 0L,
             sourceId = sourceId,
@@ -238,21 +336,37 @@ class LocalMediaRepository internal constructor(
             fileName = file.fileName,
             size = file.size,
             lastModified = file.lastModified,
-            parsedTitle = parsed.parsedTitle,
-            seasonNumber = parsed.seasonNumber,
-            episodeNumber = parsed.episodeNumber,
-            episodeEndNumber = parsed.episodeEndNumber,
-            matchState = if (parsed.isMainFeature) LocalMediaMatchState.UNMATCHED else LocalMediaMatchState.IGNORED,
+            parsedTitle = name,
+            seasonNumber = season,
+            episodeNumber = episode,
+            episodeEndNumber = parsed.episodeEndNumber.takeIf { nfoEpisode == null },
+            matchState = if (isMain) LocalMediaMatchState.UNMATCHED else LocalMediaMatchState.IGNORED,
             confidence = parsed.confidence,
             episodeType = when {
-                !parsed.isMainFeature -> LocalEpisodeType.EXTRA
-                parsed.episodeNumber != null -> LocalEpisodeType.MAIN
+                !isMain -> LocalEpisodeType.EXTRA
+                episode != null -> LocalEpisodeType.MAIN
                 else -> LocalEpisodeType.UNKNOWN
             },
-            parentDocumentId = file.parentDocumentId
+            parentDocumentId = file.parentDocumentId,
+            parserVersion = EpisodeFileNameParser.VERSION,
+            groupKey = groupKey,
+            titleEvidence = names.joinToString("\u001f").takeIf(String::isNotBlank),
+            baseTitle = if (evidence?.title == null) parsed.baseTitle else evidence.title,
+            releaseYear = year,
+            decimalEpisode = decimal,
+            originalEpisode = parsed.decimalEpisode ?: parsed.episodeNumber?.toString(),
+            bangumiHint = evidence?.bangumiId?.takeUnless { evidence.conflict },
+            tmdbHint = evidence?.tmdbId?.takeUnless { evidence.conflict },
+            episodeOffset = evidence?.offset?.takeIf {
+                nfoEpisode == null && !parsed.explicitNumbering && episode != null && parsed.isMainFeature
+            },
+            sidecarFingerprint = evidence?.toString(),
+            movie = isMovie,
+            scrapeState = scrapeState,
+            explicitEpisodeNumbers = nfoEpisode != null || parsed.explicitNumbering
         )
         return refreshed.takeUnless {
-            old != null && !old.isMissing && it.hasSameScanContent(old) &&
+            !reidentify && old != null && !old.isMissing && it.hasSameScanContent(old) &&
                 old.documentUri == file.documentUri && old.parentDocumentId == file.parentDocumentId
         }
     }
@@ -308,8 +422,16 @@ class LocalMediaRepository internal constructor(
 
 internal class LocalMediaScanBusyException : IllegalStateException("该文件夹正在扫描")
 
-internal fun LocalMediaEntity.hasSameScanContent(other: LocalMediaEntity): Boolean =
+internal fun LocalMediaEntity.hasSameScanContent(other: LocalMediaEntity, ignoreParserVersion: Boolean = false): Boolean =
     fileName == other.fileName && size == other.size && lastModified == other.lastModified &&
         parsedTitle == other.parsedTitle && seasonNumber == other.seasonNumber &&
-        episodeNumber == other.episodeNumber && episodeEndNumber == other.episodeEndNumber &&
-        episodeType == other.episodeType
+        (ignoreParserVersion || parserVersion == other.parserVersion) && groupKey == other.groupKey && titleEvidence == other.titleEvidence &&
+        originalEpisode == other.originalEpisode && sidecarFingerprint == other.sidecarFingerprint &&
+        explicitEpisodeNumbers == other.explicitEpisodeNumbers &&
+        episodeType == other.episodeType && (parserVersion != 0 ||
+            (episodeNumber == other.episodeNumber && episodeEndNumber == other.episodeEndNumber))
+
+/** 重识别不重置成功结果、手动解除或本来就不参与刮削的普通视频。 */
+internal fun LocalMediaEntity.canRetryRecognition(): Boolean =
+    !isUserOverride && !isHidden && archiveKey == null && matchedAnimeId == null && groupKey != null &&
+        (scrapeState == LocalMediaScrapeState.WAITING || scrapeState == LocalMediaScrapeState.REVIEW)

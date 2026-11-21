@@ -156,18 +156,20 @@ internal class PlaybackSessionCoordinator(
         title: String,
         artist: String?,
         albumTitle: String?,
-        anime: Anime?
+        anime: Anime?,
+        artworkUrl: String? = null
     ): MediaMetadata = MediaMetadata.Builder()
         .setTitle(title)
         .setArtist(artist?.takeIf { it.isNotBlank() } ?: anime?.title?.takeIf { it.isNotBlank() })
         .setAlbumTitle(albumTitle?.takeIf { it.isNotBlank() } ?: anime?.title?.takeIf { it.isNotBlank() })
-        .setArtworkUri(resolveArtworkUri(anime))
+        .setArtworkUri(resolveArtworkUri(anime, artworkUrl))
         .build()
 
-    private fun resolveArtworkUri(anime: Anime?): Uri {
+    private fun resolveArtworkUri(anime: Anime?, artworkUrl: String?): Uri {
         val candidates = listOfNotNull(
             anime?.coverUrl?.takeIf { it.isNotBlank() },
-            anime?.remoteCoverUrl?.takeIf { it.isNotBlank() }
+            anime?.remoteCoverUrl?.takeIf { it.isNotBlank() },
+            artworkUrl?.takeIf { it.isNotBlank() }
         )
         for (raw in candidates) {
             if (raw.startsWith("/") || raw.startsWith("file://")) {
@@ -198,7 +200,8 @@ internal class PlaybackSessionCoordinator(
         val albumTitle = anime?.title?.takeIf { it.isNotBlank() }
             ?: existing.albumTitle?.toString()?.takeIf { it.isNotBlank() }
             ?: localFile?.parsedTitle?.takeIf { it.isNotBlank() }
-        val updated = buildMediaMetadata(title, artist, albumTitle, anime)
+        val updated = buildMediaMetadata(title, artist, albumTitle, anime,
+            existing.artworkUri?.toString()?.takeIf { localFile?.archiveKey != null })
         return if (updated == existing) item else item.buildUpon().setMediaMetadata(updated).build()
     }
 

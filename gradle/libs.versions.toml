@@ -36,6 +36,7 @@ xcrash = "3.1.0"
 reorderable = "3.1.0"
 glance = "1.2.0"
 jsoup = "1.18.3"
+kotlinAnitomy = "v1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -92,6 +93,7 @@ xcrash-android-lib = { group = "com.iqiyi.xcrash", name = "xcrash-android-lib", 
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+kotlin-anitomy = { group = "com.github.TraceLTRC", name = "kotlin-anitomy", version.ref = "kotlinAnitomy" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -8,6 +8,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.media.LocalSubtitle
@@ -162,11 +163,12 @@ internal class LocalPlaybackCoordinator(
         uiState.update { it.copy(sourceLabel = application.getString(R.string.player_local_source)) }
         scope.launch {
             val selected = localMediaRepository.getMediaById(mediaId)
-            if (selected == null || selected.isMissing) {
+            if (selected == null || selected.isMissing || selected.isHidden) {
                 uiState.update { it.copy(error = "本地文件不存在，请重新扫描") }
                 return@launch
             }
-            val files = localMediaRepository.getMediaForSource(selected.sourceId)
+            val archive = selected.archiveKey?.let { localMediaRepository.getArchive(selected.sourceId, it) }
+            val files = localMediaRepository.getPlayableGroup(selected)
             val queue = LocalPlaybackQueue.build(selected, files)
             if (queue.isEmpty()) {
                 uiState.update { it.copy(error = "没有可播放的本地文件") }
@@ -193,7 +195,7 @@ internal class LocalPlaybackCoordinator(
                         localMediaRepository.findLocalSubtitles(file)
                     } ?: emptyList()
                     val itemAnime = resolvedAnimeMap[entryAnimeId.takeIf { it > 0 } ?: file.matchedAnimeId]
-                    buildLocalMediaItem(file, subtitles, itemAnime)
+                    buildLocalMediaItem(file, subtitles, itemAnime, archive)
                 }
             }
             localQueue = queue
@@ -204,7 +206,7 @@ internal class LocalPlaybackCoordinator(
             uiState.update {
                 it.copy(
                     mediaTitle = localDisplayTitle(queue[startIndex]),
-                    seriesTitle = startAnime?.title ?: queue[startIndex].parsedTitle,
+                    seriesTitle = archive?.title ?: startAnime?.title ?: queue[startIndex].parsedTitle,
                     episodes = queue.mapIndexed { index, file ->
                         PlayerEpisode(
                             label = file.episodeNumber?.let { ep -> "第${ep}集" } ?: file.fileName,
@@ -245,7 +247,7 @@ internal class LocalPlaybackCoordinator(
     }
 
     fun localDisplayTitle(file: LocalMediaEntity): String {
-        val episode = file.episodeNumber
+        val episode = file.decimalEpisode ?: file.episodeNumber?.toString()
         val title = file.parsedTitle?.takeIf { it.isNotBlank() } ?: file.fileName
         return if (episode != null) "$title · 第${episode}集" else title
     }
@@ -253,18 +255,20 @@ internal class LocalPlaybackCoordinator(
     private fun buildLocalMediaItem(
         file: LocalMediaEntity,
         subtitles: List<LocalSubtitle>,
-        anime: Anime?
+        anime: Anime?,
+        archive: LocalMediaArchiveEntity?
     ): MediaItem = MediaItem.Builder()
         .setMediaId(LocalPlaybackQueue.mediaKey(file.id))
         .setUri(Uri.parse(file.documentUri))
         .setMediaMetadata(
             sessionCoordinator.buildMediaMetadata(
                 title = localDisplayTitle(file),
-                artist = anime?.title?.takeIf { it.isNotBlank() }
+                artist = archive?.title ?: anime?.title?.takeIf { it.isNotBlank() }
                     ?: file.parsedTitle?.takeIf { it.isNotBlank() }
                     ?: application.getString(R.string.player_local_source),
-                albumTitle = anime?.title ?: file.parsedTitle,
-                anime = anime
+                albumTitle = archive?.title ?: anime?.title ?: file.parsedTitle,
+                anime = anime,
+                artworkUrl = archive?.coverUrl
             )
         )
         .setSubtitleConfigurations(

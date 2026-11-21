@@ -24,7 +24,7 @@ internal data class LocalMediaScanFile(
     fun hasUnchangedContent(old: LocalMediaEntity): Boolean =
         relativePath == old.relativePath && fileName == old.fileName &&
             size > 0 && lastModified > 0 && size == old.size && lastModified == old.lastModified &&
-            old.episodeType != null // 迁移来的记录可能尚未分类。
+            old.episodeType != null // 解析版本由仓库检查；旧记录可能尚未分类。
 }
 
 internal interface LocalMediaTreeReader {
@@ -35,6 +35,8 @@ internal interface LocalMediaTreeReader {
 
     /** 只有目录完整遍历后才正常返回；不完整或不可读的结果必须抛出。 */
     suspend fun readFiles(treeUri: Uri, onFile: suspend (LocalMediaScanFile) -> Unit)
+
+    suspend fun readSidecar(file: LocalMediaScanFile): ByteArray? = null
 }
 
 internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : LocalMediaTreeReader {
@@ -45,6 +47,11 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
 
     override fun takePersistedReadPermission(treeUri: Uri) {
         resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    override suspend fun readSidecar(file: LocalMediaScanFile): ByteArray? {
+        if (file.size > LocalMediaSidecarParser.MAX_BYTES) return null
+        return resolver.openInputStream(Uri.parse(file.documentUri))?.use(LocalMediaSidecarParser::readBounded)
     }
 
     override suspend fun readFiles(treeUri: Uri, onFile: suspend (LocalMediaScanFile) -> Unit) {
