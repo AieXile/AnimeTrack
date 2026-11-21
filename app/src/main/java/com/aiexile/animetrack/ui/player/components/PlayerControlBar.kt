@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +51,7 @@ import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 
 private val ControlsBarColor = Color.Black.copy(alpha = 0.5f)
+private val TopPlaybackActionIconSize = 24.dp
 
 @Composable
 internal fun TopControlBar(
@@ -101,7 +104,7 @@ internal fun TopControlBar(
                     painter = rememberAppIconPainter(AppIcon.CLOSED_CAPTION),
                     contentDescription = stringResource(R.string.player_subtitles),
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(TopPlaybackActionIconSize)
                 )
             }
 
@@ -113,7 +116,7 @@ internal fun TopControlBar(
                         contentDescription = stringResource(R.string.player_skip_forward),
                         tint = Color.White,
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(22.dp)
                             .graphicsLayer { scaleX = -1f }
                     )
                     Text(
@@ -146,6 +149,7 @@ internal fun BottomControlBar(
     durationMs: Long,
     bufferedPositionMs: Long,
     playbackSpeed: Float,
+    qualityLabel: String,
     isFullscreen: Boolean,
     playWhenReady: Boolean,
     hasNextEpisode: Boolean,
@@ -258,17 +262,21 @@ internal fun BottomControlBar(
                 )
             }
 
-            // 清晰度（网站来源与自适应视频轨道）
-            if (isFullscreen) Box {
-                Text(
-                    text = stringResource(R.string.player_quality),
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .clickable(onClick = onOpenQuality)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
+            // 显示当前清晰度档位，点击仍打开清晰度面板。
+            if (isFullscreen) {
+                val description = "${stringResource(R.string.player_quality)}: $qualityLabel"
+                IconButton(
+                    onClick = onOpenQuality,
+                    modifier = Modifier.semantics { contentDescription = description }
+                ) {
+                    Text(
+                        text = qualityLabel,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
             }
 
             // Fullscreen button

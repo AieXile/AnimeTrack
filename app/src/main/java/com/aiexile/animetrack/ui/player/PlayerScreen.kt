@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -90,6 +89,7 @@ import com.aiexile.animetrack.ui.player.components.PlayerQualityContent
 import com.aiexile.animetrack.ui.player.components.PlayerSelectionContent
 import com.aiexile.animetrack.ui.player.components.PlayerVideoPlaceholder
 import com.aiexile.animetrack.ui.player.components.PlayerViewContainer
+import com.aiexile.animetrack.ui.player.components.playerQualityLabel
 import com.aiexile.animetrack.ui.player.components.TopControlBar
 import com.aiexile.animetrack.ui.player.components.TrackSelectionContent
 import com.aiexile.animetrack.ui.player.components.VideoCornerRadius
@@ -352,9 +352,11 @@ fun PlayerScreen(
                         instantEnter = isCoverMorphing
                     )
 
-                    if (uiState.error != null) {
+                    val failure = uiState.error
+                    if (failure != null) {
                         ErrorOverlay(
-                            error = uiState.error!!,
+                            error = failure.httpStatus?.let { stringResource(failure.kind.messageRes, it) }
+                                ?: stringResource(failure.kind.messageRes),
                             onRetry = {
                                 if (!viewModel.retryLast()) handleBack()
                             },
@@ -386,7 +388,9 @@ fun PlayerScreen(
                         PlayerViewContainer(
                             player = viewModel.player,
                             videoScale = uiState.videoScale,
-                            hideSurface = isCoverMorphing,
+                            hideSurface = isCoverMorphing || (animatedVisibilityScope?.transition?.let {
+                                it.currentState != it.targetState
+                            } == true),
                             modifier = Modifier.fillMaxSize()
                         )
 
@@ -478,6 +482,7 @@ fun PlayerScreen(
                                     durationMs = uiState.durationMs,
                                     bufferedPositionMs = uiState.bufferedPositionMs,
                                     playbackSpeed = uiState.playbackSpeed,
+                                    qualityLabel = playerQualityLabel(viewModel.player),
                                     isFullscreen = uiState.isFullscreen,
                                     playWhenReady = uiState.playWhenReady,
                                     hasNextEpisode = viewModel.hasNextEpisode(),
@@ -536,19 +541,6 @@ fun PlayerScreen(
                             onSeekDragEnd = { isSeekDragging = false },
                             onBarHeightChanged = { controlsBarHeightPx = it }
                         )
-                    }
-
-                    if (uiState.error != null && uiState.hasPlaybackRequest && !anyPanelOpen) {
-                        IconButton(
-                            onClick = openOptionsMenu,
-                            modifier = Modifier.align(Alignment.TopEnd)
-                        ) {
-                            Icon(
-                                rememberAppIconPainter(AppIcon.SETTINGS),
-                                contentDescription = stringResource(R.string.player_settings_title),
-                                tint = Color.White
-                            )
-                        }
                     }
                 }
             },

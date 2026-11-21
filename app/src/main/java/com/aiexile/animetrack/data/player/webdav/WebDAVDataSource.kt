@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.TransferListener
 import java.io.IOException
@@ -88,19 +89,9 @@ class WebDAVDataSource(
             }
 
             val statusCode = response.code
-            when {
-                statusCode == 401 || statusCode == 403 -> {
-                    response.close()
-                    throw IOException("Access denied: $statusCode for $uri")
-                }
-                statusCode in 300..399 -> {
-                    response.close()
-                    throw IOException("Redirect not followed: $statusCode for $uri")
-                }
-                statusCode !in 200..299 -> {
-                    response.close()
-                    throw IOException("Unexpected response: $statusCode for $uri")
-                }
+            if (statusCode !in 200..299) {
+                response.close()
+                throw HttpDataSource.InvalidResponseCodeException(statusCode, null, null, emptyMap(), dataSpec, ByteArray(0))
             }
 
             responseHeaders = response.headers.toMultimap()

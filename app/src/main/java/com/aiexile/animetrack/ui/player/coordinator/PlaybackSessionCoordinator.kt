@@ -22,6 +22,8 @@ import com.aiexile.animetrack.data.player.service.PlaybackService
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
 import com.aiexile.animetrack.domain.playback.WebPlaybackQueue
 import com.aiexile.animetrack.model.Anime
+import com.aiexile.animetrack.ui.player.PlaybackFailure
+import com.aiexile.animetrack.ui.player.PlaybackFailureKind
 import com.aiexile.animetrack.ui.player.PlayerUiState
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -108,7 +110,7 @@ internal class PlaybackSessionCoordinator(
                 // onCleared 已取消连接（快速退出页面），controller 由 future 内部释放
             } catch (e: Exception) {
                 AppLogManager.e(TAG, "Failed to connect to PlaybackService", e)
-                uiState.update { it.copy(error = "无法启动播放服务: ${e.message}") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
             }
         }, MoreExecutors.directExecutor())
     }
@@ -241,7 +243,7 @@ internal class PlaybackSessionCoordinator(
     ) {
         playbackStartJob = scope.launch {
             val c = awaitController() ?: run {
-                uiState.update { it.copy(error = "无法连接播放服务") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
                 return@launch
             }
             val anime = resolveMetadataAnime(metadataAnimeId.value)
@@ -280,7 +282,7 @@ internal class PlaybackSessionCoordinator(
     fun startPlaylist(items: List<MediaItem>, startIndex: Int, mediaId: String) {
         playbackStartJob = scope.launch {
             val c = awaitController() ?: run {
-                uiState.update { it.copy(error = "无法连接播放服务") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
                 return@launch
             }
             val startPosition = progressTracker.readSavedPosition(mediaId)

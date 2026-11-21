@@ -12,12 +12,17 @@ import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.media.LocalSubtitle
+import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.player.webdav.WebDavPlaybackIdentity
 import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleLocator
 import com.aiexile.animetrack.domain.playback.LocalPlaybackQueue
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.player.PlayRequest
+import com.aiexile.animetrack.ui.player.PlaybackFailure
+import com.aiexile.animetrack.ui.player.PlaybackFailureKind
 import com.aiexile.animetrack.ui.player.PlayerEpisode
 import com.aiexile.animetrack.ui.player.PlayerUiState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +41,7 @@ internal class LocalPlaybackCoordinator(
     private val entryAnimeId: Int,
     private val animeRepository: AnimeRepository,
     private val settingsRepository: SettingsRepository,
+    private val playerRepository: PlayerRepository,
     private val localMediaRepository: LocalMediaRepository,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<PlayerUiState>,
@@ -71,7 +77,7 @@ internal class LocalPlaybackCoordinator(
 
     fun playWebDavUrl(url: String, title: String? = null) {
         if (url.isBlank()) {
-            uiState.update { it.copy(error = "无效的播放地址") }
+            uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.INVALID_ADDRESS)) }
             return
         }
         onRecordPlayRequest(PlayRequest.WebDav(url, title))
@@ -80,10 +86,27 @@ internal class LocalPlaybackCoordinator(
         uiState.update { it.copy(mediaTitle = title, sourceLabel = "WebDAV") }
         scope.launch {
             try {
-                val baseUrl = settingsRepository.playerWebdavUrl.first()
-                val fullUrl = buildFullUrl(baseUrl, url)
-
-                val mediaId = fullUrl
+                val server = WebDavPlaybackIdentity.directory(settingsRepository.playerWebdavUrl.first())
+                val target = server?.let {
+                    val root = WebDavPlaybackIdentity.mediaRoot(it, settingsRepository.playerWebdavMediaRoot.first())
+                    WebDavPlaybackIdentity.target(it, root, settingsRepository.playerWebdavUsername.first(), url)
+                }
+                if (target == null) {
+                    uiState.update {
+                        it.copy(error = PlaybackFailure(PlaybackFailureKind.INVALID_ADDRESS), isPreparingMedia = false)
+                    }
+                    return@launch
+                }
+                val fullUrl = target.requestUrl.toString()
+                val mediaId = target.mediaKey
+                try {
+                    playerRepository.importLegacyWebDavProgress(target)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // 进度迁移失败不能阻止点播，后续可在新键写入。
+                    AppLogManager.w(TAG, "WebDAV 旧进度读取失败")
+                }
                 setCurrentMediaId(mediaId)
                 uiState.update { it.copy(mediaTitle = title, error = null) }
 
@@ -94,9 +117,7 @@ internal class LocalPlaybackCoordinator(
 
                 sessionCoordinator.updateMetadataAnimeId(null)
                 val anime = sessionCoordinator.resolveMetadataAnime(null)
-                val displayTitle = title?.takeIf { it.isNotBlank() }
-                    ?: Uri.parse(fullUrl).lastPathSegment?.takeIf { it.isNotBlank() }
-                    ?: "WebDAV"
+                val displayTitle = title?.takeIf { it.isNotBlank() } ?: target.title
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(mediaId)
                     .setUri(fullUrl)
@@ -111,9 +132,11 @@ internal class LocalPlaybackCoordinator(
                     .setSubtitleConfigurations(subtitles)
                     .build()
                 sessionCoordinator.startPlayback(mediaItem, mediaId)
-            } catch (e: Exception) {
-                AppLogManager.e(TAG, "Failed to play WebDAV URL", e)
-                uiState.update { it.copy(error = "无法播放: ${e.message}") }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                AppLogManager.w(TAG, "WebDAV 播放准备失败")
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.WEBDAV_PREPARE), isPreparingMedia = false) }
             }
         }
     }
@@ -164,14 +187,14 @@ internal class LocalPlaybackCoordinator(
         scope.launch {
             val selected = localMediaRepository.getMediaById(mediaId)
             if (selected == null || selected.isMissing || selected.isHidden) {
-                uiState.update { it.copy(error = "本地文件不存在，请重新扫描") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.FILE_NOT_FOUND), isPreparingMedia = false) }
                 return@launch
             }
             val archive = selected.archiveKey?.let { localMediaRepository.getArchive(selected.sourceId, it) }
             val files = localMediaRepository.getPlayableGroup(selected)
             val queue = LocalPlaybackQueue.build(selected, files)
             if (queue.isEmpty()) {
-                uiState.update { it.copy(error = "没有可播放的本地文件") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.NO_LOCAL_MEDIA), isPreparingMedia = false) }
                 return@launch
             }
 
@@ -281,13 +304,4 @@ internal class LocalPlaybackCoordinator(
             }
         )
         .build()
-
-    private fun buildFullUrl(baseUrl: String, relativePath: String): String {
-        if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
-            return relativePath
-        }
-        val base = baseUrl.trimEnd('/')
-        val path = relativePath.trimStart('/')
-        return "$base/$path"
-    }
 }

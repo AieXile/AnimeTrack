@@ -1,6 +1,8 @@
 package com.aiexile.animetrack.data.player.service
 
 import androidx.media3.common.FlagSet
+import androidx.media3.common.PlaybackException
+import com.aiexile.animetrack.ui.player.PlaybackFailureResolver
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -20,6 +22,8 @@ class WebQueueForwardingPlayer(
 ) : ForwardingPlayer(player) {
 
     private var webNavigation = PlaybackSessionCommands.WebNavigationState()
+    private var originalError: PlaybackException? = null
+    private var sessionError: PlaybackException? = null
     private val listenerProxies = IdentityHashMap<Player.Listener, ListenerProxy>()
 
     fun updateWebNavigation(state: PlaybackSessionCommands.WebNavigationState) {
@@ -52,6 +56,16 @@ class WebQueueForwardingPlayer(
         if (proxy != null) {
             wrappedPlayer.removeListener(proxy)
         }
+    }
+
+    override fun getPlayerError(): PlaybackException? = asSessionError(super.getPlayerError())
+
+    private fun asSessionError(error: PlaybackException?): PlaybackException? {
+        if (originalError !== error) {
+            originalError = error
+            sessionError = error?.let(PlaybackFailureResolver::forSession)
+        }
+        return sessionError
     }
 
     override fun getAvailableCommands(): Player.Commands {
@@ -185,12 +199,12 @@ class WebQueueForwardingPlayer(
             delegate.onShuffleModeEnabledChanged(shuffleModeEnabled)
         }
 
-        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-            delegate.onPlayerError(error)
+        override fun onPlayerError(error: PlaybackException) {
+            delegate.onPlayerError(checkNotNull(asSessionError(error)))
         }
 
-        override fun onPlayerErrorChanged(error: androidx.media3.common.PlaybackException?) {
-            delegate.onPlayerErrorChanged(error)
+        override fun onPlayerErrorChanged(error: PlaybackException?) {
+            delegate.onPlayerErrorChanged(asSessionError(error))
         }
 
         override fun onPositionDiscontinuity(

@@ -161,6 +161,7 @@ class PlayerViewModel(
             entryAnimeId = animeId,
             animeRepository = animeRepository,
             settingsRepository = settingsRepository,
+            playerRepository = playerRepository,
             localMediaRepository = localMediaRepository,
             scope = viewModelScope,
             uiState = _uiState,
@@ -221,8 +222,11 @@ class PlayerViewModel(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            AppLogManager.e(TAG, "Playback error", error)
-            _uiState.update { it.copy(error = error.message ?: "播放出错", isBuffering = false) }
+            val failure = PlaybackFailureResolver.fromSession(error)
+            AppLogManager.w(TAG, "播放失败: ${failure.kind.name} (Media3 ${error.errorCode})")
+            _uiState.update {
+                it.copy(error = failure, isBuffering = false, isPreparingMedia = false, isResolvingMedia = false)
+            }
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {

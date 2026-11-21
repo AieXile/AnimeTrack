@@ -26,15 +26,9 @@ import androidx.media3.common.Tracks
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.model.WebMediaSource
 
-/** 清晰度有两种来源：网站声明的独立地址，以及媒体流的自适应视频轨道。 */
+/** 控制条与面板复用同一组轨道观察；进度跳动时不会反复注册监听。 */
 @Composable
-internal fun ColumnScope.PlayerQualityContent(
-    player: Player,
-    sources: List<WebMediaSource>,
-    selectedSource: Int,
-    onSelectSource: (Int) -> Unit,
-    requestClose: () -> Unit
-) {
+private fun rememberPlayerQualitySelection(player: Player): Pair<Tracks, TrackSelectionParameters> {
     var tracks by remember(player) { mutableStateOf(player.currentTracks) }
     var parameters by remember(player) { mutableStateOf(player.trackSelectionParameters) }
     DisposableEffect(player) {
@@ -45,6 +39,34 @@ internal fun ColumnScope.PlayerQualityContent(
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
     }
+    return tracks to parameters
+}
+
+@Composable
+internal fun playerQualityLabel(player: Player): String {
+    val (tracks, parameters) = rememberPlayerQualitySelection(player)
+    val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+    val fixed = groups.firstNotNullOfOrNull { group ->
+        parameters.overrides[group.mediaTrackGroup]?.trackIndices?.singleOrNull()?.let(group::getTrackFormat)
+    } ?: if (groups.none { it.isAdaptiveSupported }) {
+        groups.firstNotNullOfOrNull { group ->
+            (0 until group.length).firstOrNull(group::isTrackSelected)?.let(group::getTrackFormat)
+        }
+    } else null
+    return fixed?.let { formatVideoResolution(it.width, it.height) }
+        ?: stringResource(R.string.player_quality_auto)
+}
+
+/** 清晰度有两种来源：网站声明的独立地址，以及媒体流的自适应视频轨道。 */
+@Composable
+internal fun ColumnScope.PlayerQualityContent(
+    player: Player,
+    sources: List<WebMediaSource>,
+    selectedSource: Int,
+    onSelectSource: (Int) -> Unit,
+    requestClose: () -> Unit
+) {
+    val (tracks, parameters) = rememberPlayerQualitySelection(player)
     val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
     val manual = groups.any { parameters.overrides.containsKey(it.mediaTrackGroup) }
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
