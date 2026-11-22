@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -314,6 +315,17 @@ fun PlayerScreen(
                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
+    DisposableEffect(uiState.isFullscreen, uiState.hasPlaybackRequest, uiState.playWhenReady) {
+        val window = activity?.window
+        val keepScreenOn = uiState.isFullscreen && uiState.hasPlaybackRequest && uiState.playWhenReady
+        if (keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            // 该页面退出时不把播放器的防息屏标志带到其他页面。
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
