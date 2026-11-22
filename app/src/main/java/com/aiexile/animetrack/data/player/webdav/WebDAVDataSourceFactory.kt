@@ -24,6 +24,6 @@ class WebDAVDataSourceFactory(
             .callTimeout(WebDavSubtitleBudget.CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(WebDavSubtitleBudget.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
-        return BoundedWebDavSubtitleDataSource(WebDAVDataSource(subtitleClient, username, password))
+        return BoundedWebDavSubtitleDataSource(WebDAVDataSource(subtitleClient, username, password, isSubtitle = true))
     }
 }

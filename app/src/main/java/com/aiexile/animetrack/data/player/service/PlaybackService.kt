@@ -2,6 +2,7 @@ package com.aiexile.animetrack.data.player.service
 
 import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.webdav.PlayerWebDavHttpClient
+import com.aiexile.animetrack.data.player.webdav.WebDavResumeOpenException
 import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleException
 
 import android.app.PendingIntent
@@ -359,7 +360,9 @@ class PlaybackService : MediaSessionService() {
 
     private fun subtitleAwareLoadErrorPolicy(): LoadErrorHandlingPolicy = object : DefaultLoadErrorHandlingPolicy() {
         override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
-            if (isWebDavSubtitleFailure(loadErrorInfo.exception)) C.TIME_UNSET else super.getRetryDelayMsFor(loadErrorInfo)
+            if (isWebDavSubtitleFailure(loadErrorInfo.exception) ||
+                generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }.take(16).any { it is WebDavResumeOpenException }
+            ) C.TIME_UNSET else super.getRetryDelayMsFor(loadErrorInfo)
     }
 
     private fun isWebDavSubtitleFailure(error: Throwable): Boolean =
