@@ -28,8 +28,7 @@ class LocalMediaLabActivity : ComponentActivity() {
                             animeId = 0,
                             initialLocalMediaId = entry.arguments?.getLong("mediaId"),
                             onBack = { nav.popBackStack() },
-                            onBrowseWebDAV = {},
-                            navController = nav
+                            onBrowseWebDAV = {}
                         )
                     }
                 }

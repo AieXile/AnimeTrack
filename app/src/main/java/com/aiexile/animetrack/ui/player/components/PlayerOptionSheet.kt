@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,6 +118,8 @@ internal fun PlayerOptionSheet(
                             PlayerSheetRow(
                                 label = choice.label,
                                 selected = choice.selected,
+                                subtitleLanguage = choice.subtitleLanguage,
+                                preserveLabelEnd = true,
                                 onClick = {
                                     choice.select()
                                     onDismiss()
@@ -219,7 +222,9 @@ private fun PlayerSheetRow(
     label: String,
     onClick: () -> Unit,
     selected: Boolean? = null,
-    trailingValue: String? = null
+    trailingValue: String? = null,
+    subtitleLanguage: String? = null,
+    preserveLabelEnd: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -229,14 +234,28 @@ private fun PlayerSheetRow(
             .padding(horizontal = 4.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected == true) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+        val titleStyle = MaterialTheme.typography.bodyLarge.copy(
+            fontWeight = if (selected == true) FontWeight.SemiBold else FontWeight.Normal
         )
+        if (preserveLabelEnd) {
+            PlayerSubtitleTrackLabel(
+                label = label,
+                language = subtitleLanguage,
+                titleStyle = titleStyle,
+                detailStyle = MaterialTheme.typography.bodySmall,
+                titleColor = Color.Unspecified,
+                detailColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Text(
+                text = label,
+                style = titleStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
         if (trailingValue != null) {
             Text(
                 text = trailingValue,

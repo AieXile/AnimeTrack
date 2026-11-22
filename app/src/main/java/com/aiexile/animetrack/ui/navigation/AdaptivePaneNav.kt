@@ -323,7 +323,11 @@ private fun PaneNavHost(
         startDestination = Routes.PANE_ROOT,
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface),
+        enterTransition = { enterTransition() },
+        exitTransition = { exitTransition() },
+        popEnterTransition = { enterTransition() },
+        popExitTransition = { exitTransition() }
     ) {
         composable(Routes.PANE_ROOT) { /* 空白根：pane 收起状态 */ }
         // pane 内返回（返回键/顶栏返回箭头）：详情模式直接收起，设置层级链逐级返回
@@ -395,7 +399,7 @@ internal fun NavGraphBuilder.sharedDestinations(
                 isPlayerCoverTransition = isPlayerCoverTransition,
                 onNavigateBack = navigateBack,
                 onNavigateToPlayer = { id ->
-                    onNavigate(Routes.player(id, sharedKeyPrefix = sharedKeyPrefix))
+                    onNavigate(Routes.webDavBrowse(id))
                 },
                 onPlayLocalMedia = { mediaId ->
                     onNavigate(
@@ -687,7 +691,7 @@ internal fun NavGraphBuilder.sharedDestinations(
             onNavigateToPlayer = { onNavigate(Routes.player(0)) },
             onNavigateToLocalMedia = { onNavigate(Routes.LOCAL_MEDIA) },
             onNavigateToWebPlayback = { onNavigate(Routes.webPlayback()) },
-            onNavigateToWebDAVBrowse = { onNavigate(Routes.WEBDAV_BROWSE) },
+            onNavigateToWebDAVBrowse = { onNavigate(Routes.webDavBrowse()) },
             onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
             settingsRepository = settingsRepository
         )

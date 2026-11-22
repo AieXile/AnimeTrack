@@ -455,7 +455,7 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    init {
+    private val preferenceLoadJob = run {
         // 复用 Application 级协程作用域（替代 GlobalScope）加载缓存；
         // Application 未就绪时兜底自建一次性作用域，保证初始化任务仍能执行。
         val scope = (context.applicationContext as? AnimeTrackApp)?.appScope
@@ -494,6 +494,9 @@ class SettingsRepository(private val context: Context) {
             }
         }
     }
+
+    /** 后台任务可能冷启动进程；发请求前等现有缓存初始化，避免首个请求误走默认直连。 */
+    internal suspend fun awaitNetworkPreferences() = preferenceLoadJob.join()
 
     val themeMode: Flow<ThemeMode> = enumPreference(THEME_MODE_KEY, DEFAULT_THEME_MODE)
 

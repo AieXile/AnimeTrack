@@ -117,6 +117,7 @@
     <string name="player_webdav_media_root">媒体根目录</string>
     <string name="player_webdav_media_root_hint">未设置时使用服务器根目录</string>
     <string name="player_webdav_last_browse">最近浏览</string>
+    <string name="player_webdav_recent_location">最近浏览：%1$s</string>
     <string name="player_webdav_clear_memory">清除浏览记忆</string>
 
     <!-- PlayerSettingsScreen -->
@@ -174,15 +175,45 @@
     <string name="local_media_video_count">%1$d 个视频</string>
     <string name="local_media_scan_summary">扫描与匹配</string>
     <string name="local_media_scan_count">已扫描 %1$d 个文件，发现 %2$d 个视频</string>
+    <string name="local_media_reidentify">重新识别</string>
+    <string name="local_media_waiting_metadata">正在等待在线元数据</string>
+    <string name="local_media_match_group">匹配整组</string>
+    <string name="local_media_confirm_group">确认整组</string>
+    <string name="local_media_clear_group">解除整组识别</string>
+    <string name="local_media_clear_group_hint">将「%1$s」移回未归类。不会删除视频或播放记录，也不会自动重新关联这些文件。</string>
+    <string name="local_media_change_group">更改整组关联</string>
+    <string name="local_media_match_tracking">已有追番</string>
+    <string name="local_media_match_search_failed">在线搜索未全部完成，可重试或选择已有追番。</string>
+    <string name="local_media_episode_decimal">第 %1$s 集</string>
     <string name="local_media_scan_again">重新扫描</string>
     <string name="local_media_list_retry">无法加载媒体，点此重试</string>
     <string name="local_media_files">媒体文件</string>
+    <string name="local_media_unclassified">未归类</string>
+    <string name="local_media_files_empty">未发现视频。将视频放入此文件夹后，点「重新扫描」。</string>
+    <string name="local_media_episode">第 %1$d 集</string>
+    <string name="local_media_episode_range">第 %1$d–%2$d 集</string>
+    <string name="local_media_episode_unknown">未知集数</string>
+    <string name="local_media_episode_extra">特典 / 特别篇</string>
+    <plurals name="local_media_group_video_count">
+        <item quantity="other">%1$d 个视频</item>
+    </plurals>
+    <plurals name="local_media_group_pending_count">
+        <item quantity="other">%1$d 个待确认</item>
+    </plurals>
     <string name="local_media_match_action">关联番剧</string>
     <string name="local_media_match_title">关联到番剧</string>
     <string name="local_media_match_search_hint">搜索番剧标题</string>
     <string name="local_media_match_clear">解除关联</string>
     <string name="local_media_match_none">没有匹配的番剧</string>
     <string name="local_media_match_pending">待确认</string>
+    <string name="local_media_match_confirm">确认当前关联</string>
+    <string name="local_media_match_change">更改关联</string>
+    <string name="local_media_hide">隐藏视频</string>
+    <string name="local_media_hidden_title">已隐藏的视频</string>
+    <string name="local_media_hidden_count">已隐藏（%1$d）</string>
+    <string name="local_media_restore">恢复显示</string>
+    <string name="local_media_no_visible_files">没有可显示的视频。可以从「已隐藏」恢复。</string>
+    <string name="local_media_visibility_failed">无法更新隐藏状态，请重试。</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">未知错误</string>
@@ -277,6 +308,35 @@
     <string name="web_episode_summary">%1$d 条线路 · 当前线路 %2$d 集</string>
     <string name="player_connecting">正在连接播放服务…</string>
     <string name="player_preparing">正在准备视频…</string>
+    <string name="player_failure_http_unauthorized">服务器要求认证（401），请检查登录状态或账号密码。</string>
+    <string name="player_failure_http_forbidden">服务器拒绝访问（403），请检查视频访问权限。</string>
+    <string name="player_failure_http_not_found">服务器上找不到视频（404），请重新选源。</string>
+    <string name="player_failure_http_expired">视频地址已失效（410），请重新获取播放地址。</string>
+    <string name="player_failure_http_rate_limited">服务器限制了请求频率（429），请稍后重试。</string>
+    <string name="player_failure_http_server">服务器暂时无法播放此视频（HTTP %1$d），请稍后重试。</string>
+    <string name="player_failure_http_other">服务器拒绝了播放请求（HTTP %1$d），请检查视频来源。</string>
+    <string name="player_failure_http_unspecified">服务器返回了无法播放的 HTTP 响应。</string>
+    <string name="player_failure_http_redirect">无法跟随服务器跳转（HTTP %1$d），请检查播放地址。</string>
+    <string name="player_failure_dns">无法解析服务器地址，请检查网络或地址是否正确。</string>
+    <string name="player_failure_connection">无法连接到视频服务器，请检查网络后重试。</string>
+    <string name="player_failure_timeout">连接或读取视频超时，请重试。</string>
+    <string name="player_failure_tls">无法建立安全连接，请检查服务器 TLS 配置和证书。</string>
+    <string name="player_failure_cleartext">此明文 HTTP 连接被系统阻止，请使用 HTTPS 地址。</string>
+    <string name="player_failure_file_not_found">找不到视频文件，文件可能已移动或删除。请重新选择或扫描。</string>
+    <string name="player_failure_file_permission">无法访问视频文件，请重新授权或选择文件。</string>
+    <string name="player_failure_unsupported_format">此视频格式不受支持，请换一个视频来源。</string>
+    <string name="player_failure_malformed_media">视频文件或播放列表损坏，无法读取。</string>
+    <string name="player_failure_decoder">无法解码视频或音频，请尝试切换硬件加速或换源。</string>
+    <string name="player_failure_drm">无法播放受保护的视频，请检查播放授权。</string>
+    <string name="player_failure_invalid_address">播放地址无效或不在已配置的媒体目录内。</string>
+    <string name="player_failure_webdav_prepare">无法准备 WebDAV 视频，请检查服务器配置后重试。</string>
+    <string name="player_webdav_subtitle_too_large">已跳过体积过大的外挂字幕。</string>
+    <string name="player_webdav_subtitle_skipped">有外挂字幕加载失败或超过大小限制，视频继续播放。</string>
+    <string name="player_webdav_subtitle_http_failed">有外挂字幕下载失败（HTTP %1$d），视频继续播放。</string>
+    <string name="player_failure_no_local_media">找不到可播放的本地视频，请重新扫描媒体库。</string>
+    <string name="player_failure_service">无法连接播放服务，请返回后重试。</string>
+    <string name="player_failure_io">读取视频数据失败，请检查文件或播放来源。</string>
+    <string name="player_failure_unknown">播放失败，暂无法确定原因。请重试或换一个视频来源。</string>
     <string name="player_buffering">正在缓冲…</string>
     <string name="player_resolve_cancelled">网页解析已取消，请重试或返回选集。</string>
     <string name="player_previous_episode">上一集</string>

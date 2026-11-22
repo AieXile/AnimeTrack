@@ -9,11 +9,14 @@ object LocalPlaybackQueue {
     fun mediaKey(id: Long): String = "local:$id"
 
     fun build(selected: LocalMediaEntity, files: List<LocalMediaEntity>): List<LocalMediaEntity> {
-        require(!selected.isMissing) { "文件已缺失，请重新扫描或授权" }
-        if (!isEpisode(selected) || selected.matchedAnimeId == null) return listOf(selected)
+        require(!selected.isMissing && !selected.isHidden) { "文件已缺失或隐藏" }
+        if (!isEpisode(selected) || (selected.archiveKey == null && selected.matchedAnimeId == null)) return listOf(selected)
         return files.asSequence()
-            .filter { !it.isMissing && isEpisode(it) }
-            .filter { it.sourceId == selected.sourceId && it.matchedAnimeId == selected.matchedAnimeId }
+            .filter { !it.isMissing && !it.isHidden && isEpisode(it) }
+            .filter { file ->
+                file.sourceId == selected.sourceId && if (selected.archiveKey != null) file.archiveKey == selected.archiveKey
+                else file.matchedAnimeId == selected.matchedAnimeId
+            }
             .filter { sameSeason(it.seasonNumber, selected.seasonNumber) }
             .groupBy { it.episodeNumber!! }
             .map { (_, versions) ->
@@ -33,6 +36,7 @@ object LocalPlaybackQueue {
     fun isEpisode(file: LocalMediaEntity): Boolean =
         file.episodeType != LocalEpisodeType.EXTRA &&
             file.matchState != LocalMediaMatchState.IGNORED &&
-            file.episodeNumber != null && file.episodeNumber > 0 && file.seasonNumber != 99 &&
+            file.episodeNumber != null && file.episodeNumber > 0 && file.seasonNumber != 99 && file.seasonNumber != 0 &&
+            file.decimalEpisode == null &&
             (file.episodeEndNumber == null || file.episodeEndNumber == file.episodeNumber)
 }

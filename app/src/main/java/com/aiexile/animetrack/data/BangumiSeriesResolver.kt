@@ -27,8 +27,19 @@ object BangumiSeriesResolver {
      * "前传"/"续集"是主线；"外传/番外/总集篇/剧场版/主线故事/分支故事"按用户选择并入堆叠；
      * "联动/书籍/游戏/片头曲"等明确排除（如"我独自升级"与"香格里拉边境"是联动，非同系列）。
      */
+    private const val PREQUEL = "前传"
+    private const val SEQUEL = "续集"
+
+    /** 只沿唯一主线走一季；分叉、外传和前后关系不明时不给刮削器猜。 */
+    fun uniqueMainlineSequel(relations: List<SubjectRelation>): SubjectRelation? =
+        relations.filter { it.isAnime && it.relation == SEQUEL }.distinctBy { it.subjectId }.singleOrNull()
+
+    fun isUniqueMainlinePrequel(relations: List<SubjectRelation>, previousId: Int): Boolean =
+        relations.filter { it.isAnime && it.relation == PREQUEL }.distinctBy { it.subjectId }
+            .singleOrNull()?.subjectId == previousId
+
     private val SERIES_RELATIONS = setOf(
-        "前传", "续集", "外传", "外伝", "番外篇", "番外編", "番外编",
+        PREQUEL, SEQUEL, "外传", "外伝", "番外篇", "番外編", "番外编",
         "总集篇", "総集編", "总集编", "剧场版", "劇場版", "主线故事", "分支故事"
     )
 

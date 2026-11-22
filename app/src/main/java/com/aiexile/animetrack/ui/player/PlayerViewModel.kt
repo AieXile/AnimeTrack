@@ -16,10 +16,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaRepository
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
 import com.aiexile.animetrack.data.player.web.PendingWebPlaybackRequest
@@ -130,7 +132,8 @@ class PlayerViewModel(
         getDefaultSpeed = { defaultSpeedCache },
         getAutoLandscape = { autoLandscapeCache },
         onControllerConnected = {
-            sessionCoordinator.syncWebNavigation(webCoordinator.webQueue)
+            if (localCoordinator.hasWebDavQueue) localCoordinator.syncWebDavNavigation()
+            else sessionCoordinator.syncWebNavigation(webCoordinator.webQueue)
         },
         findLocalFile = { mediaId -> localCoordinator.findLocalFile(mediaId) },
         hasLocalQueue = { localCoordinator.localQueue.isNotEmpty() },
@@ -161,6 +164,7 @@ class PlayerViewModel(
             entryAnimeId = animeId,
             animeRepository = animeRepository,
             settingsRepository = settingsRepository,
+            playerRepository = playerRepository,
             localMediaRepository = localMediaRepository,
             scope = viewModelScope,
             uiState = _uiState,
@@ -210,10 +214,12 @@ class PlayerViewModel(
                 }
                 Player.STATE_ENDED -> {
                     progressTracker.finishCurrentMedia()
-                    if (webCoordinator.hasQueue && _uiState.value.autoPlayNext &&
-                        player.playWhenReady && hasNextEpisode() && !_uiState.value.isPreparingMedia
+                    if (_uiState.value.autoPlayNext && player.playWhenReady && hasNextEpisode() &&
+                        !_uiState.value.isPreparingMedia
                     ) {
-                        webCoordinator.selectEpisode(_uiState.value.currentEpisodeIndex + 1, fromStart = true)
+                        val next = _uiState.value.currentEpisodeIndex + 1
+                        if (webCoordinator.hasQueue) webCoordinator.selectEpisode(next, fromStart = true)
+                        else if (localCoordinator.hasWebDavQueue) localCoordinator.selectEpisode(next)
                     }
                 }
             }
@@ -221,8 +227,11 @@ class PlayerViewModel(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            AppLogManager.e(TAG, "Playback error", error)
-            _uiState.update { it.copy(error = error.message ?: "播放出错", isBuffering = false) }
+            val failure = PlaybackFailureResolver.fromSession(error)
+            AppLogManager.w(TAG, "播放失败: ${failure.kind.name} (Media3 ${error.errorCode})")
+            _uiState.update {
+                it.copy(error = failure, isBuffering = false, isPreparingMedia = false, isResolvingMedia = false)
+            }
         }
 
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
@@ -263,14 +272,18 @@ class PlayerViewModel(
             currentMediaId = newMediaId
             val localIndex = localCoordinator.indexOfLocalMedia(currentMediaId)
             val localFile = localCoordinator.localQueue.getOrNull(localIndex)
+            val webDavIndex = localCoordinator.indexOfWebDavMedia(currentMediaId)
             if (localFile != null) {
                 sessionCoordinator.updateMetadataAnimeId(localFile.matchedAnimeId)
             }
             _uiState.update {
                 it.copy(
-                    mediaTitle = localFile?.let(localCoordinator::localDisplayTitle) ?: it.mediaTitle,
-                    seriesTitle = localFile?.parsedTitle ?: it.seriesTitle,
-                    currentEpisodeIndex = webCoordinator.webQueue?.episodeIndex ?: localIndex
+                    mediaTitle = localFile?.let(localCoordinator::localDisplayTitle)
+                        ?: localCoordinator.webDavTitle(webDavIndex) ?: it.mediaTitle,
+                    seriesTitle = if (localFile?.archiveKey != null) it.seriesTitle ?: localFile.parsedTitle
+                    else localFile?.parsedTitle ?: it.seriesTitle,
+                    currentEpisodeIndex = webCoordinator.webQueue?.episodeIndex
+                        ?: webDavIndex.takeIf { index -> index >= 0 } ?: localIndex
                 )
             }
         }
@@ -285,6 +298,14 @@ class PlayerViewModel(
             when (command.customAction) {
                 PlaybackSessionCommands.ACTION_WEB_PREVIOUS -> seekToPrevious()
                 PlaybackSessionCommands.ACTION_WEB_NEXT -> seekToNext()
+                PlaybackSessionCommands.ACTION_WEBDAV_SUBTITLE_SKIPPED -> {
+                    if (args.getString(PlaybackSessionCommands.EXTRA_MEDIA_ID) == currentMediaId) {
+                        val status = args.getInt(PlaybackSessionCommands.EXTRA_HTTP_STATUS).takeIf { it in 400..599 }
+                        val message = status?.let { application.getString(R.string.player_webdav_subtitle_http_failed, it) }
+                            ?: application.getString(R.string.player_webdav_subtitle_skipped)
+                        _uiState.update { it.copy(notice = message) }
+                    }
+                }
                 else -> return super.onCustomCommand(controller, command, args)
             }
             return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -386,6 +407,7 @@ class PlayerViewModel(
     /** 在任何异步工作之前标记已选源，避免准备过程中回落到选源界面。 */
     private fun beginPlaybackRequest() {
         webCoordinator.cancelActiveResolution()
+        localCoordinator.cancelWebDavPreparation()
         sessionCoordinator.cancelStartJob()
         _uiState.update {
             it.copy(
@@ -439,7 +461,11 @@ class PlayerViewModel(
                 webCoordinator.currentWebIntent(),
                 preserveSpeed = true
             )
-            is PlayRequest.WebDav -> playWebDavUrl(request.url, request.title)
+            is PlayRequest.WebDav -> {
+                val index = localCoordinator.indexOfWebDavMedia(currentMediaId)
+                val url = localCoordinator.webDavUrl(index) ?: request.url
+                playWebDavUrl(url, localCoordinator.webDavTitle(index) ?: request.title)
+            }
             is PlayRequest.Local -> playLocalUri(request.uri, request.title)
             is PlayRequest.LocalMedia -> playLocalMedia(request.mediaId)
             is PlayRequest.Web -> playWeb(
@@ -466,6 +492,7 @@ class PlayerViewModel(
         val c = sessionCoordinator.controller ?: return
         val target = if (c.duration > 0) positionMs.coerceIn(0L, c.duration)
         else positionMs.coerceAtLeast(0L)
+        PlaybackTrace.event { "ui.seek from=${c.currentPosition} to=$target state=${c.playbackState} playing=${c.isPlaying}" }
         c.seekTo(target)
         // 保留 playWhenReady：播放中快进应等待缓冲后续播，暂停中快进仍保持暂停。
         progressTracker.updatePositionState()
@@ -517,8 +544,8 @@ class PlayerViewModel(
 
     /** 跳到下一个媒体项 */
     fun seekToNext() {
-        if (webCoordinator.hasQueue) {
-            if (hasNextEpisode()) webCoordinator.selectEpisode(_uiState.value.currentEpisodeIndex + 1)
+        if (webCoordinator.hasQueue || localCoordinator.hasWebDavQueue) {
+            if (hasNextEpisode()) selectEpisode(_uiState.value.currentEpisodeIndex + 1)
             return
         }
         val c = sessionCoordinator.controller ?: return
@@ -528,17 +555,21 @@ class PlayerViewModel(
     }
 
     /** 是否有下一集 */
-    fun hasNextEpisode(): Boolean =
-        if (webCoordinator.hasQueue) webCoordinator.hasNextEpisode()
-        else sessionCoordinator.controller?.hasNextMediaItem() == true
+    fun hasNextEpisode(): Boolean = when {
+        webCoordinator.hasQueue -> webCoordinator.hasNextEpisode()
+        localCoordinator.hasWebDavQueue -> localCoordinator.canSelectWebDav(_uiState.value.currentEpisodeIndex + 1)
+        else -> sessionCoordinator.controller?.hasNextMediaItem() == true
+    }
 
-    fun hasPreviousEpisode(): Boolean =
-        if (webCoordinator.hasQueue) webCoordinator.hasPreviousEpisode()
-        else sessionCoordinator.controller?.hasPreviousMediaItem() == true
+    fun hasPreviousEpisode(): Boolean = when {
+        webCoordinator.hasQueue -> webCoordinator.hasPreviousEpisode()
+        localCoordinator.hasWebDavQueue -> localCoordinator.canSelectWebDav(_uiState.value.currentEpisodeIndex - 1)
+        else -> sessionCoordinator.controller?.hasPreviousMediaItem() == true
+    }
 
     fun seekToPrevious() {
-        if (webCoordinator.hasQueue) {
-            if (hasPreviousEpisode()) webCoordinator.selectEpisode(_uiState.value.currentEpisodeIndex - 1)
+        if (webCoordinator.hasQueue || localCoordinator.hasWebDavQueue) {
+            if (hasPreviousEpisode()) selectEpisode(_uiState.value.currentEpisodeIndex - 1)
             return
         }
         sessionCoordinator.controller?.let { if (it.hasPreviousMediaItem()) it.seekToPreviousMediaItem() }

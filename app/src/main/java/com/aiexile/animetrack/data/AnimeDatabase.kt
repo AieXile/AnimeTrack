@@ -9,6 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaDao
+import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
 import com.aiexile.animetrack.data.media.LocalEpisodeProgressEntity
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
@@ -21,9 +22,10 @@ import com.aiexile.animetrack.model.PendingDeletion
         PendingDeletion::class,
         LocalMediaSourceEntity::class,
         LocalMediaEntity::class,
-        LocalEpisodeProgressEntity::class
+        LocalEpisodeProgressEntity::class,
+        LocalMediaArchiveEntity::class
     ],
-    version = 30,
+    version = 32,
     exportSchema = true
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -578,6 +580,36 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        /** 30→31 迁移：旧文件保持可见，仅用户操作才会隐藏。 */
+        internal val MIGRATION_30_31 = object : Migration(30, 31) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE local_media ADD COLUMN isHidden INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** 媒体库识别与追番记录分离；旧关联保留，下一次扫描更新解析证据。 */
+        internal val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `local_media_archive` (
+                        `sourceId` INTEGER NOT NULL, `key` TEXT NOT NULL, `title` TEXT NOT NULL,
+                        `coverUrl` TEXT, `bangumiId` INTEGER, `tmdbId` INTEGER, `year` INTEGER,
+                        `summary` TEXT, `episodeCount` INTEGER, PRIMARY KEY(`sourceId`, `key`),
+                        FOREIGN KEY(`sourceId`) REFERENCES `local_source`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                for (column in listOf(
+                    "parserVersion INTEGER NOT NULL DEFAULT 0", "groupKey TEXT", "archiveKey TEXT", "titleEvidence TEXT",
+                    "baseTitle TEXT", "releaseYear INTEGER", "decimalEpisode TEXT", "originalEpisode TEXT",
+                    "bangumiHint INTEGER", "tmdbHint INTEGER", "episodeOffset INTEGER", "sidecarFingerprint TEXT",
+                    "movie INTEGER NOT NULL DEFAULT 0", "scrapeState TEXT NOT NULL DEFAULT 'NONE'",
+                    "explicitEpisodeNumbers INTEGER NOT NULL DEFAULT 0", "groupOverride INTEGER NOT NULL DEFAULT 0"
+                )) db.execSQL("ALTER TABLE local_media ADD COLUMN $column")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_sourceId_groupKey` ON `local_media` (`sourceId`, `groupKey`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_media_sourceId_archiveKey` ON `local_media` (`sourceId`, `archiveKey`)")
+            }
+        }
+
         /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
         private val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
@@ -588,7 +620,7 @@ abstract class AnimeDatabase : RoomDatabase() {
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
             MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
-            MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30
+            MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32
         ).map { LoggingMigration(it) }.toTypedArray()
 
         /**

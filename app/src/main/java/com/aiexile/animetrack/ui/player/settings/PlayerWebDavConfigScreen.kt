@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
@@ -39,6 +40,7 @@ import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.AppSwitch
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.player.webdav.webDavDisplayPath
 import kotlinx.coroutines.launch
 
 /**
@@ -134,10 +136,11 @@ fun PlayerWebDavConfigScreen(
 
             if (lastBrowsePath.isNotBlank()) {
                 Text(
-                    text = "${stringResource(R.string.player_webdav_last_browse)}：$lastBrowsePath",
+                    text = stringResource(R.string.player_webdav_recent_location, webDavDisplayPath(lastBrowsePath)),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.MiddleEllipsis,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }

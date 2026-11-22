@@ -1,36 +1,41 @@
 package com.aiexile.animetrack.data.player.webdav
 
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import android.net.Uri
 import android.util.Base64
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DataSourceException
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
 import java.io.IOException
 import java.io.InputStream
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class WebDAVDataSource(
     private val okHttpClient: OkHttpClient,
     private val username: String,
-    private val password: String
+    private val password: String,
+    private val isSubtitle: Boolean = false
 ) : DataSource {
 
+    private companion object {
+        val PARTIAL_RANGE = Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)", RegexOption.IGNORE_CASE)
+    }
+
+    private var remaining = C.LENGTH_UNSET.toLong()
+
     private var inputStream: InputStream? = null
+    private var openedResponse: Response? = null
     private var openedUri: Uri? = null
-    private var contentLength: Long = C.LENGTH_UNSET.toLong()
     private var responseHeaders: Map<String, List<String>> = emptyMap()
-    private var bytesRemaining: Long = C.LENGTH_UNSET.toLong()
-    private var opened = false
 
     override fun open(dataSpec: DataSpec): Long {
         val uri = dataSpec.uri
-        openedUri = uri
-
         val requestBuilder = Request.Builder().url(uri.toString())
 
         // Basic authentication
@@ -45,141 +50,163 @@ class WebDAVDataSource(
 
         // Range request for seeking
         val position = dataSpec.position
-        if (position > 0) {
-            val endPosition = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
-                position + dataSpec.length - 1
-            } else {
-                -1L
-            }
-            val rangeHeader = if (endPosition > 0) {
-                "bytes=$position-$endPosition"
-            } else {
-                "bytes=$position-"
-            }
-            requestBuilder.header("Range", rangeHeader)
+        androidx.media3.datasource.HttpUtil.buildRangeRequestHeader(position, dataSpec.length)?.let {
+            requestBuilder.header("Range", it)
         }
 
         val request = requestBuilder.build()
 
         try {
-            var response = okHttpClient.newCall(request).execute()
-
-            // Basic 被拒且服务器提供 Digest 质询时，改用 Digest 认证重试一次
-            if (response.code == 401 && username.isNotEmpty()) {
-                val challenge = response.header("WWW-Authenticate")
-                if (challenge != null && challenge.trim().startsWith("Digest", ignoreCase = true)) {
-                    val digestUri = request.url.encodedPath +
-                        (request.url.query?.let { "?$it" } ?: "")
-                    val digestHeader = DigestAuth.buildAuthorization(
-                        method = "GET",
-                        uri = digestUri,
-                        challenge = challenge,
-                        username = username,
-                        password = password
-                    )
-                    if (digestHeader != null) {
-                        response.close()
-                        val digestRequest = request.newBuilder()
-                            .header("Authorization", digestHeader)
-                            .build()
-                        response = okHttpClient.newCall(digestRequest).execute()
-                    }
-                }
-            }
-
+            val response = executeRequest(request, position)
+            openedResponse = response
             val statusCode = response.code
-            when {
-                statusCode == 401 || statusCode == 403 -> {
-                    response.close()
-                    throw IOException("Access denied: $statusCode for $uri")
+            if (statusCode == 416 && position > 0 &&
+                response.header("Content-Range")?.trim()?.equals("bytes */$position", ignoreCase = true) == true
+            ) {
+                remaining = 0
+                openedUri = uri
+                responseHeaders = response.headers.toMultimap()
+                return 0L
+            }
+            if (statusCode !in 200..299) {
+                val error = HttpDataSource.InvalidResponseCodeException(
+                    statusCode, response.message, null, response.headers.toMultimap(), dataSpec, ByteArray(0)
+                )
+                // 只允许字幕下载器重放已携带 Basic、未跳转且服务器明确要求 Basic 的 GET。
+                if (isSubtitle && statusCode == 401 && username.isNotEmpty() && response.priorResponse == null &&
+                    response.request.url == request.url && response.request.header("Authorization")?.startsWith("Basic ", true) == true &&
+                    response.challenges().any { it.scheme.equals("Basic", true) } &&
+                    response.challenges().none { it.scheme.equals("Digest", true) }
+                ) throw WebDavSubtitleBasicChallenge(error)
+                if (!isSubtitle && (statusCode == 401 || (position > 0 && statusCode == 416))) {
+                    throw WebDavResumeOpenException(error)
                 }
-                statusCode in 300..399 -> {
-                    response.close()
-                    throw IOException("Redirect not followed: $statusCode for $uri")
-                }
-                statusCode !in 200..299 -> {
-                    response.close()
-                    throw IOException("Unexpected response: $statusCode for $uri")
-                }
+                throw error
             }
 
+            val body = response.body ?: throw IOException("Empty WebDAV response")
+            val available = when {
+                statusCode == 206 -> partialLength(response, position)
+                position != 0L -> throw WebDavResumeOpenException()
+                else -> body.contentLength()
+            }
+            val requested = dataSpec.length
+            val length = when {
+                requested == C.LENGTH_UNSET.toLong() -> available
+                available == C.LENGTH_UNSET.toLong() -> requested
+                else -> minOf(requested, available)
+            }
+            // 字幕封装需按实际 EOF 查验大小，不能让少报的 Content-Length 隐藏尾部。
+            remaining = if (isSubtitle && requested == C.LENGTH_UNSET.toLong()) requested else length
+            inputStream = body.byteStream()
+            openedUri = uri
             responseHeaders = response.headers.toMultimap()
-
-            // Determine content length from response headers
-            val contentRangeHeader = response.header("Content-Range")
-            if (contentRangeHeader != null) {
-                // Content-Range: bytes start-end/total
-                val rangePart = contentRangeHeader.substringAfter("bytes ").trim()
-                val totalPart = rangePart.substringAfter("/", "")
-                if (totalPart.isNotEmpty() && totalPart != "*") {
-                    contentLength = totalPart.toLong()
-                }
-                // bytes remaining in this partial response
-                val dashIndex = rangePart.indexOf('-')
-                val slashIndex = rangePart.indexOf('/')
-                if (dashIndex > 0 && slashIndex > dashIndex) {
-                    val end = rangePart.substring(dashIndex + 1, slashIndex).toLong()
-                    val start = rangePart.substring(0, dashIndex).toLong()
-                    bytesRemaining = end - start + 1
-                } else {
-                    bytesRemaining = response.body?.contentLength()?.takeIf { it > 0 }
-                        ?: C.LENGTH_UNSET.toLong()
-                }
-            } else {
-                contentLength = response.body?.contentLength()?.takeIf { it > 0 }
-                    ?: C.LENGTH_UNSET.toLong()
-                bytesRemaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
-                    dataSpec.length
-                } else if (contentLength != C.LENGTH_UNSET.toLong()) {
-                    contentLength - position
-                } else {
-                    C.LENGTH_UNSET.toLong()
-                }
-            }
-
-            inputStream = response.body?.byteStream()
-                ?: throw IOException("Empty response body for $uri")
-
-            opened = true
-            return bytesRemaining
+            return length
         } catch (e: IOException) {
+            closeAfterOpenFailure(e)
             throw e
         } catch (e: Exception) {
+            closeAfterOpenFailure(e)
             throw IOException("Failed to open $uri", e)
         }
     }
 
+    private fun partialLength(response: Response, position: Long): Long {
+        val match = PARTIAL_RANGE.matchEntire(response.header("Content-Range").orEmpty().trim())
+            ?: throw WebDavResumeOpenException()
+        val (first, last, total) = match.destructured
+        val end = last.toLongOrNull() ?: throw WebDavResumeOpenException()
+        if (first.toLongOrNull() != position || end < position || end - position == Long.MAX_VALUE ||
+            (total != "*" && (total.toLongOrNull() ?: -1L) <= end)
+        ) throw WebDavResumeOpenException()
+        return end - position + 1
+    }
+
+    private fun executeRequest(request: Request, offset: Long): Response {
+        val traceId = PlaybackTrace.nextRequest()
+        var response = okHttpClient.newCall(request).execute()
+        PlaybackTrace.response(traceId, request, response, offset, digestRetry = false)
+        if (response.code != 401 || username.isEmpty()) return response
+        val challenged = response.request
+        if (!WebDavPlaybackIdentity.sameOrigin(request.url, challenged.url)) return response
+        val digestChallenge = response.headers.values("WWW-Authenticate")
+            .firstOrNull { it.trim().startsWith("Digest", ignoreCase = true) }
+        val retry = when {
+            digestChallenge != null -> {
+                val url = challenged.url
+                val header = DigestAuth.buildAuthorization(challenged.method,
+                    url.encodedPath + (url.encodedQuery?.let { "?$it" } ?: ""), digestChallenge, username, password)
+                    ?: return response
+                challenged.newBuilder().header("Authorization", header).build()
+            }
+            !isSubtitle && offset > 0 && response.priorResponse == null && request.url == challenged.url &&
+                response.challenges().any { it.scheme.equals("Basic", ignoreCase = true) } -> request
+            else -> return response
+        }
+        response.close()
+        // 恢复同一 GET（包括 Range）一次，不交给提取器从之前的输入位置另行续读。
+        PlaybackTrace.event { "dav.authReplay req=$traceId offset=$offset digest=${digestChallenge != null}" }
+        response = try {
+            okHttpClient.newCall(retry).execute()
+        } catch (e: IOException) {
+            if (!isSubtitle && offset > 0) throw WebDavResumeOpenException(e)
+            throw e
+        }
+        PlaybackTrace.response(traceId, request, response, offset, digestRetry = digestChallenge != null)
+        return response
+    }
+
+    private fun closeAfterOpenFailure(cause: Exception) {
+        val response = openedResponse
+        resetState()
+        if (response != null) closeWebDavResponse(response, cause)
+    }
+
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        val stream = inputStream ?: return C.RESULT_END_OF_INPUT
-        val bytesRead = stream.read(buffer, offset, length)
-        if (bytesRead == -1) {
-            return C.RESULT_END_OF_INPUT
-        }
-        if (bytesRemaining != C.LENGTH_UNSET.toLong()) {
-            bytesRemaining -= bytesRead.toLong()
-        }
-        return bytesRead
+        if (length == 0) return 0
+        if (remaining == 0L) return C.RESULT_END_OF_INPUT
+        val count = if (remaining < 0) length else minOf(remaining, length.toLong()).toInt()
+        val read = inputStream?.read(buffer, offset, count) ?: return C.RESULT_END_OF_INPUT
+        if (read > 0 && remaining > 0) remaining -= read
+        return read
     }
 
-    override fun getUri(): Uri? {
-        return openedUri
-    }
+    override fun getUri(): Uri? = openedUri
 
-    override fun getResponseHeaders(): Map<String, List<String>> {
-        return responseHeaders
-    }
+    override fun getResponseHeaders(): Map<String, List<String>> = responseHeaders
 
     override fun addTransferListener(transferListener: TransferListener) {
         // No-op: transfer events not supported
     }
 
     override fun close() {
-        openedUri = null
-        opened = false
+        val response = openedResponse
+        resetState()
         try {
-            inputStream?.close()
+            response?.body?.close()
         } catch (_: IOException) {
         }
+    }
+
+    private fun resetState() {
+        openedResponse = null
         inputStream = null
+        openedUri = null
+        responseHeaders = emptyMap()
+    }
+}
+
+/** 保留原 HTTP 异常（含状态码和 Retry-After），只消耗字幕下载器已有的一次重试预算。 */
+internal class WebDavSubtitleBasicChallenge(val httpError: HttpDataSource.InvalidResponseCodeException) :
+    IOException("WebDAV subtitle Basic authentication rejected", httpError)
+
+/** 本次打开已被拒绝或没有取得正确范围，不允许加载器从旧提取器位置重试。 */
+internal class WebDavResumeOpenException(cause: Throwable? = null) : IOException("WebDAV request could not resume", cause)
+
+private fun closeWebDavResponse(response: Response, cause: Exception) {
+    try {
+        response.body?.close()
+    } catch (e: Exception) {
+        if (e !== cause) cause.addSuppressed(e)
     }
 }

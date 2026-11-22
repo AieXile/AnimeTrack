@@ -22,6 +22,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.flow.flowOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.aiexile.animetrack.data.media.LocalMediaAnimeGroup
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
 import com.aiexile.animetrack.localmedialab.LocalMediaLabActivity
@@ -40,6 +41,7 @@ class LocalMediaListPerformanceTest {
     fun measureFirstVisibleRowAndGestureFramesAtEachSize() {
         val state = mutableStateOf(LocalMediaUiState())
         val pageFlow = mutableStateOf(flowOf(PagingData.empty<LocalMediaEntity>()))
+        val groups = flowOf(PagingData.empty<LocalMediaAnimeGroup>())
         val source = LocalMediaSourceEntity(id = 1, treeUri = "content://test/tree/root", displayName = "P6 list sample")
         val activity = compose.activity
         compose.runOnUiThread {
@@ -48,8 +50,11 @@ class LocalMediaListPerformanceTest {
                     view.setContent {
                         MaterialTheme {
                             LocalMediaLibraryContent(
-                                state.value, {}, {}, {}, {}, {}, {}, {},
-                                pages = pageFlow.value.collectAsLazyPagingItems()
+                                state = state.value,
+                                onBack = {}, onPlayMedia = {}, onAddFolder = {},
+                                onSelectSource = {}, onDeleteSource = {}, onScanSelectedSource = {},
+                                groups = groups.collectAsLazyPagingItems(),
+                                unclassified = pageFlow.value.collectAsLazyPagingItems()
                             )
                         }
                     }
@@ -88,8 +93,8 @@ class LocalMediaListPerformanceTest {
                 }
                 compose.waitForIdle()
                 val samples = frameTimes.toList().sorted()
-                // 添加按钮、来源、扫描卡和文件分组标题各占一项。
-                compose.onNodeWithTag("local-media-list").performScrollToIndex(size + 3)
+                // 添加按钮、来源、扫描卡、媒体标题和未归类标题各占一项。
+                compose.onNodeWithTag("local-media-list").performScrollToIndex(size + 4)
                 compose.waitUntil(5_000) { compose.onAllNodes(androidx.compose.ui.test.hasText(rows.last().fileName)).fetchSemanticsNodes().isNotEmpty() }
                 compose.onNodeWithText(rows.last().fileName).assertIsDisplayed()
                 assertTrue("No rendered frames at size $size", samples.isNotEmpty())

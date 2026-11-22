@@ -82,10 +82,14 @@ class LocalMediaScanPerformanceTest {
             dao.insertMedia(missingHistory)
             val listBefore = clock()
             val loaded = dao.getMedia(source.id)
-            val previousVisible = withContext(Dispatchers.Main) { loaded.filterNot { it.isMissing } }
+            val previousVisible = withContext(Dispatchers.Main) {
+                loaded.filterNot { it.isMissing }.sortedWith(compareBy<LocalMediaEntity> { it.episodeNumber }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.relativePath }.thenBy { it.id })
+            }
             val baselineNs = clock() - listBefore
             val listAfter = clock()
-            val pageSource = dao.pagePresentMedia(source.id)
+            // 用同一已归档番剧的选集分页对比全量取回/过滤，隔离网络和真实账号数据。
+            val pageSource = dao.pageArchiveMedia(source.id, "bgm:42", null)
             val firstPage = pageSource.load(PagingSource.LoadParams.Refresh(null, 100, true))
                 as PagingSource.LoadResult.Page<Int, LocalMediaEntity>
             val optimizedNs = clock() - listAfter
@@ -136,15 +140,17 @@ class LocalMediaScanPerformanceTest {
         val timings = LocalMediaRepository.ScanTimings()
         val result = repository.scanSource(id, timings)
         val scanNs = clock() - start
-        // 隔离真实网络延迟及账号数据：用一个只提供固定番剧列表的 Repository 代理。
+        // 只比较固定目录与固定元数据，不请求外网或读取用户追番。
         val repo = AppContainer.getAnimeRepository()
-        val sample = com.aiexile.animetrack.model.Anime(
-            id = 1, title = "P6 Benchmark", totalEpisodes = 100, watchedEpisodes = 0,
-            status = com.aiexile.animetrack.model.AnimeStatus.WATCHING, rating = null, notes = ""
+        val sample = com.aiexile.animetrack.data.network.BangumiSubject(
+            42, "P6 Benchmark", null,
+            com.aiexile.animetrack.data.network.BangumiImages("https://example.invalid/cover", null, null, null, null),
+            100, 100, null
         )
         val matcher = LocalMediaAutoMatchUseCase(repository, object : com.aiexile.animetrack.data.AnimeRepository by repo {
-            override fun getAllAnimes() = kotlinx.coroutines.flow.flowOf(listOf(sample))
-            override suspend fun searchBangumi(query: String) = emptyList<com.aiexile.animetrack.data.network.BangumiSubject>()
+            override fun getAllAnimes() = kotlinx.coroutines.flow.flowOf(emptyList<com.aiexile.animetrack.model.Anime>())
+            override suspend fun searchBangumi(query: String) = listOf(sample)
+            override suspend fun searchTmdbTvShows(query: String) = emptyList<com.aiexile.animetrack.data.network.TmdbTvShow>()
         })
         val matchStart = clock()
         matcher.run(id)

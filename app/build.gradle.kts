@@ -1,8 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.baselineprofile)
@@ -24,8 +21,10 @@ val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
 
 android {
     namespace = "com.aiexile.animetrack"
-    // compileSdk 37：backdrop 2.0.0（液态玻璃）要求 minCompileSdk 37
-    compileSdk = 37
+    // Compose 1.13 要求 API 37.1；不改变应用的最低安装版本或目标版本。
+    compileSdk {
+        version = release(37) { minorApiLevel = 1 }
+    }
 
     defaultConfig {
         applicationId = "com.aiexile.animetrack"
@@ -104,9 +103,13 @@ android {
         }
     }
     compileOptions {
+        // jsoup 在 Android 上需要带 NIO 的 Java 标准库 desugaring。
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    sourceSets.getByName("androidTest").assets.directories.add("schemas")
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -147,12 +150,6 @@ androidComponents {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
-
 // Room 迁移 schema 基线：开启 exportSchema 后把每个版本的建表结构导出到这里，
 // 后续补迁移测试时作为对比基准（当前版本 28）。
 ksp {
@@ -160,6 +157,7 @@ ksp {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -223,6 +221,7 @@ dependencies {
     implementation(libs.pinyin4j)
     // 网页数据源：把站点 HTML 解析为 W3C DOM，供 Kazumi 兼容的 XPath 规则提取条目与剧集
     implementation(libs.jsoup)
+    implementation(libs.kotlin.anitomy)
     // xCrash：崩溃捕获（Java + Native + ANR），tombstone 落盘后下次启动静默上报自建服务器
     implementation(libs.xcrash.android.lib)
     implementation(project(":jiguang"))

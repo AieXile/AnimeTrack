@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,7 +33,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,16 +60,19 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.C
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.player.web.PendingWebPlayback
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
+import com.aiexile.animetrack.ui.navigation.WEB_DAV_SELECTION_KEY
+import com.aiexile.animetrack.ui.navigation.WEB_DAV_SELECTION_NAME
+import com.aiexile.animetrack.ui.navigation.WEB_DAV_SELECTION_PATH
 import com.aiexile.animetrack.ui.player.components.BottomControlBar
 import com.aiexile.animetrack.ui.player.components.DetailsSheetType
 import com.aiexile.animetrack.ui.player.components.EmbeddedPlayerControls
@@ -90,13 +94,14 @@ import com.aiexile.animetrack.ui.player.components.PlayerQualityContent
 import com.aiexile.animetrack.ui.player.components.PlayerSelectionContent
 import com.aiexile.animetrack.ui.player.components.PlayerVideoPlaceholder
 import com.aiexile.animetrack.ui.player.components.PlayerViewContainer
+import com.aiexile.animetrack.ui.player.components.playerQualityLabel
 import com.aiexile.animetrack.ui.player.components.TopControlBar
 import com.aiexile.animetrack.ui.player.components.TrackSelectionContent
 import com.aiexile.animetrack.ui.player.components.VideoCornerRadius
 import com.aiexile.animetrack.ui.player.web.WebMediaSnifferOverlay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
@@ -108,6 +113,7 @@ fun PlayerScreen(
     initialLocalTitle: String? = null,
     initialLocalMediaId: Long? = null,
     initialWebPlay: Boolean = false,
+    initialWebDavPlay: Boolean = false,
     /** 共享元素命名空间：与详情页封面 key 保持一致，小窗视频卡按同一 key 做 Morph。
      *  null 表示不是从详情页进入，不做共享元素 */
     sharedKeyPrefix: String? = null,
@@ -118,7 +124,7 @@ fun PlayerScreen(
     onSelectLocalFile: () -> Unit = {},
     /** 身份卡点击回到番剧详情页；animeId 为 0（本地文件/全局网页）时不会触发 */
     onOpenAnimeDetail: () -> Unit = {},
-    navController: NavController,
+    webDavResultHandle: SavedStateHandle? = null,
     viewModel: PlayerViewModel = viewModel(factory = PlayerViewModel.Factory(animeId))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -155,25 +161,26 @@ fun PlayerScreen(
         uri?.let { viewModel.playLocalUri(it) }
     }
 
-    // 用 StateFlow 单订阅：LiveData.observe 会随 LaunchedEffect 重启叠加多个 observer
-    val navBackStackEntry = navController.currentBackStackEntryAsState()
-    val hasPendingWebDavRequest = navBackStackEntry.value?.savedStateHandle
-        ?.get<String>("webdav_file_path") != null
-    navBackStackEntry.value?.let { entry ->
-        LaunchedEffect(entry) {
-            entry.savedStateHandle.getStateFlow<String?>("webdav_file_path", null)
-                .filterNotNull()
-                .collect { path ->
-                    val fileName = entry.savedStateHandle.get<String?>("webdav_file_name")
-                    viewModel.playWebDavUrl(path, fileName)
-                    entry.savedStateHandle["webdav_file_path"] = null
-                }
+    // 只读本播放器的结果，不跟随正在转场的浏览页或其他路由。
+    val webDavResults = remember(webDavResultHandle) {
+        webDavResultHandle?.getStateFlow<Bundle?>(WEB_DAV_SELECTION_KEY, null) ?: flowOf(null)
+    }
+    val webDavSelection by webDavResults.collectAsStateWithLifecycle(
+        initialValue = webDavResultHandle?.get<Bundle>(WEB_DAV_SELECTION_KEY),
+        minActiveState = Lifecycle.State.RESUMED
+    )
+    val hasPendingWebDavRequest = webDavSelection != null
+    LaunchedEffect(webDavSelection, webDavResultHandle) {
+        val selection = webDavSelection ?: return@LaunchedEffect
+        selection.getString(WEB_DAV_SELECTION_PATH)?.let { path ->
+            viewModel.playWebDavUrl(path, selection.getString(WEB_DAV_SELECTION_NAME))
         }
+        webDavResultHandle?.set<Bundle?>(WEB_DAV_SELECTION_KEY, null)
     }
 
     var autoBrowseTriggered by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(animeId, initialLocalUri, initialLocalMediaId, initialWebPlay) {
-        if (initialLocalUri == null && initialLocalMediaId == null && !initialWebPlay &&
+        if (initialLocalUri == null && initialLocalMediaId == null && !initialWebPlay && !initialWebDavPlay &&
             animeId > 0 && !autoBrowseTriggered
         ) {
             autoBrowseTriggered = true
@@ -311,6 +318,17 @@ fun PlayerScreen(
         }
     }
 
+    DisposableEffect(uiState.isFullscreen, uiState.hasPlaybackRequest, uiState.playWhenReady) {
+        val window = activity?.window
+        val keepScreenOn = uiState.isFullscreen && uiState.hasPlaybackRequest && uiState.playWhenReady
+        if (keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            // 该页面退出时不把播放器的防息屏标志带到其他页面。
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             insetsController?.systemBarsBehavior =
@@ -352,9 +370,11 @@ fun PlayerScreen(
                         instantEnter = isCoverMorphing
                     )
 
-                    if (uiState.error != null) {
+                    val failure = uiState.error
+                    if (failure != null) {
                         ErrorOverlay(
-                            error = uiState.error!!,
+                            error = failure.httpStatus?.let { stringResource(failure.kind.messageRes, it) }
+                                ?: stringResource(failure.kind.messageRes),
                             onRetry = {
                                 if (!viewModel.retryLast()) handleBack()
                             },
@@ -478,6 +498,7 @@ fun PlayerScreen(
                                     durationMs = uiState.durationMs,
                                     bufferedPositionMs = uiState.bufferedPositionMs,
                                     playbackSpeed = uiState.playbackSpeed,
+                                    qualityLabel = playerQualityLabel(viewModel.player),
                                     isFullscreen = uiState.isFullscreen,
                                     playWhenReady = uiState.playWhenReady,
                                     hasNextEpisode = viewModel.hasNextEpisode(),
@@ -536,19 +557,6 @@ fun PlayerScreen(
                             onSeekDragEnd = { isSeekDragging = false },
                             onBarHeightChanged = { controlsBarHeightPx = it }
                         )
-                    }
-
-                    if (uiState.error != null && uiState.hasPlaybackRequest && !anyPanelOpen) {
-                        IconButton(
-                            onClick = openOptionsMenu,
-                            modifier = Modifier.align(Alignment.TopEnd)
-                        ) {
-                            Icon(
-                                rememberAppIconPainter(AppIcon.SETTINGS),
-                                contentDescription = stringResource(R.string.player_settings_title),
-                                tint = Color.White
-                            )
-                        }
                     }
                 }
             },
@@ -628,7 +636,16 @@ fun PlayerScreen(
                             } else {
                                 Spacer(Modifier.weight(1f))
                             }
-                            Spacer(Modifier.weight(1f))
+                            if (uiState.episodes.size > 1) {
+                                PlayerMenuGridItem(
+                                    icon = rememberAppIconPainter(AppIcon.FOLDER_OPEN),
+                                    label = stringResource(R.string.player_episodes),
+                                    onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Episodes },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Spacer(Modifier.weight(1f))
+                            }
                         }
 
                         Spacer(Modifier.height(12.dp))

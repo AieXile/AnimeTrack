@@ -1,6 +1,9 @@
 package com.aiexile.animetrack.data.player.service
 
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.webdav.PlayerWebDavHttpClient
+import com.aiexile.animetrack.data.player.webdav.WebDavResumeOpenException
+import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleException
 
 import android.app.PendingIntent
 import android.content.Context
@@ -10,17 +13,26 @@ import android.os.Handler
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.text.DefaultSubtitleParserFactory
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
@@ -33,8 +45,11 @@ import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.di.AppContainer
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import io.github.peerless2012.ass.media.AssHandler
 import io.github.peerless2012.ass.media.AssHandlerConfig
-import io.github.peerless2012.ass.media.kt.buildWithAssSupport
+import io.github.peerless2012.ass.media.kt.withAssMkvSupport
+import io.github.peerless2012.ass.media.kt.withAssSupport
+import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
 import io.github.peerless2012.ass.media.type.AssRenderType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +60,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import java.io.IOException
 
 /**
  * 后台播放服务：ExoPlayer 的常驻之家。
@@ -90,9 +106,7 @@ class PlaybackService : MediaSessionService() {
 
         okHttpClient = PlayerWebDavHttpClient.create(startup.trustAllCerts)
 
-        // 字幕渲染交给 libass（native 引擎）：特效/定位/卡拉OK全支持，
-        // 且解析与栅格化发生在 native 堆，不再挤爆 Java 堆（历史 OOM 根因）。
-        // EFFECTS_OPEN_GL：字幕作为视频特效在 GL 管线内合成，与 MediaSession 架构自洽。
+        // libass 使用 GL 合成；外挂字幕的原始数据仍需单独限制，不能算进视频缓冲预算。
         val player = try {
             buildLibAssPlayer(this, startup.allowHardware, startup.autoPlayNext)
         } catch (t: Throwable) {
@@ -137,11 +151,94 @@ class PlaybackService : MediaSessionService() {
             .setCallback(createSessionCallback())
             .build()
 
+        player.addAnalyticsListener(object : AnalyticsListener {
+            private val window = Timeline.Window()
+
+            override fun onLoadError(
+                eventTime: AnalyticsListener.EventTime,
+                loadEventInfo: LoadEventInfo,
+                mediaLoadData: MediaLoadData,
+                error: IOException,
+                wasCanceled: Boolean
+            ) {
+                if (!wasCanceled || !isWebDavSubtitleFailure(error)) return
+                if (eventTime.windowIndex !in 0 until eventTime.timeline.windowCount) return
+                val item = eventTime.timeline.getWindow(eventTime.windowIndex, window).mediaItem
+                val subtitles = item.localConfiguration?.subtitleConfigurations.orEmpty()
+                if (item.mediaId != player.currentMediaItem?.mediaId || !item.mediaId.startsWith("webdav:") ||
+                    subtitles.none { it.uri == loadEventInfo.dataSpec.uri }
+                ) return
+                // Media3 会单独禁用有错误的字幕轨，不一定会调用 onPlayerError。
+                val status = generateSequence<Throwable>(error) { it.cause }.take(16)
+                    .filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
+                val detail = status?.let { "HTTP $it" } ?: (error.cause ?: error).javaClass.simpleName
+                PlaybackTrace.event { "service.subtitleSkipped status=${status ?: -1} pos=${player.currentPosition} rebuild=false" }
+                notifyWebDavSubtitleSkipped(item.mediaId, status)
+                AppLogManager.w(TAG, "WebDAV 外挂字幕轨读取失败 ($detail)")
+            }
+        })
+
+        player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) = PlaybackTrace.event {
+                "service.state state=$playbackState pos=${player.currentPosition} play=${player.playWhenReady}"
+            }
+
+            override fun onRenderedFirstFrame() = PlaybackTrace.event {
+                "service.firstFrame pos=${player.currentPosition}"
+            }
+
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) = PlaybackTrace.event {
+                "service.discontinuity reason=$reason from=${oldPosition.positionMs} to=${newPosition.positionMs}"
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                // 会话转发前保留错误类别与库内调用点；不记录异常消息、URL 或请求头。
+                PlaybackTrace.event {
+                    val causes = generateSequence<Throwable>(error) { it.cause }.take(6).joinToString("/") { cause ->
+                        val site = cause.stackTrace.firstOrNull { frame ->
+                            frame.className.startsWith("androidx.media3.") || frame.className.startsWith("io.github.peerless2012.ass.")
+                        }
+                        val timeout = (cause as? androidx.media3.exoplayer.ExoTimeoutException)?.timeoutOperation
+                        "${cause.javaClass.simpleName}@${site?.className}.${site?.methodName}:${site?.lineNumber}" +
+                            (timeout?.let { ":timeoutOp=$it" } ?: "")
+                    }
+                    "service.failure media3=${androidx.media3.common.MediaLibraryInfo.VERSION} code=${error.errorCode} causes=$causes"
+                }
+                val item = player.currentMediaItem ?: return
+                val subtitles = item.localConfiguration?.subtitleConfigurations.orEmpty()
+                if (!item.mediaId.startsWith("webdav:") || subtitles.isEmpty() || !isWebDavSubtitleFailure(error)) return
+                val index = player.currentMediaItemIndex
+                val position = player.currentPosition.coerceAtLeast(0L)
+                val playWhenReady = player.playWhenReady
+                // Listener 分发期间不重入播放器；若已退出、换片或主动重试，不覆盖新的请求。
+                serviceScope.launch(Dispatchers.Main) {
+                    if (player.playerError !== error || player.currentMediaItem != item) return@launch
+                    PlaybackTrace.event { "service.subtitleRecovery pos=$position play=$playWhenReady rebuild=true" }
+                    player.replaceMediaItem(index, item.buildUpon().setSubtitleConfigurations(emptyList()).build())
+                    player.seekTo(index, position)
+                    player.prepare()
+                    player.playWhenReady = playWhenReady
+                    notifyWebDavSubtitleSkipped(item.mediaId)
+                    AppLogManager.w(TAG, "WebDAV 外挂字幕加载失败，已跳过并恢复视频")
+                }
+            }
+        })
+
         serviceScope.launch {
             settingsRepository.playerAutoPlayNext.collect { enabled ->
                 player.setPauseAtEndOfMediaItems(!enabled)
             }
         }
+    }
+
+    private fun notifyWebDavSubtitleSkipped(mediaId: String, status: Int? = null) {
+        mediaSession?.broadcastCustomCommand(
+            SessionCommand(PlaybackSessionCommands.ACTION_WEBDAV_SUBTITLE_SKIPPED, Bundle.EMPTY),
+            Bundle().apply {
+                putString(PlaybackSessionCommands.EXTRA_MEDIA_ID, mediaId)
+                status?.let { putInt(PlaybackSessionCommands.EXTRA_HTTP_STATUS, it) }
+            }
+        )
     }
 
     private fun createSessionActivityPendingIntent(): PendingIntent {
@@ -192,7 +289,14 @@ class PlaybackService : MediaSessionService() {
         allowHardware: Boolean,
         autoPlayNext: Boolean
     ): ExoPlayer {
-        val player = ExoPlayer.Builder(context, createRenderersFactory(allowHardware))
+        val handler = AssHandler(
+            AssRenderType.EFFECTS_OPEN_GL,
+            AssHandlerConfig(maxRenderPixels = 1920 * 1080)
+        )
+        val assParserFactory = AssSubtitleParserFactory(handler)
+        val parserFactory = WebDavSubtitleParserFactory(assParserFactory)
+        val extractors = DefaultExtractorsFactory().withAssMkvSupport(assParserFactory, handler)
+        val player = ExoPlayer.Builder(context, createRenderersFactory(allowHardware).withAssSupport(handler))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -204,13 +308,16 @@ class PlaybackService : MediaSessionService() {
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
             .setLoadControl(createLoadControl())
-            .buildWithAssSupport(
-                context = context,
-                renderType = AssRenderType.EFFECTS_OPEN_GL,
-                config = AssHandlerConfig(maxRenderPixels = 1920 * 1080),
-                dataSourceFactory = createDataSourceFactory(),
-                renderersFactory = createRenderersFactory(allowHardware)
-            )
+            .setMediaSourceFactory(DefaultMediaSourceFactory(createDataSourceFactory(), extractors)
+                .setSubtitleParserFactory(parserFactory)
+                .setLoadErrorHandlingPolicy(subtitleAwareLoadErrorPolicy()))
+            .build()
+        try {
+            handler.init(player)
+        } catch (e: Throwable) {
+            player.release()
+            throw e
+        }
         player.setPauseAtEndOfMediaItems(!autoPlayNext)
         return player
     }
@@ -232,7 +339,9 @@ class PlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .setSeekBackIncrementMs(10000)
             .setSeekForwardIncrementMs(10000)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(createDataSourceFactory()))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(createDataSourceFactory())
+                .setSubtitleParserFactory(WebDavSubtitleParserFactory(DefaultSubtitleParserFactory()))
+                .setLoadErrorHandlingPolicy(subtitleAwareLoadErrorPolicy()))
             .setLoadControl(createLoadControl())
             .build()
         player.setPauseAtEndOfMediaItems(!autoPlayNext)
@@ -247,28 +356,17 @@ class PlaybackService : MediaSessionService() {
     private fun createDataSourceFactory(): DataSource.Factory =
         PlaybackDataSourceFactory(this, okHttpClient)
 
-    /**
-     * 收紧缓冲（历史 OOM 缓解措施，保留）：
-     * 默认 DefaultLoadControl 允许视频 SampleQueue 增长至约 128MB
-     * （DEFAULT_VIDEO_BUFFER_SIZE = 2000×64KB）、最多预缓 50s；高码率局域网源可快速灌满。
-     * 此处收紧至 30s/48MB。
-     * 注意：外挂字幕由 SingleSampleMediaPeriod 全量载入堆、不受此限制——
-     * 若日志显示 LOAD-DONE type=text bytes 异常巨大，则根因为字幕 URL 错误而非缓冲策略。
-     */
-    private fun createLoadControl(): DefaultLoadControl =
-        DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                /* minBufferMs = */ 15_000,
-                /* maxBufferMs = */ 30_000,
-                /* bufferForPlaybackMs = */ DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
-                /* bufferForPlaybackAfterRebufferMs = */ DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
-            )
-            // 字节上限硬生效：默认 prioritizeTimeOverSizeThresholds=true 时，
-            // 缓冲时长未达上限就一直加载、无视 targetBufferBytes（实测高码率源一路灌到 139MB
-            // 导致堆顶格 + 卡死看门狗误杀）。改为 false 后 48MB 到顶即停。
-            .setPrioritizeTimeOverSizeThresholds(false)
-            .setTargetBufferBytes(48 * 1024 * 1024)
-            .build()
+    private fun createLoadControl() = PlaybackBufferControl()
+
+    private fun subtitleAwareLoadErrorPolicy(): LoadErrorHandlingPolicy = object : DefaultLoadErrorHandlingPolicy() {
+        override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long =
+            if (isWebDavSubtitleFailure(loadErrorInfo.exception) ||
+                generateSequence<Throwable>(loadErrorInfo.exception) { it.cause }.take(16).any { it is WebDavResumeOpenException }
+            ) C.TIME_UNSET else super.getRetryDelayMsFor(loadErrorInfo)
+    }
+
+    private fun isWebDavSubtitleFailure(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.take(16).any { it is WebDavSubtitleException }
 
     /** 硬件加速关闭时强制软件解码（过滤硬解码器；结果为空则回退原列表防黑屏） */
     private fun createRenderersFactory(allowHardware: Boolean): RenderersFactory =

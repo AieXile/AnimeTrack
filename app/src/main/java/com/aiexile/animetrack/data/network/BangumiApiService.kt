@@ -55,7 +55,9 @@ data class BangumiSubject(
     val total_episodes: Int?,
     val rating: BangumiRating?,
     val summary: String? = null,
-    val date: String? = null
+    val date: String? = null,
+    val platform: String? = null,
+    val infobox: List<BangumiInfoboxItem>? = null
 ) {
     val displayName: String
         get() = if (!name_cn.isNullOrBlank()) name_cn else name
@@ -183,7 +185,9 @@ data class BangumiSubjectDetail(
     val totalEpisodes: Int?,
     val rating: BangumiRating?,
     val images: BangumiImages?,
-    val infobox: List<BangumiInfoboxItem>? = null
+    val infobox: List<BangumiInfoboxItem>? = null,
+    val type: Int? = null,
+    val platform: String? = null
 ) {
     val score: Double?
         get() = rating?.score

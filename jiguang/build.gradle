@@ -1,15 +1,13 @@
-apply plugin: 'com.android.library'
+plugins {
+    alias(libs.plugins.android.library)
+}
 
 android {
-    namespace 'cn.jiguang.sdk'
-    compileSdk 34
+    namespace = 'cn.jiguang.sdk'
+    compileSdk = 34
 
     defaultConfig {
-        minSdk 26
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-
+        minSdk = 26
         consumerProguardFiles 'consumer-rules.pro'
     }
 

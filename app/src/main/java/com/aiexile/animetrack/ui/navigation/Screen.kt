@@ -32,8 +32,13 @@ object Routes {
     const val UPDATE_NOTIFICATION = "updateNotification"
     const val WIDGET_GUIDE = "widgetGuide"
     const val DAILY_BROADCAST = "dailyBroadcast"
-    const val PLAYER = "player/{animeId}?localUri={localUri}&localTitle={localTitle}&localMediaId={localMediaId}&webPlay={webPlay}&sharedKeyPrefix={sharedKeyPrefix}"
-    const val WEBDAV_BROWSE = "webdavBrowse"
+    const val PLAYER = "player/{animeId}?localUri={localUri}&localTitle={localTitle}&localMediaId={localMediaId}&webPlay={webPlay}&sharedKeyPrefix={sharedKeyPrefix}&webDavPlay={webDavPlay}"
+    const val WEBDAV_BROWSE = "webdavBrowse?animeId={animeId}"
+    fun webDavBrowse(animeId: Int = 0): String = if (animeId > 0) "webdavBrowse?animeId=$animeId" else "webdavBrowse"
+    val webDavBrowseArguments = listOf(navArgument("animeId") {
+        type = NavType.IntType
+        defaultValue = 0
+    })
     const val PLAYER_SETTINGS = "playerSettings"
     const val LOCAL_MEDIA = "localMedia"
     const val WEB_PLAYBACK = "webPlayback?animeId={animeId}&animeTitle={animeTitle}"
@@ -85,13 +90,15 @@ object Routes {
         localMediaId: Long? = null,
         webPlay: Boolean = false,
         /** 详情页共享元素命名空间：从详情页进入时携带，播放器小窗按同一 key 做封面 Morph */
-        sharedKeyPrefix: String? = null
+        sharedKeyPrefix: String? = null,
+        webDavPlay: Boolean = false
     ): String {
         val query = buildList {
             localUri?.let { add("localUri=${android.net.Uri.encode(it)}") }
             localTitle?.let { add("localTitle=${android.net.Uri.encode(it)}") }
             localMediaId?.let { add("localMediaId=$it") }
             if (webPlay) add("webPlay=true")
+            if (webDavPlay) add("webDavPlay=true")
             // null 表示「不是从详情页进入」，不参与封面 Morph；空串是合法的默认命名空间
             sharedKeyPrefix?.let { add("sharedKeyPrefix=${android.net.Uri.encode(it)}") }
         }
@@ -176,6 +183,10 @@ object Routes {
             nullable = true
             defaultValue = null
         },
+        navArgument("webDavPlay") {
+            type = NavType.BoolType
+            defaultValue = false
+        },
         navArgument("webPlay") {
             type = NavType.StringType
             nullable = true
@@ -253,6 +264,12 @@ object Routes {
         PLAYER_SETTINGS to WEBDAV_BROWSE,
         PLAYER_SETTINGS to LOCAL_MEDIA,
         PLAYER_SETTINGS to WEB_PLAYBACK,
+        PLAYER_SETTINGS to PLAYER,
+        LOCAL_MEDIA to PLAYER,
+        WEB_PLAYBACK to PLAYER,
+        ANIME_DETAIL to WEB_PLAYBACK,
+        ANIME_DETAIL to WEBDAV_BROWSE,
+        WEBDAV_BROWSE to PLAYER,
         // 反馈层级链：聊天主页 → 历史 → 会话详情
         FEEDBACK to FEEDBACK_HISTORY,
         FEEDBACK_HISTORY to FEEDBACK_SESSION,

@@ -117,6 +117,7 @@
     <string name="player_webdav_media_root">Media root</string>
     <string name="player_webdav_media_root_hint">Uses the server root when unset</string>
     <string name="player_webdav_last_browse">Recent location</string>
+    <string name="player_webdav_recent_location">Recent location: %1$s</string>
     <string name="player_webdav_clear_memory">Clear browse memory</string>
 
     <!-- PlayerSettingsScreen -->
@@ -174,15 +175,47 @@
     <string name="local_media_video_count">%1$d videos</string>
     <string name="local_media_scan_summary">Scan and matching</string>
     <string name="local_media_scan_count">Scanned %1$d files, found %2$d videos</string>
+    <string name="local_media_reidentify">Identify again</string>
+    <string name="local_media_waiting_metadata">Waiting for online metadata</string>
+    <string name="local_media_match_group">Match group</string>
+    <string name="local_media_confirm_group">Confirm group</string>
+    <string name="local_media_clear_group">Remove group match</string>
+    <string name="local_media_clear_group_hint">Move “%1$s” to Unclassified. Videos and playback history are kept, and these files will not be matched again automatically.</string>
+    <string name="local_media_change_group">Change group match</string>
+    <string name="local_media_match_tracking">Tracked anime</string>
+    <string name="local_media_match_search_failed">Online search did not finish. Retry or choose a tracked anime.</string>
+    <string name="local_media_episode_decimal">Episode %1$s</string>
     <string name="local_media_scan_again">Scan again</string>
     <string name="local_media_list_retry">Could not load media. Tap to retry.</string>
     <string name="local_media_files">Media files</string>
+    <string name="local_media_unclassified">Unclassified</string>
+    <string name="local_media_files_empty">No videos found. Add videos to this folder, then tap Scan again.</string>
+    <string name="local_media_episode">Episode %1$d</string>
+    <string name="local_media_episode_range">Episodes %1$d–%2$d</string>
+    <string name="local_media_episode_unknown">Unknown episode</string>
+    <string name="local_media_episode_extra">Extra or special</string>
+    <plurals name="local_media_group_video_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
+    <plurals name="local_media_group_pending_count">
+        <item quantity="one">%1$d match to confirm</item>
+        <item quantity="other">%1$d matches to confirm</item>
+    </plurals>
     <string name="local_media_match_action">Match anime</string>
     <string name="local_media_match_title">Match to anime</string>
     <string name="local_media_match_search_hint">Search anime title</string>
     <string name="local_media_match_clear">Remove match</string>
     <string name="local_media_match_none">No matching anime</string>
     <string name="local_media_match_pending">Needs confirmation</string>
+    <string name="local_media_match_confirm">Confirm current match</string>
+    <string name="local_media_match_change">Change match</string>
+    <string name="local_media_hide">Hide video</string>
+    <string name="local_media_hidden_title">Hidden videos</string>
+    <string name="local_media_hidden_count">Hidden (%1$d)</string>
+    <string name="local_media_restore">Unhide</string>
+    <string name="local_media_no_visible_files">No visible videos. Open Hidden to restore them.</string>
+    <string name="local_media_visibility_failed">Could not update visibility. Try again.</string>
 
     <!-- UpdateDialog -->
     <string name="update_dialog_unknown_error">Unknown error</string>
@@ -277,6 +310,35 @@
     <string name="web_episode_summary">%1$d sources · %2$d episodes in this source</string>
     <string name="player_connecting">Connecting to playback service…</string>
     <string name="player_preparing">Preparing video…</string>
+    <string name="player_failure_http_unauthorized">The server requires authentication (401). Check your sign-in or credentials.</string>
+    <string name="player_failure_http_forbidden">The server denied access (403). Check your permission to play this video.</string>
+    <string name="player_failure_http_not_found">The server could not find the video (404). Choose another source.</string>
+    <string name="player_failure_http_expired">The video link is no longer available (410). Get a new link.</string>
+    <string name="player_failure_http_rate_limited">The server is rate-limiting requests (429). Try again later.</string>
+    <string name="player_failure_http_server">The video server returned an error (HTTP %1$d). Try again later.</string>
+    <string name="player_failure_http_other">The server rejected the playback request (HTTP %1$d). Check the source.</string>
+    <string name="player_failure_http_unspecified">The server returned an HTTP response that could not be played.</string>
+    <string name="player_failure_http_redirect">Could not follow the server redirect (HTTP %1$d). Check the video address.</string>
+    <string name="player_failure_dns">Could not resolve the server address. Check your network or the address.</string>
+    <string name="player_failure_connection">Could not connect to the video server. Check your network and try again.</string>
+    <string name="player_failure_timeout">The connection or video read timed out. Try again.</string>
+    <string name="player_failure_tls">Could not establish a secure connection. Check the server TLS settings and certificate.</string>
+    <string name="player_failure_cleartext">Android blocked this unencrypted connection. Use an HTTPS address.</string>
+    <string name="player_failure_file_not_found">The file may have moved or been deleted. Select it again or rescan the library.</string>
+    <string name="player_failure_file_permission">Could not open the video file. Grant access again or choose the file again.</string>
+    <string name="player_failure_unsupported_format">This video format is not supported. Try another source.</string>
+    <string name="player_failure_malformed_media">The video file or playlist is damaged and could not be read.</string>
+    <string name="player_failure_decoder">Could not decode the video or audio. Try changing hardware acceleration or using another source.</string>
+    <string name="player_failure_drm">Could not play the protected video. Check your playback license.</string>
+    <string name="player_failure_invalid_address">The playback address is invalid or outside the configured media folder.</string>
+    <string name="player_failure_webdav_prepare">Could not prepare the WebDAV video. Check the server settings and try again.</string>
+    <string name="player_webdav_subtitle_too_large">Oversized external subtitles were skipped.</string>
+    <string name="player_webdav_subtitle_skipped">An external subtitle could not be loaded or exceeded the size limit. Video playback continues.</string>
+    <string name="player_webdav_subtitle_http_failed">An external subtitle could not be downloaded (HTTP %1$d). Video playback continues.</string>
+    <string name="player_failure_no_local_media">No playable local videos found. Rescan the library.</string>
+    <string name="player_failure_service">Could not connect to the playback service. Go back and try again.</string>
+    <string name="player_failure_io">Could not read the video data. Check the file or the playback source.</string>
+    <string name="player_failure_unknown">Playback failed for an unknown reason. Try again or choose another source.</string>
     <string name="player_buffering">Buffering…</string>
     <string name="player_resolve_cancelled">Page resolution was cancelled. Retry or return to episodes.</string>
     <string name="player_previous_episode">Previous episode</string>

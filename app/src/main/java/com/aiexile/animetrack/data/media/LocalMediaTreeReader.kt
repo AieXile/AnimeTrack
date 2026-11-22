@@ -24,7 +24,7 @@ internal data class LocalMediaScanFile(
     fun hasUnchangedContent(old: LocalMediaEntity): Boolean =
         relativePath == old.relativePath && fileName == old.fileName &&
             size > 0 && lastModified > 0 && size == old.size && lastModified == old.lastModified &&
-            old.episodeType != null // 迁移来的记录可能尚未分类。
+            old.episodeType != null // 解析版本由仓库检查；旧记录可能尚未分类。
 }
 
 internal interface LocalMediaTreeReader {
@@ -35,6 +35,8 @@ internal interface LocalMediaTreeReader {
 
     /** 只有目录完整遍历后才正常返回；不完整或不可读的结果必须抛出。 */
     suspend fun readFiles(treeUri: Uri, onFile: suspend (LocalMediaScanFile) -> Unit)
+
+    suspend fun readSidecar(file: LocalMediaScanFile): ByteArray? = null
 }
 
 internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : LocalMediaTreeReader {
@@ -47,6 +49,11 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
         resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
+    override suspend fun readSidecar(file: LocalMediaScanFile): ByteArray? {
+        if (file.size > LocalMediaSidecarParser.MAX_BYTES) return null
+        return resolver.openInputStream(Uri.parse(file.documentUri))?.use(LocalMediaSidecarParser::readBounded)
+    }
+
     override suspend fun readFiles(treeUri: Uri, onFile: suspend (LocalMediaScanFile) -> Unit) {
         val pending = ArrayDeque<Directory>()
         pending.addLast(Directory(DocumentsContract.getTreeDocumentId(treeUri), ""))
@@ -57,7 +64,8 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
             val directory = pending.removeLast()
             if (!visited.add(directory.documentId)) throw IOException("文件夹目录结构异常")
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, directory.documentId)
-            queryChildren(childrenUri).use { cursor ->
+            (resolver.queryLocalDocuments(childrenUri, PROJECTION)
+                ?: throw IOException("无法读取文件夹内容")).use { cursor ->
                 cursor.requireComplete()
                 val idColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
                 val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
@@ -94,20 +102,6 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
         }
     }
 
-    private suspend fun queryChildren(uri: Uri): Cursor = suspendCancellableCoroutine { continuation ->
-        val signal = CancellationSignal()
-        continuation.invokeOnCancellation { signal.cancel() }
-        if (!continuation.isActive) return@suspendCancellableCoroutine
-        val cursor = try {
-            resolver.query(uri, PROJECTION, null, null, null, signal)
-                ?: throw IOException("无法读取文件夹内容")
-        } catch (e: Exception) {
-            continuation.resumeWithException(e)
-            return@suspendCancellableCoroutine
-        }
-        continuation.resume(cursor) { _, result, _ -> result.close() }
-    }
-
     private fun Cursor.requireComplete() {
         val status = extras
         if (status.getBoolean(DocumentsContract.EXTRA_LOADING) ||
@@ -130,3 +124,18 @@ internal class SafLocalMediaTreeReader(private val resolver: ContentResolver) : 
         )
     }
 }
+
+/** 目录查询随协程取消；结果尚未交给调用方时由这里关闭游标。 */
+internal suspend fun ContentResolver.queryLocalDocuments(uri: Uri, projection: Array<String>): Cursor? =
+    suspendCancellableCoroutine { continuation ->
+        val signal = CancellationSignal()
+        continuation.invokeOnCancellation { signal.cancel() }
+        if (!continuation.isActive) return@suspendCancellableCoroutine
+        val cursor = try {
+            query(uri, projection, null, null, null, signal)
+        } catch (e: Exception) {
+            continuation.resumeWithException(e)
+            return@suspendCancellableCoroutine
+        }
+        continuation.resume(cursor) { _, result, _ -> result?.close() }
+    }

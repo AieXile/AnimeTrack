@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
@@ -113,9 +112,7 @@ internal fun ErrorOverlay(
             text = error,
             color = Color.White,
             fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            maxLines = if (compact) 2 else 3,
-            overflow = TextOverflow.Ellipsis
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(if (compact) 8.dp else 24.dp))

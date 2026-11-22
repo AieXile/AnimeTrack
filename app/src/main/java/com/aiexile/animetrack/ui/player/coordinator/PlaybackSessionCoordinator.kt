@@ -17,11 +17,14 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaEntity
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.service.CoilBitmapLoader
 import com.aiexile.animetrack.data.player.service.PlaybackService
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
 import com.aiexile.animetrack.domain.playback.WebPlaybackQueue
 import com.aiexile.animetrack.model.Anime
+import com.aiexile.animetrack.ui.player.PlaybackFailure
+import com.aiexile.animetrack.ui.player.PlaybackFailureKind
 import com.aiexile.animetrack.ui.player.PlayerUiState
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -108,7 +111,7 @@ internal class PlaybackSessionCoordinator(
                 // onCleared 已取消连接（快速退出页面），controller 由 future 内部释放
             } catch (e: Exception) {
                 AppLogManager.e(TAG, "Failed to connect to PlaybackService", e)
-                uiState.update { it.copy(error = "无法启动播放服务: ${e.message}") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
             }
         }, MoreExecutors.directExecutor())
     }
@@ -156,18 +159,20 @@ internal class PlaybackSessionCoordinator(
         title: String,
         artist: String?,
         albumTitle: String?,
-        anime: Anime?
+        anime: Anime?,
+        artworkUrl: String? = null
     ): MediaMetadata = MediaMetadata.Builder()
         .setTitle(title)
         .setArtist(artist?.takeIf { it.isNotBlank() } ?: anime?.title?.takeIf { it.isNotBlank() })
         .setAlbumTitle(albumTitle?.takeIf { it.isNotBlank() } ?: anime?.title?.takeIf { it.isNotBlank() })
-        .setArtworkUri(resolveArtworkUri(anime))
+        .setArtworkUri(resolveArtworkUri(anime, artworkUrl))
         .build()
 
-    private fun resolveArtworkUri(anime: Anime?): Uri {
+    private fun resolveArtworkUri(anime: Anime?, artworkUrl: String?): Uri {
         val candidates = listOfNotNull(
             anime?.coverUrl?.takeIf { it.isNotBlank() },
-            anime?.remoteCoverUrl?.takeIf { it.isNotBlank() }
+            anime?.remoteCoverUrl?.takeIf { it.isNotBlank() },
+            artworkUrl?.takeIf { it.isNotBlank() }
         )
         for (raw in candidates) {
             if (raw.startsWith("/") || raw.startsWith("file://")) {
@@ -198,7 +203,8 @@ internal class PlaybackSessionCoordinator(
         val albumTitle = anime?.title?.takeIf { it.isNotBlank() }
             ?: existing.albumTitle?.toString()?.takeIf { it.isNotBlank() }
             ?: localFile?.parsedTitle?.takeIf { it.isNotBlank() }
-        val updated = buildMediaMetadata(title, artist, albumTitle, anime)
+        val updated = buildMediaMetadata(title, artist, albumTitle, anime,
+            existing.artworkUri?.toString()?.takeIf { localFile?.archiveKey != null })
         return if (updated == existing) item else item.buildUpon().setMediaMetadata(updated).build()
     }
 
@@ -215,12 +221,17 @@ internal class PlaybackSessionCoordinator(
         }
     }
 
-    fun syncWebNavigation(queue: WebPlaybackQueue?) {
+    fun syncWebNavigation(queue: WebPlaybackQueue?) = syncSingleItemQueueNavigation(
+        hasQueue = queue != null,
+        hasPrevious = queue != null && queue.episodeIndex > 0,
+        hasNext = queue != null && queue.episodeIndex + 1 < queue.episodes.size
+    )
+
+    /** 网页与 WebDAV 都只向服务提交当前集；通知栏切集由页面队列处理。 */
+    fun syncSingleItemQueueNavigation(hasQueue: Boolean, hasPrevious: Boolean, hasNext: Boolean) {
         val c = controller ?: return
         val args = PlaybackSessionCommands.buildWebNavigationArgs(
-            isWebQueue = queue != null,
-            hasPrevious = queue != null && queue.episodeIndex > 0,
-            hasNext = queue != null && queue.episodeIndex + 1 < queue.episodes.size
+            isWebQueue = hasQueue, hasPrevious = hasPrevious, hasNext = hasNext
         )
         c.sendCustomCommand(
             SessionCommand(PlaybackSessionCommands.ACTION_SET_WEB_NAVIGATION, Bundle.EMPTY),
@@ -238,7 +249,7 @@ internal class PlaybackSessionCoordinator(
     ) {
         playbackStartJob = scope.launch {
             val c = awaitController() ?: run {
-                uiState.update { it.copy(error = "无法连接播放服务") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
                 return@launch
             }
             val anime = resolveMetadataAnime(metadataAnimeId.value)
@@ -254,6 +265,7 @@ internal class PlaybackSessionCoordinator(
             expectedStartPositionMs = startPosition
             c.trackSelectionParameters = c.trackSelectionParameters.buildUpon()
                 .clearOverridesOfType(C.TRACK_TYPE_VIDEO).build()
+            PlaybackTrace.event { "start.single pos=$startPosition play=$playWhenReady subtitles=${resolvedItem.localConfiguration?.subtitleConfigurations?.size ?: 0}" }
             c.setMediaItem(resolvedItem, startPosition)
             c.prepare()
             applyPlaybackDefaults(c)
@@ -277,7 +289,7 @@ internal class PlaybackSessionCoordinator(
     fun startPlaylist(items: List<MediaItem>, startIndex: Int, mediaId: String) {
         playbackStartJob = scope.launch {
             val c = awaitController() ?: run {
-                uiState.update { it.copy(error = "无法连接播放服务") }
+                uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.SERVICE), isPreparingMedia = false) }
                 return@launch
             }
             val startPosition = progressTracker.readSavedPosition(mediaId)
@@ -292,6 +304,7 @@ internal class PlaybackSessionCoordinator(
                 items
             }
             expectedStartPositionMs = startPosition
+            PlaybackTrace.event { "start.playlist index=$startIndex pos=$startPosition" }
             c.setMediaItems(resolvedItems, startIndex, startPosition)
             c.prepare()
             applyPlaybackDefaults(c)
@@ -340,7 +353,9 @@ internal class PlaybackSessionCoordinator(
         if (expected <= 0L) return
         expectedStartPositionMs = 0L
         val c = controller ?: return
-        if (c.currentPosition < expected - 1000L) {
+        val position = c.currentPosition
+        PlaybackTrace.event { "resume.ready pos=$position expected=$expected compensating=${position < expected - 1000L}" }
+        if (position < expected - 1000L) {
             c.seekTo(expected)
         }
     }

@@ -674,11 +674,17 @@ fun AnimeTrackApp(
                         initialLocalTitle = localTitle,
                         initialLocalMediaId = localMediaId,
                         initialWebPlay = webPlay,
+                        initialWebDavPlay = backStackEntry.arguments?.getBoolean("webDavPlay") == true,
                         sharedKeyPrefix = sharedKeyPrefix,
                         sharedTransitionScope = this@SharedTransitionLayout,
                         animatedVisibilityScope = this@composable,
                         onBack = { navController.popBackStack() },
-                        onBrowseWebDAV = { navController.navigate(Routes.WEBDAV_BROWSE) },
+                        onBrowseWebDAV = {
+                            // 选源页还没有视频，不在目录下面留一个空播放器和第二个媒体连接。
+                            navController.navigate(Routes.webDavBrowse(animeId)) {
+                                popUpTo(backStackEntry.destination.id) { inclusive = true }
+                            }
+                        },
                         onSelectLocalFile = { /* handled within PlayerScreen */ },
                         onOpenAnimeDetail = {
                             if (animeId > 0) {
@@ -688,17 +694,7 @@ fun AnimeTrackApp(
                                 )
                             }
                         },
-                        navController = navController
-                    )
-                }
-
-                // 本地媒体库
-                composable(Routes.LOCAL_MEDIA) {
-                    com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen(
-                        onBack = { navController.popBackStack() },
-                        onPlayMedia = { mediaId ->
-                            navController.navigate(Routes.player(0, localMediaId = mediaId))
-                        }
+                        webDavResultHandle = backStackEntry.savedStateHandle
                     )
                 }
 
@@ -715,12 +711,10 @@ fun AnimeTrackApp(
                 }
 
                 // WebDAV 文件浏览
-                composable(Routes.WEBDAV_BROWSE) {
+                composable(Routes.WEBDAV_BROWSE, arguments = Routes.webDavBrowseArguments) { browserEntry ->
                     WebDAVBrowseScreen(
                         onFileClick = { path, fileName ->
-                            navController.previousBackStackEntry?.savedStateHandle?.set("webdav_file_path", path)
-                            navController.previousBackStackEntry?.savedStateHandle?.set("webdav_file_name", fileName)
-                            navController.popBackStack()
+                            navController.playWebDavSelection(browserEntry, path, fileName)
                         },
                         onBack = { navController.popBackStack() }
                     )

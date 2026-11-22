@@ -18,7 +18,7 @@ data class PlayerUiState(
     val playbackSpeed: Float = 1f,
     val isFullscreen: Boolean = false,
     val fullscreenLandscape: Boolean = true,
-    val error: String? = null,
+    val error: PlaybackFailure? = null,
     val mediaTitle: String? = null,
     val seriesTitle: String? = null,
     val sourceLabel: String? = null,

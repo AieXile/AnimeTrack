@@ -1,12 +1,10 @@
 package com.aiexile.animetrack.ui.components
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
@@ -24,18 +22,17 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
 /**
  * 渐进模糊（progressive blur）公共实现。
  *
- * 与「恒定强度 blur + alpha 渐变遮罩」的区别：模糊半径本身沿竖直方向渐变，
- * 过渡带内不再靠整层透明度淡出来伪装模糊强弱。
+ * 优先沿竖直方向改变模糊半径，而不是靠整层透明度淡出来伪装模糊强弱。
  *
  * 两个材质后端的实现路径：
- * - Haze（[ProgressiveHazeBlur]）：用 Haze 1.7.2 的 [HazeProgressive]；
- *   SDK 33+ 走 runtime shader（逐像素半径插值），SDK 31–32 由库退回「每约 64dp 一层」的
- *   多层叠加，过渡带只有 20–32dp，只会产生 2 层，开销可控。
+ * - Haze（[ProgressiveHazeBlur]）：SDK 33+ 由着色器渐变模糊半径；较低版本由 Haze
+ *   用同一条渐变曲线给满强度模糊做透明度遮罩，避免分段裁剪产生接缝。
  * - 液态玻璃（[ProgressiveBackdropBlur]）：kyant backdrop 没有 progressive API，
  *   由本文件用 [ProgressiveBlurLayers] 层不同半径的 `drawBackdrop` 叠出来。
  *
@@ -80,8 +77,7 @@ internal data class ProgressiveBlurSpan(
 /**
  * 按 [span] 渲染 haze 渐进模糊（不含底色 / tint / 高光，调用方自行叠加）。
  *
- * 过渡带用 [HazeProgressive] 做强度渐变；过渡带之外用均匀 haze 补足
- * （Haze 的 SDK 31–32 退化实现只在 `start..end` 区间内出模糊，区间外需要单独一层）。
+ * 渐隐段和恒定段共用一个模糊节点，采样不会在两段交界处被裁断。
  */
 @Composable
 internal fun ProgressiveHazeBlur(
@@ -91,63 +87,26 @@ internal fun ProgressiveHazeBlur(
     modifier: Modifier = Modifier,
     noiseFactor: Float = 0f
 ) {
-    Column(modifier) {
-        // 上方恒定段
-        if (span.startFraction > 0f && span.startIntensity > 0f) {
-            HazeBlurRegion(
-                hazeState = hazeState,
-                blurRadius = maxBlurRadius * span.startIntensity,
-                noiseFactor = noiseFactor,
-                modifier = Modifier.weight(span.startFraction)
+    val progressive = remember(span) {
+        val start = Color.Black.copy(alpha = span.startIntensity)
+        val end = Color.Black.copy(alpha = span.endIntensity)
+        HazeProgressive.Brush(
+            gradientBrush(
+                0f to start,
+                span.startFraction to start,
+                span.endFraction to end,
+                1f to end
             )
-        }
-
-        // 过渡带：强度本身从 startIntensity 渐变到 endIntensity
-        Box(Modifier.weight(span.endFraction - span.startFraction)) {
-            HazeBlurRegion(
-                hazeState = hazeState,
-                blurRadius = maxBlurRadius,
-                noiseFactor = noiseFactor,
-                modifier = Modifier.fillMaxSize(),
-                progressive = HazeProgressive.verticalGradient(
-                    easing = LinearEasing,
-                    startY = 0f,
-                    startIntensity = span.startIntensity,
-                    endY = Float.POSITIVE_INFINITY,
-                    endIntensity = span.endIntensity
-                )
-            )
-        }
-
-        // 下方恒定段
-        if (span.endFraction < 1f && span.endIntensity > 0f) {
-            HazeBlurRegion(
-                hazeState = hazeState,
-                blurRadius = maxBlurRadius * span.endIntensity,
-                noiseFactor = noiseFactor,
-                modifier = Modifier.weight(1f - span.endFraction)
-            )
-        }
+        )
     }
-}
-
-@Composable
-private fun HazeBlurRegion(
-    hazeState: HazeState,
-    blurRadius: Dp,
-    noiseFactor: Float,
-    modifier: Modifier,
-    progressive: HazeProgressive? = null
-) {
     Box(
         modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .hazeEffect(state = hazeState) {
-                this.blurRadius = blurRadius
-                // 只出模糊：底色 / tint 由调用方按原材质参数单独叠加，
-                // 否则不透明底色会让渐进模糊在过渡带下缘留下硬边
-                backgroundColor = Color.Unspecified
-                tints = emptyList()
+                blurRadius = maxBlurRadius
+                // 显式指定透明底色和空白 tint，避免继承默认样式；着色由调用方绘制。
+                backgroundColor = Color.Transparent
+                tints = listOf(HazeTint.Unspecified)
                 this.noiseFactor = noiseFactor
                 this.progressive = progressive
             }

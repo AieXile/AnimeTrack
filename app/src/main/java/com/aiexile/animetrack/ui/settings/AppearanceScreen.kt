@@ -278,9 +278,9 @@ fun AppearanceScreen(
                             GlassEffectPreviewContent(style = ChromeStyle.LIQUID_GLASS)
                         }
                     }
-                    // 液态玻璃「导航栏背景模糊」：仅液态玻璃档选中时显示，动画展开/收起
+                    // 「导航栏背景模糊」由两种玻璃档共用，标准档不渲染此背景
                     AnimatedVisibility(
-                        visible = chromeStyle == ChromeStyle.LIQUID_GLASS,
+                        visible = chromeStyle != ChromeStyle.STANDARD,
                         enter = expandVertically(
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioNoBouncy,

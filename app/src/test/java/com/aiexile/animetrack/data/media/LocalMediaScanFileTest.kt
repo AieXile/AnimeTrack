@@ -24,6 +24,19 @@ class LocalMediaScanFileTest {
     }
 
     @Test
+    fun recognitionRetryDoesNotResetResolvedOrManuallyClearedFiles() {
+        val waiting = saved.copy(groupKey = "group", scrapeState = LocalMediaScrapeState.WAITING)
+        assertTrue(waiting.canRetryRecognition())
+        assertTrue(waiting.copy(scrapeState = LocalMediaScrapeState.REVIEW).canRetryRecognition())
+        assertFalse(waiting.copy(archiveKey = "bgm:42").canRetryRecognition())
+        assertFalse(waiting.copy(matchedAnimeId = 12).canRetryRecognition())
+        assertFalse(waiting.copy(isUserOverride = true).canRetryRecognition())
+        assertFalse(waiting.copy(isHidden = true).canRetryRecognition())
+        assertFalse(waiting.copy(groupKey = null).canRetryRecognition())
+        assertFalse(waiting.copy(scrapeState = LocalMediaScrapeState.ENRICH).canRetryRecognition())
+    }
+
+    @Test
     fun changedOrUnknownMetadataAndLegacyClassificationRequireParsing() {
         assertFalse(file.copy(size = 101).hasUnchangedContent(saved))
         assertFalse(file.copy(lastModified = 201).hasUnchangedContent(saved))

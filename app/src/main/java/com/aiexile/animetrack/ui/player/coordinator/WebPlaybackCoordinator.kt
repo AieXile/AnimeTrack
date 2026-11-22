@@ -17,6 +17,8 @@ import com.aiexile.animetrack.model.PlaybackProgress
 import com.aiexile.animetrack.model.WebMediaSource
 import com.aiexile.animetrack.model.WebSourceRule
 import com.aiexile.animetrack.ui.player.PlayRequest
+import com.aiexile.animetrack.ui.player.PlaybackFailure
+import com.aiexile.animetrack.ui.player.PlaybackFailureKind
 import com.aiexile.animetrack.ui.player.PlayerEpisode
 import com.aiexile.animetrack.ui.player.PlayerUiState
 import kotlinx.coroutines.CancellationException
@@ -281,7 +283,7 @@ internal class WebPlaybackCoordinator(
                 isPreparingMedia = false,
                 isResolvingMedia = false,
                 isBuffering = false,
-                error = application.getString(R.string.player_resolve_cancelled)
+                error = PlaybackFailure(PlaybackFailureKind.RESOLUTION_CANCELLED)
             )
         }
     }
@@ -300,7 +302,7 @@ internal class WebPlaybackCoordinator(
         animeTitle: String? = null
     ) {
         if (url.isBlank()) {
-            uiState.update { it.copy(error = "无效的播放地址") }
+            uiState.update { it.copy(error = PlaybackFailure(PlaybackFailureKind.INVALID_ADDRESS)) }
             return
         }
         progressTracker.saveCurrentPosition()

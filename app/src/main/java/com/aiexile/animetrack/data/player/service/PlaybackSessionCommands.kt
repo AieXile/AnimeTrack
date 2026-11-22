@@ -11,6 +11,9 @@ object PlaybackSessionCommands {
     const val ACTION_SET_WEB_NAVIGATION = "com.aiexile.animetrack.player.SET_WEB_NAVIGATION"
     const val ACTION_WEB_PREVIOUS = "com.aiexile.animetrack.player.WEB_PREVIOUS"
     const val ACTION_WEB_NEXT = "com.aiexile.animetrack.player.WEB_NEXT"
+    const val ACTION_WEBDAV_SUBTITLE_SKIPPED = "com.aiexile.animetrack.player.WEBDAV_SUBTITLE_SKIPPED"
+    const val EXTRA_MEDIA_ID = "media_id"
+    const val EXTRA_HTTP_STATUS = "http_status"
 
     private const val EXTRA_IS_WEB_QUEUE = "is_web_queue"
     private const val EXTRA_HAS_PREVIOUS = "has_previous"
