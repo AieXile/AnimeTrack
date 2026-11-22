@@ -1,5 +1,6 @@
 package com.aiexile.animetrack.data.player.service
 
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.webdav.PlayerWebDavHttpClient
 import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleException
 
@@ -170,13 +171,38 @@ class PlaybackService : MediaSessionService() {
                 val status = generateSequence<Throwable>(error) { it.cause }.take(16)
                     .filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
                 val detail = status?.let { "HTTP $it" } ?: (error.cause ?: error).javaClass.simpleName
+                PlaybackTrace.event { "service.subtitleSkipped status=${status ?: -1} pos=${player.currentPosition} rebuild=false" }
                 notifyWebDavSubtitleSkipped(item.mediaId, status)
                 AppLogManager.w(TAG, "WebDAV 外挂字幕轨读取失败 ($detail)")
             }
         })
 
         player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) = PlaybackTrace.event {
+                "service.state state=$playbackState pos=${player.currentPosition} play=${player.playWhenReady}"
+            }
+
+            override fun onRenderedFirstFrame() = PlaybackTrace.event {
+                "service.firstFrame pos=${player.currentPosition}"
+            }
+
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) = PlaybackTrace.event {
+                "service.discontinuity reason=$reason from=${oldPosition.positionMs} to=${newPosition.positionMs}"
+            }
+
             override fun onPlayerError(error: PlaybackException) {
+                // 会话转发前保留错误类别与库内调用点；不记录异常消息、URL 或请求头。
+                PlaybackTrace.event {
+                    val causes = generateSequence<Throwable>(error) { it.cause }.take(6).joinToString("/") { cause ->
+                        val site = cause.stackTrace.firstOrNull { frame ->
+                            frame.className.startsWith("androidx.media3.") || frame.className.startsWith("io.github.peerless2012.ass.")
+                        }
+                        val timeout = (cause as? androidx.media3.exoplayer.ExoTimeoutException)?.timeoutOperation
+                        "${cause.javaClass.simpleName}@${site?.className}.${site?.methodName}:${site?.lineNumber}" +
+                            (timeout?.let { ":timeoutOp=$it" } ?: "")
+                    }
+                    "service.failure media3=${androidx.media3.common.MediaLibraryInfo.VERSION} code=${error.errorCode} causes=$causes"
+                }
                 val item = player.currentMediaItem ?: return
                 val subtitles = item.localConfiguration?.subtitleConfigurations.orEmpty()
                 if (!item.mediaId.startsWith("webdav:") || subtitles.isEmpty() || !isWebDavSubtitleFailure(error)) return
@@ -186,6 +212,7 @@ class PlaybackService : MediaSessionService() {
                 // Listener 分发期间不重入播放器；若已退出、换片或主动重试，不覆盖新的请求。
                 serviceScope.launch(Dispatchers.Main) {
                     if (player.playerError !== error || player.currentMediaItem != item) return@launch
+                    PlaybackTrace.event { "service.subtitleRecovery pos=$position play=$playWhenReady rebuild=true" }
                     player.replaceMediaItem(index, item.buildUpon().setSubtitleConfigurations(emptyList()).build())
                     player.seekTo(index, position)
                     player.prepare()

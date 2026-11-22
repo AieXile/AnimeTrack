@@ -21,6 +21,7 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaRepository
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
 import com.aiexile.animetrack.data.player.web.PendingWebPlaybackRequest
@@ -491,6 +492,7 @@ class PlayerViewModel(
         val c = sessionCoordinator.controller ?: return
         val target = if (c.duration > 0) positionMs.coerceIn(0L, c.duration)
         else positionMs.coerceAtLeast(0L)
+        PlaybackTrace.event { "ui.seek from=${c.currentPosition} to=$target state=${c.playbackState} playing=${c.isPlaying}" }
         c.seekTo(target)
         // 保留 playWhenReady：播放中快进应等待缓冲后续播，暂停中快进仍保持暂停。
         progressTracker.updatePositionState()

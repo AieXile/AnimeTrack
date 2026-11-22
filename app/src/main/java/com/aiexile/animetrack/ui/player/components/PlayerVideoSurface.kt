@@ -18,7 +18,10 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.R
+import com.aiexile.animetrack.data.player.PlaybackTrace
+import android.view.SurfaceHolder
 
 /** 播放器画面容器：绑定 Media3 PlayerView，并在 libass 特效渲染下维持视频比例与暂停缓冲帧。 */
 @UnstableApi
@@ -30,6 +33,18 @@ internal fun PlayerViewContainer(
     modifier: Modifier = Modifier
 ) {
     var playerView by remember { mutableStateOf<PlayerView?>(null) }
+    if (BuildConfig.DEBUG) {
+        DisposableEffect(player) {
+            val observer = object : Player.Listener {
+                override fun onRenderedFirstFrame() = PlaybackTrace.event {
+                    "ui.firstFrame pos=${player.currentPosition} view=${playerView?.let(System::identityHashCode)}"
+                }
+            }
+            player.addListener(observer)
+            PlaybackTrace.event { "ui.observeFrames pos=${player.currentPosition}" }
+            onDispose { player.removeListener(observer) }
+        }
+    }
     AndroidView(
         factory = { ctx ->
             (LayoutInflater.from(ctx)
@@ -37,6 +52,7 @@ internal fun PlayerViewContainer(
                 // API 34 上 SurfaceView 在 Compose AndroidView 内可能丢失尺寸事务（画面拉伸/裁切），
                 // media3 提供了官方 workaround（更高版本系统已修复，仅 API 34 生效）
                 setEnableComposeSurfaceSyncWorkaround(true)
+                PlaybackTrace.event { "ui.bind view=${System.identityHashCode(this)} hidden=$hideSurface pos=${player.currentPosition}" }
                 this.player = player
                 visibility = if (hideSurface) View.INVISIBLE else View.VISIBLE
             }.also { playerView = it }
@@ -50,11 +66,13 @@ internal fun PlayerViewContainer(
             }
             val targetVisibility = if (hideSurface) View.INVISIBLE else View.VISIBLE
             if (view.visibility != targetVisibility) {
+                PlaybackTrace.event { "ui.visibility view=${System.identityHashCode(view)} hidden=$hideSurface" }
                 view.visibility = targetVisibility
             }
         },
         onRelease = { view ->
             // 退出或错误页替换画面时卸下监听和 Surface；全屏切换仍复用原视图。
+            PlaybackTrace.event { "ui.unbind view=${System.identityHashCode(view)}" }
             view.player = null
             if (playerView === view) playerView = null
         },
@@ -84,6 +102,21 @@ internal fun PlayerViewContainer(
     // 布局变化（进/出全屏）若让缓冲区跟随尺寸，会裁切/偏移最后一帧
     val surfaceView = playerView?.videoSurfaceView as? SurfaceView
     if (surfaceView != null) {
+        if (BuildConfig.DEBUG) {
+            DisposableEffect(surfaceView) {
+                val holder = surfaceView.holder
+                val id = System.identityHashCode(surfaceView)
+                val observer = object : SurfaceHolder.Callback {
+                    override fun surfaceCreated(holder: SurfaceHolder) = PlaybackTrace.event { "surface.created id=$id" }
+                    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) =
+                        PlaybackTrace.event { "surface.changed id=$id size=${width}x$height" }
+                    override fun surfaceDestroyed(holder: SurfaceHolder) = PlaybackTrace.event { "surface.destroyed id=$id" }
+                }
+                holder.addCallback(observer)
+                PlaybackTrace.event { "surface.observe id=$id valid=${holder.surface.isValid} size=${holder.surfaceFrame.width()}x${holder.surfaceFrame.height()}" }
+                onDispose { holder.removeCallback(observer) }
+            }
+        }
         DisposableEffect(surfaceView, player, videoScale) {
             val keeper = VideoSurfaceBuffer(surfaceView, player) { videoScale == 0 }
             keeper.refresh()

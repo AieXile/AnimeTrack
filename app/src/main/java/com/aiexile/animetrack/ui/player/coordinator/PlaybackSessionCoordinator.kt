@@ -17,6 +17,7 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaEntity
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.service.CoilBitmapLoader
 import com.aiexile.animetrack.data.player.service.PlaybackService
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
@@ -264,6 +265,7 @@ internal class PlaybackSessionCoordinator(
             expectedStartPositionMs = startPosition
             c.trackSelectionParameters = c.trackSelectionParameters.buildUpon()
                 .clearOverridesOfType(C.TRACK_TYPE_VIDEO).build()
+            PlaybackTrace.event { "start.single pos=$startPosition play=$playWhenReady subtitles=${resolvedItem.localConfiguration?.subtitleConfigurations?.size ?: 0}" }
             c.setMediaItem(resolvedItem, startPosition)
             c.prepare()
             applyPlaybackDefaults(c)
@@ -302,6 +304,7 @@ internal class PlaybackSessionCoordinator(
                 items
             }
             expectedStartPositionMs = startPosition
+            PlaybackTrace.event { "start.playlist index=$startIndex pos=$startPosition" }
             c.setMediaItems(resolvedItems, startIndex, startPosition)
             c.prepare()
             applyPlaybackDefaults(c)
@@ -350,7 +353,9 @@ internal class PlaybackSessionCoordinator(
         if (expected <= 0L) return
         expectedStartPositionMs = 0L
         val c = controller ?: return
-        if (c.currentPosition < expected - 1000L) {
+        val position = c.currentPosition
+        PlaybackTrace.event { "resume.ready pos=$position expected=$expected compensating=${position < expected - 1000L}" }
+        if (position < expected - 1000L) {
             c.seekTo(expected)
         }
     }
