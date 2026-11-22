@@ -101,7 +101,7 @@ class WebDavDataSourceCleanupTest {
     }
 
     @Test
-    fun persistentDenialIsTerminalAndNeverReplayedForSubtitlesOrChangedTarget() {
+    fun onlyMainMediaReplaysInsideRawSourceAndChangedTargetIsNeverReplayed() {
         for ((subtitle, changedTarget) in listOf(false to false, true to false, false to true)) {
             val bodies = mutableListOf<TrackingBody>()
             val client = OkHttpClient.Builder().addInterceptor { chain ->
@@ -115,7 +115,8 @@ class WebDavDataSourceCleanupTest {
             try {
                 val error = runCatching { source.open(spec) }.exceptionOrNull()
                 if (!subtitle) assertTrue(error is WebDavResumeOpenException)
-                val http = (if (subtitle) error else error?.cause) as HttpDataSource.InvalidResponseCodeException
+                val denial = (error as? WebDavSubtitleBasicChallenge)?.httpError ?: error
+                val http = (if (subtitle) denial else denial?.cause) as HttpDataSource.InvalidResponseCodeException
                 assertEquals(401, http.responseCode)
                 assertEquals(if (subtitle || changedTarget) 1 else 2, bodies.size)
                 assertTrue(bodies.all { it.closed })

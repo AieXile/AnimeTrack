@@ -72,6 +72,12 @@ class WebDAVDataSource(
                 val error = HttpDataSource.InvalidResponseCodeException(
                     statusCode, response.message, null, response.headers.toMultimap(), dataSpec, ByteArray(0)
                 )
+                // 只允许字幕下载器重放已携带 Basic、未跳转且服务器明确要求 Basic 的 GET。
+                if (isSubtitle && statusCode == 401 && username.isNotEmpty() && response.priorResponse == null &&
+                    response.request.url == request.url && response.request.header("Authorization")?.startsWith("Basic ", true) == true &&
+                    response.challenges().any { it.scheme.equals("Basic", true) } &&
+                    response.challenges().none { it.scheme.equals("Digest", true) }
+                ) throw WebDavSubtitleBasicChallenge(error)
                 if (!isSubtitle && (statusCode == 401 || (position > 0 && statusCode == 416))) {
                     throw WebDavResumeOpenException(error)
                 }
@@ -189,6 +195,10 @@ class WebDAVDataSource(
         responseHeaders = emptyMap()
     }
 }
+
+/** 保留原 HTTP 异常（含状态码和 Retry-After），只消耗字幕下载器已有的一次重试预算。 */
+internal class WebDavSubtitleBasicChallenge(val httpError: HttpDataSource.InvalidResponseCodeException) :
+    IOException("WebDAV subtitle Basic authentication rejected", httpError)
 
 /** 本次打开已被拒绝或没有取得正确范围，不允许加载器从旧提取器位置重试。 */
 internal class WebDavResumeOpenException(cause: Throwable? = null) : IOException("WebDAV request could not resume", cause)

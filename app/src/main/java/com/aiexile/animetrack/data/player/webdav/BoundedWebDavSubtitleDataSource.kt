@@ -62,6 +62,7 @@ internal class BoundedWebDavSubtitleDataSource(private val upstream: DataSource)
     private fun shouldRetry(error: IOException): Boolean {
         if (Thread.currentThread().isInterrupted || error is WebDavSubtitleException) return false
         return when (error) {
+            is WebDavSubtitleBasicChallenge -> true
             is HttpDataSource.InvalidResponseCodeException -> error.responseCode in TRANSIENT_STATUS_CODES
             is SSLException, is UnknownHostException -> false
             is InterruptedIOException, is SocketException, is EOFException -> true
@@ -70,7 +71,8 @@ internal class BoundedWebDavSubtitleDataSource(private val upstream: DataSource)
     }
 
     private fun retryDelayMs(error: IOException): Long {
-        val response = error as? HttpDataSource.InvalidResponseCodeException ?: return DEFAULT_RETRY_DELAY_MS
+        val response = (error as? WebDavSubtitleBasicChallenge)?.httpError
+            ?: error as? HttpDataSource.InvalidResponseCodeException ?: return DEFAULT_RETRY_DELAY_MS
         val retryAfter = response.headerFields.entries.firstOrNull { it.key.equals("Retry-After", true) }
             ?.value?.firstOrNull() ?: return DEFAULT_RETRY_DELAY_MS
         val seconds = retryAfter.trim().toLongOrNull()?.takeIf { it >= 0 }

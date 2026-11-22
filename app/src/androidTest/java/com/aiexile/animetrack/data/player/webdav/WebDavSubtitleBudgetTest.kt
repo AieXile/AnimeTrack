@@ -47,6 +47,66 @@ class WebDavSubtitleBudgetTest {
         }
     }
     @Test
+    fun temporaryBasic401RecoversSubtitleBytesButPermanent401RemainsVisible() {
+        val script = "[Script Info]\nTitle: 字幕测试\n".toByteArray()
+        for (recovers in listOf(true, false)) {
+            val calls = mutableListOf<okhttp3.Request>()
+            val client = OkHttpClient.Builder().addInterceptor { chain ->
+                val req = chain.request()
+                calls += req
+                val reply = Response.Builder().request(req).protocol(Protocol.HTTP_1_1).message("Test")
+                if (recovers && calls.size == 2) reply.code(200).body(script.toResponseBody()).build()
+                else reply.code(401).header("WWW-Authenticate", "Basic realm=\"test\"")
+                    .body("not subtitle bytes".toResponseBody()).build()
+            }.build()
+            val spec = DataSpec(Uri.parse("https://example.invalid/season/EP01.ass?sig=abc%2Bdef"))
+            val source = WebDAVDataSourceFactory(client, "user", "test").createDataSource(spec.uri)
+            try {
+                if (recovers) {
+                    assertEquals(script.size.toLong(), source.open(spec))
+                    val actual = ByteArray(script.size)
+                    assertEquals(script.size, source.read(actual, 0, actual.size))
+                    org.junit.Assert.assertArrayEquals(script, actual)
+                    assertEquals(C.RESULT_END_OF_INPUT, source.read(actual, 0, actual.size))
+                } else {
+                    val failure = runCatching { source.open(spec) }.exceptionOrNull()
+                    assertTrue(failure is WebDavSubtitleException)
+                    assertEquals(401, generateSequence(failure) { it.cause }
+                        .filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>()
+                        .single().responseCode)
+                    assertNull(source.uri)
+                }
+                assertEquals(2, calls.size)
+                assertTrue(calls.all { it.method == "GET" && it.url.toString() == spec.uri.toString() &&
+                    it.header("Authorization") == okhttp3.Credentials.basic("user", "test") && it.header("Range") == null })
+            } finally { source.close() }
+        }
+    }
+
+    @Test
+    fun basic401DoesNotReplayAnonymousOrRedirectedRequestsOrIgnoreRetryAfter() {
+        for (case in listOf("anonymous", "changedOrigin", "redirectChain", "retryAfter", "noBasic")) {
+            val requests = AtomicInteger()
+            val client = OkHttpClient.Builder().addInterceptor { chain ->
+                requests.incrementAndGet()
+                val req = chain.request()
+                val reply = Response.Builder().protocol(Protocol.HTTP_1_1).message("Denied").code(401)
+                    .request(if (case == "changedOrigin") req.newBuilder().url("https://other.invalid/sub.ass").build() else req)
+                    .header("WWW-Authenticate", if (case == "noBasic") "Bearer" else "Basic realm=\"test\"")
+                if (case == "redirectChain") reply.priorResponse(Response.Builder().request(req)
+                    .protocol(Protocol.HTTP_1_1).code(302).message("Moved").build())
+                if (case == "retryAfter") reply.header("Retry-After", "60")
+                reply.body("".toResponseBody()).build()
+            }.build()
+            val source = WebDAVDataSourceFactory(client, if (case == "anonymous") "" else "user", "test").createDataSource(spec().uri)
+            try {
+                assertTrue(runCatching { source.open(spec()) }.exceptionOrNull() is WebDavSubtitleException)
+                assertEquals(case, 1, requests.get())
+            } finally { source.close() }
+        }
+    }
+
+    @Test
     fun rejectsOversizeFromHeaderBeforeReading() {
         val limit = WebDavSubtitleBudget.MAX_BYTES
         val upstream = CountingSource(actualLength = limit + 1, declaredLength = limit + 1)
