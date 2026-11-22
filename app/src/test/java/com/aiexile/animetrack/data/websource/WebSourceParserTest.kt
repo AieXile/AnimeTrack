@@ -73,6 +73,23 @@ class WebSourceParserTest {
     }
 
     @Test
+    fun `parseEpisodes handles omitted list item end tags`() {
+        val html = """
+            <div class="road"><ul>
+              <li><a href="/play/1">第1话</a>
+              <li><a href="/play/2">第2话 &amp; 特典</a>
+            </ul></div>
+        """.trimIndent()
+
+        val episodes = WebSourceParser.parseEpisodes(
+            html.toByteArray(), rule, "https://site.example/detail/1"
+        )
+
+        assertEquals(listOf("第1话", "第2话 & 特典"), episodes.map { it.name })
+        assertEquals(listOf("https://site.example/play/1", "https://site.example/play/2"), episodes.map { it.url })
+    }
+
+    @Test
     fun `chapterRoads slash slash uses the page as the only road`() {
         val wholePageRule = rule.copy(chapterRoads = "//")
         val html = """

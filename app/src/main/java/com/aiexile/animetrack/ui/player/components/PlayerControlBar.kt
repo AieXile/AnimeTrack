@@ -20,11 +20,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -306,11 +307,14 @@ internal fun PlayerSeekBar(
     modifier: Modifier = Modifier,
     progressColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    val progress = if (durationMs > 0) currentPositionMs.toFloat() / durationMs else 0f
+    val progress = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
     val buffered = if (durationMs > 0) bufferedPositionMs.toFloat() / durationMs else 0f
 
-    var sliderValue by remember(progress) { mutableFloatStateOf(progress) }
+    val sliderState = remember { SliderState(value = progress) }
     var isDragging by remember { mutableStateOf(false) }
+    SideEffect {
+        if (!isDragging) sliderState.value = progress
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         Canvas(
@@ -339,8 +343,8 @@ internal fun PlayerSeekBar(
                 )
             }
 
-            val currentProgress = if (isDragging) sliderValue else progress
-            val progressWidth = size.width * currentProgress.coerceIn(0f, 1f)
+            val currentProgress = if (isDragging) sliderState.value else progress
+            val progressWidth = size.width * currentProgress
             if (progressWidth > 0) {
                 drawRoundRect(
                     color = progressColor,
@@ -352,18 +356,17 @@ internal fun PlayerSeekBar(
         }
 
         Slider(
-            value = if (isDragging) sliderValue else progress,
+            state = sliderState,
             onValueChange = {
-                sliderValue = it
+                sliderState.value = it
                 isDragging = true
                 onSeekDrag(it)
             },
             onValueChangeFinished = {
                 isDragging = false
-                onSeekToRatio(sliderValue)
+                onSeekToRatio(sliderState.value)
                 onSeekDragEnd()
             },
-            valueRange = 0f..1f,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(24.dp),

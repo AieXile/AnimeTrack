@@ -1,19 +1,19 @@
 [versions]
-agp = "8.13.0"
-kotlin = "2.3.21"
-ksp = "2.3.11"
-coreKtx = "1.18.0"
+agp = "9.5.0"
+kotlin = "2.4.21"
+ksp = "2.3.14"
+coreKtx = "1.19.1"
 junit = "4.13.2"
-junitVersion = "1.1.5"
+junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-lifecycleRuntimeKtx = "2.10.0"
+lifecycleRuntimeKtx = "2.11.1"
 activityCompose = "1.13.0"
-composeBom = "2026.06.01"
+composeBom = "2026.11.01"
 composeRatingbar = "1.2.3"
-navigationCompose = "2.9.8"
+navigationCompose = "2.10.2"
 coil = "2.7.0"
-room = "2.8.4"
-paging = "3.3.6"
+room = "2.8.5"
+paging = "3.5.3"
 datastore = "1.2.1"
 retrofit = "2.12.0"
 material = "1.13.0"
@@ -21,21 +21,22 @@ sardine = "0.9"
 splashscreen = "1.0.1"
 zxing = "3.5.3"
 workRuntime = "2.11.2"
-media3 = "1.10.1"
+media3 = "1.11.1"
 assMedia = "0.5.1"
 graphicsShapes = "1.1.0"
 haze = "1.7.2"
 backdrop = "2.0.0"
 kyantShapes = "1.2.0"
 profileinstaller = "1.4.1"
-benchmarkMacro = "1.4.1"
-baselineprofile = "1.4.1"
-uiautomator = "2.4.0"
+benchmarkMacro = "1.5.0"
+baselineprofile = "1.5.0"
+uiautomator = "2.4.1"
 pinyin4j = "2.5.1"
 xcrash = "3.1.0"
 reorderable = "3.1.0"
 glance = "1.2.0"
-jsoup = "1.18.3"
+jsoup = "1.24.1"
+desugarJdkLibsNio = "2.1.5"
 kotlinAnitomy = "v1.0"
 
 [libraries]
@@ -93,11 +94,12 @@ xcrash-android-lib = { group = "com.iqiyi.xcrash", name = "xcrash-android-lib", 
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+desugar-jdk-libs-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugarJdkLibsNio" }
 kotlin-anitomy = { group = "com.github.TraceLTRC", name = "kotlin-anitomy", version.ref = "kotlinAnitomy" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 android-test = { id = "com.android.test", version.ref = "agp" }
