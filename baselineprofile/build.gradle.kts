@@ -3,10 +3,14 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+val compileSdkApi = providers.gradleProperty("animetrack.compileSdk").get()
+
 android {
     namespace = "com.aiexile.animetrack.baselineprofile"
     compileSdk {
-        version = release(37) { minorApiLevel = 1 }
+        version = release(compileSdkApi.substringBefore('.').toInt()) {
+            minorApiLevel = compileSdkApi.substringAfter('.', "0").toInt()
+        }
     }
 
     compileOptions {

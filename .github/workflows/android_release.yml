@@ -50,7 +50,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Install Android SDK 37.1
+      - name: Install Android SDK
         shell: bash
         env:
           WORKFLOW_SHA: ${{ github.workflow_sha }}
