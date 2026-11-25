@@ -209,7 +209,12 @@ fun NavigationCustomizeScreen(
                 item(key = "fab_group") {
                     ExpandableSettingsGroup(
                         title = stringResource(R.string.nav_custom_fab_title),
-                        expanded = expandFabGroup
+                        expanded = expandFabGroup,
+                        subtitle = if (fabLocation.resolveFor(navigationStyle) != fabLocation) {
+                            stringResource(R.string.nav_custom_fab_nav_bar_fallback)
+                        } else {
+                            null
+                        }
                     ) {
                         Row(
                             modifier = rememberHighlightModifier("fab", highlightKey),

@@ -106,6 +106,7 @@
     <string name="nav_custom_fab_bottom_right_desc">页面右下角悬浮</string>
     <string name="nav_custom_fab_top_bar_desc">嵌入顶栏右侧</string>
     <string name="nav_custom_fab_nav_bar_desc">胶囊右侧成组居中</string>
+    <string name="nav_custom_fab_nav_bar_fallback">传统沉底导航下，添加番剧按钮会悬浮在右下角。</string>
     <string name="nav_custom_content_title">导航栏内容</string>
     <string name="nav_custom_content_subtitle">选择在导航栏中显示的入口</string>
     <string name="nav_custom_show_favorites">显示收藏</string>

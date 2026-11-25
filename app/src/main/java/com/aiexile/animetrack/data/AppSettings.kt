@@ -11,7 +11,10 @@ enum class NavigationStyle(val displayName: String) {
 enum class FabLocation(val displayName: String) {
     BOTTOM_RIGHT("右下角悬浮"),
     TOP_BAR("顶部标题栏"),
-    NAV_BAR("导航栏旁"),
+    NAV_BAR("导航栏旁");
+
+    internal fun resolveFor(navigationStyle: NavigationStyle): FabLocation =
+        if (this == NAV_BAR && navigationStyle == NavigationStyle.BOTTOM) BOTTOM_RIGHT else this
 }
 
 /** 导航栏项目的图标与文字显示模式 */

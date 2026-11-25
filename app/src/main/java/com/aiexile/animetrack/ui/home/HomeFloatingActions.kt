@@ -64,9 +64,7 @@ fun HomeFloatingActions(
 
     val colorScheme = MaterialTheme.colorScheme
 
-    // 「导航栏旁」且为胶囊导航：加号/回到顶部按钮槽由 MainOverlay 胶囊分支
-    // 渲染在胶囊右侧（见 BesideNavFabSlot），此处不再渲染；
-    // 传统沉底导航下 NAV_BAR 回退为右下角悬浮行为
+    // 「导航栏旁」的加号与回到顶部按钮由 MainOverlay 的胶囊分支渲染。
     if (fabLocation == FabLocation.NAV_BAR && isCapsuleNav) return
 
     val advancedBlurEnabled = style == ChromeStyle.HAZE
