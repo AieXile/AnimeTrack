@@ -29,7 +29,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Install Android SDK 37.1
-        run: sdkmanager 'platforms;android-37.1'
+        run: bash .github/scripts/setup-android-sdk.sh
 
       # 只跑编译与 JVM 单测：不依赖模拟器、不依赖发布密钥。
       # 服务端源码在 .trae/（未纳入 Git），服务端检查走
