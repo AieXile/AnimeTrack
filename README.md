@@ -1,194 +1,137 @@
 <p align="center">
-  <img src="assets/banner.png" alt="AnimeTrack — 遵循 Material Design 3 的安卓本地追番记录工具，看过的，都记得。" width="100%">
+  <img src="assets/banner.png" alt="AnimeTrack" width="100%">
+</p>
+
+<p align="center"><strong>看过的，都记得。</strong><br>AnimeTrack 是一款开源 Android 追番应用。整理想看的动画，查每周放送，接着上次的进度继续看。</p>
+
+<p align="center">
+  <a href="https://github.com/AieXile/AnimeTrack/releases/latest"><strong>下载 Android APK</strong></a> ·
+  <a href="https://github.com/AieXile/AnimeTrack/releases">查看更新日志</a> ·
+  <a href="https://github.com/AieXile/AnimeTrack/issues">反馈问题</a>
 </p>
 
 <p align="center">
-  <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
-</p>
-  <p align="center">
-    <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="Stars">
-    <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
-    <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
-    <img src="https://img.shields.io/badge/license-Apache--2.0-lightgrey?style=flat&logo=apache&logoColor=lightgrey" alt="License">
-  </p>
-  <p align="center">
-    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-加入-blue?style=flat" alt="QQ Group"></a>
-    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-加入-2CA5E0?style=flat" alt="Telegram Group"></a>
-  </p>
+  <a href="https://github.com/AieXile/AnimeTrack/releases/latest"><img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack" alt="GitHub release"></a>
+  <a href="https://github.com/AieXile/AnimeTrack/stargazers"><img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?logo=github" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&amp;logoColor=white" alt="Android 8.0+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="Apache License 2.0"></a>
 </p>
 
-<p align="center">
-  <a href="README.en.md">English</a> | 
-  <a href="README.ja.md">日本語</a>
-</p>
+<p align="center"><strong>简体中文</strong> · <a href="README.en.md">English</a> · <a href="README.ja.md">日本語</a></p>
 
-AnimeTrack 是一款围绕“看过什么”和“何时观看”设计的安卓追番工具，提供从搜索、标记、播放到回顾的完整流程。
+<p align="center"><a href="#快速上手">快速上手</a> · <a href="#追番与收藏">追番与收藏</a> · <a href="#视频播放">视频播放</a> · <a href="#同步与备份">同步与备份</a> · <a href="#开发与贡献">开发与贡献</a></p>
 
-- **多源搜索与标记** – 通过 Bangumi 或 TMDB 搜索动画，快速标记为“想看”“在看”或“已看”，自动记录完成时间。
-- **时间线与看板** – 所有已看完的记录汇聚成时间线，方便回顾补番轨迹；连载作品在看板中按星期分组，今日更新一目了然。
-- **多端数据同步** – 支持自有账号、Bangumi、Bilibili 和 WebDAV 四种同步方式，云端备份、换机迁移、跨设备无缝衔接，数据永远随身。
-- ~~**内置播放与进度联动** – 集成 ExoPlayer，支持从 WebDAV 播放本地资源，看完自动更新集数，无需手动操作。~~
-
----
-
-<h2 align="center">亮点一览</h2>
-
-<table align="center" width="100%">
+<table>
   <tr>
-    <td><b>双源搜索</b> – Bangumi + TMDB 自动匹配</td>
-    <td><b>追番看板</b> – 今日更新一目了然</td>
-  </tr>
-  <tr>
-    <td><b>多端同步</b> – 自有账号 / Bangumi / B站 / WebDAV</td>
-    <td><b>时间线报表</b> – 追溯你的补番足迹</td>
-  </tr>
-  <tr>
-    <td><b>Material You</b> – 动态取色 + 多主题预设</td>
-    <td><b>Markdown 导入导出</b> – 数据自由迁移</td>
+    <td align="center"><a href="assets/readme/home.jpg"><img src="assets/readme/home.jpg" width="245" alt="在首页浏览番剧海报、状态与观看集数"></a><br><strong>追番主页</strong></td>
+    <td align="center"><a href="assets/readme/favorites.jpg"><img src="assets/readme/favorites.jpg" width="245" alt="按自定义收藏夹整理喜欢的番剧"></a><br><strong>收藏夹</strong></td>
+    <td align="center"><a href="assets/readme/weekly-board.jpg"><img src="assets/readme/weekly-board.jpg" width="245" alt="按星期查看已追番剧的放送安排"></a><br><strong>每周放送</strong></td>
   </tr>
 </table>
 
----
+## 快速上手
 
-<h2 align="center">主要功能</h2>
+[下载 Android APK](https://github.com/AieXile/AnimeTrack/releases/latest)并展开 **Assets**。设备需运行 **Android 8.0（API 26）或更高版本**。
+
+| 安装包 | 适用设备 |
+| --- | --- |
+| `-v8a.apk` | 大多数新款 Android 手机和平板 |
+| `-v7a.apk` | 32 位 ARM 设备 |
+| `-universal.apk` | 不确定设备架构时选这个 |
+
+打开 APK 并按系统提示安装。已安装 GitHub 正式版的用户可直接覆盖升级。
+
+- **从第一部开始记。** 点主页的「＋」，搜索番名、选择观看状态，保存后即可在详情页更新集数和评分。
+- **带上已有的追番记录。** 可从 Bangumi 或哔哩哔哩导入。在「设置 → 数据管理」可以导入 Markdown 或恢复 WebDAV 备份。各方式的区别见[同步与备份](#同步与备份)。
+- **接入自己的视频。** 进入「设置 → 视频播放」，授权本地文件夹、配置 WebDAV 媒体目录，或粘贴兼容的视频地址。可用来源及进度联动规则见[视频播放](#视频播放)。
+
+## 追番与收藏
+
+- **从搜索建起番剧库。** 通过 Bangumi 或 TMDB 查找作品，带入封面、集数和放送日期。支持手动添加，也可以在详情页重新匹配缺失的资料。添加多部作品时，可切换关键词或来源继续勾选，最后一次保存。
+- **记住每部作品看到哪一集。** 将番剧标记为「想看」「在看」或「已看」，记录集数、评分与备注。主页支持列表和网格，可搜索、排序或置顶。看完后，按月在时间线回顾补番记录。
+- **同一系列集中浏览。** 使用 Bangumi 的前传、续集关系与标题季数识别系列，把对应作品叠在同一张卡片里。滑动切换各季，能直接看到当前这一季的进度。
+- **给喜欢的作品单独分组。** 在收藏里新建收藏夹，为它挑一张封面，再拖动调整收藏夹或夹内作品的顺序。打开后可以双指捏合收起。删除收藏夹时，作品仍保留在「全部收藏」。
+- **每周哪天更新，打开看板就知道。** 看板按星期列出已添加的连载，点海报可进入详情。今日放送、在看进度和追番统计也可以放到手机桌面。
+
+## 视频播放
+
+内置播放器自 **v1.0.0** 起正式开放。在 **设置 → 功能** 中开启详情页的播放按钮后，可从番剧详情选集。已关联的剧集可直接续播。
+
+| 来源 | 可以做什么 |
+| --- | --- |
+| 本地文件 | 授权视频文件夹后，自动扫描并按番剧、季和集数整理。支持增量重扫、补全资料、整组确认和手动匹配。 |
+| WebDAV | 添加服务器和媒体目录，测试连接后可浏览原有文件夹，或扫描成按番剧排列的媒体库。支持选集、续播和同目录字幕匹配。 |
+| 网页 | 粘贴 MP4、HLS（M3U8）或 DASH 等视频直链，或从兼容网页解析剧集与线路。也可导入兼容的 Kazumi HTML / API 规则，按番名搜索。 |
+| 外部应用 | 从番剧详情跳转 Animeko 或哔哩哔哩等已适配的应用，具体入口取决于番剧关联和播放器设置。 |
+
+- **媒体库与继续观看。** 按本地、网页和 WebDAV 筛选媒体，也可以把网页番剧加入媒体库，从原剧集继续播放。
+- **看完自动记一集。** 开启「看完后更新追番进度」后，已确认关联且集数明确的正片会按有效观看时长判定是否看完，按连续看完的集数推进进度。
+- **播放控制。** 竖屏可边看边选集，全屏可按视频比例选择方向。支持快进、亮度和音量手势、长按加速、倍速、画面比例和画中画。可按来源切换可用清晰度、音轨和字幕，也可手动载入本地外挂字幕。
+- **WebDAV 有独立的播放设置。** 播放的服务器和媒体根目录在「视频播放」配置，数据备份则在「数据管理」配置。
+
+<p align="center"><a href="assets/readme/player.jpg"><img src="assets/readme/player.jpg" width="260" alt="WebDAV 剧集的竖屏播放页，显示清晰度、倍速、字幕和选集控件"></a><br><sub>竖屏播放与选集</sub></p>
+
+## 同步与备份
+
+| 方式 | 适合的场景 |
+| --- | --- |
+| **AnimeTrack 账号** | 在多台设备间同步追番记录。账号页还可管理头像、登录设备、密码和邮箱。 |
+| **Bangumi** | 双向同步收藏状态和观看集数，合并已有标记。 |
+| **哔哩哔哩** | 登录后挑选要导入的追番条目，将封面、状态等信息合并到本机。 |
+| **WebDAV** | 手动或定时备份，换机时按需覆盖或合并。JSON 备份包含收藏夹和自定义封面，完整 ZIP 还打包番剧封面。 |
+| **Markdown** | 从文件或粘贴内容批量导入状态、进度、完成日期和备注，也能把番剧清单导出为可读文本。 |
+
+追番记录保存在本机，可按需使用同步服务。在「数据管理」还可以为缺少封面和简介的番剧重新匹配资料，或扫描并清理重复条目。
+
+## 外观与实用工具
+
+- **界面材质。** 标准、高级模糊、液态玻璃三档可选。支持浅色、四档深色、主题预设和系统动态取色。导航栏可用传统布局或悬浮胶囊，也可调整栏目、图标、字体和部分卡片外观。实时模糊和系统动态取色需要 Android 12（API 31）或以上。
+- **手机和平板。** 主页网格随宽度变化。大屏可一边浏览列表、一边查看番剧详情或设置。
+- **封面与分享。** 从网络搜索封面、从相册替换、保存到本机，或生成带进度和评分的番剧分享卡片。
+- **统计和设置。** 按日、月或年查看使用时长及添加、完结数量。设置支持搜索直达，也可配置 Bangumi 或全局 HTTP 代理。应用内可检查新版本并打开公告。
 
 <details>
-<summary><b>点击展开完整功能列表</b></summary>
+<summary>展开查看设置、数据管理和账号界面</summary>
 
-### 追番与播放
-
-- **多数据源搜索** – 支持 Bangumi、TMDB 双数据源搜索匹配，自动拉取封面、集数、开播日期等基本信息。当某部作品缺失数据源时，可在详情页点击匹配按钮手动搜索补全，支持按 Bangumi 或 TMDB 分别匹配。
-- **多状态管理** – 将动画归类为「想看」「在看」「已看」三种状态，满足完整的追踪流程。在看作品可记录当前观看集数，看完时自动写入完成时间。
-- **多季合集** – 自动识别同系列多季作品（支持「第X季/期/章」、罗马数字、Final Season、最终季等多种命名规则），按系列分组并以卡片堆叠形式展示。左右滑动可在季与季之间切换，无需在列表中翻找。
-- **时间线回顾** – 按时间顺序查看自己什么时候看完了哪部动画，方便回顾补番历程，支持按月份浏览历史记录。
-- **追番看板** – 已添加的连载作品会展示每周几更新，并在看板中按星期分组列出今日更新的动画列表，一键跳转到对应作品详情。
-- ~~**更新推送提醒** – 通过 WorkManager 与极光推送，在番剧更新当日按时提醒。~~（暂时不开放）
-- ~~**内置播放器** – 集成 ExoPlayer 播放器，支持从 WebDAV 远程目录直接播放本地番剧资源，观看进度与本地记录联动，看完自动更新集数。~~
-
-### 同步与备份
-
-- **AnimeTrack 账号同步** – 注册登录自有后端，订阅数据云端双向同步。登录后自动拉取云端数据，本地增删改也会实时上传，多设备数据保持一致。支持头像上传、修改密码等账号管理。
-- **Bangumi 同步** – 双向同步 Bangumi 收藏状态与观看进度。可将本地记录推送到 Bangumi 收藏夹，也可拉取 Bangumi 的标记合并到本地，避免重复维护。
-- **Bilibili 同步** – 一键拉取 B 站追番列表并合并到本地。登录 B 站账号后选择要同步的番剧，自动拉取封面、集数、状态等信息，支持选择性导入。
-- **WebDAV 同步** – 通过 WebDAV 远程备份数据库与封面到自建网盘（坚果云、Nextcloud 等），支持自动定时同步，数据掌握在自己手中。
-- **Markdown 导入 / 导出** – 支持 **Markdown 文件/文本** 批量导入已看记录（兼容状态分组、集数信息、完成日期、备注等字段，中英双语关键词均可识别），也可将本地记录按时间线导出为可读的 Markdown 文件，方便备份或迁移到其他工具。
-- **ZIP 备份 / 恢复** – 将本地数据库（含 WAL 日志）与封面目录打包为 ZIP 备份，恢复时支持覆盖与合并两种模式（按 bangumiId 或标题去重），换机无忧。
-
-### 个性化与工具
-
-- **Material Design 3** – 基于 Jetpack Compose 构建，适配动态取色与深色模式，遵循 M3 设计规范。
-- **多套主题预设** – 内置晨雾蓝、湖水青、苔青绿、落日橘、雾霭紫、蔷薇粉、黑白简洁七种配色风格，采用「中性底座 + 彩色点缀」模型（参考 Apple HIG），呈现差异化的视觉气质。
-- **四档深色模式** – 深色模式下可选「增强（纯黑 OLED）/ 标准 / 柔和 / 高对比」四种深浅风格
-- **可定制导航栏** – 提供传统沉底与悬浮胶囊两种导航栏样式，支持在导航栏区域左右滑动手指切换页面，选中指示器带弹簧动画跟随手势。
-- **引导页** – 首次安装引导流程，快速了解核心功能与权限说明。
-- **代理设置** – 内置 Bangumi 反向代理（解决 Bangumi 被墙无法搜索）与全局 HTTP 代理（适配网络受限环境），修改后重启生效。
-- **分享卡片** – 生成包含封面、标题、评分、进度的番剧信息卡片，一键分享到社交平台。
-- **封面编辑** – 详情页编辑模式支持搜索在线封面、从相册上传自定义封面、保存当前封面到本地相册，三件套满足个性化需求。
-- **数据统计** – 记录应用使用时长、添加与完结的番剧数量，可按日 / 月 / 年查看统计，量化你的追番足迹。
-- **版本更新检查** – 通过 自有服务器+GitHub Releases兜底 自动检查新版本，对比版本号提示更新，支持查看更新日志。
+<table>
+  <tr>
+    <td align="center"><a href="assets/readme/settings.jpg"><img src="assets/readme/settings.jpg" width="230" alt="设置与个性化"></a><br><sub>设置与个性化</sub></td>
+    <td align="center"><a href="assets/readme/data-management.jpg"><img src="assets/readme/data-management.jpg" width="230" alt="数据管理"></a><br><sub>数据管理</sub></td>
+    <td align="center"><a href="assets/readme/account.jpg"><img src="assets/readme/account.jpg" width="230" alt="AnimeTrack 账号"></a><br><sub>AnimeTrack 账号</sub></td>
+  </tr>
+</table>
 
 </details>
 
----
-
-<h2 align="center">应用截图</h2>
-
-<h3 align="center">主要界面</h3>
-<table width="100%">
+<table>
   <tr>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot1.png" alt="主界面" style="width: 100%; border-radius: 12px;">
-      <br><b>主界面</b>
-    </td>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot2.png" alt="时间线" style="width: 100%; border-radius: 12px;">
-      <br><b>时间线</b>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot3.png" alt="看板" style="width: 100%; border-radius: 12px;">
-      <br><b>追番看板</b>
-    </td>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot4.png" alt="设置" style="width: 100%; border-radius: 12px;">
-      <br><b>设置</b>
-    </td>
+    <td align="center"><a href="update/screenshots/tablet_home.png"><img src="update/screenshots/tablet_home.png" width="360" alt="平板番剧库"></a><br><sub>平板番剧库</sub></td>
+    <td align="center"><a href="update/screenshots/tablet_detail_pane.png"><img src="update/screenshots/tablet_detail_pane.png" width="360" alt="平板详情双栏"></a><br><sub>平板详情双栏</sub></td>
   </tr>
 </table>
 
-<h3 align="center">更多细节</h3>
-<table width="100%">
-  <tr>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot5.png" alt="定制导航栏" style="width: 100%; border-radius: 8px;">
-      <br><b>定制导航栏</b>
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot6.png" alt="功能界面" style="width: 100%; border-radius: 8px;">
-      <br><b>功能界面</b>
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot7.png" alt="导入MD文件" style="width: 100%; border-radius: 8px;">
-      <br><b>MD导入</b>
-    </td>
-  </tr>
-</table>
+## 开放协议
 
----
+[`anime-play://` 规范](docs/ANIME_PLAY_LINK_PROTOCOL.md)供番剧管理和播放应用互相跳转。它使用 Bangumi 条目 ID 标识作品，可以传递集数、Bangumi 剧集 ID 和进度回传地址。接收方适配相应参数后，可以直接打开目标集，或在观看后回传进度。
 
-<h2>未来规划：</h2>
-
-- [x] **Bangumi 账号同步** – 登录后直接同步云端记录，避免丢失，并支持双向更新。
-- [x] **观看记录导出为 MD** – 将本地记录按时间线导出为可读的 Markdown 文件，方便备份或分享。
-- [x] **平板适配** – 平板端双栏 Pane 布局适配，列表网格自适应，FAB 布局重构
-- [x] **液态玻璃效果** – 底栏实现液态玻璃效果
-- [x] **主界面卡片堆叠** – 复刻微信多图堆叠体验，实现同系列番剧堆叠
-- [ ] **时间线报表** – 基于观看历史自动生成周报、月报或年报，以简单图表呈现追番趋势。
-- [ ] **网页与 App 多端同步** – 提供 Web 端访问能力，实现网页与 App 数据实时同步，跨设备无缝衔接。
-- [ ] **本地播放与自动记录** – 强化本地播放器，观看进度自动记录到时间线，无需手动标记。
-
----
-
-<h2 align="center">快速开始</h2>
-
-### 环境要求
-
-**Android 8.0**及以上设备
-
-> 液态玻璃需要**Android 13**及以上系统版本才能支持
-
-### 安装
-
-前往 [Releases 页面](https://github.com/AieXile/AnimeTrack/releases) 下载最新 APK 文件，直接安装即可。
-
-> 使用过程中如遇问题欢迎提交 Issue。
-
----
-
-<h2 align="center">开放协议：anime-play://</h2>
-
-AnimeTrack 发起了 [番剧播放跳转开放协议](docs/ANIME_PLAY_LINK_PROTOCOL.md) —— 一套任何追番/播放类应用均可自由实现的开放规范：
-
-```
-anime-play://subject/{bangumiSubjectId}?ep={集数}&ep_id={Bangumi集数ID}&title={标题}&src={发送方标识}&callback={进度回传地址}
+```text
+anime-play://subject/12345?ep=3&src=animetrack
 ```
 
-- **一键跳转播放** – 管理类应用（发送方）通过上述 URI 即可唤起任意播放类应用（接收方）并直达指定集数，免去手动搜索、翻找集数的繁琐；
-- **进度回传联动** – 播放方看完一集后通过 `callback` 地址回传进度，管理端进度自动更新，两端数据双向打通；
-- **零门槛接入** – 纯本地 URL Scheme，不依赖任何服务端；以 Bangumi 条目 ID 为全局主键，各方无需维护私有映射表；未知参数一律忽略，渐进兼容。
+AnimeTrack 可作为发送方从番剧详情唤起外部应用。如果你在开发追番或播放工具，可以参考[完整协议文档](docs/ANIME_PLAY_LINK_PROTOCOL.md)中的接入示例、字段和进度回调约定。
 
-AnimeTrack 已作为发送方实现该协议（详情页一键唤起外部播放器）。如果你正在开发番剧播放器或其他追番管理应用，**欢迎积极适配**——无论是作为发送方还是接收方，参照[完整协议文档](docs/ANIME_PLAY_LINK_PROTOCOL.md)中的适配指南即可快速接入，实现了也欢迎补充到协议文档的生态列表中。
+## 开发与贡献
 
----
+客户端使用 Kotlin、Jetpack Compose 和 Material 3。Room 与 DataStore 管理本地数据，WorkManager 处理后台扫描和同步。构建需要 JDK 21 和 Android SDK Platform 37.1。
 
-<h2 align="center">参与贡献</h2>
+```sh
+./gradlew :app:assembleDebug
+```
 
-欢迎通过 [Issue](https://github.com/AieXile/AnimeTrack/issues) 报告问题或提出建议，也欢迎 Fork 项目并提交 PR。  
-如果你喜欢这个项目，请给我们一个 Star 支持一下！
+Windows PowerShell 使用 `.\gradlew.bat :app:assembleDebug`。
 
----
+前往 [Issues](https://github.com/AieXile/AnimeTrack/issues)反馈问题或讨论需求，也欢迎提交 Pull Request。交流可加入 [Telegram 群](https://t.me/AnimeTrackovo)或 [QQ 群 951059178](https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info)。
 
-<h2 align="center">许可证</h2>
+## 许可证
 
-本项目基于 [Apache License 2.0](LICENSE) 开源。文件名解析依赖 [kotlin-anitomy v1.0 源码](https://github.com/TraceLTRC/kotlin-anitomy/tree/v1.0)，该依赖按 [MPL 2.0](https://www.mozilla.org/MPL/2.0/) 分发。
+客户端按 [Apache License 2.0](LICENSE) 分发。文件名解析使用的 kotlin-anitomy 源码遵循 [MPL 2.0](app/src/main/assets/kotlin-anitomy-NOTICE.txt)，部分网页规则的来源见[授权声明](app/src/main/assets/websource/KazumiRules-NOTICE.txt)。

@@ -1,190 +1,137 @@
 <p align="center">
-  <img src="assets/banner_en.png" alt="AnimeTrack — An Android anime tracking tool following Material Design 3. Remember what you've watched." width="100%">
+  <img src="assets/banner_en.png" alt="AnimeTrack" width="100%">
+</p>
+
+<p align="center"><strong>Remember what you watched.</strong><br>AnimeTrack is an open-source Android app for organizing your watchlist, following weekly airings, and picking up where you left off.</p>
+
+<p align="center">
+  <a href="https://github.com/AieXile/AnimeTrack/releases/latest"><strong>Download APK</strong></a> ·
+  <a href="https://github.com/AieXile/AnimeTrack/releases">Release notes</a> ·
+  <a href="https://github.com/AieXile/AnimeTrack/issues">Report an issue</a>
 </p>
 
 <p align="center">
-  <img src="https://api.visitorbadge.io/api/visitors?path=AieXile%2FAnimeTrack&label=Visitors&countColor=%23263759" alt="Visitors">
-</p>
-  <p align="center">
-    <img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?style=flat&logo=github&label=Stars&color=yellow" alt="Stars">
-    <img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack?style=flat&logo=github&label=Version&color=blue" alt="Version">
-    <img src="https://img.shields.io/badge/platform-Android-brightgreen?style=flat&logo=android&logoColor=white" alt="Platform">
-    <img src="https://img.shields.io/badge/license-Apache--2.0-lightgrey?style=flat&logo=apache&logoColor=lightgrey" alt="License">
-  </p>
-  <p align="center">
-    <a href="https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info"><img src="https://img.shields.io/badge/QQ-Join-blue?style=flat" alt="QQ Group"></a>
-    <a href="https://t.me/AnimeTrackovo"><img src="https://img.shields.io/badge/TG-Join-2CA5E0?style=flat" alt="Telegram Group"></a>
-  </p>
+  <a href="https://github.com/AieXile/AnimeTrack/releases/latest"><img src="https://img.shields.io/github/v/release/AieXile/AnimeTrack" alt="GitHub release"></a>
+  <a href="https://github.com/AieXile/AnimeTrack/stargazers"><img src="https://img.shields.io/github/stars/AieXile/AnimeTrack?logo=github" alt="GitHub Stars"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&amp;logoColor=white" alt="Android 8.0+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="Apache License 2.0"></a>
 </p>
 
-<p align="center">
-  <a href="README.md">中文</a> |
-  <a href="README.ja.md">日本語</a>
-</p>
+<p align="center"><a href="README.md">简体中文</a> · <strong>English</strong> · <a href="README.ja.md">日本語</a></p>
 
-AnimeTrack is an Android anime tracking tool designed around "what you've watched" and "when you watched it", offering a complete workflow from search, marking, playback, to review.
+<p align="center"><a href="#get-started">Get started</a> · <a href="#tracking-and-favorites">Tracking</a> · <a href="#video-playback">Playback</a> · <a href="#sync-and-backups">Sync and backups</a> · <a href="#development-and-contributions">Contribute</a></p>
 
-- **Multi-source search & marking** – Search for anime via Bangumi or TMDB, quickly mark as "Wish to Watch", "Watching", or "Watched", with automatic completion time recording.
-- **Timeline & Board** – All watched records are aggregated into a timeline for easy review of your watch history; ongoing series are grouped by weekday on the board, so today's updates are clear at a glance.
-- **Cross-device data sync** – Supports four sync methods: own account, Bangumi, Bilibili, and WebDAV. Cloud backup, device migration, and seamless cross-device transitions keep your data always with you.
-- ~~**Built-in player & progress sync** – Integrates ExoPlayer, supports playing local resources from WebDAV, automatically updates episode count after finishing, no manual intervention needed.~~
-
----
-
-<h2 align="center">Highlights</h2>
-
-<table align="center" width="100%">
+<table>
   <tr>
-    <td><b>Dual-source search</b> – Bangumi + TMDB auto-matching</td>
-    <td><b>Tracking board</b> – Today's updates at a glance</td>
-  </tr>
-  <tr>
-    <td><b>Multi-device sync</b> – Own account / Bangumi / Bilibili / WebDAV</td>
-    <td><b>Timeline report</b> – Trace your watch history</td>
-  </tr>
-  <tr>
-    <td><b>Material You</b> – Dynamic color + multiple theme presets</td>
-    <td><b>Markdown import/export</b> – Free data migration</td>
+    <td align="center"><a href="assets/readme/home.jpg"><img src="assets/readme/home.jpg" width="245" alt="Anime covers with watch status and episode progress"></a><br><strong>Anime library</strong></td>
+    <td align="center"><a href="assets/readme/favorites.jpg"><img src="assets/readme/favorites.jpg" width="245" alt="Favorite anime organized into custom folders"></a><br><strong>Favorites</strong></td>
+    <td align="center"><a href="assets/readme/weekly-board.jpg"><img src="assets/readme/weekly-board.jpg" width="245" alt="Tracked anime grouped by the day they air"></a><br><strong>Weekly airings</strong></td>
   </tr>
 </table>
 
----
+## Get started
 
-<h2 align="center">Main Features</h2>
+[Download the Android APK](https://github.com/AieXile/AnimeTrack/releases/latest) under **Assets**. AnimeTrack requires **Android 8.0 (API 26) or later**.
+
+| APK | Which one to choose |
+| --- | --- |
+| `-v8a.apk` | Most recent Android phones and tablets |
+| `-v7a.apk` | 32-bit ARM devices |
+| `-universal.apk` | Use this if you're unsure which architecture your device uses |
+
+Open the APK and follow Android's installation prompts. You can install it over an existing GitHub release.
+
+- **Add your first anime.** Tap **+** on the home screen, search for a title, and choose a watch status. Open the title to update your episode count or rating.
+- **Bring over your watch history.** Import from Bangumi or Bilibili. For Markdown imports and WebDAV restores, open **Settings → Data Management**. See [Sync and backups](#sync-and-backups) for the available options.
+- **Play your own videos.** Open **Settings → Video Playback** to grant access to a local folder, configure a WebDAV media directory, or paste a supported video link. See [Video playback](#video-playback) for source and progress options.
+
+## Tracking and favorites
+
+- **Build your library with Bangumi and TMDB.** Search for titles and bring in covers, episode counts, and air dates. Add an entry manually or match missing metadata later. In batch mode, keep selecting results as you change queries or sources, then add them in one go.
+- **Keep a record of every episode.** Mark shows as planned, watching, or completed, and save ratings and notes. Search, sort, or pin titles in a list or grid. The timeline lets you revisit what you finished by month.
+- **Browse seasons together.** AnimeTrack uses Bangumi prequel and sequel relationships alongside season names. Swipe through the resulting stacks to see each season's progress.
+- **Organize favorites in your own folders.** Pick a cover and drag to reorder folders or their titles. Pinch a folder closed when you're done. Removing a folder keeps its shows in All Favorites.
+- **See the week at a glance.** The airing board shows when the ongoing titles you've added are due. Home-screen widgets show today's airings, watch progress, and stats.
+
+## Video playback
+
+The built-in player is available starting with **v1.0.0**. Enable the detail-page play button under **Settings → Features** to pick an episode or resume a linked video directly from its anime entry.
+
+| Source | What you can do |
+| --- | --- |
+| Local files | Grant access to a folder. AnimeTrack scans it and groups files by title, season, and episode. Rescan changed files and confirm or correct matches individually or in groups. |
+| WebDAV | Test the server connection, browse the original folders, or scan them into a library grouped by title. Pick episodes, resume playback, and load supported subtitles from the same directory. |
+| Web | Play direct MP4, HLS (M3U8), or DASH links, parse episodes and sources from supported pages, or search by title using compatible Kazumi HTML or API rules. |
+| External apps | Open eligible titles in supported apps such as Animeko or Bilibili from the detail page. Available options depend on the linked title and your preferences. |
+
+- **Media library and Continue Watching.** Filter titles by local, web, or WebDAV source. Add web titles to the library and return to a previous episode.
+- **Update your watch progress automatically.** Turn on **Update Watch Progress When Finished** to track episodes with a confirmed match and episode number. Watch time determines completion, and consecutive completed episodes advance your progress.
+- **Playback controls.** Pick episodes in portrait or go full screen with orientation matched to the video. Seek, adjust brightness or volume, and hold to speed up. Change the aspect ratio, choose available quality, audio and subtitle tracks, load an external subtitle file, or switch to picture-in-picture.
+- **Separate WebDAV settings.** Manage media servers and media roots in Video playback. Set up data backups in Data management.
+
+<p align="center"><a href="assets/readme/player.jpg"><img src="assets/readme/player.jpg" width="260" alt="Portrait player with quality, speed, subtitles, and episode selection for a WebDAV title"></a><br><sub>Portrait player and episode selection</sub></p>
+
+## Sync and backups
+
+| Method | What it does |
+| --- | --- |
+| **AnimeTrack account** | Sync watch records across devices and manage your profile, signed-in devices, password, and email. |
+| **Bangumi** | Sync collection status and episode progress in both directions. |
+| **Bilibili** | Sign in and choose which followed titles to import into the local library. |
+| **WebDAV** | Back up manually or on a schedule, and merge or replace local data when restoring. JSON includes favorite folders and custom folder covers. Full ZIP also includes anime covers. |
+| **Markdown** | Import files or pasted text with status, episode progress, completion dates, and notes. Export your library as a readable Markdown file. |
+
+Watch records are stored locally. In Data management, you can also match missing metadata or review and remove duplicate records.
+
+## Appearance and tools
+
+- Choose standard, advanced blur, or liquid glass. Customize color presets, dynamic colors, four dark styles, fonts, icons, and the bottom navigation layout. Real-time blur and dynamic system colors require Android 12 (API 31) or later.
+- Browse an adaptive grid on phones and a two-pane layout for library details or settings on larger screens.
+- Find or replace cover images, save covers locally, and share cards with a title's cover, rating, and progress.
+- Review usage and tracking stats by day, month, or year. Search settings directly, configure an HTTP or Bangumi proxy, and check updates or announcements in the app.
 
 <details>
-<summary><b>Click to expand full feature list</b></summary>
+<summary>Show settings, data management, and the account screen</summary>
 
-### Tracking & Playback
-- **Multi-source search** – Supports search matching from both Bangumi and TMDB, automatically pulling covers, episode counts, air dates, and other basic info. When a work lacks data from a source, you can manually search and complete it via the match button on the detail page, supporting matching by Bangumi or TMDB separately.
-- **Multi-status management** – Categorize anime into three statuses: "Wish to Watch", "Watching", and "Watched", covering the full tracking flow. For watching works, you can record the current episode number, and the completion time is automatically written when finished.
-- **Multi-season collection** – Automatically recognizes multiple seasons of the same series via Bangumi relation chains (supports "Season X", "Part X", "Chapter X", Roman numerals, "Final Season" and many more naming patterns), groups them by series and displays them as stacked cards. Swipe left/right to switch between seasons without searching through the list.
-- ~~**Built-in player** – Integrates ExoPlayer, supports direct playback of local anime resources from WebDAV remote directories, with playback progress linked to local records and automatic episode update after finishing.~~
-- **Timeline review** – Chronologically view when you finished each anime, making it easy to review your watch history, with monthly browsing support.
-- **Tracking board** – Added ongoing works show which weekday they update, and the board lists today's updated anime grouped by weekday, with one-click navigation to the work details.
-- ~~**Update push reminders** – Uses WorkManager and JPush to notify on the update day. (Currently not open)~~
-
-### Sync & Backup
-- **AnimeTrack account sync** – Register and log in to the own backend, with cloud bidirectional sync of subscription data. After login, cloud data is automatically pulled, and local changes are uploaded in real time, keeping data consistent across devices. Supports avatar upload, password change, and other account management.
-- **Bangumi sync** – Bidirectionally sync Bangumi collection status and watch progress. You can push local records to Bangumi favorites, or pull Bangumi marks and merge them locally, avoiding duplicate maintenance.
-- **Bilibili sync** – One-click pull your Bilibili follow list and merge it locally. After logging into Bilibili, select the anime to sync, automatically pulling covers, episode counts, statuses, etc., with selective import support.
-- **WebDAV sync** – Back up the database and covers to your self-hosted cloud (Nutstore, Nextcloud, etc.) via WebDAV, with automatic scheduled sync, keeping your data under your control.
-- **Markdown import / export** – Supports batch import of watched records via **Markdown files/text** (compatible with status groups, episode info, completion dates, notes, etc., recognizing keywords in both Chinese and English), and export local records as readable Markdown files by timeline for backup or migration to other tools.
-- **ZIP backup / restore** – Package the local database (including WAL logs) and cover directory into a ZIP backup, with overwrite and merge modes (deduplication by bangumiId or title) for restoration, worry-free device switching.
-
-### Customization & Tools
-- **Material Design 3** – Built with Jetpack Compose, adapts to dynamic color and dark mode, following M3 design guidelines.
-- **Multiple theme presets** – Includes seven color schemes: Morning Mist Blue, Lake Cyan, Moss Green, Sunset Orange, Misty Purple, Rose Pink, and Minimalist Black & White, adopting a "neutral base + colored accent" model (referencing Apple HIG) to present distinct visual moods.
-- **Four-level dark mode** – In dark mode, choose from four darkness styles: "Amoled (pure black OLED) / Standard / Soft / High Contrast".
-- **Customizable navigation bar** – Offers both traditional bottom bar and floating capsule styles, supports swipe left/right on the navigation area to switch pages, with spring animations following gestures on the selected indicator.
-- **Onboarding** – First-install walkthrough to quickly understand core features and permission descriptions.
-- **Proxy settings** – Built-in Bangumi reverse proxy (to bypass Bangumi being blocked in some regions) and global HTTP proxy (for restricted network environments), taking effect after restart.
-- **Share cards** – Generate anime info cards containing cover, title, rating, and progress, share to social platforms with one tap.
-- **Cover editing** – In detail page edit mode, you can search for online covers, upload custom covers from gallery, or save the current cover to your local gallery – all three options for full personalization.
-- **Statistics** – Records app usage time, number of added and completed anime, viewable by day / month / year to quantify your tracking journey.
-- **Version update check** – Automatically checks for new versions via the self-hosted server with GitHub Releases as fallback, compares version numbers and prompts updates, with changelog viewing support.
+<table>
+  <tr>
+    <td align="center"><a href="assets/readme/settings.jpg"><img src="assets/readme/settings.jpg" width="230" alt="Settings and appearance"></a><br><sub>Settings and appearance</sub></td>
+    <td align="center"><a href="assets/readme/data-management.jpg"><img src="assets/readme/data-management.jpg" width="230" alt="Data management"></a><br><sub>Data management</sub></td>
+    <td align="center"><a href="assets/readme/account.jpg"><img src="assets/readme/account.jpg" width="230" alt="AnimeTrack account"></a><br><sub>AnimeTrack account</sub></td>
+  </tr>
+</table>
 
 </details>
 
----
-
-<h2 align="center">Screenshots</h2>
-
-<h3 align="center">Main Interfaces</h3>
-<table width="100%">
+<table>
   <tr>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot1.png" alt="Main Screen" style="width: 100%; border-radius: 12px;">
-      <br><b>Main Screen</b>
-    </td>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot2.png" alt="Timeline" style="width: 100%; border-radius: 12px;">
-      <br><b>Timeline</b>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot3.png" alt="Board" style="width: 100%; border-radius: 12px;">
-      <br><b>Tracking Board</b>
-    </td>
-    <td width="50%" align="center">
-      <img src="assets/Screenshot4.png" alt="Settings" style="width: 100%; border-radius: 12px;">
-      <br><b>Settings</b>
-    </td>
+    <td align="center"><a href="update/screenshots/tablet_home.png"><img src="update/screenshots/tablet_home.png" width="360" alt="Library on a tablet"></a><br><sub>Library on a tablet</sub></td>
+    <td align="center"><a href="update/screenshots/tablet_detail_pane.png"><img src="update/screenshots/tablet_detail_pane.png" width="360" alt="Two-pane details on a tablet"></a><br><sub>Two-pane details on a tablet</sub></td>
   </tr>
 </table>
 
-<h3 align="center">More Details</h3>
-<table width="100%">
-  <tr>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot5.png" alt="Custom Navigation" style="width: 100%; border-radius: 8px;">
-      <br><b>Custom Navigation</b>
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot6.png" alt="Feature UI" style="width: 100%; border-radius: 8px;">
-      <br><b>Feature UI</b>
-    </td>
-    <td width="33%" align="center">
-      <img src="assets/Screenshot7.png" alt="MD Import" style="width: 100%; border-radius: 8px;">
-      <br><b>MD Import</b>
-    </td>
-  </tr>
-</table>
+## Open protocol
 
----
+The [`anime-play://` specification](docs/ANIME_PLAY_LINK_PROTOCOL.md) lets anime apps point to a Bangumi subject and episode. A compatible receiving app can open the requested episode and use the supplied callback to report progress.
 
-<h2>Future Plans:</h2>
-
-- [x] **Bangumi account sync** – Log in to sync cloud records directly, preventing loss, and support bidirectional updates.
-- [x] **Export watch history as MD** – Export local records as a readable Markdown file by timeline for backup or sharing.
-- [x] **Tablet adaptation** – Dual-pane layout on tablets, adaptive list grids, and a refactored FAB layout.
-- [x] **Liquid glass effect** – Liquid glass effect on the bottom navigation bar.
-- [x] **Stacked cards on home screen** – Recreating the WeChat multi-image stack experience to stack anime of the same series.
-- [ ] **Timeline reports** – Automatically generate weekly, monthly, or annual reports based on watch history, presenting trends with simple charts.
-- [ ] **Web & App multi-device sync** – Provide web access to enable real-time sync between web and app, seamless cross-device experience.
-- [ ] **Local playback & auto-recording** – Enhance the local player so that watch progress is automatically recorded to the timeline without manual marking.
-
----
-
-<h2 align="center">Quick Start</h2>
-
-### Requirements
-
-**Android 8.0** or higher
-
-> Liquid glass requires **Android 13** or higher
-
-### Installation
-Download the latest APK from the [Releases page](https://github.com/AieXile/AnimeTrack/releases) and install it directly.
-
-> If you encounter any issues, feel free to submit an Issue.
-
----
-
-<h2 align="center">Open Protocol: anime-play://</h2>
-
-AnimeTrack has initiated the [Anime Play Link Open Protocol](docs/ANIME_PLAY_LINK_PROTOCOL.md) — an open specification that any anime tracking/playback app is free to implement:
-
-```
-anime-play://subject/{bangumiSubjectId}?ep={episode}&ep_id={bangumiEpisodeId}&title={title}&src={senderId}&callback={callbackUri}
+```text
+anime-play://subject/12345?ep=3&src=animetrack
 ```
 
-- **One-tap playback jump** – Tracking apps (senders) can launch any playback app (receivers) via the URI above and jump straight to the target episode, no more manual searching and episode hunting;
-- **Progress feedback sync** – After finishing an episode, the playback app reports progress back via the `callback` URI, keeping both ends in sync automatically;
-- **Zero-friction integration** – Pure local URL Scheme with no server dependency; uses Bangumi subject ID as the global key so no private mapping tables are needed; unknown parameters are always ignored for graceful compatibility.
+AnimeTrack can send these links from anime detail pages. If you maintain a tracker or player, see the [full specification](docs/ANIME_PLAY_LINK_PROTOCOL.md) for fields, Android examples, and progress callbacks.
 
-AnimeTrack has implemented the sender side of this protocol (one-tap launch of external players from the detail page). If you are developing an anime player or another tracking app, you are **warmly welcome to adopt** this protocol — as either a sender or a receiver, just follow the integration guides in the [full protocol document](docs/ANIME_PLAY_LINK_PROTOCOL.md). Implemented it? Feel free to add your app to the ecosystem list in the document.
+## Development and contributions
 
----
+The Android client uses Kotlin, Jetpack Compose, and Material 3, with Room and DataStore for local data and WorkManager for background scanning and sync. Builds require JDK 21 and Android SDK Platform 37.1.
 
-<h2 align="center">Contributing</h2>
+```sh
+./gradlew :app:assembleDebug
+```
 
-Welcome to report issues or suggest ideas via [Issue](https://github.com/AieXile/AnimeTrack/issues). You are also welcome to fork the project and submit PRs.  
-If you like this project, please give us a Star!
+On Windows PowerShell, use `.\gradlew.bat :app:assembleDebug`.
 
----
+Open an [issue](https://github.com/AieXile/AnimeTrack/issues) or submit a pull request. Find the community on [Telegram](https://t.me/AnimeTrackovo) or in [QQ group 951059178](https://qun.qq.com/universal-share/share?ac=1&authKey=ToBlat%2BYBVr8R8J4kRqz5dZrwO08fUn1zJ47jsHDUmn04oxTLfipUhzDJNijY%2F3P&busi_data=eyJncm91cENvZGUiOiI5NTEwNTkxNzgiLCJ0b2tlbiI6IlgwRENkOGxubGFFOVd2cHZyRXNyQWsyU3VNb05DZ3ltNXpmUlg5T1NhQlh4emNoSDU1YnhWOWtUT2tFd1JLYlMiLCJ1aW4iOiIxMjE5NTc2NDA4In0%3D&data=f0HExdxeoQoLo-3m3KP-nlq9fIdMzKA3V5heiCbyagsnJqZRpLtjMq0yZ4W7BFNzDW9f17-YL24xP87SezjzCQ&svctype=4&tempid=h5_group_info).
 
-<h2 align="center">License</h2>
+## License
 
-This project is open-sourced under the [Apache License 2.0](LICENSE).
+The client is distributed under the [Apache License 2.0](LICENSE). The bundled kotlin-anitomy source is distributed under the [MPL 2.0](app/src/main/assets/kotlin-anitomy-NOTICE.txt). See the [web rules notice](app/src/main/assets/websource/KazumiRules-NOTICE.txt) for attribution.
