@@ -114,6 +114,10 @@ data class LocalMediaEntity(
     @ColumnInfo(defaultValue = "0") val groupOverride: Boolean = false
 )
 
+/** WebDAV 索引存储 HTTP(S) 请求地址，本地文件使用 SAF URI。 */
+internal val LocalMediaEntity.isWebDav: Boolean
+    get() = documentUri.startsWith("https://") || documentUri.startsWith("http://")
+
 object LocalMediaScrapeState {
     const val NONE = "NONE"
     const val WAITING = "WAITING"

@@ -46,7 +46,7 @@ sealed class BottomNavItem(
     @param:StringRes val titleRes: Int,
     /** 未选中图标（FILL=0 描边风格） */
     val icon: AppIcon,
-    /** 选中图标（Material 填充风格 / Lucide 加粗描边变体） */
+    /** 选中图标（填充或加粗描边变体） */
     val selectedIcon: AppIcon
 ) {
     object Home : BottomNavItem(
@@ -59,8 +59,8 @@ sealed class BottomNavItem(
     object Favorites : BottomNavItem(
         route = "favorites",
         titleRes = R.string.bottom_nav_favorites,
-        icon = AppIcon.COLLECTIONS_BOOKMARK,
-        selectedIcon = AppIcon.COLLECTIONS_BOOKMARK_FILLED
+        icon = AppIcon.FAVORITE,
+        selectedIcon = AppIcon.FAVORITE_FILLED
     )
 
     object Timeline : BottomNavItem(

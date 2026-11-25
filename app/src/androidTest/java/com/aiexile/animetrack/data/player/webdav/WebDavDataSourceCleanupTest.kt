@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.IOException
+import java.net.SocketTimeoutException
 
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
@@ -98,6 +99,52 @@ class WebDavDataSourceCleanupTest {
             assertEquals(seen.first().url, seen.last().url)
             assertTrue(seen.all { it.header("Range") == "bytes=5-" && it.header("Authorization")?.startsWith("Basic ") == true })
         } finally { source.close() }
+    }
+
+    @Test
+    fun timedOutVideoRangeOpenReplaysSameRequestWithoutGivingExtractorAnError() {
+        val seen = mutableListOf<okhttp3.Request>()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            seen += chain.request()
+            if (seen.size == 1) throw SocketTimeoutException("fixture")
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(206).message("Partial").header("Content-Range", "bytes 5-8/9").body(TrackingBody()).build()
+        }.build()
+        val source = WebDAVDataSource(client, "user", "test")
+        val spec = DataSpec.Builder().setUri("https://example.invalid/video.mkv?episode=1")
+            .setPosition(5).setLength(4).build()
+        try {
+            assertEquals(4L, source.open(spec))
+            assertEquals(4, source.read(ByteArray(4), 0, 4))
+            assertEquals(2, seen.size)
+            assertEquals(seen.first().url, seen.last().url)
+            assertEquals(seen.first().headers, seen.last().headers)
+            assertEquals("bytes=5-8", seen.last().header("Range"))
+        } finally { source.close() }
+    }
+
+    @Test
+    fun repeatedRangeTimeoutStopsLoaderButInitialAndSubtitleTimeoutsKeepOriginalPolicy() {
+        for ((position, subtitle) in listOf(5L to false, 0L to false, 5L to true)) {
+            var requests = 0
+            val client = OkHttpClient.Builder().addInterceptor {
+                requests++
+                throw SocketTimeoutException("fixture")
+            }.build()
+            val source = WebDAVDataSource(client, "user", "test", isSubtitle = subtitle)
+            val spec = DataSpec.Builder().setUri("https://example.invalid/media").setPosition(position).build()
+            try {
+                val error = runCatching { source.open(spec) }.exceptionOrNull()
+                if (position > 0 && !subtitle) {
+                    assertTrue(error is WebDavResumeOpenException && error.cause is SocketTimeoutException)
+                    assertEquals(2, requests)
+                } else {
+                    assertTrue(error is SocketTimeoutException)
+                    assertEquals(1, requests)
+                }
+                assertNull(source.uri)
+            } finally { source.close() }
+        }
     }
 
     @Test

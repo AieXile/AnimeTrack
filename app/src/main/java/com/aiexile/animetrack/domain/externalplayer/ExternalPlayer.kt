@@ -11,7 +11,7 @@ package com.aiexile.animetrack.domain.externalplayer
 /** 外部播放器唯一标识；新增播放器在此登记 */
 enum class ExternalPlayerId { ANIMEKO, BILIBILI }
 
-/** 外部播放目标选择方式（设置项持久化值） */
+/** 详情页播放应用偏好（设置项持久化值） */
 enum class ExternalPlayMode {
     /** 自动：按已安装应用与本地关联情况选择，歧义时询问 */
     AUTO,
@@ -22,8 +22,11 @@ enum class ExternalPlayMode {
     /** 始终使用哔哩哔哩 */
     BILIBILI,
 
-    /** 每次播放前询问 */
-    ASK
+    /** 每次选择外部播放时询问 */
+    ASK,
+
+    /** 仅使用内置播放器 */
+    BUILT_IN
 }
 
 /**

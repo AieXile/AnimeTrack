@@ -210,7 +210,7 @@ private fun LocalMediaGroupCard(
                     )
                     val status = when {
                         group.waiting -> stringResource(R.string.local_media_waiting_metadata)
-                        group.reviewKey != null -> stringResource(R.string.local_media_match_pending)
+                        group.reviewKey != null -> stringResource(R.string.local_media_group_match_manually)
                         group.pendingCount > 0 -> pluralStringResource(
                             R.plurals.local_media_group_pending_count, group.pendingCount, group.pendingCount
                         )
@@ -250,7 +250,7 @@ internal fun LocalMediaGroupSheet(
     files: LazyPagingItems<LocalMediaEntity>,
     onDismiss: () -> Unit,
     onPlayMedia: (Long) -> Unit,
-    onMatchMedia: (LocalMediaEntity) -> Unit,
+    onMatchMedia: ((LocalMediaEntity) -> Unit)? = null,
     onConfirmMatch: (LocalMediaEntity) -> Unit = {},
     onMatchGroup: () -> Unit = {},
     onSetHidden: (LocalMediaEntity, Boolean) -> Unit = { _, _ -> },
@@ -261,7 +261,7 @@ internal fun LocalMediaGroupSheet(
     if (empty) return
 
     LocalMediaFilesSheet(group.title, files, actionError, onDismiss, actions = {
-        if (group.reviewKey != null || group.hasMatch) {
+        if (onMatchMedia != null && (group.reviewKey != null || group.hasMatch)) {
             TextButton(onClick = onMatchGroup, modifier = Modifier.padding(horizontal = 12.dp)) {
                 Text(stringResource(if (group.reviewKey != null) R.string.local_media_match_group else R.string.local_media_change_group))
             }
@@ -369,7 +369,7 @@ private fun LocalMediaRow(
     media: LocalMediaEntity,
     inGroup: Boolean,
     onPlayMedia: (Long) -> Unit,
-    onMatchMedia: (LocalMediaEntity) -> Unit,
+    onMatchMedia: ((LocalMediaEntity) -> Unit)?,
     onSetHidden: (LocalMediaEntity, Boolean) -> Unit,
     onConfirmMatch: (LocalMediaEntity) -> Unit = {},
     allowMatch: Boolean = true
@@ -423,7 +423,7 @@ private fun LocalMediaRow(
                 }
             }
         }
-        MediaActionsMenu(tag = "local-file-menu-${media.id}") { close ->
+        if (onMatchMedia != null) MediaActionsMenu(tag = "local-file-menu-${media.id}") { close ->
             if (pending) {
                 MediaActionItem(R.string.local_media_match_confirm, AppIcon.CHECK) { close(); onConfirmMatch(media) }
             }
@@ -485,7 +485,7 @@ private fun MediaActionItem(@StringRes label: Int, icon: AppIcon, onClick: () ->
 }
 
 @Composable
-private fun localMediaEpisodeLabel(media: LocalMediaEntity): String {
+internal fun localMediaEpisodeLabel(media: LocalMediaEntity): String {
     media.decimalEpisode?.let { return stringResource(R.string.local_media_episode_decimal, it) }
     if (media.episodeType == LocalEpisodeType.EXTRA || media.seasonNumber == 99) {
         return stringResource(R.string.local_media_episode_extra)

@@ -26,16 +26,19 @@ import com.aiexile.animetrack.di.ImportBannerState
 import com.aiexile.animetrack.ui.home.SeriesMatcher
 import com.aiexile.animetrack.util.RatingUtils
 import com.aiexile.animetrack.util.cleanSummary
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -128,9 +131,10 @@ interface AnimeRepository {
      * - usageStats 自增
      * - 单次去抖 reassignSeriesKeys
      * - 逐条 syncSubscriptionToServer
+     * @param syncToBangumi 用户主动添加时设为 true；从远端拉取时不回写 Bangumi
      * @return 与入参顺序对应的插入结果 ID 列表（OnConflict IGNORE 时为 -1）
      */
-    suspend fun batchInsertAnimes(animes: List<Anime>): List<Long>
+    suspend fun batchInsertAnimes(animes: List<Anime>, syncToBangumi: Boolean = false): List<Long>
 
     suspend fun getAnimesWithoutCover(): List<Anime>
 
@@ -255,23 +259,24 @@ class AnimeRepositoryImpl(
     private val pendingCoverUrlUpdates = ConcurrentHashMap<Int, String>()
     private val coverBatcherStarted = AtomicBoolean(false)
 
-    // ===== Bangumi 关系链系列识别（进程级缓存，冷启动后增量补拉） =====
-
-    /** 关系数据缓存：subjectId → 已过滤为动漫类型的关联列表。仅缓存拉取成功的结果（空列表 = 确认无关联）。 */
-    private val relationsCache = ConcurrentHashMap<Int, List<BangumiSeriesResolver.SubjectRelation>>()
-
-    /** 拉取失败的 subjectId 集合：本次进程内不再重试（避免断网时反复请求），冷启动后重新尝试 */
-    private val failedSubjectIds = ConcurrentHashMap.newKeySet<Int>()
-
-    /** Bangumi 关系链解析结果缓存：anime.id → 系列归属，供 reassignSeriesKeys 融合（权威，优先于正则） */
     @Volatile
-    private var bangumiSeriesCache: Map<Int, BangumiSeriesResolver.SeriesAssignment> = emptyMap()
-
-    /** 关系链同步单飞锁：正在同步时新触发直接跳过（下次 reassign 再补） */
-    private val seriesRelationsMutex = Mutex()
-
-    /** 关系链同步时单次最多拉取的条目数（库内 + 递归库外前传），防止异常数据导致请求风暴 */
-    private val relationsFetchLimit = 300
+    private var seriesRelations: Map<Int, List<BangumiSeriesResolver.SubjectRelation>> = emptyMap()
+    private val seriesRecomputeMutex = Mutex()
+    private val seriesRelationRequests by lazy {
+        // 合并同步期间的触发，但在本轮结束后重查新添加/重新匹配的条目。
+        Channel<Unit>(Channel.CONFLATED).also { requests ->
+            appScope.launch {
+                val sync = BangumiSeriesRelationSync(fetchRelations = ::fetchSeriesRelations)
+                for (request in requests) {
+                    val ids = animeDao.getAllAnimesList().mapNotNullTo(linkedSetOf()) { it.bangumiId }
+                    sync.sync(ids) { snapshot ->
+                        seriesRelations = snapshot
+                        recomputeAndPersistSeriesKeys()
+                    }
+                }
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "AnimeTrack"
@@ -305,7 +310,11 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun deleteAllAnimes() {
-        animeDao.deleteAllAnimes()
+        val database = AnimeDatabase.getDatabase(context)
+        database.withTransaction {
+            database.favoriteFolderDao().deleteFolders()
+            animeDao.deleteAllAnimes()
+        }
     }
 
     override suspend fun getAnimeById(id: Int): Anime? {
@@ -352,23 +361,21 @@ class AnimeRepositoryImpl(
                 isAdd = true,
                 explicitAdd = true
             )
-            // 异步推送到 Bangumi（fire-and-forget，不阻塞新增流程）
-            // batchInsertAnimes 不推 Bangumi，避免从 Bangumi 拉取后又推回造成循环
-            val bangumiId = animeToInsert.bangumiId
-            if (bangumiId != null) {
-                val watchedEps = animeToInsert.watchedEpisodes
-                val status = animeToInsert.status
-                appScope.launch {
-                    val syncManager = com.aiexile.animetrack.di.AppContainer.getSyncManager()
-                    if (watchedEps > 0) {
-                        syncManager.pushProgressThenStatus(bangumiId, watchedEps, status)
-                    } else {
-                        syncManager.pushStatusToRemote(bangumiId, status)
-                    }
-                }
-            }
+            syncAddedAnimeToBangumi(animeToInsert)
         }
         return id
+    }
+
+    private fun syncAddedAnimeToBangumi(anime: Anime) {
+        val bangumiId = anime.bangumiId ?: return
+        appScope.launch {
+            val syncManager = com.aiexile.animetrack.di.AppContainer.getSyncManager()
+            if (anime.watchedEpisodes > 0) {
+                syncManager.pushProgressThenStatus(bangumiId, anime.watchedEpisodes, anime.status)
+            } else {
+                syncManager.pushStatusToRemote(bangumiId, anime.status)
+            }
+        }
     }
 
     override suspend fun updateAnimeInternal(anime: Anime): Anime? {
@@ -381,23 +388,19 @@ class AnimeRepositoryImpl(
         val database = AnimeDatabase.getDatabase(context)
         // 单事务内读取旧值并写入：N 次写库只触发一次 Room 失效（一次列表重算）
         val oldAnimes = database.withTransaction {
-            animes.map { anime ->
-                val old = animeDao.getAnimeById(anime.id)
-                animeDao.updateAnime(anime)
-                old
-            }
+            animes.map { anime -> updateAnimePreservingFavorite(anime) }
         }
         // 副作用在事务外执行（与 batchInsertAnimes 一致）
         var completedCount = 0
-        var titleChanged = false
+        var seriesMatchChanged = false
         for ((old, anime) in oldAnimes.zip(animes)) {
             // 检测状态变为已看完时记录完结统计
             if (old != null && old.status != AnimeStatus.COMPLETED && anime.status == AnimeStatus.COMPLETED) {
                 completedCount++
             }
-            // 标题可能变化，重新识别 seriesKey
-            if (old != null && old.title != anime.title) {
-                titleChanged = true
+            // 标题或 Bangumi 匹配变化时重新识别系列
+            if (old != null && (old.title != anime.title || old.bangumiId != anime.bangumiId)) {
+                seriesMatchChanged = true
             }
         }
         if (completedCount > 0) {
@@ -405,10 +408,17 @@ class AnimeRepositoryImpl(
             repeat(completedCount) { usageStats.incrementCompletedAnime() }
         }
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
-        if (titleChanged) {
+        if (seriesMatchChanged) {
             triggerReassignSeriesKeysDebounced()
         }
         return oldAnimes
+    }
+
+    /** 在写入事务中保留当前收藏状态，避免资料刷新用过期的番剧数据覆盖收藏。 */
+    private suspend fun updateAnimePreservingFavorite(anime: Anime): Anime? {
+        val old = animeDao.getAnimeById(anime.id) ?: return null
+        animeDao.updateAnime(anime.copy(isFavorite = old.isFavorite))
+        return old
     }
 
     override suspend fun batchUpdateAnimes(animes: List<Anime>) {
@@ -528,7 +538,7 @@ class AnimeRepositoryImpl(
         animeDao.insertAnimes(animes)
     }
 
-    override suspend fun batchInsertAnimes(animes: List<Anime>): List<Long> {
+    override suspend fun batchInsertAnimes(animes: List<Anime>, syncToBangumi: Boolean): List<Long> {
         if (animes.isEmpty()) return emptyList()
         // 与单条 insertAnime 一致：保存可公开访问的远程封面 URL；
         // 并把添加时刻写入 lastProgressAt（批内按序递增毫秒，保持导入顺序），
@@ -562,6 +572,7 @@ class AnimeRepositoryImpl(
             // 同步订阅到后端（批量，与单条 insertAnime 行为一致）
             successAnimes.forEach { anime ->
                 subscriptionSyncService.syncSubscriptionToServer(anime, isAdd = true, explicitAdd = true)
+                if (syncToBangumi) syncAddedAnimeToBangumi(anime)
             }
         }
         return ids
@@ -690,7 +701,11 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun setFavorite(id: Int, isFavorite: Boolean) {
-        animeDao.setFavorite(id, isFavorite)
+        val database = AnimeDatabase.getDatabase(context)
+        database.withTransaction {
+            animeDao.setFavorite(id, isFavorite)
+            if (!isFavorite) database.favoriteFolderDao().removeAnimeFromFolders(id)
+        }
         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
     }
 
@@ -712,112 +727,46 @@ class AnimeRepositoryImpl(
     }
 
     override suspend fun reassignSeriesKeys() {
-        recomputeAndPersistSeriesKeys(triggerRelationsSync = true)
+        recomputeAndPersistSeriesKeys()
+        seriesRelationRequests.trySend(Unit)
     }
 
-    /**
-     * 重算并持久化 seriesKey / seasonNumber：
-     * - 标题正则分组（SeriesMatcher.assignSeriesKeys）
-     * - 融合 Bangumi 关系链结果（[bangumiSeriesCache]，权威优先）
-     * 仅持久化发生变化的项，合并为单事务写库（一次 Room 失效）。
-     *
-     * @param triggerRelationsSync true 时在完成后异步触发 Bangumi 关系链增量同步
-     *        （关系链同步完成后的重算传 false，避免无限递归触发）
-     */
-    private suspend fun recomputeAndPersistSeriesKeys(triggerRelationsSync: Boolean) {
+    private suspend fun recomputeAndPersistSeriesKeys() = seriesRecomputeMutex.withLock {
         val allAnimes = animeDao.getAllAnimesList()
-        if (allAnimes.isEmpty()) return
-        // 正则匹配计算挪到 Default，避免启动期在主线程全表扫描
+        if (allAnimes.isEmpty()) return@withLock
+        val snapshot = seriesRelations
         val updated = withContext(Dispatchers.Default) {
-            SeriesMatcher.assignSeriesKeys(allAnimes, bangumiSeriesCache)
+            val assignments = BangumiSeriesResolver.resolve(allAnimes, snapshot)
+            SeriesMatcher.assignSeriesKeys(allAnimes, assignments, snapshot)
         }
-        // 建立 id → 原对象索引，避免在 filter lambda 内做 O(n²) 线性查找
-        val oldById = allAnimes.associateBy { it.id }
-        // 仅持久化 seriesKey/seasonNumber 变化的项，且合并为单事务写库（一次 Room 失效）
-        val changed = updated.filter {
-            it.seriesKey != oldById[it.id]?.seriesKey || it.seasonNumber != oldById[it.id]?.seasonNumber
+        val changed = allAnimes.zip(updated).filter { (old, new) ->
+            old.seriesKey != new.seriesKey || old.seasonNumber != new.seasonNumber
         }
         if (changed.isNotEmpty()) {
-            val database = AnimeDatabase.getDatabase(context)
-            database.withTransaction { changed.forEach { animeDao.updateAnime(it) } }
+            AnimeDatabase.getDatabase(context).withTransaction {
+                for ((old, new) in changed) {
+                    animeDao.updateSeriesAssignment(old.id, old.title, old.bangumiId, new.seriesKey, new.seasonNumber)
+                }
+            }
         }
         if (BuildConfig.DEBUG) {
-            Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}, bangumiOverrides=${bangumiSeriesCache.size}")
-        }
-        if (triggerRelationsSync) {
-            appScope.launch { syncSeriesRelationsFromBangumi() }
+            Log.d(TAG, "reassignSeriesKeys: processed ${allAnimes.size}, updated ${changed.size}, relationCache=${snapshot.size}")
         }
     }
 
-    /**
-     * Bangumi 关系链系列同步（后台单飞）：
-     * 1. 增量拉取「未缓存」条目的关联关系（含递归库外前传，用于计算准确的链头与季数深度）
-     * 2. 调 [BangumiSeriesResolver.resolve] 计算每部番剧的系列归属（seriesKey + seasonNumber）
-     * 3. 结果写入 [bangumiSeriesCache] 并触发重算持久化（不回调本方法，避免循环）
-     *
-     * 失败静默降级：拉取失败的条目跳过（进程内不重试），正则分组结果保持不变。
-     * 拉取间隔 [RELATIONS_FETCH_INTERVAL_MS]，与封面补全的节流节奏一致。
-     */
-    private suspend fun syncSeriesRelationsFromBangumi() {
-        if (!seriesRelationsMutex.tryLock()) return
-        try {
-            // bangumiId <= 0 为历史脏数据（B站导入经服务端同步产生的 animeId='0'），
-            // 请求 /v0/subjects/0/subjects 必然 400，跳过以免浪费时间与请求配额
-            val animesWithBangumiId = animeDao.getAllAnimesList().filter { (it.bangumiId ?: 0) > 0 }
-            if (animesWithBangumiId.isEmpty()) return
-
-            // 增量队列：库内未缓存的 + 递归发现的库外前传
-            val queue = ArrayDeque<Int>()
-            val enqueued = mutableSetOf<Int>()
-            for (anime in animesWithBangumiId) {
-                val id = anime.bangumiId ?: continue
-                if (!relationsCache.containsKey(id) && !failedSubjectIds.contains(id) && enqueued.add(id)) {
-                    queue.addLast(id)
-                }
+    private suspend fun fetchSeriesRelations(subjectId: Int): List<BangumiSeriesResolver.SubjectRelation>? {
+        val relations = try {
+            RetrofitClient.bangumiApi.getSubjectRelations(subjectId).filter { it.isAnime }.map {
+                BangumiSeriesResolver.SubjectRelation(it.id, it.displayName, it.relation.orEmpty(), it.isAnime)
             }
-            var fetched = 0
-            while (queue.isNotEmpty() && enqueued.size <= relationsFetchLimit) {
-                val subjectId = queue.removeFirst()
-                if (relationsCache.containsKey(subjectId) || failedSubjectIds.contains(subjectId)) continue
-                try {
-                    val relations = RetrofitClient.bangumiApi.getSubjectRelations(subjectId)
-                    relationsCache[subjectId] = relations.filter { it.isAnime }.map {
-                        BangumiSeriesResolver.SubjectRelation(
-                            subjectId = it.id,
-                            title = it.displayName,
-                            relation = it.relation ?: "",
-                            isAnime = it.isAnime
-                        )
-                    }
-                    fetched++
-                    // 递归：库外前传入队（计算链头深度需要完整前传链）
-                    relationsCache[subjectId].orEmpty()
-                        .filter { it.relation == "前传" }
-                        .forEach { pre ->
-                            if (!relationsCache.containsKey(pre.subjectId) && !failedSubjectIds.contains(pre.subjectId) && enqueued.add(pre.subjectId)) {
-                                queue.addLast(pre.subjectId)
-                            }
-                        }
-                } catch (e: Exception) {
-                    failedSubjectIds.add(subjectId)
-                    AppLogManager.w(TAG, "拉取条目关联关系失败: subjectId=$subjectId", e)
-                }
-                delay(RELATIONS_FETCH_INTERVAL_MS)
-            }
-
-            if (fetched > 0 || bangumiSeriesCache.isEmpty()) {
-                val resolved = withContext(Dispatchers.Default) {
-                    BangumiSeriesResolver.resolve(animesWithBangumiId, relationsCache.toMap())
-                }
-                bangumiSeriesCache = resolved
-                if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "syncSeriesRelations: fetched=$fetched, cacheSize=${relationsCache.size}, resolved=${resolved.size}")
-                }
-                recomputeAndPersistSeriesKeys(triggerRelationsSync = false)
-            }
-        } finally {
-            seriesRelationsMutex.unlock()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogManager.w(TAG, "拉取条目关联关系失败: subjectId=$subjectId", e)
+            null
         }
+        delay(RELATIONS_FETCH_INTERVAL_MS)
+        return relations
     }
 
     override fun downloadCoverAsync(animeId: Int, coverUrl: String?, bangumiId: Int?, tmdbId: Int?) {
@@ -1034,8 +983,10 @@ class AnimeRepositoryImpl(
                             notes = if (extractedNote.isNotEmpty()) extractedNote else anime.notes
                         )
 
-                        // 直接写入 DAO，避免每部番剧触发一次网络同步（updateAnime 会 POST）
-                        animeDao.updateAnime(updatedAnime)
+                        // 本地补齐资料，保留用户在查询期间修改的收藏状态
+                        AnimeDatabase.getDatabase(context).withTransaction {
+                            updateAnimePreservingFavorite(updatedAnime)
+                        }
                         WebDAVAutoSyncManager.getInstance().notifyDataChanged()
                         downloadCoverAsync(
                             animeId = updatedAnime.id,

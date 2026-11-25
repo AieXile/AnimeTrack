@@ -76,7 +76,6 @@ fun DeveloperScreen(
     val developerMode by settingsRepository.developerMode.collectAsStateWithLifecycle(initialValue = true)
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsStateWithLifecycle(initialValue = false)
     val updateNotificationVisible by settingsRepository.updateNotificationVisible.collectAsStateWithLifecycle(initialValue = false)
-    val playerHubVisible by settingsRepository.playerHubVisible.collectAsStateWithLifecycle(initialValue = false)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -213,36 +212,6 @@ fun DeveloperScreen(
                     onCheckedChange = { enabled ->
                         scope.launch {
                             settingsRepository.setUpdateNotificationVisible(enabled)
-                        }
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.size(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.developer_player_hub_entry),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = stringResource(R.string.developer_player_hub_entry_desc),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                AppSwitch(
-                    checked = playerHubVisible,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            settingsRepository.setPlayerHubVisible(enabled)
                         }
                     }
                 )

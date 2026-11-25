@@ -3,29 +3,14 @@ package com.aiexile.animetrack.data.player.webdav
 import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.domain.playback.SubtitleSpec
 import com.thegrizzlylabs.sardineandroid.DavResource
-import com.thegrizzlylabs.sardineandroid.impl.handler.ResourcesResponseHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.Credentials
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import okhttp3.MediaType.Companion.toMediaType
-import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * WebDAV 外挂字幕定位器。
@@ -67,20 +52,12 @@ object WebDavSubtitleLocator {
 
     internal suspend fun loadResources(
         videoUrl: String,
-        settingsRepository: SettingsRepository
+        config: PlayerWebDavDirectory.Config
     ): List<DavResource> = withContext(Dispatchers.IO) {
         try {
-            val dirUrl = videoUrl.toHttpUrlOrNull()?.resolve("./")?.toString()
+            val directory = videoUrl.toHttpUrlOrNull()?.resolve("./")
                 ?: return@withContext emptyList()
-            WebDavDirectoryCache.get(dirUrl) ?: run {
-                val trustAll = settingsRepository.playerWebdavTrustAllCerts.first()
-                val username = settingsRepository.playerWebdavUsername.first()
-                val password = if (username.isEmpty()) "" else settingsRepository.playerWebdavPassword.first()
-                readDirectory(PlayerWebDavHttpClient.create(trustAll), dirUrl, username, password).also {
-                    ensureActive()
-                    WebDavDirectoryCache.put(dirUrl, it)
-                }
-            }
+            PlayerWebDavDirectory.list(config, directory)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {
@@ -126,53 +103,6 @@ object WebDavSubtitleLocator {
             .toList()
         return CandidateSelection(candidates, skippedOversized)
     }
-
-    /** 复用 Sardine 的目录解析器；由本处持有 OkHttp Call，超时/离开页面能直接取消。 */
-    internal suspend fun readDirectory(
-        client: OkHttpClient,
-        dirUrl: String,
-        username: String = "",
-        password: String = ""
-    ): List<DavResource> = suspendCancellableCoroutine { continuation ->
-        val request = Request.Builder()
-            .url(dirUrl)
-            .header("Depth", "1")
-            .method("PROPFIND", ALL_PROPERTIES.toRequestBody("text/xml".toMediaType()))
-            .build()
-        val directoryClient = if (username.isEmpty()) client else {
-            val origin = request.url
-            client.newBuilder().authenticator { _, response ->
-                val challenged = response.request
-                val target = challenged.url
-                // 只在同一服务器返回 401 时补发原有 Basic 凭据。
-                if (target.scheme != origin.scheme || target.host != origin.host ||
-                    target.port != origin.port || challenged.header("Authorization") != null
-                ) null else challenged.newBuilder()
-                    .header("Authorization", Credentials.basic(username, password))
-                    .build()
-            }.build()
-        }
-        val call = directoryClient.newCall(request)
-        continuation.invokeOnCancellation { call.cancel() }
-        if (!continuation.isActive) return@suspendCancellableCoroutine
-        call.enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                continuation.resumeWithException(e)
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                val result = runCatching {
-                    response.use {
-                        if (!continuation.isActive) return
-                        ResourcesResponseHandler().handleResponse(it)
-                    }
-                }
-                result.fold(continuation::resume, continuation::resumeWithException)
-            }
-        })
-    }
-
-    private const val ALL_PROPERTIES = "<d:propfind xmlns:d=\"DAV:\"><d:allprop/></d:propfind>"
 
     internal data class Candidate(val url: String, val name: String, val score: Int)
 }

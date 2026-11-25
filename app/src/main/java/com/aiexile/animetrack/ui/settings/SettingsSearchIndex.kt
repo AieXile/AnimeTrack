@@ -56,6 +56,16 @@ fun fuzzyMatch(query: String, text: String): Boolean {
  * 新增设置项时在此登记即可被搜索到。
  */
 val settingsSearchIndex: List<SearchableSetting> = listOf(
+    SearchableSetting(
+        route = Routes.PLAYER_SETTINGS, key = null,
+        titleRes = R.string.settings_playback, descRes = R.string.settings_playback_subtitle,
+        keywords = listOf("视频播放", "播放器", "本地媒体库", "WebDAV", "网页播放", "video", "playback")
+    ),
+    SearchableSetting(
+        route = Routes.MEDIA_LIBRARY, key = null,
+        titleRes = R.string.media_library_title, descRes = R.string.media_library_subtitle,
+        keywords = listOf("媒体库", "番剧库", "聚合", "media library")
+    ),
     // ---- 登录 ----
     SearchableSetting(
         route = Routes.LOGIN, key = null,
@@ -271,13 +281,13 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         route = Routes.FEATURES, key = "external_player_entry",
         titleRes = R.string.features_external_player_visible,
         descRes = R.string.features_external_player_visible_desc,
-        keywords = listOf("外部播放", "播放按钮", "详情页", "Animeko", "哔哩哔哩", "B站", "external", "player")
+        keywords = listOf("外部播放", "播放按钮", "详情页", "本地播放", "WebDAV", "网页播放", "external", "player")
     ),
     SearchableSetting(
         route = Routes.FEATURES, key = "external_play_mode",
         titleRes = R.string.features_external_play_mode,
         descRes = R.string.features_external_play_mode_desc,
-        keywords = listOf("播放应用", "默认播放器", "自动", "Animeko", "哔哩哔哩", "B站", "bilibili", "player")
+        keywords = listOf("播放应用", "内置播放器", "默认播放器", "自动", "Animeko", "哔哩哔哩", "B站", "bilibili", "player")
     ),
 
     // ---- 代理 ----
@@ -304,14 +314,9 @@ val settingsSearchIndex: List<SearchableSetting> = listOf(
         keywords = listOf("导出", "备份")
     ),
     SearchableSetting(
-        route = Routes.DATA_MANAGE, key = "webdav",
-        titleRes = R.string.data_manage_webdav_sync, descRes = R.string.data_manage_webdav_sync_subtitle,
-        keywords = listOf("云同步", "webdav", "云端备份", "恢复")
-    ),
-    SearchableSetting(
         route = Routes.WEBDAV_SYNC, key = null,
         titleRes = R.string.webdav_sync_title, descRes = R.string.data_manage_webdav_sync_subtitle,
-        keywords = listOf("webdav", "服务器", "地址", "用户名", "密码", "备份策略")
+        keywords = listOf("webdav", "云同步", "云端备份", "恢复", "服务器", "地址", "用户名", "密码", "备份策略")
     ),
 
     // ---- 更新通知 ----

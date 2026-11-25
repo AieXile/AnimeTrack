@@ -8,7 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaRepository
+import com.aiexile.animetrack.data.media.WebDavLocalMediaSource
+import com.aiexile.animetrack.data.media.isWebDav
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.web.WebPlaybackHistoryRepository
 import com.aiexile.animetrack.domain.playback.WebPlaybackResume
@@ -31,6 +34,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.Job
@@ -77,10 +83,14 @@ sealed class MatchSearchState {
     data class Failed(val message: String) : MatchSearchState()
 }
 
-/** 详情页播放入口：用户确认关联的本地剧集与续播目标。 */
-data class LocalPlaybackEntry(
+internal data class MediaLibraryPlaybackEntry(
     val mediaId: Long,
     val episodeNumber: Int?
+)
+
+internal data class MediaLibraryPlaybackEntries(
+    val local: MediaLibraryPlaybackEntry? = null,
+    val webDav: MediaLibraryPlaybackEntry? = null
 )
 
 data class AnimeDetailUiState(
@@ -122,33 +132,33 @@ class AnimeDetailViewModel(
 
     private val _notesText = MutableStateFlow<String?>(null)
 
-    /**
-     * 详情页续播目标：只在「用户确认关联 + 文件仍在」的本地剧集里挑选。
-     * 未确认的自动匹配结果不进入详情页，避免把文件播错番。
-     */
-    val localPlayback: StateFlow<LocalPlaybackEntry?> = combine(
-        localMediaRepository.observeConfirmedEpisodesForAnime(animeId),
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    internal val mediaLibraryPlayback: StateFlow<MediaLibraryPlaybackEntries> = combine(
+        settingsRepository.playerWebdavDirectoryConfig
+            .map { it?.let(WebDavLocalMediaSource::uri) }
+            .distinctUntilChanged()
+            .flatMapLatest { localMediaRepository.observeConfirmedEpisodesForAnime(animeId, it) },
         playerRepository.progress,
         localMediaRepository.observeCompletedEpisodeNumbers(animeId)
     ) { episodes, progress, completed ->
-        LocalPlaybackResume.pick(episodes, progress, completed.toSet())?.let { media ->
-            LocalPlaybackEntry(
-                mediaId = media.id,
-                episodeNumber = media.episodeNumber
-            )
+        val completedEpisodes = completed.toSet()
+        fun pick(files: List<LocalMediaEntity>): MediaLibraryPlaybackEntry? {
+            val media = LocalPlaybackResume.pick(files, progress, completedEpisodes) ?: return null
+            return MediaLibraryPlaybackEntry(media.id, media.episodeNumber)
         }
+        val (webDav, local) = episodes.partition { it.isWebDav }
+        MediaLibraryPlaybackEntries(local = pick(local), webDav = pick(webDav))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
+        initialValue = MediaLibraryPlaybackEntries()
     )
 
     /**
-     * 该番剧最近一次网页播放的续播目标。
-     * 只有从本详情页进入网页播放后写下的历史才带 animeId，全局入口的历史不参与。
+     * 该番剧最近保存或播放的已绑定网页来源。
      */
     val webResume: StateFlow<WebPlaybackResumeTarget?> = combine(
-        webPlaybackHistoryRepository.entries,
+        webPlaybackHistoryRepository.libraryEntries,
         playerRepository.progress
     ) { entries, progress ->
         entries.filter { it.animeId == animeId }
@@ -998,6 +1008,12 @@ class AnimeDetailViewModel(
         val anime = animeFlow.value ?: return
         viewModelScope.launch {
             repository.deleteAnime(anime)
+        }
+    }
+
+    fun setFavorite(isFavorite: Boolean) {
+        viewModelScope.launch {
+            repository.setFavorite(animeId, isFavorite)
         }
     }
 

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="favorite_folder_folders">Folders</string>
+    <string name="favorite_folder_open">Open folder</string>
+    <string name="favorite_folder_close">Close folder</string>
+    <string name="favorite_folder_pinch_guide_title">Pinch to close the folder</string>
+    <string name="favorite_folder_pinch_guide_message">Try pinching inward with two fingers inside the folder.</string>
+    <string name="favorite_folder_new">New folder</string>
+    <string name="favorite_folder_name">Folder name</string>
+    <string name="favorite_folder_rename">Rename folder</string>
+    <string name="favorite_folder_delete">Delete folder</string>
+    <string name="favorite_folder_delete_message">Delete “%1$s”? Its anime will stay in All favorites.</string>
+    <string name="favorite_folder_all">All favorites</string>
+    <string name="favorite_folder_add">Add anime</string>
+    <string name="favorite_folder_add_to">Add to folders</string>
+    <string name="favorite_folder_search">Search favorites</string>
+    <string name="favorite_folder_no_available">No anime available to add</string>
+    <string name="favorite_folder_no_matches">No matching anime</string>
+    <string name="favorite_folder_empty">This folder is empty</string>
+    <string name="favorite_folder_remove">Remove from folder</string>
+    <string name="favorite_folder_remove_message">Remove “%1$s” from this folder?</string>
+    <string name="favorite_folder_change_cover">Change cover</string>
+    <string name="favorite_folder_clear_cover">Remove custom cover</string>
+    <string name="favorite_folder_reorder">Reorder folders</string>
+    <string name="favorite_folder_reorder_anime">Reorder anime</string>
+    <string name="favorite_folder_drag_hint">Hold and drag the handle on the right</string>
+    <string name="favorite_folder_drag">Drag to reorder</string>
+    <string name="favorite_folder_up">Move up</string>
+    <string name="favorite_folder_down">Move down</string>
+    <string name="favorite_folder_unfavorite_message">Removing “%1$s” from favorites also removes it from these folders: %2$s</string>
+    <string name="favorite_folder_error">Could not save. Please try again.</string>
+    <string name="favorite_folder_create_first">Create a folder before adding anime to it.</string>
+    <string name="favorite_folder_empty_hint">Tap the heart on an anime detail page or long-press a card on Home</string>
+    <string name="favorite_folder_manage">Manage folder</string>
+</resources>

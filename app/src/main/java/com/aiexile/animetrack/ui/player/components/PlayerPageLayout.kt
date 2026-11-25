@@ -112,7 +112,8 @@ internal fun PlayerPageLayout(
             )
         }
     ) { chrome ->
-        BoxWithConstraints(Modifier.fillMaxSize().then(chrome.layout).padding(chrome.content)) {
+        val contentModifier = Modifier.fillMaxSize().then(chrome.layout).padding(chrome.content)
+        BoxWithConstraints(if (isFullscreen) contentModifier.background(Color.Black) else contentModifier) {
             val expanded = expandedWidth && maxWidth > maxHeight
             // 同一个 Shape 实例复用 outline 缓存；页面底色用于四角补画
             val cornerShape = remember { SquircleShape(VideoCornerRadius) }

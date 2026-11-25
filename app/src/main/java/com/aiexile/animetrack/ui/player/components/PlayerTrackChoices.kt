@@ -57,7 +57,7 @@ internal fun rememberPlayerTrackChoices(player: Player, type: Int): List<PlayerT
     val disabled = type in parameters.disabledTrackTypes
     val displayLocale = ConfigurationCompat.getLocales(LocalConfiguration.current)[0] ?: Locale.getDefault()
     return buildList {
-        if (type == C.TRACK_TYPE_VIDEO) {
+        if (type == C.TRACK_TYPE_VIDEO || type == C.TRACK_TYPE_TEXT && supported.isNotEmpty()) {
             add(PlayerTrackChoice(autoLabel, !disabled && groups.none {
                 parameters.overrides.containsKey(it.mediaTrackGroup)
             }) {
@@ -65,7 +65,7 @@ internal fun rememberPlayerTrackChoices(player: Player, type: Int): List<PlayerT
                     .clearOverridesOfType(type).setTrackTypeDisabled(type, false).build()
             })
         }
-        if (type == C.TRACK_TYPE_TEXT && supported.isNotEmpty()) {
+        if (type == C.TRACK_TYPE_TEXT) {
             add(PlayerTrackChoice(disabledLabel, disabled) {
                 player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
                     .setTrackTypeDisabled(type, true).build()
@@ -84,7 +84,7 @@ internal fun rememberPlayerTrackChoices(player: Player, type: Int): List<PlayerT
                 if (format.bitrate > 0) add("${format.bitrate / 1000} kbps")
             }.distinct().joinToString(" · ").ifBlank { "#${fallback + 1}" }
             else rawLabel ?: subtitleLanguage ?: format.language?.takeIf { it.isNotBlank() } ?: "#${fallback + 1}"
-            val selected = !disabled && if (type == C.TRACK_TYPE_VIDEO)
+            val selected = !disabled && if (type == C.TRACK_TYPE_VIDEO || type == C.TRACK_TYPE_TEXT)
                 parameters.overrides[group.mediaTrackGroup]?.trackIndices?.contains(index) == true
             else group.isTrackSelected(index)
             add(PlayerTrackChoice(label, selected, subtitleLanguage) {

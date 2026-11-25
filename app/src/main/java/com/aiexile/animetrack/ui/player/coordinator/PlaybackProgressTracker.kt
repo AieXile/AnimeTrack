@@ -3,9 +3,7 @@ package com.aiexile.animetrack.ui.player.coordinator
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import com.aiexile.animetrack.data.log.AppLogManager
-import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.player.PlayerRepository
-import com.aiexile.animetrack.domain.playback.LocalPlaybackQueue
 import com.aiexile.animetrack.domain.playback.LocalWatchProgressUseCase
 import com.aiexile.animetrack.domain.playback.WatchProgressRules
 import com.aiexile.animetrack.model.PlaybackProgress
@@ -20,10 +18,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 
 internal sealed interface EpisodeCompletionTarget {
-    data class Local(val file: LocalMediaEntity) : EpisodeCompletionTarget
+    data class Local(val mediaId: Long) : EpisodeCompletionTarget
     data class Web(val animeId: Int, val episodeNumber: Int) : EpisodeCompletionTarget
 }
 
@@ -65,8 +64,8 @@ internal class PlaybackProgressTracker(
     var savedProgress: Map<String, PlaybackProgress> = emptyMap()
         private set
 
-    /** 已上报完成的 番剧:集数，避免重复推进进度 */
-    private val completedEpisodeKeys = mutableSetOf<String>()
+    /** 同一目标只保留一次成功上报，失败或开关关闭时允许重试。 */
+    private val completedTargets = ConcurrentHashMap.newKeySet<EpisodeCompletionTarget>()
 
     /**
      * 独立于 viewModelScope 的持久化作用域：
@@ -251,35 +250,22 @@ internal class PlaybackProgressTracker(
     }
 
     private fun notifyEpisodeCompleted(mediaId: String) {
-        when (val target = resolveCompletionTarget(mediaId)) {
-            is EpisodeCompletionTarget.Local -> notifyLocalEpisodeCompleted(target.file)
-            is EpisodeCompletionTarget.Web -> notifyAnimeEpisodeCompleted(target.animeId, null, target.episodeNumber)
-            null -> Unit
-        }
-    }
-
-    private fun notifyLocalEpisodeCompleted(file: LocalMediaEntity) {
-        val animeId = file.matchedAnimeId ?: return
-        val episode = file.episodeNumber ?: return
-        if (!file.isUserOverride || !LocalPlaybackQueue.isEpisode(file) || file.episodeEndNumber != null) {
-            AppLogManager.i(
-                TAG,
-                "Skip local progress update: mediaId=${file.id}, userOverride=${file.isUserOverride}, endEp=${file.episodeEndNumber}"
-            )
-            return
-        }
-        notifyAnimeEpisodeCompleted(animeId, file.seasonNumber, episode)
-    }
-
-    private fun notifyAnimeEpisodeCompleted(animeId: Int, seasonNumber: Int?, episode: Int) {
-        val dedupeKey = "$animeId:$episode"
-        if (!completedEpisodeKeys.add(dedupeKey)) return
+        val target = resolveCompletionTarget(mediaId) ?: return
+        if (!completedTargets.add(target)) return
         persistScope.launch {
+            var recorded = false
             try {
-                localWatchProgressUseCase.onEpisodeCompleted(animeId, seasonNumber, episode)
+                recorded = when (target) {
+                    is EpisodeCompletionTarget.Local -> localWatchProgressUseCase.onLocalEpisodeCompleted(target.mediaId)
+                    is EpisodeCompletionTarget.Web ->
+                        localWatchProgressUseCase.onEpisodeCompleted(target.animeId, null, target.episodeNumber)
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                completedEpisodeKeys.remove(dedupeKey)
                 AppLogManager.e(TAG, "Failed to update watch progress", e)
+            } finally {
+                if (!recorded) completedTargets.remove(target)
             }
         }
     }

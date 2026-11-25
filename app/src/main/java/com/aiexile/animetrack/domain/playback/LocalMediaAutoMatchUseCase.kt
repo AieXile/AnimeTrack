@@ -92,12 +92,17 @@ internal class LocalMediaAutoMatchUseCase(
                 }
                 val archive = result.archive
                 var episodeList = result.bangumiEpisodes
+                var needsEnrichment = result.needsEnrichment
                 // 季内编号无法解释的连续集数，看站点自己的 sort → ep 对照，而不是猜减去上一季长度。
                 val bangumiId = archive?.bangumiId
                 val total = archive?.episodeCount
                 if (online && episodeList.isEmpty() && bangumiId != null && total != null && total > 0 &&
                     group.any { (it.episodeEndNumber ?: it.episodeNumber ?: 0) > total }) {
-                    episodeList = session.fetch("episodes:$bangumiId") { episodes(bangumiId) }.orEmpty()
+                    try {
+                        episodeList = session.fetch("bgm-episodes:$bangumiId") { episodes(bangumiId) }.orEmpty()
+                    } catch (_: RetryLater) {
+                        needsEnrichment = true
+                    }
                 }
                 val tracking = (archive?.bangumiId?.let(byBangumi::get) ?: archive?.tmdbId?.let(byTmdb::get))
                     ?.takeIf { anime -> archive?.bangumiId != null && anime.bangumiId == archive.bangumiId ||
@@ -107,14 +112,13 @@ internal class LocalMediaAutoMatchUseCase(
                 }.toMap()
                 media.commitScrape(group, archive, when {
                     archive == null -> LocalMediaScrapeState.REVIEW
-                    result.needsEnrichment -> LocalMediaScrapeState.ENRICH
+                    needsEnrichment -> LocalMediaScrapeState.ENRICH
                     else -> LocalMediaScrapeState.IDENTIFIED
                 }, tracking?.id, mapped)
             } catch (_: RetryLater) {
-                // 单次网络失败不应改为“匹配失败”，也不停止使用已识别的缓存/本地 ID。
-                if (known != null && row.archiveKey == null) {
-                    media.commitScrape(group, known, LocalMediaScrapeState.ENRICH)
-                }
+                // 保留匹配状态，将暂时失败的组排到尚未尝试的组后面。
+                val unattached = known?.takeIf { row.archiveKey == null }
+                media.commitScrape(group, unattached, unattached?.let { LocalMediaScrapeState.ENRICH })
                 if (session.exhausted) break
             }
         }
@@ -147,7 +151,7 @@ internal class LocalMediaAutoMatchUseCase(
                     episodeCount = detail.eps?.takeIf { it > 0 } ?: detail.totalEpisodes
                 )
                 if (row.episodeOffset != null && row.episodeOffset != 0) {
-                    episodes = session.fetch("episodes:$bgm") { episodes(bgm) }.orEmpty()
+                    episodes = session.fetch("bgm-episodes:$bgm") { episodes(bgm) }.orEmpty()
                 }
             }
         }
@@ -164,9 +168,29 @@ internal class LocalMediaAutoMatchUseCase(
 
     private suspend fun matchOnline(row: LocalMediaEntity, evidence: MediaTitleEvidence, session: Requests): Outcome {
         val queries = (evidence.titles + listOfNotNull(evidence.baseTitle))
-            .distinctBy(::normalizeTitleForMatch).filter(::usableTitle)
+            .distinctBy(::normalizeTitleForMatch).filter(::usableTitle).take(MAX_TITLE_QUERIES)
+        val hits = try {
+            matchBangumi(evidence, queries, session)
+        } catch (e: RetryLater) {
+            if (session.exhausted) throw e
+            null
+        }
+        if (hits != null && hits.size > 1) return Outcome(null)
+        hits?.singleOrNull()?.let { hit ->
+            val archive = LocalMediaArchiveEntity(row.sourceId, "bgm:${hit.id}", hit.displayName, hit.coverUrl,
+                bangumiId = hit.id, year = hit.date?.year(), summary = hit.summary, episodeCount = hit.episodeCount)
+            return Outcome(archive, needsEnrichment = archive.coverUrl == null)
+        }
+        val archive = matchTmdb(row, evidence, queries, session)
+        if (hits == null && archive == null) throw RetryLater()
+        return Outcome(archive)
+    }
+
+    private suspend fun matchBangumi(
+        evidence: MediaTitleEvidence, queries: List<String>, session: Requests
+    ): List<BangumiSubject> {
         val bangumi = linkedMapOf<Int, BangumiSubject>()
-        for (query in queries.take(MAX_TITLE_QUERIES)) {
+        for (query in queries) {
             session.fetch("bgm-search:${normalizeTitleForMatch(query)}") { animes.searchBangumi(query) }.orEmpty()
                 .filter { it.id > 0 }.forEach { bangumi.putIfAbsent(it.id, it) }
         }
@@ -208,31 +232,29 @@ internal class LocalMediaAutoMatchUseCase(
                 candidate.platform.equals("剧场版") || candidate.platform.equals("Movie", true) || names.any(LocalMediaMatcher::movieTitle),
                 names.map(SeriesMatcher::extractBaseTitle) + listOfNotNull(evidence.baseTitle.takeIf { inferred != null }), special)
         }
-        val hits = LocalMediaMatcher.candidates(evidence, candidates)
-        if (hits.size > 1) return Outcome(null)
-        hits.singleOrNull()?.let { hit ->
-            val archive = LocalMediaArchiveEntity(row.sourceId, "bgm:${hit.id}", hit.displayName, hit.coverUrl,
-                bangumiId = hit.id, year = hit.date?.year(), summary = hit.summary, episodeCount = hit.episodeCount)
-            return Outcome(archive, needsEnrichment = archive.coverUrl == null)
-        }
+        return LocalMediaMatcher.candidates(evidence, candidates)
+    }
 
+    private suspend fun matchTmdb(
+        row: LocalMediaEntity, evidence: MediaTitleEvidence, queries: List<String>, session: Requests
+    ): LocalMediaArchiveEntity? {
         if (row.movie) {
-            val movies = queries.take(MAX_TITLE_QUERIES).flatMap { query ->
+            val movies = queries.flatMap { query ->
                 session.fetch("tmdb-movie-search:${normalizeTitleForMatch(query)}") { searchMovies(query) }.orEmpty()
             }.filter { 16 in it.genreIds.orEmpty() }.distinctBy { it.id }
             val exact = LocalMediaMatcher.candidates(evidence, movies.map { movie ->
                 MediaTitleCandidate(movie, listOfNotNull(movie.title, movie.originalTitle), movie.date?.year(), null, true)
             }).singleOrNull()
-            return Outcome(exact?.toArchive(row.sourceId))
+            return exact?.toArchive(row.sourceId)
         }
-        val results = queries.take(MAX_TITLE_QUERIES).flatMap { query ->
+        val results = queries.flatMap { query ->
             session.fetch("tmdb-search:${normalizeTitleForMatch(query)}") { animes.searchTmdbTvShows(query) }.orEmpty()
         }.distinctBy(TmdbTvShow::id)
         val tv = results.filter { show -> listOfNotNull(show.name, show.originalName).any {
             val normalized = normalizeTitleForMatch(it)
             normalized in evidence.normalizedTitles || (row.seasonNumber != null && normalized == evidence.normalizedBase)
         } }.take(MAX_TMDB_DETAILS + 1)
-        if (tv.size > MAX_TMDB_DETAILS) return Outcome(null)
+        if (tv.size > MAX_TMDB_DETAILS) return null
         val verified = tv.mapNotNull { show ->
             val detail = session.fetch("tmdb-tv:${show.id}") { animes.getTmdbTvDetail(show.id) } ?: return@mapNotNull null
             if (detail.genres.orEmpty().none { it.id == 16 }) return@mapNotNull null
@@ -243,7 +265,7 @@ internal class LocalMediaAutoMatchUseCase(
             if (row.releaseYear != null && row.releaseYear != (season?.date ?: show.firstAirDate)?.year()) return@mapNotNull null
             detail.toArchive(row.sourceId, row.seasonNumber)
         }
-        return Outcome(verified.singleOrNull())
+        return verified.singleOrNull()
     }
 
     private suspend fun readRelations(id: Int, session: Requests): List<BangumiSeriesResolver.SubjectRelation> =
@@ -267,14 +289,16 @@ internal class LocalMediaAutoMatchUseCase(
     private class Requests {
         private val cache = mutableMapOf<String, Any?>()
         private val deferred = mutableSetOf<String>()
+        private val unavailableProviders = mutableSetOf<String>()
         private var calls = 0
         private val deadline = SystemClock.elapsedRealtime() + 45_000L
-        val exhausted get() = calls >= 60 || SystemClock.elapsedRealtime() >= deadline
+        val exhausted get() = calls >= 60 || SystemClock.elapsedRealtime() >= deadline || unavailableProviders.size == 2
 
         @Suppress("UNCHECKED_CAST")
         suspend fun <T : Any> fetch(key: String, call: suspend () -> T): T? {
             if (key in cache) return cache[key] as T?
-            if (key in deferred || exhausted) throw RetryLater()
+            val provider = key.substringBefore('-')
+            if (key in deferred || provider in unavailableProviders || exhausted) throw RetryLater()
             calls++
             return try {
                 val value = withTimeoutOrNull((deadline - SystemClock.elapsedRealtime()).coerceIn(1L, 5_000L)) { call() }
@@ -283,11 +307,11 @@ internal class LocalMediaAutoMatchUseCase(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
-                if (e.code() in listOf(400, 401, 403, 404, 422)) {
+                if (e.code() in listOf(400, 404, 422)) {
                     cache[key] = null
                     null
                 } else {
-                    if (e.code() == 429) calls = 60
+                    if (e.code() in listOf(401, 403, 429)) unavailableProviders += provider
                     deferred += key
                     throw RetryLater()
                 }

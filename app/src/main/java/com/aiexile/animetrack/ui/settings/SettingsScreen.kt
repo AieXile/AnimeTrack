@@ -17,7 +17,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.aiexile.animetrack.ui.components.AppOutlinedTextField
 import com.aiexile.animetrack.ui.components.SquircleShape
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
@@ -54,7 +55,9 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.model.ThemeMode
 import com.aiexile.animetrack.ui.navigation.Routes
 import com.aiexile.animetrack.ui.theme.ThemePreset
+import com.aiexile.animetrack.ui.theme.isAppDarkTheme
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
+import com.aiexile.animetrack.ui.components.isCompactWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +78,9 @@ fun SettingsScreen(
     onNavigateFeedback: () -> Unit = {},
     onNavigatePlayback: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
-    settingsRepository: com.aiexile.animetrack.data.SettingsRepository? = null
+    settingsRepository: SettingsRepository? = null,
+    settingsListState: LazyListState = rememberLazyListState(),
+    onNavigateToScreen: (String) -> Unit
 ) {
     val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
     val tmdbApiKey by settingsViewModel.tmdbApiKey.collectAsStateWithLifecycle()
@@ -83,6 +88,7 @@ fun SettingsScreen(
     var tmdbApiKeyInput by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    val listState = if (searchActive) rememberLazyListState() else settingsListState
 
     // 返回键先收起设置搜索，而不是直接退出主界面
     BackHandler(enabled = searchActive) {
@@ -98,13 +104,14 @@ fun SettingsScreen(
         onPauseOrDispose { }
     }
 
-    val updateNotificationVisible by settingsRepository?.updateNotificationVisible?.collectAsStateWithLifecycle(initialValue = false)
-        ?: remember { mutableStateOf(false) }
-    // 「视频播放」聚合入口：开发者选项控制，默认隐藏
-    val playerHubVisible by settingsRepository?.playerHubVisible?.collectAsStateWithLifecycle(initialValue = false)
-        ?: remember { mutableStateOf(false) }
-    val updateNotificationEnabled by settingsRepository?.updateNotificationEnabled?.collectAsStateWithLifecycle(initialValue = false)
-        ?: remember { mutableStateOf(false) }
+    val updateNotificationVisible = settingsRepository?.let { repository ->
+        repository.updateNotificationVisible
+            .collectAsStateWithLifecycle(repository.cachedUpdateNotificationVisible()).value
+    } ?: false
+    val updateNotificationEnabled = settingsRepository?.let { repository ->
+        repository.updateNotificationEnabled
+            .collectAsStateWithLifecycle(repository.cachedUpdateNotificationEnabled()).value
+    } ?: false
     val updateNotificationHour by settingsRepository?.updateNotificationHour?.collectAsStateWithLifecycle(initialValue = 9)
         ?: remember { mutableStateOf(9) }
     val updateNotificationMinute by settingsRepository?.updateNotificationMinute?.collectAsStateWithLifecycle(initialValue = 0)
@@ -273,13 +280,35 @@ fun SettingsScreen(
 
         // ---- 搜索结果：具体设置项（标题/描述/关键词模糊匹配，含拼音） ----
         val context = androidx.compose.ui.platform.LocalContext.current
-        val searchResults = remember(searchQuery) {
-            settingsSearchIndex.filter { item ->
-                val title = context.getString(item.titleRes)
-                val desc = item.descRes?.let { context.getString(it) } ?: ""
-                fuzzyMatch(searchQuery, title) || fuzzyMatch(searchQuery, desc) ||
-                    item.keywords.any { fuzzyMatch(searchQuery, it) }
+        val searchResults = if (searchActive && searchQuery.isNotBlank()) {
+            val showDarkStyle = isAppDarkTheme()
+            val isCompact = isCompactWidth()
+            val hideTopBarOnScroll = settingsRepository?.let { repository ->
+                repository.hideTopBarOnScrollEnabled
+                    .collectAsStateWithLifecycle(repository.cachedHideTopBarOnScroll()).value
+            } ?: false
+            remember(context, searchQuery, showDarkStyle, isCompact, hideTopBarOnScroll, updateNotificationEnabled) {
+                settingsSearchIndex.filter { item ->
+                    val available = when (item.route) {
+                        Routes.APPEARANCE -> item.key != "dark_style" || showDarkStyle
+                        Routes.NAVIGATION_CUSTOMIZE -> when (item.key) {
+                            "nav_style", "fab" -> isCompact
+                            "statusbar" -> hideTopBarOnScroll
+                            else -> true
+                        }
+                        Routes.UPDATE_NOTIFICATION -> item.key != "time" || updateNotificationEnabled
+                        else -> true
+                    }
+                    if (!available) return@filter false
+
+                    val title = context.getString(item.titleRes)
+                    val desc = item.descRes?.let { context.getString(it) } ?: ""
+                    fuzzyMatch(searchQuery, title) || fuzzyMatch(searchQuery, desc) ||
+                        item.keywords.any { fuzzyMatch(searchQuery, it) }
+                }
             }
+        } else {
+            emptyList()
         }
 
         // 搜索结果点击：发起高亮定位请求并跳转对应子页面
@@ -303,7 +332,7 @@ fun SettingsScreen(
                 Routes.LOGIN -> onNavigateLogin()
                 Routes.BANGUMI_PROXY -> onNavigateBangumiProxy()
                 Routes.FONT_SETTINGS -> onNavigateFontSettings()
-                Routes.WEBDAV_SYNC -> onNavigate(Routes.WEBDAV_SYNC)
+                Routes.PLAYER_SETTINGS -> onNavigatePlayback()
                 // TMDB API Key 是主页弹窗：直接打开，无需高亮
                 SETTINGS_MAIN_ROUTE -> {
                     if (item.key == "tmdb") {
@@ -311,7 +340,7 @@ fun SettingsScreen(
                         showTmdbApiKeyDialog = true
                     }
                 }
-                else -> onNavigate(item.route)
+                else -> onNavigateToScreen(item.route)
             }
         }
 
@@ -321,6 +350,7 @@ fun SettingsScreen(
                 .then(chrome.layout)
         ) {
             LazyColumn(
+                state = listState,
                 // 大屏适配：限制内容最大宽度并居中，避免平板上表单拉伸过宽（手机宽度 <720dp 不受影响）
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -390,16 +420,13 @@ fun SettingsScreen(
                             onClick = onNavigateFontSettings
                         )
                     }
-                    // 视频播放入口（受开发者开关控制）
-                    if (playerHubVisible) {
-                        item(key = "playback") {
-                            SettingCard(
-                                title = playbackTitle,
-                                subtitle = playbackSubtitle,
-                                icon = rememberAppIconPainter(AppIcon.PLAY_CIRCLE),
-                                onClick = onNavigatePlayback
-                            )
-                        }
+                    item(key = "playback") {
+                        SettingCard(
+                            title = playbackTitle,
+                            subtitle = playbackSubtitle,
+                            icon = rememberAppIconPainter(AppIcon.PLAY_CIRCLE),
+                            onClick = onNavigatePlayback
+                        )
                     }
                     item(key = "customize_nav") {
                         SettingCard(
@@ -440,7 +467,7 @@ fun SettingsScreen(
                         )
                     }
                     // 更新通知入口（受开发者开关控制）
-                    if (updateNotificationVisible == true) {
+                    if (updateNotificationVisible) {
                         item(key = "update_notification") {
                             SettingCard(
                                 title = updateNotificationTitle,

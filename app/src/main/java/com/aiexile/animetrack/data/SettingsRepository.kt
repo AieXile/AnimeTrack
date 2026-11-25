@@ -9,9 +9,13 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aiexile.animetrack.AnimeTrackApp
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.player.webdav.PlayerWebDavDirectory
+import com.aiexile.animetrack.data.player.webdav.PlayerWebDavCredentialCipher
+import com.aiexile.animetrack.data.player.webdav.WebDavPlaybackIdentity
 import com.aiexile.animetrack.model.DarkStyle
 import com.aiexile.animetrack.model.ProxyType
 import com.aiexile.animetrack.model.ThemeMode
@@ -37,7 +41,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -157,6 +163,7 @@ class SettingsRepository(private val context: Context) {
         private val LAST_COVER_BACKFILL_TIME_KEY = longPreferencesKey("last_cover_backfill_time")
         private val WEBDAV_MEDIA_PATH_KEY = stringPreferencesKey("webdav_media_path")
         private val IS_FIRST_LAUNCH_KEY = booleanPreferencesKey("is_first_launch")
+        private val FAVORITE_FOLDER_PINCH_GUIDE_SEEN_KEY = booleanPreferencesKey("favorite_folder_pinch_guide_seen")
         private val PRIVACY_POLICY_ACCEPTED_KEY = booleanPreferencesKey("privacy_policy_accepted")
         private val CRASH_REPORT_ENABLED_KEY = booleanPreferencesKey("crash_report_enabled")
         private val HELP_IMPROVE_DIALOG_SHOWN_KEY = booleanPreferencesKey("help_improve_dialog_shown")
@@ -178,8 +185,7 @@ class SettingsRepository(private val context: Context) {
         private val UPDATE_NOTIFICATION_MINUTE_KEY = intPreferencesKey("update_notification_minute")
         private val UPDATE_NOTIFICATION_VISIBLE_KEY = booleanPreferencesKey("update_notification_visible")
 
-        private val PLAYER_HUB_VISIBLE_KEY = booleanPreferencesKey("player_hub_visible")
-        private val EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY = booleanPreferencesKey("external_player_entry_visible")
+        private val DETAIL_PLAY_ENTRY_VISIBLE_KEY = booleanPreferencesKey("external_player_entry_visible")
         private val EXTERNAL_PLAY_MODE_KEY = stringPreferencesKey("external_play_mode")
         /** 播放器专属 WebDAV 配置：与备份同步相互独立 */
         private val PLAYER_WEBDAV_URL_KEY = stringPreferencesKey("player_webdav_url")
@@ -191,16 +197,20 @@ class SettingsRepository(private val context: Context) {
         private val PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY = stringPreferencesKey("player_webdav_last_browse_path")
         /** 最近一次从浏览页选择的文件 */
         private val PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY = stringPreferencesKey("player_webdav_last_selected_file")
+        private val PLAYER_WEBDAV_RESUME_ID = stringPreferencesKey("player_webdav_resume_id")
+        private val PLAYER_WEBDAV_RESUME_PATH = stringPreferencesKey("player_webdav_resume_path")
+        private val PLAYER_WEBDAV_SCROLL = stringPreferencesKey("player_webdav_scroll")
         private val PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY = booleanPreferencesKey("player_webdav_trust_all_certs")
         private val PLAYER_DEFAULT_SPEED_KEY = floatPreferencesKey("player_default_speed")
+        private val PLAYER_DEFAULT_VIDEO_SCALE_KEY = intPreferencesKey("player_default_video_scale")
         private val PLAYER_HARDWARE_ACCELERATION_KEY = booleanPreferencesKey("player_hardware_acceleration")
         private val PLAYER_REMEMBER_POSITION_KEY = booleanPreferencesKey("player_remember_position")
         private val PLAYER_AUTO_PLAY_NEXT_KEY = booleanPreferencesKey("player_auto_play_next")
         private val PLAYER_LONG_PRESS_SPEED_KEY = floatPreferencesKey("player_long_press_speed")
         private val PLAYER_AUTO_LANDSCAPE_KEY = booleanPreferencesKey("player_auto_landscape")
-        /** 播放完成后更新追番进度：默认关闭，避免误播推进记录 */
         private val PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY =
             booleanPreferencesKey("player_update_progress_on_complete")
+        private val PLAYBACK_GUIDE_SEEN_PAGES_KEY = stringSetPreferencesKey("playback_guide_seen_pages")
 
         private val BANGUMI_PROXY_ENABLED_KEY = booleanPreferencesKey("bangumi_proxy_enabled")
         private val BANGUMI_PROXY_HOST_KEY = stringPreferencesKey("bangumi_proxy_host")
@@ -474,7 +484,7 @@ class SettingsRepository(private val context: Context) {
                 val prefs = context.dataStore.data.first()
                 currentTmdbApiKey = prefs[TMDB_API_KEY_KEY] ?: DEFAULT_TMDB_API_KEY
                 // 填充偏好内存缓存：此后所有 preferenceFlow 首个发射即为持久化值
-                prefCache.putAll(prefs.asMap())
+                prefCache.putAll(prefs.asMap() - PLAYER_WEBDAV_PASSWORD_KEY)
                 bangumiProxyEnabled = prefs[BANGUMI_PROXY_ENABLED_KEY] ?: false
                 bangumiProxyHost = prefs[BANGUMI_PROXY_HOST_KEY] ?: DEFAULT_BANGUMI_PROXY_HOST
                 bangumiMirrorEnabled = prefs[BANGUMI_MIRROR_ENABLED_KEY] ?: false
@@ -849,6 +859,12 @@ class SettingsRepository(private val context: Context) {
 
     val isFirstLaunch: Flow<Boolean> = preferenceFlow(IS_FIRST_LAUNCH_KEY, true)
 
+    internal val favoriteFolderPinchGuideSeen: Flow<Boolean> =
+        preferenceFlow(FAVORITE_FOLDER_PINCH_GUIDE_SEEN_KEY, false)
+
+    internal suspend fun setFavoriteFolderPinchGuideSeen(seen: Boolean) =
+        setPreference(FAVORITE_FOLDER_PINCH_GUIDE_SEEN_KEY, seen)
+
     suspend fun setFirstLaunchCompleted() = setPreference(IS_FIRST_LAUNCH_KEY, false)
 
     // ========== 隐私政策同意状态（合规：未同意前不得初始化个人信息收集组件） ==========
@@ -1058,15 +1074,11 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setUpdateNotificationMinute(minute: Int) = setPreference(UPDATE_NOTIFICATION_MINUTE_KEY, minute)
 
-    /** 设置页是否显示「视频播放」聚合入口（开发者选项控制，默认隐藏） */
-    val playerHubVisible: Flow<Boolean> = preferenceFlow(PLAYER_HUB_VISIBLE_KEY, false)
-    suspend fun setPlayerHubVisible(visible: Boolean) = setPreference(PLAYER_HUB_VISIBLE_KEY, visible)
+    /** 详情页是否显示播放按钮，沿用原有外部播放开关的存储键。 */
+    val detailPlayEntryVisible: Flow<Boolean> = preferenceFlow(DETAIL_PLAY_ENTRY_VISIBLE_KEY, false)
+    suspend fun setDetailPlayEntryVisible(visible: Boolean) = setPreference(DETAIL_PLAY_ENTRY_VISIBLE_KEY, visible)
 
-    /** 详情页顶栏是否显示外部播放按钮（功能设置，默认隐藏） */
-    val externalPlayerEntryVisible: Flow<Boolean> = preferenceFlow(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, false)
-    suspend fun setExternalPlayerEntryVisible(visible: Boolean) = setPreference(EXTERNAL_PLAYER_ENTRY_VISIBLE_KEY, visible)
-
-    /** 外部播放目标选择方式（自动 / Animeko / 哔哩哔哩 / 每次询问） */
+    /** 详情页播放应用偏好。 */
     val externalPlayMode: Flow<ExternalPlayMode> =
         enumPreference(EXTERNAL_PLAY_MODE_KEY, DEFAULT_EXTERNAL_PLAY_MODE)
     suspend fun setExternalPlayMode(mode: ExternalPlayMode) = setPreference(EXTERNAL_PLAY_MODE_KEY, mode.name)
@@ -1074,8 +1086,66 @@ class SettingsRepository(private val context: Context) {
     // ---- 播放器专属 WebDAV（与备份同步的 webdavUrl 三件套互不影响）----
     val playerWebdavUrl: Flow<String> = preferenceFlow(PLAYER_WEBDAV_URL_KEY, "")
     val playerWebdavUsername: Flow<String> = preferenceFlow(PLAYER_WEBDAV_USERNAME_KEY, "")
-    val playerWebdavPassword: Flow<String> = preferenceFlow(PLAYER_WEBDAV_PASSWORD_KEY, "")
+    // DataStore 中的密码可能是密文，不能通过通用偏好缓存发射给调用方。
+    val playerWebdavPassword: Flow<String> = context.dataStore.data
+        .map(::readPlayerWebdavPassword)
+        .distinctUntilChanged()
     val playerWebdavMediaRoot: Flow<String> = preferenceFlow(PLAYER_WEBDAV_MEDIA_ROOT_KEY, "")
+    internal val playerWebdavDirectoryConfig = context.dataStore.data.map(::webDavConfig)
+
+    private fun readPlayerWebdavPassword(prefs: Preferences): String =
+        PlayerWebDavCredentialCipher.decrypt(prefs[PLAYER_WEBDAV_PASSWORD_KEY].orEmpty())
+
+    private fun webDavConfig(prefs: Preferences) = PlayerWebDavDirectory.Config.parse(
+            url = prefs[PLAYER_WEBDAV_URL_KEY].orEmpty(),
+            root = prefs[PLAYER_WEBDAV_MEDIA_ROOT_KEY].orEmpty(),
+            username = prefs[PLAYER_WEBDAV_USERNAME_KEY].orEmpty(),
+            password = readPlayerWebdavPassword(prefs),
+            trust = prefs[PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY] ?: false
+    )
+
+    internal val playerWebdavResume = context.dataStore.data.map { prefs ->
+        val config = webDavConfig(prefs) ?: return@map null
+        if (prefs[PLAYER_REMEMBER_POSITION_KEY] == false) return@map null
+        val id = prefs[PLAYER_WEBDAV_RESUME_ID] ?: return@map null
+        val path = prefs[PLAYER_WEBDAV_RESUME_PATH] ?: return@map null
+        WebDavPlaybackIdentity.Resume(id, path).resolve(config)
+    }.distinctUntilChanged()
+
+    internal suspend fun markWebDavFirstFrame(config: PlayerWebDavDirectory.Config, target: WebDavPlaybackIdentity.Target) {
+        val resume = WebDavPlaybackIdentity.resume(target) ?: return
+        context.dataStore.edit { prefs ->
+            if (webDavConfig(prefs) == config && prefs[PLAYER_REMEMBER_POSITION_KEY] != false) {
+                prefs[PLAYER_WEBDAV_RESUME_ID] = resume.mediaKey
+                prefs[PLAYER_WEBDAV_RESUME_PATH] = resume.encodedPath
+            }
+        }
+    }
+
+    internal data class WebDavScrollAnchor(val itemPath: String, val offsetPx: Int)
+
+    internal suspend fun webDavScrollAnchor(config: PlayerWebDavDirectory.Config, directory: String): WebDavScrollAnchor? {
+        val prefs = context.dataStore.data.first()
+        if (webDavConfig(prefs) != config) return null
+        val anchor = webDavScroll(prefs).optJSONObject(directory) ?: return null
+        val path = anchor.optString("path").takeIf(String::isNotBlank) ?: return null
+        return WebDavScrollAnchor(path, anchor.optInt("offset").coerceAtLeast(0))
+    }
+
+    internal suspend fun saveWebDavScroll(config: PlayerWebDavDirectory.Config, directory: String, anchor: WebDavScrollAnchor) {
+        // 目录及条目只用路径，不写入完整 URL 或历史查询参数。
+        context.dataStore.edit { prefs ->
+            if (webDavConfig(prefs) != config) return@edit
+            val scroll = webDavScroll(prefs)
+            scroll.remove(directory)
+            while (scroll.length() >= 32) scroll.remove(scroll.keys().next())
+            scroll.put(directory, JSONObject().put("path", anchor.itemPath).put("offset", anchor.offsetPx))
+            prefs[PLAYER_WEBDAV_SCROLL] = scroll.toString()
+        }
+    }
+
+    private fun webDavScroll(prefs: Preferences): JSONObject =
+        prefs[PLAYER_WEBDAV_SCROLL]?.let { runCatching { JSONObject(it) }.getOrNull() } ?: JSONObject()
     val playerWebdavLastBrowsePath: Flow<String> =
         preferenceFlow(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY, "")
     val playerWebdavLastSelectedFile: Flow<String> =
@@ -1085,15 +1155,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPlayerWebdavCredentials(url: String, username: String, password: String) {
         val normalizedUrl = url.trim().trimEnd('/')
         val normalizedUsername = username.trim()
-        prefCache[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
-        prefCache[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
-        prefCache[PLAYER_WEBDAV_PASSWORD_KEY] = password
         try {
             context.dataStore.edit { prefs ->
                 prefs[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
                 prefs[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
-                prefs[PLAYER_WEBDAV_PASSWORD_KEY] = password
+                prefs[PLAYER_WEBDAV_PASSWORD_KEY] = PlayerWebDavCredentialCipher.encrypt(password)
             }
+            prefCache[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
+            prefCache[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
         } catch (e: Exception) {
             AppLogManager.e(TAG, "播放器 WebDAV 配置写入失败", e)
         }
@@ -1102,13 +1171,46 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPlayerWebdavMediaRoot(path: String) =
         setPreference(PLAYER_WEBDAV_MEDIA_ROOT_KEY, normalizeWebdavPath(path))
 
+    suspend fun savePlayerWebdavConfiguration(url: String, username: String, password: String, root: String, trust: Boolean) {
+        val normalizedUrl = url.trim().trimEnd('/')
+        val normalizedUsername = username.trim()
+        val normalizedRoot = normalizeWebdavPath(root)
+        context.dataStore.edit { prefs ->
+            if (prefs[PLAYER_WEBDAV_URL_KEY].orEmpty() != normalizedUrl ||
+                prefs[PLAYER_WEBDAV_USERNAME_KEY].orEmpty() != normalizedUsername ||
+                readPlayerWebdavPassword(prefs) != password ||
+                prefs[PLAYER_WEBDAV_MEDIA_ROOT_KEY].orEmpty() != normalizedRoot ||
+                (prefs[PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY] ?: false) != trust
+            ) {
+                prefs.remove(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY)
+                prefs.remove(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY)
+                prefs.remove(PLAYER_WEBDAV_SCROLL)
+                prefs.remove(PLAYER_WEBDAV_RESUME_ID)
+                prefs.remove(PLAYER_WEBDAV_RESUME_PATH)
+            }
+            prefs[PLAYER_WEBDAV_URL_KEY] = normalizedUrl
+            prefs[PLAYER_WEBDAV_USERNAME_KEY] = normalizedUsername
+            prefs[PLAYER_WEBDAV_PASSWORD_KEY] = PlayerWebDavCredentialCipher.encrypt(password)
+            prefs[PLAYER_WEBDAV_MEDIA_ROOT_KEY] = normalizedRoot
+            prefs[PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY] = trust
+        }.also { prefs ->
+            listOf(PLAYER_WEBDAV_URL_KEY, PLAYER_WEBDAV_USERNAME_KEY,
+                PLAYER_WEBDAV_MEDIA_ROOT_KEY, PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY, PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY
+            ).forEach { key ->
+                val value = prefs[key]
+                if (value == null) prefCache.remove(key) else prefCache[key] = value
+            }
+            prefCache[PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY] = trust
+        }
+    }
+
     suspend fun setPlayerWebdavLastBrowsePath(path: String) =
         setPreference(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY, normalizeWebdavPath(path))
 
     suspend fun setPlayerWebdavLastSelectedFile(path: String) =
         setPreference(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY, path.trim())
 
-    /** 清除最近浏览/选择记忆，但保留用户设定的媒体根目录。 */
+    /** 清除目录、滚动和点击记忆，但不删除已保存的播放位置。 */
     suspend fun clearPlayerWebdavBrowseMemory() {
         prefCache.remove(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY)
         prefCache.remove(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY)
@@ -1116,6 +1218,7 @@ class SettingsRepository(private val context: Context) {
             context.dataStore.edit { prefs ->
                 prefs.remove(PLAYER_WEBDAV_LAST_BROWSE_PATH_KEY)
                 prefs.remove(PLAYER_WEBDAV_LAST_SELECTED_FILE_KEY)
+                prefs.remove(PLAYER_WEBDAV_SCROLL)
             }
         } catch (e: Exception) {
             AppLogManager.e(TAG, "播放器 WebDAV 浏览记忆清除失败", e)
@@ -1132,12 +1235,23 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPlayerWebdavTrustAllCerts(enabled: Boolean) = setPreference(PLAYER_WEBDAV_TRUST_ALL_CERTS_KEY, enabled)
 
     val updateNotificationVisible: Flow<Boolean> = preferenceFlow(UPDATE_NOTIFICATION_VISIBLE_KEY, false)
+    fun cachedUpdateNotificationVisible(): Boolean =
+        cachedOrDefault(UPDATE_NOTIFICATION_VISIBLE_KEY, false)
 
     suspend fun setUpdateNotificationVisible(visible: Boolean) = setPreference(UPDATE_NOTIFICATION_VISIBLE_KEY, visible)
 
     val playerDefaultSpeed: Flow<Float> = preferenceFlow(PLAYER_DEFAULT_SPEED_KEY, 1f)
 
     suspend fun setPlayerDefaultSpeed(speed: Float) = setPreference(PLAYER_DEFAULT_SPEED_KEY, speed)
+
+    val playerDefaultVideoScale: Flow<Int> = preferenceFlow(PLAYER_DEFAULT_VIDEO_SCALE_KEY, 0)
+        .map { it.coerceIn(0, 2) }
+
+    fun cachedPlayerDefaultVideoScale(): Int =
+        cachedOrDefault(PLAYER_DEFAULT_VIDEO_SCALE_KEY, 0).coerceIn(0, 2)
+
+    suspend fun setPlayerDefaultVideoScale(scale: Int) =
+        setPreference(PLAYER_DEFAULT_VIDEO_SCALE_KEY, scale.coerceIn(0, 2))
 
     val playerHardwareAcceleration: Flow<Boolean> = preferenceFlow(PLAYER_HARDWARE_ACCELERATION_KEY, true)
 
@@ -1147,7 +1261,7 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setPlayerRememberPosition(enabled: Boolean) = setPreference(PLAYER_REMEMBER_POSITION_KEY, enabled)
 
-    val playerAutoPlayNext: Flow<Boolean> = preferenceFlow(PLAYER_AUTO_PLAY_NEXT_KEY, false)
+    val playerAutoPlayNext: Flow<Boolean> = preferenceFlow(PLAYER_AUTO_PLAY_NEXT_KEY, true)
 
     suspend fun setPlayerAutoPlayNext(enabled: Boolean) = setPreference(PLAYER_AUTO_PLAY_NEXT_KEY, enabled)
 
@@ -1155,17 +1269,31 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setPlayerLongPressSpeed(speed: Float) = setPreference(PLAYER_LONG_PRESS_SPEED_KEY, speed)
 
-    /** 自动横屏：播放横屏视频时自动进入全屏并旋转。默认关闭（默认保持竖屏） */
+    /** 开启后，全屏方向跟随视频宽高比。 */
     val playerAutoLandscape: Flow<Boolean> = preferenceFlow(PLAYER_AUTO_LANDSCAPE_KEY, false)
 
     suspend fun setPlayerAutoLandscape(enabled: Boolean) = setPreference(PLAYER_AUTO_LANDSCAPE_KEY, enabled)
 
-    /** 播放完成（有效观看达到阈值）后推进追番进度，默认关闭 */
+    /** 播放完成（有效观看达到阈值）后推进追番进度，默认开启 */
     val playerUpdateProgressOnComplete: Flow<Boolean> =
-        preferenceFlow(PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY, false)
+        preferenceFlow(PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY, true)
 
     suspend fun setPlayerUpdateProgressOnComplete(enabled: Boolean) =
         setPreference(PLAYER_UPDATE_PROGRESS_ON_COMPLETE_KEY, enabled)
+
+    val playbackGuideSeenPages: Flow<Set<String>> =
+        context.dataStore.data.map { it[PLAYBACK_GUIDE_SEEN_PAGES_KEY].orEmpty() }.distinctUntilChanged()
+
+    suspend fun markPlaybackGuideSeen(page: String) {
+        try {
+            context.dataStore.edit { preferences ->
+                preferences[PLAYBACK_GUIDE_SEEN_PAGES_KEY] =
+                    preferences[PLAYBACK_GUIDE_SEEN_PAGES_KEY].orEmpty() + page
+            }
+        } catch (e: IOException) {
+            AppLogManager.e(TAG, "播放导览状态写入失败", e)
+        }
+    }
 
     val fontFamilyFlow: Flow<String> = preferenceFlow(FONT_FAMILY_KEY, FontFamilyType.SYSTEM.name)
 

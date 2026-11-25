@@ -7,6 +7,8 @@ sealed interface ExternalPlayDecision {
 
     /** 弹窗让用户选择（含都未安装时展示下载选项） */
     data object AskUser : ExternalPlayDecision
+
+    data object BuiltInOnly : ExternalPlayDecision
 }
 
 /**
@@ -25,6 +27,7 @@ object ExternalPlayDispatcher {
         installed: Set<ExternalPlayerId>,
         hasBilibiliSeasonId: Boolean
     ): ExternalPlayDecision = when (mode) {
+        ExternalPlayMode.BUILT_IN -> ExternalPlayDecision.BuiltInOnly
         ExternalPlayMode.ANIMEKO -> ExternalPlayDecision.Launch(ExternalPlayerId.ANIMEKO)
         ExternalPlayMode.BILIBILI -> ExternalPlayDecision.Launch(ExternalPlayerId.BILIBILI)
         ExternalPlayMode.ASK -> ExternalPlayDecision.AskUser

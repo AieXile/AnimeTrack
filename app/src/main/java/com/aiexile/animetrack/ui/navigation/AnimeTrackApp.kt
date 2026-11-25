@@ -34,8 +34,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -105,7 +107,6 @@ import com.aiexile.animetrack.ui.components.bottomNavBarHeight
 import com.aiexile.animetrack.ui.components.CapsuleNavigationBar
 import com.aiexile.animetrack.ui.components.HazeNavBackdropBlur
 import com.aiexile.animetrack.ui.components.LiquidGlassNavBackdropBlur
-import com.aiexile.animetrack.ui.components.SharedElementSpecs
 import com.aiexile.animetrack.ui.components.SideNavigationRail
 import com.aiexile.animetrack.ui.components.chrome.LocalAdvancedBlurConfig
 import com.aiexile.animetrack.ui.components.isCompactWidth
@@ -226,6 +227,8 @@ fun AnimeTrackApp(
             gridState.scrollToItem(targetIndex, scrollOffset = -scrollTargetInsetPx)
         }
     }
+    // 设置列表随主路由和导航布局重建，滚动状态由外层持有。
+    val settingsListState = rememberLazyListState()
     val hazeState = rememberHazeState()
     val navBackdrop = rememberLayerBackdrop()
 
@@ -633,6 +636,7 @@ fun AnimeTrackApp(
                         settingsRepository = settingsRepository,
                         homeViewModel = homeViewModel,
                         gridState = gridState,
+                        settingsListState = settingsListState,
                         updateViewModel = updateViewModel,
                         announcementViewModel = announcementViewModel,
                         authManager = bangumiAuthManager,
@@ -710,11 +714,16 @@ fun AnimeTrackApp(
                     )
                 }
 
-                // WebDAV 文件浏览
+                // WebDAV 番剧库与文件浏览
                 composable(Routes.WEBDAV_BROWSE, arguments = Routes.webDavBrowseArguments) { browserEntry ->
                     WebDAVBrowseScreen(
                         onFileClick = { path, fileName ->
                             navController.playWebDavSelection(browserEntry, path, fileName)
+                        },
+                        onPlayMedia = { mediaId ->
+                            if (navController.currentBackStackEntry === browserEntry) {
+                                navController.navigate(Routes.player(0, localMediaId = mediaId))
+                            }
                         },
                         onBack = { navController.popBackStack() }
                     )
@@ -910,6 +919,7 @@ private fun MainScreen(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     gridState: LazyGridState,
+    settingsListState: LazyListState,
     updateViewModel: UpdateViewModel,
     announcementViewModel: AnnouncementViewModel,
     authManager: AuthManager,
@@ -921,6 +931,12 @@ private fun MainScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
+    val favoritesGridState = rememberLazyGridState()
+    LaunchedEffect(pagerState, mainPages) {
+        snapshotFlow { mainPages.getOrNull(pagerState.settledPage)?.route }.collect { route ->
+            if (route != "favorites") favoritesGridState.requestScrollToItem(0)
+        }
+    }
     when {
         // 大屏：导航栏移至左侧，Pager 内容避开侧边导航栏区域；详情/设置子页在右侧 pane 打开
         useSideNavigation -> SideNavLayout(
@@ -932,6 +948,8 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             gridState = gridState,
+            favoritesGridState = favoritesGridState,
+            settingsListState = settingsListState,
             updateViewModel = updateViewModel,
             announcementViewModel = announcementViewModel,
             authManager = authManager,
@@ -950,6 +968,8 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             gridState = gridState,
+            favoritesGridState = favoritesGridState,
+            settingsListState = settingsListState,
             updateViewModel = updateViewModel,
             announcementViewModel = announcementViewModel,
             authManager = authManager,
@@ -968,6 +988,8 @@ private fun MainScreen(
             settingsRepository = settingsRepository,
             homeViewModel = homeViewModel,
             gridState = gridState,
+            favoritesGridState = favoritesGridState,
+            settingsListState = settingsListState,
             updateViewModel = updateViewModel,
             announcementViewModel = announcementViewModel,
             authManager = authManager,
@@ -997,6 +1019,8 @@ private fun CapsuleNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     gridState: LazyGridState,
+    favoritesGridState: LazyGridState,
+    settingsListState: LazyListState,
     updateViewModel: UpdateViewModel,
     announcementViewModel: AnnouncementViewModel,
     authManager: AuthManager,
@@ -1050,6 +1074,8 @@ private fun CapsuleNavLayout(
                     navigationStyle = NavigationStyle.CAPSULE,
                     homeViewModel = homeViewModel,
                     gridState = gridState,
+                    favoritesGridState = favoritesGridState,
+                    settingsListState = settingsListState,
                     updateViewModel = updateViewModel,
                     announcementViewModel = announcementViewModel,
                     authManager = authManager,
@@ -1099,6 +1125,8 @@ private fun BottomNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: HomeViewModel,
     gridState: LazyGridState,
+    favoritesGridState: LazyGridState,
+    settingsListState: LazyListState,
     updateViewModel: UpdateViewModel,
     announcementViewModel: AnnouncementViewModel,
     authManager: AuthManager,
@@ -1157,6 +1185,8 @@ private fun BottomNavLayout(
                     navigationStyle = NavigationStyle.BOTTOM,
                     homeViewModel = homeViewModel,
                     gridState = gridState,
+                    favoritesGridState = favoritesGridState,
+                    settingsListState = settingsListState,
                     updateViewModel = updateViewModel,
                     announcementViewModel = announcementViewModel,
                     authManager = authManager,
@@ -1182,6 +1212,8 @@ internal fun MainPagerContent(
     navigationStyle: NavigationStyle,
     homeViewModel: HomeViewModel,
     gridState: LazyGridState,
+    favoritesGridState: LazyGridState,
+    settingsListState: LazyListState,
     updateViewModel: UpdateViewModel,
     announcementViewModel: AnnouncementViewModel,
     authManager: AuthManager,
@@ -1189,7 +1221,8 @@ internal fun MainPagerContent(
     userAuthManager: UserAuthManager,
     onNavigateToScreen: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    isPaneOpen: Boolean = false
 ) {
     val route = mainPages.getOrNull(page)?.route
     // 公告由当前首页/设置页共用同一弹窗，避免 Pager 预组合相邻页时重复显示。
@@ -1226,16 +1259,18 @@ internal fun MainPagerContent(
             userAuthManager = userAuthManager
         )
         "favorites" -> FavoritesScreen(
-            onAnimeClick = { anime ->
+            onAnimeClick = { anime, sharedKeyPrefix ->
                 onNavigateToScreen(
                     Routes.animeDetail(
                         animeId = anime.id,
                         coverUrl = anime.coverUrl,
-                        sharedKeyPrefix = SharedElementSpecs.FavoritesKeyPrefix
+                        sharedKeyPrefix = sharedKeyPrefix
                     )
                 )
             },
             isCapsuleNav = navigationStyle == NavigationStyle.CAPSULE,
+            canCloseFolderOnBack = pagerState.currentPage == page && !isPaneOpen,
+            gridState = favoritesGridState,
             // 与主页同一组共享元素 Scope：收藏卡片 → 详情封面飞入飞出
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope
@@ -1265,7 +1300,9 @@ internal fun MainPagerContent(
             onNavigateFeedback = { onNavigateToScreen(Routes.FEEDBACK) },
             onNavigatePlayback = { onNavigateToScreen(Routes.PLAYER_SETTINGS) },
             onNavigate = { },
-            settingsRepository = settingsRepository
+            settingsRepository = settingsRepository,
+            settingsListState = settingsListState,
+            onNavigateToScreen = onNavigateToScreen
         )
     }
 }

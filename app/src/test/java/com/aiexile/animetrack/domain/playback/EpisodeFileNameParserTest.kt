@@ -7,6 +7,29 @@ import org.junit.Test
 
 class EpisodeFileNameParserTest {
     @Test
+    fun `DBD Raws 的 Grand Blue 集号不受音轨和编码标签影响`() {
+        for ((token, number) in listOf("01" to 1, "02" to 2)) {
+            val result = EpisodeFileNameParser.parse(
+                "[DBD-Raws][Grand Blue][$token][1080P][BDRip][HEVC-10bit][FLACx2].mkv",
+                parentPath = "番剧/Grand Blue 全12集 + 特典"
+            )
+            assertEquals("Grand Blue", result.parsedTitle)
+            assertEquals(number, result.episodeNumber)
+            assertEquals(null, result.episodeEndNumber)
+            assertTrue(result.isMainFeature)
+            assertFalse(result.isMovie)
+        }
+    }
+
+    @Test
+    fun `专门的特典预告目录仍然不算正片`() {
+        for (folder in listOf("特典", "[映像特典]", "PV 2", "預告片")) {
+            val result = EpisodeFileNameParser.parse("01.mkv", parentPath = "Grand Blue/$folder")
+            assertFalse(folder, result.isMainFeature)
+        }
+    }
+
+    @Test
     fun `解析字幕组中文标题与集数`() {
         val result = EpisodeFileNameParser.parse("[字幕组] 葬送的芙莉莲 - 03 [1080p][x264].mkv")
 
@@ -60,6 +83,17 @@ class EpisodeFileNameParserTest {
     }
 
     @Test
+    fun `单独括号集数使用番剧文件夹且不把年份误作集号`() {
+        val first = EpisodeFileNameParser.parse("[01][1080p][A1B2C3D4].mkv", "作品/Season 2")
+        val second = EpisodeFileNameParser.parse("Episode 02v2.mkv", "作品/Season 2")
+        val withYear = EpisodeFileNameParser.parse("[字幕组][作品][2024][03][1080p].mkv")
+        assertEquals(listOf(1, 2, 3), listOf(first.episodeNumber, second.episodeNumber, withYear.episodeNumber))
+        assertEquals("作品", first.parsedTitle)
+        assertEquals("作品", second.parsedTitle)
+        assertEquals(2, first.seasonNumber)
+    }
+
+    @Test
     fun `小数集不变成整数集也保留正片类型证据`() {
         val result = EpisodeFileNameParser.parse("作品 - 03.5.mkv")
         assertEquals(null, result.episodeNumber)
@@ -110,5 +144,19 @@ class EpisodeFileNameParserTest {
         assertEquals(2, result.seasonNumber)
         assertEquals(3, result.episodeNumber)
         assertEquals(4, result.episodeEndNumber)
+    }
+
+    @Test
+    fun `目录和文件中的媒体库提供商 ID 不污染标题并保留确定匹配`() {
+        val result = EpisodeFileNameParser.parse(
+            "01.mkv",
+            "葬送的芙莉莲 (2023) [tmdbid-209867] [bgm-414445]/Season 01"
+        )
+
+        assertEquals("葬送的芙莉莲", result.parsedTitle)
+        assertEquals(1, result.episodeNumber)
+        assertEquals(1, result.seasonNumber)
+        assertEquals(414445, result.bangumiId)
+        assertEquals(209867, result.tmdbId)
     }
 }

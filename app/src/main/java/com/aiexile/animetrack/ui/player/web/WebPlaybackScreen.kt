@@ -10,19 +10,25 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,9 +36,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.player.web.PendingWebPlayback
 import com.aiexile.animetrack.data.player.web.PendingWebPlaybackRequest
+import com.aiexile.animetrack.data.player.web.WebPlaybackHistoryRepository
+import com.aiexile.animetrack.domain.playback.WebPlaybackQueue
 import com.aiexile.animetrack.domain.playback.WebSourceClassifier
 import com.aiexile.animetrack.ui.components.AppOutlinedTextField
-import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideAction
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuidePage
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideScaffold
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideStep
+import com.aiexile.animetrack.ui.player.guide.rememberPlaybackGuide
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
@@ -51,6 +63,7 @@ fun WebPlaybackScreen(
     pageViewModel: WebPageViewModel = viewModel(factory = WebPageViewModel.Factory())
 ) {
     val history by viewModel.history.collectAsStateWithLifecycle()
+    val librarySaveResult by viewModel.librarySaveResult.collectAsStateWithLifecycle()
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     val sourceRules by sourceViewModel.rules.collectAsStateWithLifecycle()
     val selectedSourceRule by sourceViewModel.selectedRule.collectAsStateWithLifecycle()
@@ -67,6 +80,28 @@ fun WebPlaybackScreen(
     var sourceKeyword by rememberSaveable { mutableStateOf("") }
     var showSourceSearch by rememberSaveable { mutableStateOf(false) }
     var showSourceManage by rememberSaveable { mutableStateOf(false) }
+    var saveAddress by rememberSaveable { mutableStateOf<String?>(null) }
+    var saveTitle by rememberSaveable { mutableStateOf("") }
+    val snackbar = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.media_library_web_saved)
+    val errorMessage = stringResource(R.string.media_library_error)
+    val guide = rememberPlaybackGuide(
+        PlaybackGuidePage.WEB,
+        ready = parseUrl == null && !showSourceSearch && !showSourceManage && saveAddress == null
+    )
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+    val atFirstGuideStep = guide.index == 0
+    LaunchedEffect(atFirstGuideStep) {
+        if (atFirstGuideStep) scrollState.scrollTo(0)
+    }
+
+    LaunchedEffect(librarySaveResult, savedMessage, errorMessage) {
+        librarySaveResult?.let {
+            snackbar.showSnackbar(if (it) savedMessage else errorMessage)
+            viewModel.clearLibrarySaveResult()
+        }
+    }
 
     fun parsePage(url: String, userAgent: String? = null, referer: String? = null) {
         parseUserAgent = userAgent
@@ -119,15 +154,28 @@ fun WebPlaybackScreen(
         parseUrl?.let { pageViewModel.load(it, parseUserAgent, parseReferer) }
     }
 
-    AppScaffold(
+    PlaybackGuideScaffold(
+        guide = guide,
+        steps = listOf(
+            PlaybackGuideStep(R.string.web_playback_play_direct, R.string.player_guide_web_direct),
+            PlaybackGuideStep(R.string.web_playback_parse_page, R.string.player_guide_web_parse),
+            PlaybackGuideStep(R.string.web_source_section_title, R.string.player_guide_web_rules)
+        ),
         title = stringResource(R.string.web_playback_title),
-        onBack = onBack
+        onBack = onBack,
+        actions = {
+            PlaybackGuideAction {
+                focusManager.clearFocus()
+                guide.start()
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbar) }
     ) { chrome ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .then(chrome.layout)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
                 .padding(chrome.content)
         ) {
@@ -150,7 +198,7 @@ fun WebPlaybackScreen(
                         if (url.toHttpUrlOrNull() != null) openPlayer(url, null, url)
                     },
                     enabled = urlInput.trim().toHttpUrlOrNull() != null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(guide.anchor(R.string.web_playback_play_direct))
                 ) {
                     Text(stringResource(R.string.web_playback_play_direct))
                 }
@@ -160,10 +208,19 @@ fun WebPlaybackScreen(
                         if (url.toHttpUrlOrNull() != null) parsePage(url)
                     },
                     enabled = urlInput.trim().toHttpUrlOrNull() != null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).then(guide.anchor(R.string.web_playback_parse_page))
                 ) {
                     Text(stringResource(R.string.web_playback_parse_page))
                 }
+            }
+            TextButton(
+                onClick = {
+                    saveTitle = animeTitle
+                    saveAddress = urlInput.trim()
+                },
+                enabled = urlInput.trim().toHttpUrlOrNull() != null
+            ) {
+                Text(stringResource(R.string.media_library_add_web))
             }
 
             Text(
@@ -189,7 +246,8 @@ fun WebPlaybackScreen(
                 onManage = {
                     sourceViewModel.clearImportState()
                     showSourceManage = true
-                }
+                },
+                headerModifier = guide.anchor(R.string.web_source_section_title)
             )
 
             Row(
@@ -229,12 +287,45 @@ fun WebPlaybackScreen(
                         parsePage(item.entry.url, item.entry.userAgent, item.entry.referer)
                         selectedEpisodeUrl = item.entry.url
                     },
+                    onSave = { viewModel.saveToLibrary(item.entry) },
                     onDelete = { viewModel.remove(item.entry.url) }
                 )
                 Spacer(Modifier.height(12.dp))
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    saveAddress?.let { address ->
+        AlertDialog(
+            onDismissRequest = { saveAddress = null },
+            title = { Text(stringResource(R.string.media_library_add_web)) },
+            text = {
+                AppOutlinedTextField(
+                    value = saveTitle,
+                    onValueChange = { saveTitle = it },
+                    label = { Text(stringResource(R.string.add_anime_title_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.saveToLibrary(WebPlaybackHistoryRepository.Entry(
+                        url = address,
+                        title = saveTitle.trim().takeIf(String::isNotEmpty),
+                        lastPlayedAt = 0,
+                        seriesTitle = saveTitle.trim().takeIf(String::isNotEmpty),
+                        animeId = animeId.takeIf { it > 0 },
+                        animeTitle = animeTitle.takeIf(String::isNotBlank)
+                    ))
+                    saveAddress = null
+                }) { Text(stringResource(R.string.common_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { saveAddress = null }) { Text(stringResource(R.string.common_cancel)) }
+            }
+        )
     }
 
     if (!showSourceSearch) parseUrl?.let { entryUrl ->
@@ -252,6 +343,30 @@ fun WebPlaybackScreen(
             onDismiss = { parseUrl = null; pageViewModel.close() },
             onRetry = { pageViewModel.load(entryUrl, parseUserAgent, parseReferer, force = true) },
             onAssist = { pageViewModel.assist(entryUrl) },
+            onSave = page?.let { parsed ->
+                {
+                    val queue = WebPlaybackQueue.from(parsed, latest?.entry?.url ?: parsed.selectedEpisodeUrl)
+                    val next = queue?.select(queue.episodeIndex + 1)
+                    val address = queue?.episode?.url ?: entryUrl
+                    viewModel.saveToLibrary(WebPlaybackHistoryRepository.Entry(
+                        url = address,
+                        title = parsed.title,
+                        lastPlayedAt = 0,
+                        userAgent = parseUserAgent,
+                        referer = parseReferer,
+                        seriesUrl = queue?.seriesUrl ?: seriesUrl,
+                        mediaId = queue?.mediaKey(),
+                        seriesTitle = parsed.title,
+                        episodeName = queue?.episode?.name,
+                        nextEpisode = next?.episode,
+                        nextMediaId = next?.mediaKey(),
+                        animeId = animeId.takeIf { it > 0 },
+                        animeTitle = animeTitle.takeIf(String::isNotBlank)
+                    ))
+                    parseUrl = null
+                    pageViewModel.close()
+                }
+            },
             onSelect = { episode ->
                 val context = pageViewModel.request
                 selectedEpisodeUrl = episode.url

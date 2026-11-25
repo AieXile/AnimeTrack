@@ -9,6 +9,22 @@ import java.util.Locale
 internal object WebDavPlaybackIdentity {
     data class Target(val requestUrl: HttpUrl, val mediaKey: String, val title: String)
 
+    /** 冷恢复只存稳定身份和路径，不复用历史查询参数、签名或主机。 */
+    data class Resume(val mediaKey: String, val encodedPath: String) {
+        fun resolve(config: PlayerWebDavDirectory.Config): Target? {
+            if (!encodedPath.startsWith('/') || encodedPath.startsWith("//") ||
+                encodedPath.any { it == '?' || it == '#' || it == '\\' }
+            ) return null
+            val url = config.server.newBuilder().encodedPath(encodedPath).query(null).build()
+            return target(config.server, config.root, config.username, url.toString())
+                ?.takeIf { it.mediaKey == mediaKey }
+        }
+    }
+
+    fun resume(target: Target): Resume? = if (target.requestUrl.encodedQuery == null) {
+        Resume(target.mediaKey, target.requestUrl.encodedPath)
+    } else null
+
     fun directory(raw: String): HttpUrl? = parse(raw)?.let(::asDirectory)
 
     fun mediaRoot(server: HttpUrl, configured: String): HttpUrl = configured.takeIf { it.isNotBlank() }
@@ -34,8 +50,14 @@ internal object WebDavPlaybackIdentity {
         first.scheme == second.scheme && first.host == second.host && first.port == second.port
 
     fun sameDirectory(file: HttpUrl, directory: HttpUrl): Boolean =
-        sameOrigin(file, directory) && !file.encodedPath.endsWith('/') &&
-            pathSegments(file).dropLast(1) == pathSegments(directory)
+        !file.encodedPath.endsWith('/') && isDirectChild(file, directory)
+
+    fun isDirectChild(candidate: HttpUrl, directory: HttpUrl): Boolean {
+        if (!sameOrigin(candidate, directory)) return false
+        val path = pathSegments(candidate)
+        val parent = pathSegments(directory)
+        return path.size == parent.size + 1 && path.dropLast(1) == parent
+    }
 
     fun isWithin(candidate: HttpUrl, root: HttpUrl): Boolean {
         if (!sameOrigin(candidate, root)) return false
@@ -56,7 +78,7 @@ internal object WebDavPlaybackIdentity {
         target.requestUrl.encodedQuery.orEmpty()
     ))
 
-    private fun namespace(server: HttpUrl, root: HttpUrl, username: String): String = digest(listOf(
+    fun namespace(server: HttpUrl, root: HttpUrl, username: String): String = digest(listOf(
         server.host, stablePort(server), pathSegments(server).joinToString("/"),
         pathSegments(root).joinToString("/"), username.trim()
     ))

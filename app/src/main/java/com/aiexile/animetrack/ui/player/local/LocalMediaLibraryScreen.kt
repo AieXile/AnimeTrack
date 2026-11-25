@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -58,8 +59,14 @@ import com.aiexile.animetrack.data.media.LocalMediaPermissionState
 import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
 import com.aiexile.animetrack.data.media.LocalScanFailure
 import com.aiexile.animetrack.data.media.LocalScanPhase
+import com.aiexile.animetrack.data.media.LocalScrapePhase
 import com.aiexile.animetrack.ui.components.SquircleShape
-import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideAction
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuidePage
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideScaffold
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideState
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideStep
+import com.aiexile.animetrack.ui.player.guide.rememberPlaybackGuide
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 
@@ -68,10 +75,16 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 fun LocalMediaLibraryScreen(
     onBack: () -> Unit,
     onPlayMedia: (mediaId: Long) -> Unit,
-    viewModel: LocalMediaViewModel = viewModel(factory = LocalMediaViewModel.Factory())
+    viewModel: LocalMediaViewModel = viewModel(factory = LocalMediaViewModel.Factory()),
+    onBrowseDirectories: (() -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sourceId = state.selectedSourceId
+    val webDavOnly = onBrowseDirectories != null
+    val guide = rememberPlaybackGuide(
+        page = if (webDavOnly) PlaybackGuidePage.WEBDAV else PlaybackGuidePage.LOCAL,
+        ready = !webDavOnly || (state.isWebDavConfigured == true && sourceId != null)
+    )
     val defaultFolderName = stringResource(R.string.local_media_default_folder)
     var showAddHint by remember { mutableStateOf(false) }
     var matchTarget by remember(sourceId) { mutableStateOf<LocalMediaMatchTarget?>(null) }
@@ -184,6 +197,7 @@ fun LocalMediaLibraryScreen(
             onScanSelectedSource = viewModel::scanSelectedSource,
             onReidentify = viewModel::reidentifySelectedSource,
             onCancelScan = viewModel::cancelSelectedScan,
+            onRetryScrape = viewModel::retrySelectedScrape,
             onReauthorize = { source ->
                 reauthorizeSourceId = source.id
                 folderLauncher.launch(Uri.parse(source.treeUri))
@@ -194,7 +208,9 @@ fun LocalMediaLibraryScreen(
             onClearGroup = { clearTarget = it },
             onOpenHidden = { showHidden = true },
             onSetHidden = onSetHidden,
-            onMatchMedia = onMatchMedia
+            onMatchMedia = onMatchMedia,
+            onBrowseDirectories = onBrowseDirectories,
+            guide = guide
         )
         openGroup?.let { group ->
             key(group.displayKey) {
@@ -243,6 +259,7 @@ internal fun LocalMediaLibraryContent(
     onScanSelectedSource: () -> Unit,
     onReidentify: () -> Unit = {},
     onCancelScan: () -> Unit = {},
+    onRetryScrape: () -> Unit = {},
     onReauthorize: (LocalMediaSourceEntity) -> Unit = {},
     onOpenGroup: (LocalMediaAnimeGroup) -> Unit = {},
     onMatchGroup: (LocalMediaAnimeGroup) -> Unit = {},
@@ -252,13 +269,42 @@ internal fun LocalMediaLibraryContent(
     onSetHidden: (LocalMediaEntity, Boolean) -> Unit = { _, _ -> },
     onMatchMedia: (LocalMediaEntity) -> Unit = {},
     groups: LazyPagingItems<LocalMediaAnimeGroup>?,
-    unclassified: LazyPagingItems<LocalMediaEntity>?
+    unclassified: LazyPagingItems<LocalMediaEntity>?,
+    onBrowseDirectories: (() -> Unit)? = null,
+    guide: PlaybackGuideState? = null
 ) {
-    AppScaffold(
-        title = stringResource(R.string.local_media_title),
-        onBack = onBack
+    val webDavOnly = onBrowseDirectories != null
+    val guideAvailable = !webDavOnly || (state.isWebDavConfigured == true && state.selectedSourceId != null)
+    val steps = if (webDavOnly) {
+        listOf(
+            PlaybackGuideStep(R.string.webdav_library_browse_directories, R.string.player_guide_webdav_directories),
+            PlaybackGuideStep(R.string.local_media_scan_summary, R.string.player_guide_webdav_scan)
+        )
+    } else {
+        listOf(PlaybackGuideStep(R.string.local_media_add_folder, R.string.player_guide_local_add))
+    }
+    PlaybackGuideScaffold(
+        guide = guide.takeIf { guideAvailable },
+        steps = steps,
+        title = stringResource(if (webDavOnly) R.string.webdav_library_title else R.string.local_media_title),
+        onBack = onBack,
+        actions = {
+            if (onBrowseDirectories != null && state.isWebDavConfigured == true) {
+                TextButton(
+                    onClick = onBrowseDirectories,
+                    modifier = guide?.anchor(R.string.webdav_library_browse_directories) ?: Modifier
+                ) {
+                    Text(stringResource(R.string.webdav_library_browse_directories))
+                }
+            }
+            if (guide != null && guideAvailable) PlaybackGuideAction(guide::start)
+        }
     ) { chrome ->
         val gridState = key(state.selectedSourceId) { rememberLazyGridState() }
+        val guideIndex = guide?.index ?: -1
+        LaunchedEffect(guideIndex, guideAvailable, gridState) {
+            if (guideIndex >= 0 && guideAvailable) gridState.scrollToItem(0)
+        }
         val direction = LocalLayoutDirection.current
         LazyVerticalGrid(
             columns = GridCells.Adaptive(128.dp),
@@ -275,11 +321,11 @@ internal fun LocalMediaLibraryContent(
                 bottom = chrome.content.calculateBottomPadding() + 12.dp
             )
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            if (!webDavOnly) item(span = { GridItemSpan(maxLineSpan) }) {
                 Button(
                     onClick = onAddFolder,
                     shape = SquircleShape(12.dp),
-                    modifier = Modifier
+                    modifier = (guide?.anchor(R.string.local_media_add_folder) ?: Modifier)
                         .fillMaxWidth()
                         .padding(vertical = 12.dp)
                 ) {
@@ -293,9 +339,11 @@ internal fun LocalMediaLibraryContent(
                 }
             }
 
-            val revoked = state.sources.firstOrNull {
-                it.id == state.selectedSourceId && it.permissionState == LocalMediaPermissionState.REVOKED
-            } ?: state.sources.firstOrNull { it.permissionState == LocalMediaPermissionState.REVOKED }
+            val revoked = if (webDavOnly) null else {
+                state.sources.firstOrNull {
+                    it.id == state.selectedSourceId && it.permissionState == LocalMediaPermissionState.REVOKED
+                } ?: state.sources.firstOrNull { it.permissionState == LocalMediaPermissionState.REVOKED }
+            }
             if (revoked != null) {
                 item(key = "reauthorize-${revoked.id}", span = { GridItemSpan(maxLineSpan) }) {
                     Row(
@@ -322,6 +370,7 @@ internal fun LocalMediaLibraryContent(
                             LocalMediaActionError.WRONG_FOLDER -> R.string.local_media_wrong_folder
                             LocalMediaActionError.REAUTHORIZE -> R.string.local_media_permission_revoked
                             LocalMediaActionError.SCAN_REQUEST -> R.string.local_media_scan_request_failed
+                            LocalMediaActionError.SCRAPE_REQUEST -> R.string.local_media_scrape_request_failed
                             LocalMediaActionError.REMOVE_SOURCE -> R.string.local_media_remove_failed
                             LocalMediaActionError.MATCH -> R.string.local_media_match_failed
                             LocalMediaActionError.VISIBILITY -> R.string.local_media_visibility_failed
@@ -341,20 +390,29 @@ internal fun LocalMediaLibraryContent(
                             .padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            painter = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(stringResource(R.string.local_media_empty))
+                        when {
+                            !webDavOnly -> {
+                                Icon(
+                                    painter = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(stringResource(R.string.local_media_empty))
+                            }
+                            state.isWebDavConfigured == false -> {
+                                Text(stringResource(R.string.webdav_browse_not_configured))
+                                Text(stringResource(R.string.webdav_browse_not_configured_hint))
+                            }
+                            state.error == null -> CircularProgressIndicator()
+                        }
                     }
                 }
             }
 
             // 来源和媒体来自不同表，自增 ID 可相同；同一个网格必须区分类型。
-            items(state.sources, key = { "source-${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { source ->
+            if (!webDavOnly) items(state.sources, key = { "source-${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { source ->
                 val selected = source.id == state.selectedSourceId
                 Column(
                     modifier = Modifier
@@ -422,7 +480,9 @@ internal fun LocalMediaLibraryContent(
                         else -> stringResource(R.string.local_media_video_count, source.videoCount)
                     }
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        modifier = (if (webDavOnly) guide?.anchor(R.string.local_media_scan_summary) ?: Modifier else Modifier)
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 4.dp).testTag("local-scan-summary")) {
@@ -452,6 +512,31 @@ internal fun LocalMediaLibraryContent(
                                     modifier = Modifier.testTag("local-scan-reidentify")) {
                                     Text(stringResource(R.string.local_media_reidentify), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val scrape = state.scrape
+            if (scrape != null && scrape.groupCount > 0 && state.scan?.isActive != true) {
+                item(key = "scrape-status", span = { GridItemSpan(maxLineSpan) }) {
+                    val message = when (scrape.phase) {
+                        LocalScrapePhase.QUEUED -> R.string.local_media_scrape_queued
+                        LocalScrapePhase.RUNNING -> R.string.local_media_scrape_running
+                        LocalScrapePhase.RETRY_SCHEDULED -> R.string.local_media_scrape_retry_scheduled
+                        LocalScrapePhase.STOPPED -> R.string.local_media_scrape_stopped
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(message, scrape.groupCount),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (scrape.phase == LocalScrapePhase.RETRY_SCHEDULED || scrape.phase == LocalScrapePhase.STOPPED) {
+                            TextButton(onClick = onRetryScrape) {
+                                Text(stringResource(R.string.local_media_scrape_retry))
                             }
                         }
                     }

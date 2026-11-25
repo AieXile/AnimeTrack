@@ -1,12 +1,9 @@
 package com.aiexile.animetrack.ui.player.components
 
-import android.util.Size
 import android.view.SurfaceView
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
-import kotlin.math.roundToInt
 
 /**
  * 把 [surfaceView] 的输出缓冲区固定为视频自身的显示分辨率（而非控件尺寸）。
@@ -45,30 +42,11 @@ internal class VideoSurfaceBuffer(
 
     private fun applySize() {
         val holder = surfaceView.holder
-        val size = if (useNativeSize()) resolveDisplaySize() else null
+        val size = if (useNativeSize()) player.renderedVideoDisplaySize() ?: player.trackVideoDisplaySize() else null
         if (size != null) {
-            holder.setFixedSize(size.width, size.height)
+            holder.setFixedSize(size.bufferWidth, size.bufferHeight)
         } else {
             holder.setSizeFromLayout()
         }
-    }
-
-    /** 当前视频的显示分辨率；特效管线下 player.videoSize 通常不可用，退回轨道 Format。 */
-    private fun resolveDisplaySize(): Size? {
-        val video = player.videoSize
-        if (video.width > 0 && video.height > 0) {
-            val ratio = video.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
-            return Size((video.width * ratio).roundToInt(), video.height)
-        }
-        val group = player.currentTracks.groups.firstOrNull {
-            it.type == C.TRACK_TYPE_VIDEO && it.isSelected
-        } ?: return null
-        val index = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: 0
-        val format = group.getTrackFormat(index)
-        if (format.width <= 0 || format.height <= 0) return null
-        val ratio = format.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
-        val width = (format.width * ratio).roundToInt()
-        return if (format.rotationDegrees % 180 != 0) Size(format.height, width)
-        else Size(width, format.height)
     }
 }

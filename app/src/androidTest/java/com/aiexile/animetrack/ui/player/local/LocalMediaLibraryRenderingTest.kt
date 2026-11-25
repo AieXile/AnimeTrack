@@ -39,6 +39,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaPermissionState
 import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
@@ -55,6 +56,46 @@ class LocalMediaLibraryRenderingTest {
     @get:Rule
     val compose = createComposeRule()
     private val emptyGroups = flowOf(PagingData.empty<LocalMediaAnimeGroup>())
+
+    @Test
+    fun localLibraryFiltersWebDavSourcesAndRestoresADeviceFolder() {
+        val application = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application
+        val database = Room.inMemoryDatabaseBuilder(application, AnimeDatabase::class.java).build()
+        try {
+            val dao = database.localMediaDao()
+            val repository = LocalMediaRepository(application, dao)
+            val localName = "Device folder fixture"
+            val webDavName = "WebDAV folder fixture"
+            val (localId, webDavId) = runBlocking {
+                val local = repository.addOrGetSource(Uri.parse("content://test/tree/local"), localName)
+                val webDav = dao.insertSource(LocalMediaSourceEntity(
+                    treeUri = "webdav://player-library/https/fixture",
+                    displayName = webDavName
+                ))
+                local.id to webDav
+            }
+            val savedState = SavedStateHandle(mapOf("localMediaSourceId" to webDavId))
+
+            compose.setContent {
+                MaterialTheme {
+                    val library: LocalMediaViewModel = viewModel {
+                        LocalMediaViewModel(
+                            application, repository, AppContainer.getAnimeRepository(), AppContainer.getSettingsRepository(),
+                            LocalMediaScanScheduler(WorkManager.getInstance(application)),
+                            savedState
+                        )
+                    }
+                    LocalMediaLibraryScreen(onBack = {}, onPlayMedia = {}, viewModel = library)
+                }
+            }
+
+            compose.waitUntil(5_000) { compose.onAllNodesWithText(localName).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText(webDavName).assertDoesNotExist()
+            compose.runOnIdle { assertEquals(localId, savedState.get<Long>("localMediaSourceId")) }
+        } finally {
+            database.close()
+        }
+    }
 
     @Test
     fun returningFromPlayerRestoresPagedLibraryScrollPosition() {
@@ -77,7 +118,7 @@ class LocalMediaLibraryRenderingTest {
                     NavHost(navController = nav, startDestination = "library") {
                         composable("library") {
                             val library: LocalMediaViewModel = viewModel {
-                                LocalMediaViewModel(application, repository, AppContainer.getAnimeRepository(),
+                                LocalMediaViewModel(application, repository, AppContainer.getAnimeRepository(), AppContainer.getSettingsRepository(),
                                     LocalMediaScanScheduler(WorkManager.getInstance(application)), SavedStateHandle())
                             }
                             LocalMediaLibraryScreen(onBack = {}, onPlayMedia = { nav.navigate("player") }, viewModel = library)
@@ -110,6 +151,46 @@ class LocalMediaLibraryRenderingTest {
             assertEquals(before, target.assertIsDisplayed().fetchSemanticsNode().boundsInRoot.top, 1f)
         } finally {
             database.close()
+        }
+    }
+
+    @Test
+    fun webDavLibraryShowsSeriesCardsAndOffersFolderBrowsing() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val webDav = source(1).copy(displayName = "WebDAV source fixture")
+        val group = LocalMediaAnimeGroup(webDav.id, 0, "WebDAV anime fixture", null, 3, 0, archiveKey = "bgm:42")
+        val groups = flowOf(PagingData.from(listOf(group)))
+        val files = flowOf(PagingData.empty<LocalMediaEntity>())
+        var openedGroup: LocalMediaAnimeGroup? = null
+        var browsingFolders = false
+        compose.setContent {
+            MaterialTheme {
+                LocalMediaLibraryContent(
+                    state = LocalMediaUiState(
+                        sources = listOf(webDav),
+                        selectedSourceId = webDav.id,
+                        isWebDavConfigured = true
+                    ),
+                    onBack = {},
+                    onPlayMedia = {},
+                    onAddFolder = {},
+                    onSelectSource = {},
+                    onDeleteSource = {},
+                    onScanSelectedSource = {},
+                    onOpenGroup = { openedGroup = it },
+                    groups = groups.collectAsLazyPagingItems(),
+                    unclassified = files.collectAsLazyPagingItems(),
+                    onBrowseDirectories = { browsingFolders = true }
+                )
+            }
+        }
+        compose.onNodeWithText(context.getString(R.string.webdav_library_title)).assertIsDisplayed()
+        compose.onNodeWithText(webDav.displayName).assertDoesNotExist()
+        compose.onNodeWithText(group.title).assertIsDisplayed().performClick()
+        compose.onNodeWithText(context.getString(R.string.webdav_library_browse_directories)).performClick()
+        compose.runOnIdle {
+            assertEquals(group, openedGroup)
+            assertEquals(true, browsingFolders)
         }
     }
 

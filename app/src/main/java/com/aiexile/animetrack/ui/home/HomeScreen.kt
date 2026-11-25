@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
@@ -49,6 +50,7 @@ import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
 import com.aiexile.animetrack.ui.components.BottomNavigationBar
 import com.aiexile.animetrack.ui.home.AccountPanelDialog
+import com.aiexile.animetrack.ui.favorites.rememberFavoriteToggle
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
@@ -106,6 +108,7 @@ fun HomeScreen(
     val animeList by viewModel.animeList.collectAsStateWithLifecycle()
     val isTopBarHidden by viewModel.isTopBarHidden.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val toggleFavorite = rememberFavoriteToggle { anime, _ -> viewModel.toggleFavorite(anime) }
     val bangumiLoggedIn by authManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
     val bangumiAvatar by authManager.userAvatar.collectAsStateWithLifecycle(initialValue = null)
     val bilibiliLoggedIn by bilibiliAuthManager.isLoggedIn.collectAsStateWithLifecycle(initialValue = false)
@@ -205,10 +208,12 @@ fun HomeScreen(
         viewModel.markFirstFrameRendered()
     }
 
+    val isBatchSaving by rememberUpdatedState(uiState.batchAdd.isSaving)
     val bottomSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { newValue ->
-            newValue != androidx.compose.material3.SheetValue.PartiallyExpanded
+            newValue != androidx.compose.material3.SheetValue.PartiallyExpanded &&
+                (newValue != androidx.compose.material3.SheetValue.Hidden || !isBatchSaving)
         }
     )
     
@@ -355,7 +360,7 @@ fun HomeScreen(
                     onDelete = { anime -> viewModel.deleteAnime(anime) },
                     onClearSelection = { viewModel.clearSelection() },
                     onTogglePin = { anime -> viewModel.togglePin(anime) },
-                    onToggleFavorite = { anime -> viewModel.toggleFavorite(anime) },
+                    onToggleFavorite = { anime -> toggleFavorite(anime, !anime.isFavorite) },
                     onFilterSelected = { viewModel.setFilter(it) },
                     onSortModeSelected = { viewModel.setListSortMode(it) },
                     onStartSortEdit = { viewModel.startSortEditMode() },
@@ -389,8 +394,8 @@ fun HomeScreen(
             AddAnimeBottomSheet(
                 sheetState = bottomSheetState,
                 onDismiss = {
-                    scope.launch {
-                        bottomSheetState.hide()
+                    if (!isBatchSaving) {
+                        scope.launch { bottomSheetState.hide() }
                     }
                 },
                 searchQuery = uiState.searchQuery,
@@ -400,10 +405,17 @@ fun HomeScreen(
                 searchSource = uiState.searchSource,
                 onSearchQueryChange = { viewModel.updateSearchQuery(it) },
                 onSearch = { viewModel.searchAnime() },
-                onSearchResultSelect = { viewModel.selectSearchResult(it) },
+                onSearchResultSelect = if (uiState.batchAdd.isActive) {
+                    viewModel::toggleBatchAnime
+                } else {
+                    viewModel::selectSearchResult
+                },
                 onManualAdd = { viewModel.showManualAddDialog() },
                 hasSearched = uiState.hasSearched,
-                onSearchSourceChange = { viewModel.updateSearchSource(it) }
+                onSearchSourceChange = { viewModel.updateSearchSource(it) },
+                batchAdd = uiState.batchAdd,
+                onToggleBatchMode = viewModel::toggleBatchAddMode,
+                onSaveBatch = viewModel::saveBatchAnimes
             )
         }
 

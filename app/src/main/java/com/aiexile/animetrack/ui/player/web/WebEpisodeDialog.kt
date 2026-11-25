@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -41,6 +42,7 @@ import com.aiexile.animetrack.model.WebSourceEpisode
 import com.aiexile.animetrack.model.PlaybackProgress
 import com.aiexile.animetrack.domain.playback.WebPlaybackQueue
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.icons.AppIcon
 
 /** 直接网页入口的原生线路、选集页；不在页面材质层中嵌入 WebView。 */
 @Composable
@@ -52,6 +54,7 @@ fun WebEpisodeDialog(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
     onAssist: () -> Unit,
+    onSave: (() -> Unit)? = null,
     onSelect: (WebSourceEpisode) -> Unit
 ) {
     val page = (state as? WebPageState.Success)?.page
@@ -78,7 +81,14 @@ fun WebEpisodeDialog(
     ) {
         AppScaffold(
             title = page?.title ?: stringResource(R.string.web_source_episodes),
-            onBack = onDismiss
+            onBack = onDismiss,
+            actions = {
+                if (onSave != null) {
+                    IconButton(onClick = onSave) {
+                        AppIcon(AppIcon.BOOKMARKS, stringResource(R.string.media_library_add_web))
+                    }
+                }
+            }
         ) { chrome ->
             LaunchedEffect(channelIndex, page?.url, selectedIndex) {
                 if (!channel?.episodes.isNullOrEmpty()) {

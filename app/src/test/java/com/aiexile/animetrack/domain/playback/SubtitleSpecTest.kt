@@ -42,4 +42,12 @@ class SubtitleSpecTest {
         assertEquals("en", SubtitleSpec.guessLanguage("Show.EP01.eng.vtt"))
         assertNull(SubtitleSpec.guessLanguage("Show.EP01.ass"))
     }
+
+    @Test
+    fun `语言识别只在后缀边界命中且混合双语不强猜`() {
+        assertEquals("en", SubtitleSpec.guessLanguage("Show.E01.en.ass"))
+        assertEquals("zh-CN", SubtitleSpec.guessLanguage("Show.E01.zh-CN.ass"))
+        assertNull(SubtitleSpec.guessLanguage("Show.E01.engx.ass"))
+        assertNull(SubtitleSpec.guessLanguage("Show.E01.简日.ass"))
+    }
 }

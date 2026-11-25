@@ -6,6 +6,9 @@ import androidx.room.Room
 import android.database.sqlite.SQLiteDatabase
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.network.BangumiSubject
+import com.aiexile.animetrack.data.network.TmdbGenre
+import com.aiexile.animetrack.data.network.TmdbTvDetail
+import com.aiexile.animetrack.data.network.TmdbTvShow
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.domain.playback.LocalMediaAutoMatchUseCase
 import com.aiexile.animetrack.domain.playback.LocalPlaybackQueue
@@ -23,6 +26,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,6 +35,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import retrofit2.HttpException
+import retrofit2.Response
 import java.io.IOException
 
 @RunWith(AndroidJUnit4::class)
@@ -55,6 +61,28 @@ class LocalMediaScanTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun aggregateLibraryUsesVisibleFilesFromDeviceAndActiveWebDavSource() = runBlocking {
+        val activeUri = "webdav://player-library/https/active"
+        val active = dao.insertSource(LocalMediaSourceEntity(treeUri = activeUri, displayName = "Active"))
+        val stale = dao.insertSource(LocalMediaSourceEntity(treeUri = "webdav://player-library/https/stale", displayName = "Stale"))
+        val archiveKey = "bgm:42"
+        for (id in listOf(sourceId, active, stale)) {
+            dao.putArchive(LocalMediaArchiveEntity(id, archiveKey, "Series", bangumiId = 42))
+            val media = LocalMediaEntity(
+                sourceId = id, documentUri = "content://test/video", relativePath = "01.mkv",
+                fileName = "01.mkv", archiveKey = archiveKey
+            )
+            dao.insertMedia(listOf(media, media.copy(relativePath = "02.mkv", isHidden = true)))
+        }
+
+        val groups = dao.observeLibraryGroups(activeUri).first()
+        assertEquals(listOf(sourceId, active), groups.map { it.group.sourceId })
+        assertEquals(listOf(false, true), groups.map { it.webDav })
+        assertTrue(groups.all { it.group.videoCount == 1 && it.bangumiId == 42 })
+        assertEquals(listOf(sourceId), dao.observeLibraryGroups(null).first().map { it.group.sourceId })
     }
 
     @Test
@@ -458,6 +486,57 @@ class LocalMediaScanTest {
     }
 
     @Test
+    fun confirmedArchiveAppearsInDetailWhenMatchingAnimeIsAdded() = runBlocking {
+        scan(file(1))
+        val local = dao.getMedia(sourceId).single()
+        val archive = LocalMediaArchiveEntity(sourceId, "bgm:7", "Series", bangumiId = 7)
+        repository.commitScrape(listOf(local), archive, LocalMediaScrapeState.IDENTIFIED)
+        val card = dao.pageAnimeGroups(sourceId).readPages().single()
+        repository.confirmCardMatch(card)
+        val remoteUri = "${WebDavLocalMediaSource.URI_PREFIX}/https/current"
+        val remoteId = dao.insertSource(LocalMediaSourceEntity(treeUri = remoteUri, displayName = "WebDAV"))
+        val oldRemoteId = dao.insertSource(
+            LocalMediaSourceEntity(treeUri = "${WebDavLocalMediaSource.URI_PREFIX}/https/old", displayName = "Old WebDAV")
+        )
+        for (id in listOf(remoteId, oldRemoteId)) {
+            dao.putArchive(archive.copy(sourceId = id))
+            dao.insertMedia(listOf(local.copy(id = 0, sourceId = id, documentUri = "https://dav.example/Series/01.mkv",
+                archiveKey = archive.key, matchState = LocalMediaMatchState.CONFIRMED)))
+        }
+        val tracked = Anime(id = 78, title = "Tracking title", totalEpisodes = 12, watchedEpisodes = 0,
+            status = AnimeStatus.PLANNED, rating = null, notes = "", bangumiId = 7)
+        assertTrue(dao.observeConfirmedEpisodesForAnime(tracked.id, remoteUri).first().isEmpty())
+        database.animeDao().insertAnime(tracked)
+
+        val visible = dao.observeConfirmedEpisodesForAnime(tracked.id, remoteUri).first()
+        assertEquals(setOf(sourceId, remoteId), visible.map { it.sourceId }.toSet())
+        assertTrue(visible.all { it.matchedAnimeId == null })
+        assertEquals(listOf(local.id), dao.observeConfirmedEpisodesForAnime(tracked.id).first().map { it.id })
+
+        repository.setHidden(sourceId, local.id, true)
+        assertEquals(listOf(remoteId), dao.observeConfirmedEpisodesForAnime(tracked.id, remoteUri).first().map { it.sourceId })
+    }
+
+    @Test
+    fun confirmedTmdbArchiveRespectsSeasonAndDoesNotExposeUnconfirmedFiles() = runBlocking {
+        val first = folderFile("Series/Series S01E01.mkv")
+        val second = folderFile("Series/Series S02E01.mkv")
+        val pending = folderFile("Series/Series S02E02.mkv")
+        scan(first, second, pending)
+        val files = dao.getMedia(sourceId).associateBy { it.relativePath }
+        val archive = LocalMediaArchiveEntity(sourceId, "tmdb:tv:7", "Series", tmdbId = 7)
+        for (file in listOf(first, second)) {
+            repository.saveManualArchive(sourceId, files.getValue(file.relativePath).id, archive, null)
+        }
+        repository.commitScrape(listOf(files.getValue(pending.relativePath)), archive, LocalMediaScrapeState.IDENTIFIED)
+        val tracked = Anime(id = 78, title = "Series", totalEpisodes = 12, watchedEpisodes = 0,
+            status = AnimeStatus.PLANNED, rating = null, notes = "", tmdbId = 7, seasonNumber = 2)
+        database.animeDao().insertAnime(tracked)
+
+        assertEquals(listOf(second.relativePath), dao.observeConfirmedEpisodesForAnime(tracked.id).first().map { it.relativePath })
+    }
+
+    @Test
     fun clearingPendingGroupsUnclassifiesFilesAndBlocksOldScrapeResults() = runBlocking {
         val waiting = folderFile("Waiting/Waiting - 01.mkv")
         val review = folderFile("Review/Review - 01.mkv")
@@ -510,6 +589,41 @@ class LocalMediaScanTest {
     }
 
     @Test
+    fun bangumiRateLimitStillAllowsVerifiedTmdbMatch() = runBlocking {
+        scan(folderFile("Series/Series - 01.mkv"))
+        val matcher = matcher(
+            searchTmdb = {
+                listOf(TmdbTvShow(7, "Series", overview = null, posterPath = null, firstAirDate = null, voteAverage = null))
+            },
+            getTmdb = { id ->
+                TmdbTvDetail(id, "Series", null, null, null, null, 12, 1, null, listOf(TmdbGenre(16, "Animation")))
+            }
+        ) {
+            throw HttpException(Response.error<Unit>(429, "".toResponseBody()))
+        }
+
+        assertFalse(matcher.run(sourceId))
+        assertEquals("tmdb:tv:7", dao.getMedia(sourceId).single().archiveKey)
+    }
+
+    @Test
+    fun temporaryFailuresDoNotStarveGroupsBeyondTheRequestBudget() = runBlocking {
+        val titles = (0 until 36).map { "Example ${'A' + it / 26}${'A' + it % 26}" }
+        scan(*titles.map { folderFile("$it/$it - 01.mkv") }.toTypedArray())
+        val target = dao.getScrapeQueue(sourceId).last()
+        val title = checkNotNull(target.parsedTitle)
+        val matcher = matcher { query ->
+            if (query.equals(title, ignoreCase = true)) listOf(subject(99, title)) else throw IOException("temporary error")
+        }
+
+        assertTrue(matcher.run(sourceId))
+        assertNull(dao.getMediaById(target.id)?.archiveKey)
+        assertTrue(matcher.run(sourceId))
+        assertEquals("bgm:99", dao.getMediaById(target.id)?.archiveKey)
+        assertEquals(titles.size - 1, dao.observeScrapeGroupCount(sourceId).first())
+    }
+
+    @Test
     fun migration31PreservesFileIdAndManualState() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
@@ -536,7 +650,7 @@ class LocalMediaScanTest {
             db.version = 31
         }
         val migrated = Room.databaseBuilder(context, AnimeDatabase::class.java, filename)
-            .addMigrations(AnimeDatabase.MIGRATION_31_32).build()
+            .addMigrations(AnimeDatabase.MIGRATION_31_32, AnimeDatabase.MIGRATION_32_33).build()
         try {
             val item = checkNotNull(migrated.localMediaDao().getMediaById(50))
             assertEquals(7, item.matchedAnimeId)
@@ -550,12 +664,17 @@ class LocalMediaScanTest {
         }
     }
 
-    private fun matcher(search: suspend (String) -> List<BangumiSubject>): LocalMediaAutoMatchUseCase {
+    private fun matcher(
+        searchTmdb: suspend (String) -> List<TmdbTvShow> = { emptyList() },
+        getTmdb: suspend (Int) -> TmdbTvDetail = { error("Unexpected TMDB detail request: $it") },
+        search: suspend (String) -> List<BangumiSubject>
+    ): LocalMediaAutoMatchUseCase {
         val base = AppContainer.getAnimeRepository()
         val fake = object : AnimeRepository by base {
             override fun getAllAnimes() = flowOf(emptyList<Anime>())
             override suspend fun searchBangumi(query: String) = search(query)
-            override suspend fun searchTmdbTvShows(query: String) = emptyList<com.aiexile.animetrack.data.network.TmdbTvShow>()
+            override suspend fun searchTmdbTvShows(query: String) = searchTmdb(query)
+            override suspend fun getTmdbTvDetail(tmdbId: Int) = getTmdb(tmdbId)
             override suspend fun insertAnime(anime: Anime): Long = error("Scraping must not write subscriptions")
         }
         return LocalMediaAutoMatchUseCase(repository, fake, episodes = { emptyList() }, relations = { emptyList() })

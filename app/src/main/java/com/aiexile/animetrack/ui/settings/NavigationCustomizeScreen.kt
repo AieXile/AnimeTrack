@@ -151,7 +151,10 @@ fun NavigationCustomizeScreen(
                         title = stringResource(R.string.nav_custom_style_title),
                         expanded = expandNavStyleGroup
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = rememberHighlightModifier("nav_style", highlightKey),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             NavigationStyleCard(
                                 modifier = Modifier.weight(1f),
                                 style = NavigationStyle.BOTTOM,
@@ -208,7 +211,10 @@ fun NavigationCustomizeScreen(
                         title = stringResource(R.string.nav_custom_fab_title),
                         expanded = expandFabGroup
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = rememberHighlightModifier("fab", highlightKey),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             FabLocationCard(
                                 modifier = Modifier.weight(1f),
                                 location = FabLocation.BOTTOM_RIGHT,
@@ -280,7 +286,7 @@ fun NavigationCustomizeScreen(
                             animationSpec = androidx.compose.animation.core.tween(200)
                         )
                     ) {
-                        Column {
+                        Column(modifier = rememberHighlightModifier("statusbar", highlightKey)) {
                             Text(
                                 text = stringResource(R.string.nav_custom_statusbar_mode),
                                 fontSize = 13.sp,

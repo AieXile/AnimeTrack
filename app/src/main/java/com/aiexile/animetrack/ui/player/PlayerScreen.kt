@@ -1,13 +1,15 @@
 package com.aiexile.animetrack.ui.player
 
-import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
+import android.app.PictureInPictureParams
+import android.util.Rational
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -34,6 +36,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -46,9 +50,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalConfiguration
@@ -65,6 +69,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.player.web.PendingWebPlayback
 import com.aiexile.animetrack.ui.components.SquircleShape
@@ -104,6 +109,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
+private const val EXIT_FULLSCREEN_ROTATION_TIMEOUT_MS = 1_200L
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -128,13 +135,59 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = viewModel(factory = PlayerViewModel.Factory(animeId))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isPlayerWebDavConfigured by viewModel.isPlayerWebDavConfigured.collectAsStateWithLifecycle()
     val trackedAnime by viewModel.trackedAnime.collectAsStateWithLifecycle()
     val webParseRequest by viewModel.webParseRequest.collectAsStateWithLifecycle()
     var webAssistExpanded by remember(webParseRequest) { mutableStateOf(false) }
     var webAssistShowWeb by remember(webParseRequest) { mutableStateOf(false) }
     val context = LocalContext.current
-    val activity = context as? Activity
+    val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
+    var showSubtitleEncoding by remember { mutableStateOf(false) }
+    var subtitleTarget by remember { mutableStateOf<MediaItem?>(null) }
+    var subtitleEncoding by remember { mutableStateOf<String?>(null) }
+    val subtitleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val item = subtitleTarget
+        subtitleTarget = null
+        if (uri != null && item != null) viewModel.attachManualSubtitle(item, uri, subtitleEncoding)
+    }
+    val addSubtitle = if (uiState.hasPlaybackRequest && uiState.error == null) ({
+        subtitleTarget = viewModel.currentSubtitleTarget()
+        if (subtitleTarget != null) showSubtitleEncoding = true
+    }) else null
+    val removeSubtitle = if (uiState.hasManualSubtitle) viewModel::removeManualSubtitle else null
+    fun enterPictureInPicture() {
+        val controller = viewModel.player
+        if (!uiState.hasPlaybackRequest || controller.currentMediaItem == null ||
+            android.os.Build.VERSION.SDK_INT < 26 || activity == null
+        ) return
+        val videoSize = controller.videoSize
+        val width = videoSize.width.takeIf { it > 0 } ?: 16
+        val height = videoSize.height.takeIf { it > 0 } ?: 9
+        activity.enterPictureInPictureMode(
+            PictureInPictureParams.Builder().setAspectRatio(Rational(width, height)).build()
+        )
+    }
+    if (showSubtitleEncoding) {
+        AlertDialog(
+            onDismissRequest = { showSubtitleEncoding = false },
+            title = { Text(stringResource(R.string.player_manual_subtitle_add)) },
+            text = {
+                Column {
+                    listOf(null to "UTF-8 / BOM", "GB18030" to "GB18030", "Big5" to "Big5").forEach { (encoding, label) ->
+                        TextButton(onClick = {
+                            showSubtitleEncoding = false
+                            subtitleEncoding = encoding
+                            subtitleLauncher.launch(arrayOf("*/*"))
+                        }) { Text(label) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSubtitleEncoding = false }) { Text(stringResource(R.string.common_cancel)) }
+            }
+        )
+    }
 
     // 路由已带视频时，首帧等待 LaunchedEffect 交接请求，不能先展示选源界面。
     var initialRequestHandled by remember(
@@ -179,9 +232,11 @@ fun PlayerScreen(
     }
 
     var autoBrowseTriggered by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(animeId, initialLocalUri, initialLocalMediaId, initialWebPlay) {
-        if (initialLocalUri == null && initialLocalMediaId == null && !initialWebPlay && !initialWebDavPlay &&
-            animeId > 0 && !autoBrowseTriggered
+    LaunchedEffect(
+        animeId, initialLocalUri, initialLocalMediaId, initialWebPlay, initialWebDavPlay, isPlayerWebDavConfigured
+    ) {
+        if (isPlayerWebDavConfigured && initialLocalUri == null && initialLocalMediaId == null &&
+            !initialWebPlay && !initialWebDavPlay && animeId > 0 && !autoBrowseTriggered
         ) {
             autoBrowseTriggered = true
             onBrowseWebDAV()
@@ -199,21 +254,24 @@ fun PlayerScreen(
     val detailsGridState = rememberLazyGridState()
     val hasChildDrawer = drawerStack.size > 1
     val anyPanelOpen = drawerLevel != null || detailsSheetType != null
+    val screenOrientation = LocalConfiguration.current.orientation
+    var exitFullscreenPending by remember { mutableStateOf(false) }
+    val isFullscreen = uiState.isFullscreen
 
     val openOptionsMenu: () -> Unit = {
-        if (uiState.isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Menu)
+        if (isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Menu)
         else detailsSheetType = DetailsSheetType.MORE
     }
     val openQuality: () -> Unit = {
-        if (uiState.isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Quality)
+        if (isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Quality)
         else detailsSheetType = DetailsSheetType.QUALITY
     }
     val openSpeed: () -> Unit = {
-        if (uiState.isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Speed)
+        if (isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Speed)
         else detailsSheetType = DetailsSheetType.SPEED
     }
     val openSubtitles: () -> Unit = {
-        if (uiState.isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Tracks(C.TRACK_TYPE_TEXT))
+        if (isFullscreen) drawerStack = listOf(PlayerDrawerLevel.Tracks(C.TRACK_TYPE_TEXT))
         else detailsSheetType = DetailsSheetType.SUBTITLES
     }
 
@@ -252,46 +310,20 @@ fun PlayerScreen(
     val insetsController = activity?.let {
         WindowCompat.getInsetsController(it.window, it.window.decorView)
     }
-    val configuration = LocalConfiguration.current
-    var exitFullscreenPending by remember { mutableStateOf(false) }
-
     fun requestFullscreenToggle() {
-        if (!uiState.isFullscreen) {
-            if (exitFullscreenPending) return
-            viewModel.setFullscreen(true)
-            return
-        }
         if (exitFullscreenPending) return
-        exitFullscreenPending = true
-        insetsController?.show(WindowInsetsCompat.Type.systemBars())
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-    }
-
-    LaunchedEffect(exitFullscreenPending, configuration.orientation) {
-        if (!exitFullscreenPending) return@LaunchedEffect
-        if (configuration.orientation != Configuration.ORIENTATION_PORTRAIT) return@LaunchedEffect
-        exitFullscreenPending = false
-        viewModel.setFullscreen(false)
-    }
-
-    LaunchedEffect(exitFullscreenPending) {
-        if (!exitFullscreenPending) return@LaunchedEffect
-        delay(1200)
-        if (exitFullscreenPending) {
-            exitFullscreenPending = false
-            viewModel.setFullscreen(false)
+        if (isFullscreen) {
+            exitFullscreenPending = true
+        } else {
+            viewModel.setFullscreen(true)
         }
     }
 
     val handleBack: () -> Unit = {
-        when {
-            exitFullscreenPending -> Unit
-            uiState.isFullscreen -> requestFullscreenToggle()
-            else -> onBack()
-        }
+        if (isFullscreen) requestFullscreenToggle() else onBack()
     }
 
-    BackHandler(uiState.isFullscreen && !anyPanelOpen && !webAssistExpanded) {
+    BackHandler(isFullscreen && !anyPanelOpen && !webAssistExpanded) {
         requestFullscreenToggle()
     }
     BackHandler(anyPanelOpen) {
@@ -299,28 +331,61 @@ fun PlayerScreen(
         detailsSheetType = null
     }
 
-    LaunchedEffect(uiState.isFullscreen) {
+    LaunchedEffect(isFullscreen, activity) {
         showControls = true
         resetControlsTimer()
-        if (uiState.isFullscreen) {
+        if (isFullscreen) {
             detailsSheetType = null
             insetsController?.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-            activity?.requestedOrientation = if (uiState.fullscreenLandscape)
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
         } else {
             insetsController?.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             insetsController?.show(WindowInsetsCompat.Type.systemBars())
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
 
-    DisposableEffect(uiState.isFullscreen, uiState.hasPlaybackRequest, uiState.playWhenReady) {
+    DisposableEffect(activity) {
+        val previousOrientation = activity?.requestedOrientation
+        onDispose {
+            insetsController?.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            if (activity != null && previousOrientation != null &&
+                activity.requestedOrientation != previousOrientation
+            ) {
+                activity.requestedOrientation = previousOrientation
+            }
+        }
+    }
+
+    val requestedOrientation = when {
+        exitFullscreenPending || !isFullscreen -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        uiState.fullscreenLandscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+    }
+    LaunchedEffect(activity, requestedOrientation, isFullscreen, exitFullscreenPending) {
+        if (activity != null && activity.requestedOrientation != requestedOrientation) {
+            // 先给全屏布局一帧完成重排，再请求系统旋转。
+            if (isFullscreen && !exitFullscreenPending) withFrameNanos { }
+            activity.requestedOrientation = requestedOrientation
+        }
+    }
+
+    LaunchedEffect(exitFullscreenPending, screenOrientation, activity) {
+        if (!exitFullscreenPending) return@LaunchedEffect
+        // 分屏等窗口模式可能不执行方向请求，仍须允许退出全屏。
+        if (screenOrientation != Configuration.ORIENTATION_PORTRAIT && activity != null) {
+            delay(EXIT_FULLSCREEN_ROTATION_TIMEOUT_MS)
+        }
+        viewModel.setFullscreen(false)
+        exitFullscreenPending = false
+    }
+
+    DisposableEffect(activity, isFullscreen, uiState.hasPlaybackRequest, uiState.playWhenReady) {
         val window = activity?.window
-        val keepScreenOn = uiState.isFullscreen && uiState.hasPlaybackRequest && uiState.playWhenReady
+        val keepScreenOn = isFullscreen && uiState.hasPlaybackRequest && uiState.playWhenReady
         if (keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
@@ -329,35 +394,26 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            insetsController?.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-            insetsController?.show(WindowInsetsCompat.Type.systemBars())
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }
-    }
-
     val videoCornerShape = remember { SquircleShape(VideoCornerRadius) }
     val pageTitle = uiState.seriesTitle?.takeIf { it.isNotBlank() }
         ?: uiState.mediaTitle?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.settings_playback)
 
-    Box(Modifier.fillMaxSize()) {        PlayerPageLayout(
-            isFullscreen = uiState.isFullscreen,
+    Box(Modifier.fillMaxSize()) {
+        PlayerPageLayout(
+            isFullscreen = isFullscreen,
             title = pageTitle,
             animeId = animeId,
             sharedKeyPrefix = sharedKeyPrefix,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
-            onBack = onBack,
+            onBack = handleBack,
             video = { isCoverMorphing ->
-                val cardShape = if (uiState.isFullscreen) RectangleShape else videoCornerShape
+                val cardShape = if (isFullscreen) RectangleShape else videoCornerShape
                 Box(
                     Modifier
                         .fillMaxSize()
                         .background(color = Color.Black, shape = cardShape)
-                        .clip(cardShape)
                 ) {
                     PlayerVideoPlaceholder(
                         coverUrl = trackedAnime?.coverUrl,
@@ -379,7 +435,7 @@ fun PlayerScreen(
                                 if (!viewModel.retryLast()) handleBack()
                             },
                             onBack = handleBack,
-                            compact = !uiState.isFullscreen
+                            compact = !isFullscreen
                         )
                     } else if (!uiState.isControllerReady || !initialRequestHandled ||
                         hasPendingWebDavRequest || uiState.isPreparingMedia
@@ -390,7 +446,7 @@ fun PlayerScreen(
                                 !uiState.isControllerReady -> R.string.player_connecting
                                 else -> R.string.player_preparing
                             }),
-                            onBack = if (uiState.isFullscreen) handleBack else null,
+                            onBack = if (isFullscreen) handleBack else null,
                             onAssist = if (webParseRequest != null) {
                                 {
                                     webAssistShowWeb = true
@@ -472,14 +528,14 @@ fun PlayerScreen(
                         }
 
                         AnimatedVisibility(
-                            visible = showControls && uiState.isFullscreen,
+                            visible = showControls && isFullscreen,
                             enter = fadeIn(),
                             exit = fadeOut()
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 TopControlBar(
                                     title = uiState.mediaTitle,
-                                    isFullscreen = uiState.isFullscreen,
+                                    isFullscreen = isFullscreen,
                                     onBack = handleBack,
                                     onSelectSubtitles = {
                                         openSubtitles()
@@ -499,7 +555,7 @@ fun PlayerScreen(
                                     bufferedPositionMs = uiState.bufferedPositionMs,
                                     playbackSpeed = uiState.playbackSpeed,
                                     qualityLabel = playerQualityLabel(viewModel.player),
-                                    isFullscreen = uiState.isFullscreen,
+                                    isFullscreen = isFullscreen,
                                     playWhenReady = uiState.playWhenReady,
                                     hasNextEpisode = viewModel.hasNextEpisode(),
                                     onOpenSpeed = { drawerStack = listOf(PlayerDrawerLevel.Speed) },
@@ -539,7 +595,7 @@ fun PlayerScreen(
                         }
                     }
 
-                    if (!uiState.isFullscreen && uiState.hasPlaybackRequest && uiState.error == null) {
+                    if (!isFullscreen && uiState.hasPlaybackRequest && uiState.error == null) {
                         EmbeddedPlayerControls(
                             state = uiState,
                             visible = showControls,
@@ -558,6 +614,7 @@ fun PlayerScreen(
                             onBarHeightChanged = { controlsBarHeightPx = it }
                         )
                     }
+
                 }
             },
             details = {
@@ -565,7 +622,7 @@ fun PlayerScreen(
                     !hasPendingWebDavRequest && !uiState.hasPlaybackRequest
                 ) {
                     EmptyMediaState(
-                        onBrowseWebDAV = onBrowseWebDAV,
+                        onBrowseWebDAV = onBrowseWebDAV.takeIf { isPlayerWebDavConfigured },
                         onSelectLocalFile = { localFileLauncher.launch(arrayOf("video/*")) }
                     )
                 } else {
@@ -633,8 +690,6 @@ fun PlayerScreen(
                                     onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Channels },
                                     modifier = Modifier.weight(1f)
                                 )
-                            } else {
-                                Spacer(Modifier.weight(1f))
                             }
                             if (uiState.episodes.size > 1) {
                                 PlayerMenuGridItem(
@@ -643,9 +698,10 @@ fun PlayerScreen(
                                     onClick = { drawerStack = drawerStack + PlayerDrawerLevel.Episodes },
                                     modifier = Modifier.weight(1f)
                                 )
-                            } else {
-                                Spacer(Modifier.weight(1f))
                             }
+                            val emptySlots = (if (uiState.channels.size > 1) 0 else 1) +
+                                (if (uiState.episodes.size > 1) 0 else 1)
+                            repeat(emptySlots) { Spacer(Modifier.weight(1f)) }
                         }
 
                         Spacer(Modifier.height(12.dp))
@@ -676,6 +732,16 @@ fun PlayerScreen(
                                 viewModel.retryLast()
                             }
                         )
+                        if (uiState.hasPlaybackRequest && android.os.Build.VERSION.SDK_INT >= 26) {
+                            PlayerMenuItem(
+                                rememberAppIconPainter(AppIcon.FULLSCREEN),
+                                stringResource(R.string.player_enter_pip),
+                                {
+                                    requestClose()
+                                    enterPictureInPicture()
+                                }
+                            )
+                        }
                     }
 
                     is PlayerDrawerLevel.Tracks -> {
@@ -683,6 +749,8 @@ fun PlayerScreen(
                             TrackSelectionContent(
                                 trackType = target.trackType,
                                 player = viewModel.player,
+                                addSubtitle = addSubtitle,
+                                removeSubtitle = removeSubtitle,
                                 requestClose = requestClose
                             )
                         }
@@ -749,7 +817,7 @@ fun PlayerScreen(
             }
         }
 
-        if (detailsSheetType != null && !uiState.isFullscreen) {
+        if (detailsSheetType != null && !isFullscreen) {
             PlayerOptionSheet(
                 type = detailsSheetType!!,
                 state = uiState,
@@ -761,6 +829,8 @@ fun PlayerScreen(
                 onSetAutoNext = viewModel::setAutoPlayNext,
                 onSetRememberPosition = viewModel::setRememberPosition,
                 onSetAutoLandscape = viewModel::setAutoLandscape,
+                addSubtitle = addSubtitle,
+                removeSubtitle = removeSubtitle,
                 onRetry = { viewModel.retryLast() }
             )
         }

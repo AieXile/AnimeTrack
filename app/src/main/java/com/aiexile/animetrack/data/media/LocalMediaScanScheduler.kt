@@ -8,12 +8,15 @@ import androidx.work.await
 import androidx.work.workDataOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
 internal enum class LocalScanPhase { QUEUED, SCANNING, MATCHING, COMPLETED, CANCELLED, FAILED }
 
 internal enum class LocalScanFailure { PERMISSION, READ, OTHER }
+
+internal enum class LocalScrapePhase { QUEUED, RUNNING, RETRY_SCHEDULED, STOPPED }
 
 internal data class LocalScanStatus(
     val phase: LocalScanPhase,
@@ -48,6 +51,25 @@ internal class LocalMediaScanScheduler(
             (history.firstOrNull { !it.state.isFinished } ?: history.firstOrNull())?.toStatus()
         }
         .distinctUntilChanged()
+
+    suspend fun retryScrape(sourceId: Long) {
+        val phase = observeScrape(sourceId).first()
+        if (phase == LocalScrapePhase.STOPPED || phase == LocalScrapePhase.RETRY_SCHEDULED) {
+            LocalMediaScrapeWorker.enqueue(workManager, sourceId)
+        }
+    }
+
+    fun observeScrape(sourceId: Long): Flow<LocalScrapePhase> =
+        workManager.getWorkInfosForUniqueWorkFlow(LocalMediaScrapeWorker.workName(sourceId))
+            .map { history ->
+                val active = history.firstOrNull { !it.state.isFinished }
+                when {
+                    active == null -> LocalScrapePhase.STOPPED
+                    active.state == WorkInfo.State.RUNNING -> LocalScrapePhase.RUNNING
+                    active.runAttemptCount > 0 -> LocalScrapePhase.RETRY_SCHEDULED
+                    else -> LocalScrapePhase.QUEUED
+                }
+            }.distinctUntilChanged()
 
     private fun WorkInfo.toStatus(): LocalScanStatus {
         val phase = when (state) {

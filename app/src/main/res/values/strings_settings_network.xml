@@ -9,7 +9,7 @@
     <string name="webdav_sync_backup_strategy">备份策略</string>
     <string name="webdav_sync_strategy_affects_restore">该策略同样影响恢复功能</string>
     <string name="webdav_sync_format_json">JSON</string>
-    <string name="webdav_sync_format_json_desc">仅数据，传输速度快，时间短</string>
+    <string name="webdav_sync_format_json_desc">包含收藏夹封面，番剧封面请使用完整 ZIP</string>
     <string name="webdav_sync_format_zip">完整 ZIP</string>
     <string name="webdav_sync_format_zip_desc">带图片，传输速度慢，时间长</string>
     <string name="webdav_sync_restore_mode">恢复模式</string>

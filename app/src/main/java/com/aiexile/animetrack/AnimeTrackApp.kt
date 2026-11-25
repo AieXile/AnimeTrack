@@ -10,6 +10,7 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.crash.CrashReporter
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.network.RetrofitClient
+import com.aiexile.animetrack.data.remote.UpdateApkCache
 import com.aiexile.animetrack.data.sse.SseEventTypes
 import com.aiexile.animetrack.data.widget.WidgetSyncScheduler
 import com.aiexile.animetrack.data.widget.WidgetUpdateCoordinator
@@ -89,6 +90,11 @@ class AnimeTrackApp : Application(), ImageLoaderFactory {
         AppContainer.initialize(this)
         // 文件日志系统：须在其他组件写日志前初始化（崩溃捕获自此刻生效）
         AppLogManager.init(this)
+        // 已成功安装的更新包可在下次启动清理；交给系统安装器时先保留 APK。
+        appScope.launch {
+            val removed = UpdateApkCache.removeObsoleteApks(cacheDir, BuildConfig.VERSION_NAME)
+            if (removed > 0) AppLogManager.i("UpdateApkCache", "已清理 $removed 个旧更新安装包")
+        }
         // 桌面组件：存在组件实例时调度每日同步与午夜刷新（无组件为空操作），
         // 并在进程存活期间观察 Room 变化即时重绘（事件驱动优先于轮询）
         WidgetSyncScheduler.ensureScheduled(this)

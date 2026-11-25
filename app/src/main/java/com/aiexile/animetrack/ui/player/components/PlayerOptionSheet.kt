@@ -56,7 +56,9 @@ internal fun PlayerOptionSheet(
     onSetAutoNext: (Boolean) -> Unit,
     onSetRememberPosition: (Boolean) -> Unit,
     onSetAutoLandscape: (Boolean) -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    addSubtitle: (() -> Unit)? = null,
+    removeSubtitle: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -105,6 +107,12 @@ internal fun PlayerOptionSheet(
                 }
 
                 DetailsSheetType.SUBTITLES -> {
+                    addSubtitle?.let { add ->
+                        PlayerSheetRow(label = stringResource(R.string.player_manual_subtitle_add), onClick = { onDismiss(); add() })
+                    }
+                    removeSubtitle?.let { remove ->
+                        PlayerSheetRow(label = stringResource(R.string.player_manual_subtitle_remove), onClick = { onDismiss(); remove() })
+                    }
                     val choices = player?.let { rememberPlayerTrackChoices(it, C.TRACK_TYPE_TEXT) }.orEmpty()
                     if (choices.isEmpty()) {
                         Text(

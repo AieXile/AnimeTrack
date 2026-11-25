@@ -61,6 +61,17 @@ class WebDavPlaybackIdentityTest {
         assertNull(chooseLegacyWebDavProgress(target, positions, mapOf(target.mediaKey to PlaybackProgress())))
     }
 
+    @Test
+    fun coldResumeUsesStablePathButRejectsQueryAndBoundaryChanges() {
+        val config = checkNotNull(PlayerWebDavDirectory.Config.parse("https://nas.example/dav", "Shows", "alice", "pw", false))
+        val original = target("https://nas.example/dav", "Shows/E1.mkv", mediaRoot = "Shows")
+        val resume = checkNotNull(WebDavPlaybackIdentity.resume(original))
+        assertEquals(original.mediaKey, resume.resolve(config)?.mediaKey)
+        assertNull(resume.resolve(checkNotNull(PlayerWebDavDirectory.Config.parse("https://nas.example/dav", "Other", "alice", "pw", false))))
+        val forged = WebDavPlaybackIdentity.Resume(original.mediaKey, "/dav/Shows/E1.mkv?token=bad")
+        assertNull(forged.resolve(config))
+    }
+
     private fun target(serverUrl: String, file: String, user: String = "alice", mediaRoot: String = ""):
         WebDavPlaybackIdentity.Target {
         val server = checkNotNull(WebDavPlaybackIdentity.directory(serverUrl))

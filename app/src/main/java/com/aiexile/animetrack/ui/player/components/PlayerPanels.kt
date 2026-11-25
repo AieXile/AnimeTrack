@@ -197,9 +197,17 @@ internal fun SideDrawerPanel(
 internal fun ColumnScope.TrackSelectionContent(
     trackType: Int,
     player: Player,
+    addSubtitle: (() -> Unit)? = null,
+    removeSubtitle: (() -> Unit)? = null,
     requestClose: () -> Unit
 ) {
     if (trackType == C.TRACK_TYPE_TEXT) {
+        addSubtitle?.let { add ->
+            TrackPanelItem(stringResource(R.string.player_manual_subtitle_add), false) { requestClose(); add() }
+        }
+        removeSubtitle?.let { remove ->
+            TrackPanelItem(stringResource(R.string.player_manual_subtitle_remove), false) { requestClose(); remove() }
+        }
         val choices = rememberPlayerTrackChoices(player, trackType)
         if (choices.isEmpty()) {
             Text(

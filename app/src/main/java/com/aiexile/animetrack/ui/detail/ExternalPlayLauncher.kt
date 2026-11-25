@@ -59,6 +59,7 @@ class ExternalPlayLauncher(
             ExternalPlayDecision.AskUser -> {
                 onAskUser(installed)
             }
+            ExternalPlayDecision.BuiltInOnly -> Unit
         }
     }
 

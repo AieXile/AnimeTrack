@@ -12,7 +12,10 @@ import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.media.LocalSubtitle
+import com.aiexile.animetrack.data.media.isWebDav
+import com.aiexile.animetrack.data.player.PlaybackTrace
 import com.aiexile.animetrack.data.player.PlayerRepository
+import com.aiexile.animetrack.data.player.webdav.PlayerWebDavDirectory
 import com.aiexile.animetrack.data.player.webdav.WebDavDirectoryQueue
 import com.aiexile.animetrack.data.player.webdav.WebDavPlaybackIdentity
 import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleLocator
@@ -68,14 +71,20 @@ internal class LocalPlaybackCoordinator(
 
     private var webDavQueue = emptyList<WebDavDirectoryQueue.Episode>()
     private var webDavResources = emptyList<DavResource>()
+    private var webDavConfig: PlayerWebDavDirectory.Config? = null
+    private var pendingWebDavFirstFrame: WebDavPlaybackIdentity.Target? = null
     private var webDavPreparation: Job? = null
     val hasWebDavQueue: Boolean get() = webDavQueue.isNotEmpty()
 
     fun canSelectWebDav(index: Int): Boolean = index in webDavQueue.indices
 
+    fun adjacentWebDavIndex(forward: Boolean): Int? =
+        WebDavDirectoryQueue.adjacentIndex(webDavQueue, uiState.value.currentEpisodeIndex, forward)
+
     fun syncWebDavNavigation() {
-        val index = uiState.value.currentEpisodeIndex
-        sessionCoordinator.syncSingleItemQueueNavigation(hasWebDavQueue, index > 0, canSelectWebDav(index + 1))
+        sessionCoordinator.syncSingleItemQueueNavigation(
+            hasWebDavQueue, adjacentWebDavIndex(false) != null, adjacentWebDavIndex(true) != null
+        )
     }
 
     fun cancelWebDavPreparation() { webDavPreparation?.cancel() }
@@ -84,11 +93,26 @@ internal class LocalPlaybackCoordinator(
         localQueue = emptyList()
         webDavQueue = emptyList()
         webDavResources = emptyList()
+        webDavConfig = null
+        pendingWebDavFirstFrame = null
     }
 
     fun indexOfWebDavMedia(mediaId: String?): Int = webDavQueue.indexOfFirst { it.target.mediaKey == mediaId }
     fun webDavTitle(index: Int): String? = webDavQueue.getOrNull(index)?.title
     fun webDavUrl(index: Int): String? = webDavQueue.getOrNull(index)?.target?.requestUrl?.toString()
+
+    fun onFirstFrame(mediaId: String?) {
+        val config = webDavConfig ?: return
+        val target = pendingWebDavFirstFrame?.takeIf { it.mediaKey == mediaId } ?: return
+        pendingWebDavFirstFrame = null
+        scope.launch {
+            try {
+                settingsRepository.markWebDavFirstFrame(config, target)
+            } catch (_: java.io.IOException) {
+                AppLogManager.w(TAG, "无法保存 WebDAV 最近成功播放记录")
+            }
+        }
+    }
 
     fun findLocalFile(mediaId: String?): LocalMediaEntity? =
         if (mediaId == null) null
@@ -109,11 +133,9 @@ internal class LocalPlaybackCoordinator(
         uiState.update { it.copy(mediaTitle = title, sourceLabel = "WebDAV") }
         webDavPreparation = scope.launch {
             try {
-                val server = WebDavPlaybackIdentity.directory(settingsRepository.playerWebdavUrl.first())
-                val root = server?.let { WebDavPlaybackIdentity.mediaRoot(it, settingsRepository.playerWebdavMediaRoot.first()) }
-                val username = settingsRepository.playerWebdavUsername.first()
-                val target = if (server != null && root != null) WebDavPlaybackIdentity.target(server, root, username, url) else null
-                if (target == null || server == null || root == null) {
+                val config = settingsRepository.playerWebdavDirectoryConfig.first()
+                val target = config?.let { WebDavPlaybackIdentity.target(it.server, it.root, it.username, url) }
+                if (target == null) {
                     uiState.update {
                         it.copy(error = PlaybackFailure(PlaybackFailureKind.INVALID_ADDRESS), isPreparingMedia = false)
                     }
@@ -122,19 +144,30 @@ internal class LocalPlaybackCoordinator(
 
                 // 复用浏览页已查好的目录，只生成视频和字幕引用，不下载其他集的内容。
                 val resources = withTimeoutOrNull(SUBTITLE_SCAN_TIMEOUT_MS) {
-                    WebDavSubtitleLocator.loadResources(target.requestUrl.toString(), settingsRepository)
+                    WebDavSubtitleLocator.loadResources(target.requestUrl.toString(), config)
                 }.orEmpty()
                 val queue = withContext(Dispatchers.IO) {
-                    WebDavDirectoryQueue.build(server, root, username, target, title, resources)
+                    WebDavDirectoryQueue.build(config.server, config.root, config.username, target, title, resources)
                 }
                 webDavResources = resources
+                webDavConfig = config
                 webDavQueue = queue
+                val selectedIndex = queue.indexOfFirst { it.target.mediaKey == target.mediaKey }
+                val numberCounts = queue.groupingBy { it.number }.eachCount()
+                PlaybackTrace.event {
+                    "dav.episodes listing=${resources.size} videos=${queue.size} numbered=${queue.count { it.number != null }} " +
+                        "selected=${queue.getOrNull(selectedIndex)?.number ?: -1}"
+                }
                 uiState.update {
                     it.copy(episodes = queue.mapIndexed { index, episode ->
-                        PlayerEpisode(episode.number?.let { "第${it}集" } ?: episode.title, index)
+                        val label = episode.number?.let { number ->
+                            val episodeLabel = application.getString(R.string.local_media_episode, number)
+                            if (numberCounts[number] == 1) episodeLabel else "$episodeLabel · ${episode.title}"
+                        } ?: episode.title
+                        PlayerEpisode(label, index)
                     })
                 }
-                startWebDavEpisode(queue.indexOfFirst { it.target.mediaKey == target.mediaKey })
+                startWebDavEpisode(selectedIndex)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -147,6 +180,7 @@ internal class LocalPlaybackCoordinator(
     private suspend fun startWebDavEpisode(index: Int) {
         val episode = checkNotNull(webDavQueue.getOrNull(index))
         val target = episode.target
+        pendingWebDavFirstFrame = target
         val requestUrl = target.requestUrl.toString()
         val sources = webDavResources
         val subtitles = withContext(Dispatchers.IO) { WebDavSubtitleLocator.selectTracks(requestUrl, sources) }
@@ -223,7 +257,6 @@ internal class LocalPlaybackCoordinator(
         onRecordPlayRequest(PlayRequest.LocalMedia(mediaId))
         onBeginPlaybackRequest()
         onResetForNewSource()
-        uiState.update { it.copy(sourceLabel = application.getString(R.string.player_local_source)) }
         scope.launch {
             val selected = localMediaRepository.getMediaById(mediaId)
             if (selected == null || selected.isMissing || selected.isHidden) {
@@ -267,6 +300,7 @@ internal class LocalPlaybackCoordinator(
             uiState.update {
                 it.copy(
                     mediaTitle = localDisplayTitle(queue[startIndex]),
+                    sourceLabel = application.getString(if (selected.isWebDav) R.string.detail_play_webdav else R.string.player_local_source),
                     seriesTitle = archive?.title ?: startAnime?.title ?: queue[startIndex].parsedTitle,
                     episodes = queue.mapIndexed { index, file ->
                         PlayerEpisode(

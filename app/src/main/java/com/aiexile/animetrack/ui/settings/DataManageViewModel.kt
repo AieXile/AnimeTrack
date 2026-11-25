@@ -116,7 +116,7 @@ class DataManageViewModel(
             AppLogManager.i(TAG, "手动备份开始: strategy=${backupStrategy.value}")
             try {
                 val context = AppContainer.getApplication()
-                val backupFile = BackupManager.backup(context, backupStrategy.value, getAnimeDao())
+                val backupFile = BackupManager.backup(context, backupStrategy.value)
 
                 _loadingMessage.value = "正在上传..."
                 val result = WebDAVClient.upload(
@@ -165,7 +165,7 @@ class DataManageViewModel(
 
                 _loadingMessage.value = "正在恢复..."
                 val restoreResult = BackupManager.restore(
-                    context, strategy, restoreMode.value, downloadFile, getAnimeDao()
+                    context, strategy, restoreMode.value, downloadFile
                 )
                 _snackbarMessage.value = "恢复完成：共 ${restoreResult.totalCount} 部，新增 ${restoreResult.insertedCount} 部，跳过 ${restoreResult.skippedCount} 部"
                 downloadFile.delete()
@@ -179,10 +179,6 @@ class DataManageViewModel(
                 _loadingMessage.value = ""
             }
         }
-    }
-
-    private fun getAnimeDao(): com.aiexile.animetrack.data.AnimeDao {
-        return com.aiexile.animetrack.data.AnimeDatabase.getDatabase(AppContainer.getApplication()).animeDao()
     }
 
     fun clearSnackbar() {

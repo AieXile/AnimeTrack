@@ -9,7 +9,7 @@
     <string name="webdav_sync_backup_strategy">Backup strategy</string>
     <string name="webdav_sync_strategy_affects_restore">This strategy also affects restore</string>
     <string name="webdav_sync_format_json">JSON</string>
-    <string name="webdav_sync_format_json_desc">Data only, faster transfer, shorter time</string>
+    <string name="webdav_sync_format_json_desc">Includes folder covers. Use Full ZIP to include anime artwork.</string>
     <string name="webdav_sync_format_zip">Full ZIP</string>
     <string name="webdav_sync_format_zip_desc">With images, slower transfer, longer time</string>
     <string name="webdav_sync_restore_mode">Restore mode</string>

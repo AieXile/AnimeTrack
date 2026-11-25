@@ -3,6 +3,7 @@ package com.aiexile.animetrack.data.media
 import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Delete
+import androidx.room.Embedded
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -13,8 +14,58 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 
+private const val SCRAPE_QUEUE_FILTER =
+    "sourceId = :sourceId AND isMissing = 0 AND isHidden = 0 AND isUserOverride = 0 " +
+        "AND scrapeState IN ('WAITING', 'ENRICH') AND groupKey IS NOT NULL"
+
 // 所有媒体库查询使用同一有效关联条件：匹配状态正确，且番剧条目仍存在。
 private const val MATCHED_ANIME_JOIN = "anime.id = media.matchedAnimeId AND media.matchState IN ('AUTO_MATCHED', 'CONFIRMED')"
+
+private const val TRACKED_ARCHIVE_MATCH = """
+    (archive.bangumiId = tracked.bangumiId OR (
+        archive.tmdbId = tracked.tmdbId AND (
+            archive.bangumiId IS NULL OR (
+                tracked.bangumiId IS NULL AND NOT EXISTS (SELECT 1 FROM anime WHERE bangumiId = archive.bangumiId)
+            )
+        )
+    )) AND (
+        (archive.bangumiId IS NOT NULL AND archive.bangumiId = tracked.bangumiId) OR (
+            archive.tmdbId = tracked.tmdbId AND archive.`key` NOT LIKE 'tmdb:movie:%' AND media.movie = 0
+            AND COALESCE(media.seasonNumber, 1) = COALESCE(tracked.seasonNumber, 1)
+        )
+    )
+"""
+
+private const val CARD_MEDIA =
+    "SELECT media.* FROM local_media AS media LEFT JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
+        "WHERE media.sourceId = :sourceId AND media.isMissing = 0 AND media.isHidden = 0 AND (" +
+        "(:archiveKey IS NOT NULL AND media.archiveKey = :archiveKey) OR " +
+        "(media.archiveKey IS NULL AND :reviewKey IS NOT NULL AND anime.id IS NULL AND media.groupKey = :reviewKey " +
+        "AND media.scrapeState IN ('WAITING', 'REVIEW')) OR " +
+        "(media.archiveKey IS NULL AND :archiveKey IS NULL AND :reviewKey IS NULL AND anime.id = :animeId))"
+
+private const val MEDIA_GROUPS =
+    "SELECT media.sourceId, 0 AS animeId, archive.title, archive.coverUrl, COUNT(*) AS videoCount, " +
+        "SUM(CASE WHEN media.matchState = 'AUTO_MATCHED' THEN 1 ELSE 0 END) AS pendingCount, " +
+        "archive.`key` AS archiveKey, NULL AS reviewKey, 0 AS waiting, MAX(media.movie) AS movie " +
+        "FROM local_media AS media JOIN local_media_archive AS archive ON archive.sourceId = media.sourceId " +
+        "AND archive.`key` = media.archiveKey WHERE media.sourceId IN (SELECT id FROM selected_sources) " +
+        "AND media.isMissing = 0 AND media.isHidden = 0 " +
+        "GROUP BY media.sourceId, archive.`key` UNION ALL " +
+        "SELECT media.sourceId, anime.id AS animeId, anime.title, anime.coverUrl, COUNT(*) AS videoCount, " +
+        "SUM(CASE WHEN media.matchState = 'AUTO_MATCHED' THEN 1 ELSE 0 END) AS pendingCount, " +
+        "NULL AS archiveKey, NULL AS reviewKey, 0 AS waiting, MAX(media.movie) AS movie " +
+        "FROM local_media AS media JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
+        "WHERE media.sourceId IN (SELECT id FROM selected_sources) AND media.archiveKey IS NULL " +
+        "AND media.isMissing = 0 AND media.isHidden = 0 " +
+        "GROUP BY media.sourceId, anime.id, anime.title, anime.coverUrl UNION ALL " +
+        "SELECT media.sourceId, 0 AS animeId, MIN(COALESCE(media.parsedTitle, media.fileName)) AS title, NULL AS coverUrl, " +
+        "COUNT(*) AS videoCount, 0 AS pendingCount, NULL AS archiveKey, media.groupKey AS reviewKey, " +
+        "MAX(CASE WHEN media.scrapeState = 'WAITING' THEN 1 ELSE 0 END) AS waiting, MAX(media.movie) AS movie " +
+        "FROM local_media AS media LEFT JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
+        "WHERE media.sourceId IN (SELECT id FROM selected_sources) AND media.isMissing = 0 AND media.isHidden = 0 " +
+        "AND media.archiveKey IS NULL AND anime.id IS NULL AND media.groupKey IS NOT NULL " +
+        "AND media.scrapeState IN ('WAITING', 'REVIEW') GROUP BY media.sourceId, media.groupKey"
 
 @Dao
 interface LocalMediaDao {
@@ -59,33 +110,27 @@ interface LocalMediaDao {
     @Delete
     suspend fun deleteSource(source: LocalMediaSourceEntity)
 
+    @Query("DELETE FROM local_source WHERE (treeUri = :prefix OR treeUri LIKE :prefix || '/%') AND (:activeUri IS NULL OR treeUri != :activeUri)")
+    suspend fun deleteInactiveWebDavSources(prefix: String, activeUri: String?)
+
     @Query("UPDATE local_source SET permissionState = 'REVOKED' WHERE id = :sourceId AND permissionState != 'REVOKED'")
     suspend fun markPermissionRevoked(sourceId: Long)
 
     @Query(
-        "SELECT * FROM (" +
-            "SELECT media.sourceId, 0 AS animeId, archive.title, archive.coverUrl, COUNT(*) AS videoCount, " +
-            "SUM(CASE WHEN media.matchState = 'AUTO_MATCHED' THEN 1 ELSE 0 END) AS pendingCount, " +
-            "archive.`key` AS archiveKey, NULL AS reviewKey, 0 AS waiting, MAX(media.movie) AS movie " +
-            "FROM local_media AS media JOIN local_media_archive AS archive ON archive.sourceId = media.sourceId " +
-            "AND archive.`key` = media.archiveKey WHERE media.sourceId = :sourceId AND media.isMissing = 0 AND media.isHidden = 0 " +
-            "GROUP BY media.sourceId, archive.`key` UNION ALL " +
-            "SELECT media.sourceId, anime.id AS animeId, anime.title, anime.coverUrl, COUNT(*) AS videoCount, " +
-            "SUM(CASE WHEN media.matchState = 'AUTO_MATCHED' THEN 1 ELSE 0 END) AS pendingCount, " +
-            "NULL AS archiveKey, NULL AS reviewKey, 0 AS waiting, MAX(media.movie) AS movie " +
-            "FROM local_media AS media JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
-            "WHERE media.sourceId = :sourceId AND media.archiveKey IS NULL AND media.isMissing = 0 AND media.isHidden = 0 " +
-            "GROUP BY media.sourceId, anime.id, anime.title, anime.coverUrl UNION ALL " +
-            "SELECT media.sourceId, 0 AS animeId, MIN(COALESCE(media.parsedTitle, media.fileName)) AS title, NULL AS coverUrl, " +
-            "COUNT(*) AS videoCount, 0 AS pendingCount, NULL AS archiveKey, media.groupKey AS reviewKey, " +
-            "MAX(CASE WHEN media.scrapeState = 'WAITING' THEN 1 ELSE 0 END) AS waiting, MAX(media.movie) AS movie " +
-            "FROM local_media AS media LEFT JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
-            "WHERE media.sourceId = :sourceId AND media.isMissing = 0 AND media.isHidden = 0 AND media.archiveKey IS NULL " +
-            "AND anime.id IS NULL AND media.groupKey IS NOT NULL AND media.scrapeState IN ('WAITING', 'REVIEW') " +
-            "GROUP BY media.sourceId, media.groupKey) " +
+        "WITH selected_sources AS (SELECT :sourceId AS id) SELECT * FROM ($MEDIA_GROUPS) " +
             "ORDER BY reviewKey IS NOT NULL, title COLLATE NOCASE, archiveKey, reviewKey, animeId"
     )
     fun pageAnimeGroups(sourceId: Long): PagingSource<Int, LocalMediaAnimeGroup>
+
+    @Query(
+        "WITH selected_sources AS (SELECT id FROM local_source WHERE permissionState = 'GRANTED' " +
+            "AND (treeUri LIKE 'content://%' OR treeUri = :webDavUri)), groups AS ($MEDIA_GROUPS) " +
+            "SELECT groups.*, source.displayName AS sourceName, COALESCE(source.treeUri = :webDavUri, 0) AS webDav, " +
+            "archive.bangumiId, archive.tmdbId FROM groups JOIN local_source AS source ON source.id = groups.sourceId " +
+            "LEFT JOIN local_media_archive AS archive ON archive.sourceId = groups.sourceId AND archive.`key` = groups.archiveKey " +
+            "ORDER BY groups.sourceId, groups.archiveKey, groups.reviewKey, groups.animeId"
+    )
+    fun observeLibraryGroups(webDavUri: String?): Flow<List<ScannedLibraryGroup>>
 
     // LEFT JOIN 的空侧正好是「已归类」的补集，包括清除关联和原番剧已被移除的文件。
     @Query(
@@ -138,17 +183,17 @@ interface LocalMediaDao {
     @Upsert
     suspend fun putArchive(archive: LocalMediaArchiveEntity)
 
-    @Query(
-        "SELECT * FROM local_media WHERE sourceId = :sourceId AND isMissing = 0 AND isHidden = 0 AND isUserOverride = 0 " +
-            "AND scrapeState IN ('WAITING', 'ENRICH') AND groupKey IS NOT NULL ORDER BY groupKey, id"
-    )
+    @Query("SELECT * FROM local_media WHERE $SCRAPE_QUEUE_FILTER ORDER BY updatedAt, id")
     suspend fun getScrapeQueue(sourceId: Long): List<LocalMediaEntity>
+
+    @Query("SELECT COUNT(DISTINCT groupKey) FROM local_media WHERE $SCRAPE_QUEUE_FILTER")
+    fun observeScrapeGroupCount(sourceId: Long): Flow<Int>
 
     @Transaction
     suspend fun commitScrape(
         expected: List<LocalMediaEntity>,
         archive: LocalMediaArchiveEntity?,
-        state: String,
+        state: String?,
         animeId: Int?,
         episodeMapping: Map<Long, Pair<Int, Int?>>,
         now: Long
@@ -177,12 +222,12 @@ interface LocalMediaDao {
             val mapping = episodeMapping[row.id]
             row.copy(
                 archiveKey = archive?.key ?: row.archiveKey,
-                scrapeState = state,
+                scrapeState = state ?: row.scrapeState,
                 matchedAnimeId = if (archive != null) animeId else row.matchedAnimeId,
                 matchState = if (archive != null) LocalMediaMatchState.AUTO_MATCHED else row.matchState,
                 episodeNumber = mapping?.first ?: row.episodeNumber,
                 episodeEndNumber = if (mapping != null) mapping.second else row.episodeEndNumber,
-                updatedAt = now
+                updatedAt = maxOf(now, row.updatedAt + 1)
             )
         })
     }
@@ -232,15 +277,15 @@ interface LocalMediaDao {
     }
 
     /** 按卡片身份读取整组，尤其不能按第一页选集或第一个目录截断。 */
-    @Query(
-        "SELECT media.* FROM local_media AS media LEFT JOIN anime ON " + MATCHED_ANIME_JOIN + " " +
-            "WHERE media.sourceId = :sourceId AND media.isMissing = 0 AND media.isHidden = 0 AND (" +
-            "(:archiveKey IS NOT NULL AND media.archiveKey = :archiveKey) OR " +
-            "(media.archiveKey IS NULL AND :reviewKey IS NOT NULL AND anime.id IS NULL AND media.groupKey = :reviewKey " +
-            "AND media.scrapeState IN ('WAITING', 'REVIEW')) OR " +
-            "(media.archiveKey IS NULL AND :archiveKey IS NULL AND :reviewKey IS NULL AND anime.id = :animeId))"
-    )
+    @Query(CARD_MEDIA)
     suspend fun getCardMedia(sourceId: Long, archiveKey: String?, reviewKey: String?, animeId: Int): List<LocalMediaEntity>
+
+    @Query(
+        CARD_MEDIA + " ORDER BY CASE WHEN media.episodeType = 'EXTRA' OR media.seasonNumber = 99 THEN 1 ELSE 0 END, " +
+            "COALESCE(media.seasonNumber, 1), COALESCE(media.episodeNumber, CAST(media.decimalEpisode AS REAL)) IS NULL, " +
+            "COALESCE(media.episodeNumber, CAST(media.decimalEpisode AS REAL)), media.relativePath COLLATE NOCASE, media.id"
+    )
+    fun observeCardMedia(sourceId: Long, archiveKey: String?, reviewKey: String?, animeId: Int): Flow<List<LocalMediaEntity>>
 
     suspend fun getCardMedia(card: LocalMediaAnimeGroup): List<LocalMediaEntity> =
         getCardMedia(card.sourceId, card.archiveKey, card.reviewKey, card.animeId)
@@ -279,6 +324,9 @@ interface LocalMediaDao {
 
     @Query("SELECT * FROM local_media WHERE id IN (:ids)")
     suspend fun getMediaByIds(ids: List<Long>): List<LocalMediaEntity>
+
+    @Query("SELECT * FROM local_media WHERE id IN (:ids) AND isMissing = 0 AND isHidden = 0")
+    fun observeVisibleMediaByIds(ids: List<Long>): Flow<List<LocalMediaEntity>>
 
     @Insert
     suspend fun insertMedia(items: List<LocalMediaEntity>)
@@ -408,17 +456,39 @@ interface LocalMediaDao {
     )
     suspend fun getEpisodesForAnime(animeId: Int): List<LocalMediaEntity>
 
-    /**
-     * 详情页播放入口使用的剧集列表：只取用户确认过关联、文件仍在的正片。
-     * 未确认的自动匹配结果不进入详情页，避免播错番。
-     */
+    /** 显式关联优先，已确认的归档也可凭提供商 ID 关联后来添加的追番记录。 */
     @Query(
-        "SELECT * FROM local_media WHERE matchedAnimeId = :animeId AND matchState = 'CONFIRMED' " +
-            "AND isMissing = 0 AND isHidden = 0 AND (episodeType IS NULL OR episodeType != 'EXTRA') " +
-            "AND (seasonNumber IS NULL OR seasonNumber NOT IN (0, 99)) AND decimalEpisode IS NULL " +
-            "ORDER BY COALESCE(seasonNumber, 1), COALESCE(episodeNumber, 9999), id"
+        """
+        WITH linked AS (
+            SELECT * FROM local_media WHERE matchedAnimeId = :animeId
+            UNION ALL
+            SELECT media.* FROM local_media AS media
+            JOIN local_media_archive AS archive ON media.sourceId = archive.sourceId AND media.archiveKey = archive.`key`
+            JOIN anime AS tracked ON $TRACKED_ARCHIVE_MATCH
+            WHERE tracked.id = :animeId AND media.matchedAnimeId IS NULL
+        )
+        SELECT linked.* FROM linked JOIN local_source AS source ON source.id = linked.sourceId
+        WHERE linked.matchState = 'CONFIRMED' AND linked.isMissing = 0 AND linked.isHidden = 0
+            AND source.permissionState = 'GRANTED'
+            AND (source.treeUri NOT LIKE 'webdav://%' OR source.treeUri = :activeWebDavUri)
+            AND (linked.episodeType IS NULL OR linked.episodeType != 'EXTRA')
+            AND (linked.seasonNumber IS NULL OR linked.seasonNumber NOT IN (0, 99) OR linked.movie = 1)
+            AND linked.decimalEpisode IS NULL
+        ORDER BY COALESCE(linked.seasonNumber, 1), COALESCE(linked.episodeNumber, 9999), linked.id
+        """
     )
-    fun observeConfirmedEpisodesForAnime(animeId: Int): Flow<List<LocalMediaEntity>>
+    fun observeConfirmedEpisodesForAnime(animeId: Int, activeWebDavUri: String? = null): Flow<List<LocalMediaEntity>>
+
+    @Query(
+        """
+        SELECT tracked.id FROM local_media AS media
+        JOIN local_media_archive AS archive ON media.sourceId = archive.sourceId AND media.archiveKey = archive.`key`
+        JOIN anime AS tracked ON $TRACKED_ARCHIVE_MATCH
+        WHERE media.id = :mediaId AND media.matchedAnimeId IS NULL AND media.matchState = 'CONFIRMED'
+        LIMIT 2
+        """
+    )
+    suspend fun findTrackedAnimeIdsForArchive(mediaId: Long): List<Int>
 
     @Query("SELECT episodeNumber FROM local_episode_progress WHERE animeId = :animeId")
     fun observeCompletedEpisodeNumbers(animeId: Int): Flow<List<Int>>
@@ -453,4 +523,12 @@ data class LocalMediaAutoMatch(
     val seasonNumber: Int?,
     val animeId: Int,
     val confidence: Float
+)
+
+data class ScannedLibraryGroup(
+    @Embedded val group: LocalMediaAnimeGroup,
+    val sourceName: String,
+    val webDav: Boolean,
+    val bangumiId: Int?,
+    val tmdbId: Int?
 )

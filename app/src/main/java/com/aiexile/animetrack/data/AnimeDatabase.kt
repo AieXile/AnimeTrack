@@ -7,6 +7,9 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.aiexile.animetrack.data.favorites.FavoriteFolder
+import com.aiexile.animetrack.data.favorites.FavoriteFolderDao
+import com.aiexile.animetrack.data.favorites.FavoriteFolderEntry
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaDao
 import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
@@ -23,9 +26,11 @@ import com.aiexile.animetrack.model.PendingDeletion
         LocalMediaSourceEntity::class,
         LocalMediaEntity::class,
         LocalEpisodeProgressEntity::class,
-        LocalMediaArchiveEntity::class
+        LocalMediaArchiveEntity::class,
+        FavoriteFolder::class,
+        FavoriteFolderEntry::class
     ],
-    version = 32,
+    version = 33,
     exportSchema = true
 )
 @TypeConverters(AnimeTypeConverters::class)
@@ -33,6 +38,7 @@ abstract class AnimeDatabase : RoomDatabase() {
     
     abstract fun animeDao(): AnimeDao
     abstract fun localMediaDao(): LocalMediaDao
+    abstract fun favoriteFolderDao(): FavoriteFolderDao
     
     companion object {
         private const val TAG = "Database"
@@ -610,6 +616,25 @@ abstract class AnimeDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_32_33 = object : Migration(32, 33) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS favorite_folder (
+                        id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, cover TEXT
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS favorite_folder_entry (
+                        folderId TEXT NOT NULL, animeId INTEGER NOT NULL, position INTEGER NOT NULL,
+                        PRIMARY KEY(folderId, animeId),
+                        FOREIGN KEY(folderId) REFERENCES favorite_folder(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(animeId) REFERENCES anime(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_favorite_folder_entry_animeId ON favorite_folder_entry(animeId)")
+            }
+        }
+
         /** 迁移链（统一包装为带日志的 [LoggingMigration]） */
         private val MIGRATIONS: Array<Migration> = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
@@ -620,7 +645,8 @@ abstract class AnimeDatabase : RoomDatabase() {
             MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
             MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
             MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
-            MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32
+            MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32,
+            MIGRATION_32_33
         ).map { LoggingMigration(it) }.toTypedArray()
 
         /**

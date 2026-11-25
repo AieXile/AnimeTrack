@@ -15,7 +15,7 @@ import com.aiexile.animetrack.R
  *
  * UI 层不直接引用 R.drawable.sym_* / R.drawable.lucide_*，
  * 统一经 [AppIcon] / [rememberAppIconPainter] 渲染，以支持外观设置中切换图标包。
- * 条目名与 sym 资源名一一对应（FILLED 后缀 = 导航选中态填充变体，Lucide 包下复用基础图标）。
+ * FILLED 后缀表示选中态图标，各图标包可提供填充或加粗变体。
  */
 enum class AppIcon(
     @param:DrawableRes val materialRes: Int,
@@ -62,6 +62,7 @@ enum class AppIcon(
     EVENT_BUSY(R.drawable.sym_event_busy, R.drawable.lucide_calendar_x),
     FAST_FORWARD(R.drawable.sym_fast_forward, R.drawable.lucide_fast_forward),
     FAVORITE(R.drawable.sym_favorite, R.drawable.lucide_heart),
+    FAVORITE_FILLED(R.drawable.sym_fill_favorite, R.drawable.lucide_heart_fill),
     FEEDBACK(R.drawable.sym_feedback, R.drawable.lucide_message_square_warning),
     FILE_DOWNLOAD(R.drawable.sym_file_download, R.drawable.lucide_download),
     /** 从本地导入文件：Material 用箭头入框（input），Lucide 用文件接收箭头（file-input） */

@@ -1,10 +1,10 @@
 package com.aiexile.animetrack.ui.player.webdav
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +30,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,19 +47,57 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.filterNotNull
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.ui.components.chrome.AppScaffold
+import com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen
+import com.aiexile.animetrack.ui.player.local.LocalMediaViewModel
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebDAVBrowseScreen(
     onFileClick: (path: String, fileName: String) -> Unit,
+    onPlayMedia: (mediaId: Long) -> Unit,
+    onBack: () -> Unit
+) {
+    var showDirectories by rememberSaveable { mutableStateOf(false) }
+    val libraryFactory = remember { LocalMediaViewModel.Factory(webDavOnly = true) }
+    val library: LocalMediaViewModel = viewModel(factory = libraryFactory)
+    BackHandler(enabled = showDirectories) { showDirectories = false }
+
+    if (showDirectories) {
+        WebDavDirectoryScreen(onFileClick = onFileClick, onBack = { showDirectories = false })
+    } else {
+        LocalMediaLibraryScreen(
+            onBack = onBack,
+            onPlayMedia = onPlayMedia,
+            viewModel = library,
+            onBrowseDirectories = { showDirectories = true }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WebDavDirectoryScreen(
+    onFileClick: (path: String, fileName: String) -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: WebDAVBrowseViewModel = viewModel(factory = WebDAVBrowseViewModel.Factory())
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val listState = rememberLazyListState()
+    val recent by viewModel.resume.collectAsStateWithLifecycle(initialValue = null)
+    val listState = key(uiState.listGeneration) {
+        rememberLazyListState(uiState.scrollIndex, uiState.scrollOffset)
+    }
+    LaunchedEffect(uiState.listGeneration, uiState.isLoading) {
+        if (uiState.isLoading || uiState.files.isEmpty()) return@LaunchedEffect
+        val generation = uiState.listGeneration
+        snapshotFlow {
+            if (listState.isScrollInProgress) null
+            else listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.filterNotNull().collect { (index, offset) -> viewModel.rememberScroll(generation, index, offset) }
+    }
 
     // 返回同一浏览实例时保留目录列表；仅首次进入或进程重建后重新查询。
     LaunchedEffect(viewModel) {
@@ -109,7 +153,7 @@ fun WebDAVBrowseScreen(
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Text(
-                        text = uiState.currentPath.ifBlank { "/" },
+                        text = uiState.currentPath.takeIf { it.isNotBlank() }?.let(::webDavDisplayPath) ?: "/",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -119,7 +163,7 @@ fun WebDAVBrowseScreen(
                         Text(
                             text = stringResource(
                                 R.string.webdav_browse_root_format,
-                                uiState.mediaRootPath
+                                webDavDisplayPath(uiState.mediaRootPath)
                             ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
@@ -142,6 +186,16 @@ fun WebDAVBrowseScreen(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
+
+            recent?.let { target ->
+                if (uiState.isConfigured) Button(
+                    onClick = { onFileClick(target.requestUrl.toString(), target.title) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.player_webdav_continue_recent, target.title), maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
+                }
+            }
 
             when {
                 uiState.isLoading -> {
@@ -214,6 +268,8 @@ fun WebDAVBrowseScreen(
                             FileItemRow(
                                 item = item,
                                 onClick = {
+                                    viewModel.rememberScroll(uiState.listGeneration, listState.firstVisibleItemIndex,
+                                        listState.firstVisibleItemScrollOffset)
                                     if (item.isDirectory) {
                                         viewModel.browseDirectory(item.path)
                                     } else {

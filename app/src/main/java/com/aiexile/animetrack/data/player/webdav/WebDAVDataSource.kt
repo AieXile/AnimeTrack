@@ -9,8 +9,11 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import java.io.EOFException
 import java.io.IOException
 import java.io.InputStream
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -78,7 +81,7 @@ class WebDAVDataSource(
                     response.challenges().any { it.scheme.equals("Basic", true) } &&
                     response.challenges().none { it.scheme.equals("Digest", true) }
                 ) throw WebDavSubtitleBasicChallenge(error)
-                if (!isSubtitle && (statusCode == 401 || (position > 0 && statusCode == 416))) {
+                if (!isSubtitle && (statusCode == 401 || position > 0)) {
                     throw WebDavResumeOpenException(error)
                 }
                 throw error
@@ -124,7 +127,7 @@ class WebDAVDataSource(
 
     private fun executeRequest(request: Request, offset: Long): Response {
         val traceId = PlaybackTrace.nextRequest()
-        var response = okHttpClient.newCall(request).execute()
+        var response = openInitialResponse(request, offset, traceId)
         PlaybackTrace.response(traceId, request, response, offset, digestRetry = false)
         if (response.code != 401 || username.isEmpty()) return response
         val challenged = response.request
@@ -154,6 +157,25 @@ class WebDAVDataSource(
         }
         PlaybackTrace.response(traceId, request, response, offset, digestRetry = digestChallenge != null)
         return response
+    }
+
+    private fun openInitialResponse(request: Request, offset: Long, traceId: Long): Response {
+        try {
+            return okHttpClient.newCall(request).execute()
+        } catch (error: IOException) {
+            if (isSubtitle || offset == 0L || Thread.currentThread().isInterrupted) throw error
+            val replay = error is SocketTimeoutException || error is SocketException || error is EOFException
+            PlaybackTrace.event { "dav.openFailure req=$traceId offset=$offset cause=${error.javaClass.simpleName} replay=$replay" }
+            if (!replay) throw WebDavResumeOpenException(error)
+        }
+
+        // Media3 重试 open 时可能从上一个 ExtractorInput 的偏移继续，而不是本次请求的 Range。
+        // 只在请求尚未得到响应、且未向提取器交付字节时原样重放一次。
+        return try {
+            okHttpClient.newCall(request).execute()
+        } catch (error: IOException) {
+            throw WebDavResumeOpenException(error)
+        }
     }
 
     private fun closeAfterOpenFailure(cause: Exception) {

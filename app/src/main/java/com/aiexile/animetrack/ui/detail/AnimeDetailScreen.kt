@@ -2,6 +2,7 @@ package com.aiexile.animetrack.ui.detail
 
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import com.aiexile.animetrack.ui.icons.AppIcon
+import com.aiexile.animetrack.ui.favorites.rememberFavoriteToggle
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -73,6 +74,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -158,18 +161,11 @@ import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.ChromeStyle
 import com.aiexile.animetrack.data.player.web.PendingWebPlayback
 import com.aiexile.animetrack.data.log.AppLogManager
-import com.aiexile.animetrack.data.playlink.BilibiliPlayLinkResolver
 import com.aiexile.animetrack.di.AppContainer
 import com.aiexile.animetrack.di.TopNoticeType
-import com.aiexile.animetrack.domain.externalplayer.BilibiliPlayer
-import com.aiexile.animetrack.domain.externalplayer.ExternalPlayDecision
-import com.aiexile.animetrack.domain.externalplayer.ExternalPlayDispatcher
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayMode
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayRequest
-import com.aiexile.animetrack.domain.externalplayer.ExternalPlayResult
 import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerId
-import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerLauncher
-import com.aiexile.animetrack.domain.externalplayer.ExternalPlayerRegistry
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.aiexile.animetrack.model.SearchResult
@@ -239,6 +235,7 @@ fun AnimeDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val toggleFavorite = rememberFavoriteToggle { _, checked -> viewModel.setFavorite(checked) }
     val scope = rememberCoroutineScope()
     val editState = uiState.editState
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -257,12 +254,11 @@ fun AnimeDetailScreen(
     var floatingLayerBounds by remember { mutableStateOf(Rect.Zero) }
     val focusManager = LocalFocusManager.current
     val shareButtonEnabled by settingsRepository.shareButtonEnabled.collectAsStateWithLifecycle(initialValue = false)
-    // 外部播放按钮可见性与目标选择方式（功能设置）
-    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsStateWithLifecycle(initialValue = false)
+    val detailPlayEntryVisible by settingsRepository.detailPlayEntryVisible.collectAsStateWithLifecycle(initialValue = false)
     val externalPlayMode by settingsRepository.externalPlayMode.collectAsStateWithLifecycle(initialValue = ExternalPlayMode.AUTO)
-    // 应用内播放（本地库 / 网页）与设置页「视频播放」共用同一个开发者开关
-    val playerHubVisible by settingsRepository.playerHubVisible.collectAsStateWithLifecycle(initialValue = false)
-    val localPlaybackEntry by viewModel.localPlayback.collectAsStateWithLifecycle()
+    val mediaLibraryPlayback by viewModel.mediaLibraryPlayback.collectAsStateWithLifecycle()
+    val localPlaybackEntry = mediaLibraryPlayback.local
+    val webDavPlaybackEntry = mediaLibraryPlayback.webDav
     val webResume by viewModel.webResume.collectAsStateWithLifecycle()
     // 外部播放的「直达/询问」与播放器拉起逻辑独立在 ExternalPlayLauncher，这里只注入状态与回调
     val externalPlayLauncher = remember(context, scope, externalPlayMode) {
@@ -358,22 +354,25 @@ fun AnimeDetailScreen(
         }
     }
 
-    // 播放入口仅在「正在观看 / 计划观看」且已开播时可用：
-    // 未放送（与详情页状态徽章一致的 isUnaired 判定）、已看完、已弃番均隐藏
-    val externalPlayEntryAllowed = externalPlayerEntryVisible &&
-        !editState.isEditing &&
+    val playbackEnabled = detailPlayEntryVisible && !editState.isEditing && uiState.anime != null
+    // 外部应用跳转沿用已开播且正在看或计划看的限制。
+    val externalPlayEntryAllowed = playbackEnabled && externalPlayMode != ExternalPlayMode.BUILT_IN &&
         uiState.anime?.let { anime ->
             !isUnaired(anime.airDate) &&
                 (anime.status == AnimeStatus.WATCHING || anime.status == AnimeStatus.PLANNED)
         } == true
 
-    // 本地续播不受追番状态限制：已完结的番也可能重看；只看文件是否存在且已确认关联
-    val localPlaybackAllowed = playerHubVisible && !editState.isEditing && localPlaybackEntry != null
+    val localPlaybackAllowed = playbackEnabled && localPlaybackEntry != null
+    val webDavPlaybackAllowed = playbackEnabled && webDavPlaybackEntry != null
     // 网页续播只认从本详情页进入后留下的历史（history.animeId == 当前番剧）
-    val webContinueAllowed = playerHubVisible && !editState.isEditing && webResume != null
-    val webPlaybackAllowed = playerHubVisible && !editState.isEditing
-    // 开启「视频播放」后，网页播放入口本身也可用；否则只有外部播放入口
-    val playEntryVisible = webPlaybackAllowed || externalPlayEntryAllowed
+    val webContinueAllowed = playbackEnabled && webResume != null
+    val playSources = buildList {
+        if (localPlaybackAllowed) add(DetailPlaySource.LOCAL)
+        if (webDavPlaybackAllowed) add(DetailPlaySource.WEBDAV)
+        if (externalPlayEntryAllowed) add(DetailPlaySource.EXTERNAL)
+        if (playbackEnabled) add(DetailPlaySource.WEB)
+    }
+    val playEntryVisible = playSources.isNotEmpty()
 
     // 展开卡片的目标集数文案：已看完（详情页级跳转）时留空，不标集数
     val externalPlayEpisodeText = uiState.anime?.let { anime ->
@@ -389,15 +388,17 @@ fun AnimeDetailScreen(
     val localEpisodeLabel = localPlaybackEntry?.episodeNumber?.let {
         stringResource(R.string.detail_watched_only_format, it)
     }
-    val webEpisodeLabel = webResume?.episodeLabel
-    // 本地或网页续播优先作为入口主文案；只有外部播放时用「外部播放」，只有网页入口时用「播放」
-    val playEntryTitle = when {
-        localPlaybackAllowed || webContinueAllowed -> stringResource(R.string.detail_play_continue)
-        externalPlayEntryAllowed -> stringResource(R.string.external_player_watch)
-        else -> stringResource(R.string.detail_play_action)
+    val webDavEpisodeLabel = webDavPlaybackEntry?.episodeNumber?.let {
+        stringResource(R.string.detail_watched_only_format, it)
     }
+    val webEpisodeLabel = webResume?.episodeLabel
+    val playEntryTitle = stringResource(
+        if (localPlaybackAllowed || webDavPlaybackAllowed || webContinueAllowed) R.string.detail_play_continue
+        else R.string.detail_play_action
+    )
     val playEntryEpisodeText = when {
         localPlaybackAllowed -> localEpisodeLabel.orEmpty()
+        webDavPlaybackAllowed -> webDavEpisodeLabel.orEmpty()
         webContinueAllowed -> webEpisodeLabel.orEmpty()
         externalPlayEntryAllowed -> externalPlayEpisodeText
         else -> ""
@@ -409,21 +410,25 @@ fun AnimeDetailScreen(
         onPlayWeb(target.request.animeId ?: animeId)
     }
 
+    fun playSource(source: DetailPlaySource) {
+        if (source !in playSources) return
+        when (source) {
+            DetailPlaySource.LOCAL -> localPlaybackEntry?.let { onPlayLocalMedia(it.mediaId) }
+            DetailPlaySource.WEBDAV -> webDavPlaybackEntry?.let { onPlayLocalMedia(it.mediaId) }
+            DetailPlaySource.EXTERNAL -> uiState.anime?.let(externalPlayLauncher::start)
+            DetailPlaySource.WEB -> if (webContinueAllowed) {
+                startWebResume()
+            } else {
+                uiState.anime?.let { onOpenWebPlayback(it.id, it.title) }
+            }
+        }
+    }
+
     val onPlayEntryClick: () -> Unit = {
-        val anime = uiState.anime
-        // 多个主来源同时可用时才需要选来源；网页播放页入口作为弹层里的补充入口，
-        // 没有该番网页历史时不打断一步直达。
-        val primarySourceCount = listOf(
-            localPlaybackAllowed,
-            externalPlayEntryAllowed,
-            webPlaybackAllowed
-        ).count { it }
-        when {
-            primarySourceCount > 1 -> showPlaySourceSheet = true
-            localPlaybackAllowed -> localPlaybackEntry?.let { onPlayLocalMedia(it.mediaId) }
-            webContinueAllowed -> startWebResume()
-            externalPlayEntryAllowed && anime != null -> externalPlayLauncher.start(anime)
-            webPlaybackAllowed -> anime?.let { onOpenWebPlayback(it.id, it.title) }
+        when (playSources.size) {
+            0 -> Unit
+            1 -> playSource(playSources.first())
+            else -> showPlaySourceSheet = true
         }
     }
 
@@ -513,6 +518,24 @@ fun AnimeDetailScreen(
                         painter = rememberAppIconPainter(AppIcon.DELETE),
                         contentDescription = stringResource(R.string.common_delete),
                         tint = MaterialTheme.colorScheme.error
+                    )
+                }
+                IconToggleButton(
+                    checked = anime.isFavorite,
+                    onCheckedChange = { toggleFavorite(anime, it) },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        checkedContainerColor = Color.Transparent,
+                        checkedContentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        painter = rememberAppIconPainter(
+                            if (anime.isFavorite) AppIcon.FAVORITE_FILLED else AppIcon.FAVORITE
+                        ),
+                        contentDescription = stringResource(
+                            if (anime.isFavorite) R.string.common_unfavorite else R.string.common_favorite
+                        )
                     )
                 }
                 IconButton(onClick = { viewModel.enterEditMode() }) {
@@ -731,7 +754,7 @@ fun AnimeDetailScreen(
             )
         }
 
-        if (showPlayerChoiceDialog && uiState.anime != null) {
+        if (showPlayerChoiceDialog && externalPlayEntryAllowed && uiState.anime != null) {
             val choiceAnime = uiState.anime!!
             ExternalPlayerChoiceSheet(
                 installed = choiceInstalledPlayers,
@@ -750,25 +773,21 @@ fun AnimeDetailScreen(
             )
         }
 
-        if (showPlaySourceSheet) {
+        if (showPlaySourceSheet && playEntryVisible) {
             DetailPlaySourceSheet(
-                hasLocal = localPlaybackAllowed,
-                hasExternal = externalPlayEntryAllowed,
-                hasWeb = webPlaybackAllowed,
+                sources = playSources,
+                externalTitle = stringResource(when (externalPlayMode) {
+                    ExternalPlayMode.ANIMEKO -> R.string.features_external_play_mode_animeko
+                    ExternalPlayMode.BILIBILI -> R.string.external_player_bilibili
+                    else -> R.string.external_player_watch
+                }),
                 localEpisodeLabel = localEpisodeLabel,
+                webDavEpisodeLabel = webDavEpisodeLabel,
                 externalEpisodeLabel = externalPlayEpisodeText,
                 webEpisodeLabel = webEpisodeLabel.takeIf { webContinueAllowed },
                 onSelect = { source ->
                     showPlaySourceSheet = false
-                    when (source) {
-                        DetailPlaySource.LOCAL -> localPlaybackEntry?.let { onPlayLocalMedia(it.mediaId) }
-                        DetailPlaySource.EXTERNAL -> uiState.anime?.let { externalPlayLauncher.start(it) }
-                        DetailPlaySource.WEB -> if (webContinueAllowed) {
-                            startWebResume()
-                        } else {
-                            uiState.anime?.let { onOpenWebPlayback(it.id, it.title) }
-                        }
-                    }
+                    playSource(source)
                 },
                 onDismiss = { showPlaySourceSheet = false }
             )

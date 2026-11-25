@@ -5,7 +5,8 @@ import com.aiexile.animetrack.data.BangumiSeriesResolver
 import com.aiexile.animetrack.model.Anime
 
 object SeriesMatcher {
-    private const val TAG = "SeriesMatcher"
+    private const val JOJO = "JOJO的奇妙冒险"
+    private const val KAMISAMA = "元气少女缘结神"
 
     /**
      * 可选的尾部副标题：季数标记后允许跟副标题（如"-起于暗影-""～XXX～"": Subtitle"）
@@ -219,129 +220,204 @@ object SeriesMatcher {
         return 1
     }
 
+    private val bangumiKeyPrefix = Regex("^bangumi:[0-9]+:")
+
+    /** 显示层只消费已识别的系列，不能重新合并识别器主动排除的同名条目。 */
     fun groupAnimeList(animeList: List<Anime>): List<AnimeListItem> {
-        // 优先按 seriesKey 分组（持久化识别结果），无 seriesKey 的回退到原标题匹配
-        val seriesKeyMap = mutableMapOf<String, MutableList<Anime>>()
-        val baseTitleMap = mutableMapOf<String, MutableList<Anime>>()
-        val orderMap = mutableMapOf<String, Int>()
-        // 与 indexOf 一样保留相等条目的首次位置；排序时不再反复线性扫描原列表。
-        // 索引仅属于本次输入，不跨数据更新缓存，避免进度/标题修改后沿用旧位置。
-        val itemOrderMap = HashMap<Anime, Int>(animeList.size)
-
-        for ((index, anime) in animeList.withIndex()) {
-            itemOrderMap.putIfAbsent(anime, index)
-            // 优先使用 seriesKey
-            val groupKey = anime.seriesKey ?: extractBaseTitle(anime.title)
-            val useSeriesKey = anime.seriesKey != null
-            val targetMap = if (useSeriesKey) seriesKeyMap else baseTitleMap
-            targetMap.getOrPut(groupKey) { mutableListOf() }.add(anime)
-            if (groupKey !in orderMap) orderMap[groupKey] = index
-        }
-
-        val result = mutableListOf<AnimeListItem>()
-        val groupedIds = mutableSetOf<Int>()
-
-        // 处理 seriesKey 分组（已持久化识别的系列）
-        // 组内不排序，保留进入时的主排序顺序（自动排序区块：正在观看 → 计划观看 → 未放送 →
-        // 已看完 → 已弃番，区块内部按各自时间键）；季数排序推迟到 displayList，仅在多季堆叠开启时应用
-        for ((key, animes) in seriesKeyMap) {
-            if (animes.size >= 2) {
-                result.add(AnimeListItem.Series(key, animes))
-                animes.forEach { groupedIds.add(it.id) }
-                Log.d(TAG, "grouped(seriesKey) '$key': ${animes.size} items")
-            }
-        }
-
-        // 处理 baseTitle 分组（无 seriesKey 的回退逻辑，兼容旧数据）
-        for ((baseTitle, animes) in baseTitleMap) {
-            if (animes.size >= 2) {
-                val hasSeasonSuffix = animes.any { extractBaseTitle(it.title) != it.title.trim() }
-                if (hasSeasonSuffix) {
-                    result.add(AnimeListItem.Series(baseTitle, animes))
-                    animes.forEach { groupedIds.add(it.id) }
-                    Log.d(TAG, "grouped(baseTitle) '$baseTitle': ${animes.size} items")
-                }
-            }
-        }
-
-        for (anime in animeList) {
-            if (anime.id !in groupedIds) {
-                result.add(AnimeListItem.Single(anime))
-            }
-        }
-
-        return result.sortedBy { item ->
-            when (item) {
-                is AnimeListItem.Single -> itemOrderMap[item.anime] ?: -1
-                is AnimeListItem.Series -> orderMap[item.baseTitle] ?: Int.MAX_VALUE
-                is AnimeListItem.ExpandedSeriesCard -> itemOrderMap[item.anime] ?: -1
+        val groups = animeList.filter { it.seriesKey != null }.groupBy { it.seriesKey!! }
+        val emittedGroups = mutableSetOf<String>()
+        return animeList.mapNotNull { anime ->
+            val key = anime.seriesKey
+            val group = groups[key]
+            when {
+                key == null || group == null || group.size < 2 -> AnimeListItem.Single(anime)
+                emittedGroups.add(key) -> AnimeListItem.Series(bangumiKeyPrefix.replaceFirst(key, ""), group)
+                else -> null
             }
         }
     }
 
-    /**
-     * 为番剧列表分配 seriesKey（= baseTitle），持久化识别结果。
-     * - 同 baseTitle 有 ≥2 个且至少一个有季数后缀 → 该组所有 anime 的 seriesKey = baseTitle
-     * - 否则 seriesKey = null
-     * - [bangumiOverrides]：Bangumi 关系链解析结果（权威数据，优先于正则）。
-     *   被覆盖的条目使用 Bangumi 的 seriesKey/seasonNumber；正则分组仅对剩余条目生效。
-     *   未覆盖条目保留现有 seasonNumber（不主动清空，由关系链全量重算负责）。
-     *
-     * 返回更新后的 anime 列表（仅 seriesKey/seasonNumber 变化的项需要持久化）。
-     */
+    private data class StackTitle(val key: String, val order: Int)
+
+    // JOJO 的主线、分段和旧版改编可能使用副标题，甚至被标为「不同世界观」。
+    // 精确匹配已知 Bangumi 条目，或接受已知标题别名；不把这个关系扩展到其他作品。
+    private val knownJojoOrderById = mapOf(
+        43558 to 1, 85631 to 2, 113292 to 3, 150490 to 4, 235128 to 5,
+        332261 to 6, 375913 to 7, 395782 to 8, 551918 to 9, 639938 to 10,
+        38326 to 99, 61534 to 99, 99859 to 99, 237852 to 99, 289138 to 99
+    )
+    private val jojoPrefix = Regex("^(?:jojo的奇妙冒[险險]|ジョジョの奇妙な冒険|jojo['’]sbizarreadventure)")
+    private val kamisamaTitles = setOf(KAMISAMA, "元氣少女緣結神", "神様はじめました", "kamisamakiss")
+    private val excludedFallbackRelations = setOf("联动", "不同演绎", "不同世界观")
+
+    private fun knownStackTitle(anime: Anime): StackTitle? {
+        when (anime.bangumiId) {
+            43525 -> return StackTitle(KAMISAMA, 1)
+            109724 -> return StackTitle(KAMISAMA, 2)
+        }
+        knownJojoOrderById[anime.bangumiId]?.let { return StackTitle(JOJO, it) }
+        val title = anime.title.filterNot { it.isWhitespace() || it in "・·:：-–—" }.lowercase()
+        if (title in kamisamaTitles) return StackTitle(KAMISAMA, 1)
+        if (title.endsWith('◎') && title.dropLast(1) in kamisamaTitles) return StackTitle(KAMISAMA, 2)
+
+        when (title) {
+            "飙马野郎jojo的奇妙冒险第一赛段", "スティールボールランジョジョの奇妙な冒険1ststage" -> return StackTitle(JOJO, 9)
+            "飙马野郎jojo的奇妙冒险第二&第三赛段", "スティールボールランジョジョの奇妙な冒険2nd&3rdstage" -> return StackTitle(JOJO, 10)
+            "岸边露伴一动不动ova", "岸边露伴一动不动六壁坂", "岸辺露伴は動かないova" ->
+                return StackTitle(JOJO, BangumiSeriesResolver.SPECIAL_SEASON)
+        }
+
+        val prefix = jojoPrefix.find(title) ?: return null
+        val order = when (title.substring(prefix.range.last + 1)) {
+            "", "(2012)", "（2012）" -> 1
+            "星尘斗士", "星塵鬥士", "スターダストクルセイダース", "stardustcrusaders" -> 2
+            "星尘斗士埃及篇", "星塵鬥士埃及篇", "スターダストクルセイダースエジプト編",
+            "stardustcrusadersbattleinegypt" -> 3
+            "不灭钻石", "不滅鑽石", "ダイヤモンドは砕けない", "diamondisunbreakable" -> 4
+            "黄金之风", "黃金之風", "黄金の風", "goldenwind" -> 5
+            "石之海", "ストーンオーシャン", "stoneocean" -> 6
+            "石之海第2部分", "石之海part2", "ストーンオーシャン第2クール", "stoneoceanpart2" -> 7
+            "石之海第3部分", "石之海part3", "ストーンオーシャン第3クール", "stoneoceanpart3" -> 8
+            "飙马野郎", "飆馬野郎", "スティールボールラン", "steelballrun" -> 9
+            "幻影血脉", "ファントムブラッド", "总集篇", "総集編", "(1993)", "（1993）" -> BangumiSeriesResolver.SPECIAL_SEASON
+            else -> return null
+        }
+        return StackTitle(JOJO, order)
+    }
+
+    /** 先应用关系和季号规则，最后用完整片名前缀补齐尚未归组的条目。 */
     fun assignSeriesKeys(
         animeList: List<Anime>,
-        bangumiOverrides: Map<Int, BangumiSeriesResolver.SeriesAssignment> = emptyMap()
+        bangumiOverrides: Map<Int, BangumiSeriesResolver.SeriesAssignment> = emptyMap(),
+        relations: Map<Int, List<BangumiSeriesResolver.SubjectRelation>> = emptyMap()
     ): List<Anime> {
-        val overriddenIds = bangumiOverrides.keys
-        val baseTitleMap = mutableMapOf<String, MutableList<Anime>>()
-        // 正则分组仅对未被 Bangumi 覆盖的条目生效（避免正则组与关系链组混叠）
-        for (anime in animeList) {
-            if (anime.id in overriddenIds) continue
-            val baseTitle = extractBaseTitle(anime.title)
-            baseTitleMap.getOrPut(baseTitle) { mutableListOf() }.add(anime)
-        }
+        val known = animeList.mapNotNull { anime -> knownStackTitle(anime)?.let { anime.id to it } }.toMap()
+        fun baseOf(anime: Anime): String = known[anime.id]?.key ?: extractBaseTitle(anime.title)
 
-        // 被覆盖条目若其 seriesKey 恰为某 baseTitle，仍计入该组的成组资格：
-        // 场景：第一二季被关系链覆盖到 key="X"，第三季因 bangumiId 无效（=0 脏数据）
-        // 或拉取失败未被覆盖。若只数剩余条目，正则组"X"会从 ≥2 退化为 1 部，
-        // 第三季将被误判为单部不成组（seriesKey 被清空 → 从堆叠中拆散）。
-        val overrideKeyCounts = bangumiOverrides.values
-            .filter { it.seriesKey != null }
-            .groupingBy { it.seriesKey!! }
-            .eachCount()
-
-        val seriesKeyByBaseTitle = mutableMapOf<String, String?>()
-        for ((baseTitle, animes) in baseTitleMap) {
-            val overrideCount = overrideKeyCounts[baseTitle] ?: 0
-            if (animes.size + overrideCount >= 2) {
-                // 未覆盖条目自身有季数后缀，或同组存在 Bangumi 已确认的系列成员
-                val hasSeasonSuffix = animes.any { extractBaseTitle(it.title) != it.title.trim() } ||
-                    overrideCount > 0
-                seriesKeyByBaseTitle[baseTitle] = if (hasSeasonSuffix) baseTitle else null
-            } else {
-                seriesKeyByBaseTitle[baseTitle] = null
+        val knownBySubject = animeList.mapNotNull { anime ->
+            val subjectId = anime.bangumiId ?: return@mapNotNull null
+            known[anime.id]?.let { subjectId to it.key }
+        }.toMap()
+        val excludedBySubject = mutableMapOf<Int, MutableSet<Int>>()
+        for ((id, edges) in relations) {
+            for (edge in edges) {
+                if (!edge.isAnime || edge.relation !in excludedFallbackRelations) continue
+                // 仅明确收录的同系列条目可跨越不同演绎或世界观。
+                val knownKey = knownBySubject[id]
+                if (edge.relation != "联动" && knownKey != null && knownKey == knownBySubject[edge.subjectId]) continue
+                excludedBySubject.getOrPut(id) { mutableSetOf() }.add(edge.subjectId)
+                excludedBySubject.getOrPut(edge.subjectId) { mutableSetOf() }.add(id)
             }
         }
+        fun conflicts(anime: Anime, other: Anime): Boolean =
+            other.bangumiId?.let { it in excludedBySubject[anime.bangumiId].orEmpty() } == true
+
+        val keys = mutableMapOf<Int, String>()
+        val confirmed = animeList.filter { it.id in bangumiOverrides }.groupBy { bangumiOverrides.getValue(it.id).groupId }
+        val groups = mutableMapOf<String, MutableList<Anime>>()
+        val keysByBase = mutableMapOf<String, MutableSet<String>>()
+        for ((groupId, members) in confirmed) {
+            val graphTitle = bangumiOverrides.getValue(members.first().id).baseTitle
+            val curatedTitle = members.mapNotNull { known[it.id]?.key }.distinct().singleOrNull()
+            val key = curatedTitle ?: "bangumi:$groupId:$graphTitle"
+            groups.getOrPut(key) { mutableListOf() }.addAll(members)
+            keysByBase.getOrPut(graphTitle) { mutableSetOf() }.add(key)
+            for (anime in members) {
+                keys[anime.id] = key
+                keysByBase.getOrPut(baseOf(anime)) { mutableSetOf() }.add(key)
+            }
+        }
+
+        for ((base, candidates) in animeList.filterNot { it.id in keys }.groupBy(::baseOf)) {
+            val matchingKeys = keysByBase[base].orEmpty()
+            if (matchingKeys.isEmpty()) {
+                if (candidates.size >= 2 && candidates.any { known[it.id] != null || base != it.title.trim() } &&
+                    candidates.none { anime -> candidates.any { other -> anime.id != other.id && conflicts(anime, other) } }
+                ) {
+                    candidates.forEach { keys[it.id] = base }
+                    groups[base] = candidates.toMutableList()
+                    keysByBase.getOrPut(base) { mutableSetOf() }.add(base)
+                }
+                continue
+            }
+            for (anime in candidates) {
+                // 明确的系列信息优先；普通季号必须只匹配一个关系组。
+                val knownKey = known[anime.id]?.key
+                val key = knownKey?.takeIf { it in matchingKeys } ?: matchingKeys.singleOrNull() ?: continue
+                val members = groups.getValue(key)
+                val explicitSeason = base != anime.title.trim() && extractSeasonNumber(anime.title) in 2..98
+                if ((anime.id in known || explicitSeason) && members.none { conflicts(anime, it) }) {
+                    keys[anime.id] = key
+                    members.add(anime)
+                }
+            }
+        }
+
+        supplementByTitlePrefix(animeList, keys, groups, keysByBase, ::baseOf, ::conflicts)
 
         return animeList.map { anime ->
-            val override = bangumiOverrides[anime.id]
-            if (override != null) {
-                if (anime.seriesKey != override.seriesKey || anime.seasonNumber != override.seasonNumber) {
-                    anime.copy(seriesKey = override.seriesKey, seasonNumber = override.seasonNumber)
-                } else {
-                    anime
-                }
-            } else {
-                val baseTitle = extractBaseTitle(anime.title)
-                val newKey = seriesKeyByBaseTitle[baseTitle]
-                if (anime.seriesKey != newKey) {
-                    anime.copy(seriesKey = newKey)
-                } else {
-                    anime
-                }
+            val key = keys[anime.id]
+            val season = if (key != null) known[anime.id]?.order ?: bangumiOverrides[anime.id]?.seasonNumber else null
+            if (anime.seriesKey == key && anime.seasonNumber == season) anime
+            else anime.copy(seriesKey = key, seasonNumber = season)
+        }
+    }
+
+    private data class PrefixAnchor(val key: String, val standalone: Anime? = null)
+
+    private fun supplementByTitlePrefix(
+        animeList: List<Anime>,
+        keys: MutableMap<Int, String>,
+        groups: Map<String, List<Anime>>,
+        keysByBase: Map<String, Set<String>>,
+        baseOf: (Anime) -> String,
+        conflicts: (Anime, Anime) -> Boolean
+    ) {
+        val unmatched = animeList.filterNot { it.id in keys }
+        if (unmatched.isEmpty()) return
+        val anchorsByTitle = mutableMapOf<String, MutableSet<PrefixAnchor>>()
+        for ((base, groupKeys) in keysByBase) {
+            val anchors = anchorsByTitle.getOrPut(base) { mutableSetOf() }
+            groupKeys.mapTo(anchors) { PrefixAnchor(it) }
+        }
+        for (anime in unmatched) {
+            val title = anime.title.trim()
+            // 只有确实在库里的完整片名能作为锚点；不能从两个副标题推造一个主标题。
+            if (title.isNotEmpty() && title == baseOf(anime) && !isSpecialEntry(title)) {
+                anchorsByTitle.getOrPut(title) { mutableSetOf() }.add(PrefixAnchor(title, anime))
             }
         }
+
+        // 一次性确定候选，不把刚补入的副标题继续作为锚点，也不按输入顺序打破歧义。
+        val candidatesByAnchor = mutableMapOf<PrefixAnchor, MutableList<Anime>>()
+        for (anime in unmatched) {
+            val title = anime.title.trim()
+            val matches = mutableSetOf<PrefixAnchor>()
+            // 分隔符之后必须有实际副标题，不能只多一个冒号或空括号。
+            for (index in 1 until title.indexOfLast(Char::isLetterOrDigit)) {
+                if (!isSubtitleBoundary(title, index)) continue
+                val anchors = anchorsByTitle[title.substring(0, index).trimEnd()] ?: continue
+                matches.addAll(anchors)
+                if (matches.size > 1) break
+            }
+            val anchor = matches.singleOrNull() ?: continue
+            candidatesByAnchor.getOrPut(anchor) { mutableListOf() }.add(anime)
+        }
+
+        for ((anchor, candidates) in candidatesByAnchor) {
+            val existing = anchor.standalone?.let(::listOf) ?: groups.getValue(anchor.key)
+            val compatible = candidates.filter { anime -> existing.none { conflicts(anime, it) } }
+            val accepted = compatible.filter { anime -> compatible.none { it.id != anime.id && conflicts(anime, it) } }
+            if (accepted.isEmpty()) continue
+            anchor.standalone?.let { keys[it.id] = anchor.key }
+            accepted.forEach { keys[it.id] = anchor.key }
+        }
+    }
+
+    private fun isSubtitleBoundary(title: String, index: Int): Boolean {
+        val char = title[index]
+        return char.isWhitespace() || char in ":：—–《〈「『（(【[" ||
+            (char == '-' && (title[index - 1].isWhitespace() || title.getOrNull(index + 1)?.isWhitespace() == true))
     }
 
     /** 清除缓存（如番剧列表大幅变化时调用） */

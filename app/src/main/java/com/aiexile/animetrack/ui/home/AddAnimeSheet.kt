@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.items
 import com.aiexile.animetrack.ui.components.SquircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -67,6 +68,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import com.aiexile.animetrack.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -103,6 +107,9 @@ internal fun AddAnimeBottomSheet(
     onManualAdd: () -> Unit = {},
     hasSearched: Boolean = false,
     onSearchSourceChange: (SearchSource) -> Unit = {},
+    batchAdd: BatchAnimeAddState,
+    onToggleBatchMode: () -> Unit,
+    onSaveBatch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -143,18 +150,29 @@ internal fun AddAnimeBottomSheet(
                             .background(MaterialTheme.colorScheme.outline)
                     )
 
-                    Text(
-                        text = stringResource(R.string.home_add_new_anime),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.home_add_new_anime),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onToggleBatchMode, enabled = !batchAdd.isSaving) {
+                            Text(stringResource(
+                                if (batchAdd.isActive) R.string.home_batch_add_exit else R.string.home_batch_add
+                            ))
+                        }
+                    }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 AppOutlinedTextField(
                     value = searchQuery,
+                    enabled = !batchAdd.isSaving,
                     onValueChange = onSearchQueryChange,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -190,7 +208,8 @@ internal fun AddAnimeBottomSheet(
                                 onSearch()
                             },
                             onClear = { onSearchQueryChange("") },
-                            hasQuery = searchQuery.isNotBlank()
+                            hasQuery = searchQuery.isNotBlank(),
+                            enabled = !batchAdd.isSaving
                         )
                     },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -275,27 +294,34 @@ internal fun AddAnimeBottomSheet(
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             // 底部留出悬浮按钮高度,保证最后一项能滚出按钮遮挡区
-                            contentPadding = PaddingValues(top = 4.dp, bottom = 68.dp)
+                            contentPadding = PaddingValues(top = 4.dp, bottom = if (batchAdd.isActive) 8.dp else 68.dp)
                         ) {
                             items(
                                 count = searchResults.size,
                                 key = { "${searchResults[it].source}_${searchResults[it].sourceId}" },
                                 contentType = { "search_result" }
                             ) { index ->
+                                val result = searchResults[index]
                                 SearchResultItem(
-                                    result = searchResults[index],
-                                    onClick = { onSearchResultSelect(searchResults[index]) }
+                                    result = result,
+                                    onClick = { onSearchResultSelect(result) },
+                                    selected = if (batchAdd.isActive) {
+                                        (result.source to result.sourceId) in batchAdd.selection
+                                    } else null,
+                                    enabled = !batchAdd.isSaving
                                 )
                             }
                         }
 
-                        // 悬浮「手动添加」按钮:叠在列表之上,不截断列表
-                        ManualAddFloatingButton(
-                            onClick = onManualAdd,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp)
-                        )
+                        // 单条模式保留悬浮的手动添加入口；批量模式由底部栏提交。
+                        if (!batchAdd.isActive) {
+                            ManualAddFloatingButton(
+                                onClick = onManualAdd,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 16.dp)
+                            )
+                        }
                     }
                 } else if (hasSearched && !isSearching && searchResults.isEmpty() && searchError == null) {
                     Box(
@@ -314,7 +340,15 @@ internal fun AddAnimeBottomSheet(
 
                 // 「手动添加」按钮:无搜索结果时在面板底部正常排布;
                 // 有结果时改为悬浮在列表之上(见上方),不占独立排位
-                if (searchResults.isEmpty()) {
+                if (batchAdd.isActive) {
+                    BatchAddFooter(
+                        state = batchAdd,
+                        onSave = {
+                            keyboardController?.hide()
+                            onSaveBatch()
+                        }
+                    )
+                } else if (searchResults.isEmpty()) {
                     ManualAddFloatingButton(
                         onClick = onManualAdd,
                         modifier = Modifier
@@ -324,6 +358,41 @@ internal fun AddAnimeBottomSheet(
                 }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BatchAddFooter(state: BatchAnimeAddState, onSave: () -> Unit) {
+    val summary = state.summary
+    val message = when {
+        state.hasError -> stringResource(R.string.home_batch_add_error)
+        summary != null -> stringResource(R.string.home_batch_add_summary, summary.added, summary.skipped)
+        state.selection.isEmpty() -> stringResource(R.string.home_batch_add_hint)
+        else -> null
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (message != null) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.hasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+            )
+        }
+        Button(
+            onClick = onSave,
+            modifier = Modifier.fillMaxWidth(),
+            shape = SquircleShape(12.dp),
+            enabled = state.selection.isNotEmpty() && !state.isSaving
+        ) {
+            Text(
+                text = if (state.isSaving) stringResource(R.string.home_batch_add_saving)
+                else stringResource(R.string.home_batch_add_selected, state.selection.size)
+            )
         }
     }
 }
@@ -373,6 +442,7 @@ private fun SearchSourceDropdown(
     onSearch: () -> Unit,
     onClear: () -> Unit,
     hasQuery: Boolean,
+    enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -389,7 +459,7 @@ private fun SearchSourceDropdown(
                 contentDescription = stringResource(R.string.common_search),
                 modifier = Modifier
                     .size(24.dp)
-                    .clickable { onSearch() },
+                    .clickable(enabled = enabled) { onSearch() },
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -398,7 +468,7 @@ private fun SearchSourceDropdown(
                 contentDescription = stringResource(R.string.common_clear),
                 modifier = Modifier
                     .size(24.dp)
-                    .clickable { onClear() },
+                    .clickable(enabled = enabled) { onClear() },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -408,7 +478,7 @@ private fun SearchSourceDropdown(
             Row(
                 modifier = Modifier
                     .clip(SquircleShape(12.dp))
-                    .clickable { expanded = true }
+                    .clickable(enabled = enabled) { expanded = true }
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(1.dp)
@@ -432,7 +502,7 @@ private fun SearchSourceDropdown(
             }
 
             DropdownMenu(
-                expanded = expanded,
+                expanded = expanded && enabled,
                 onDismissRequest = { expanded = false },
                 shape = SquircleShape(12.dp)
             ) {
@@ -466,21 +536,32 @@ private fun SearchSourceDropdown(
 private fun SearchResultItem(
     result: SearchResult,
     onClick: () -> Unit,
+    selected: Boolean?,
+    enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val yearMonthFormat = stringResource(R.string.home_date_year_month_format)
     val allText = stringResource(R.string.common_all)
+    val colors = MaterialTheme.colorScheme
+    val isSelected = selected == true
+    val cardShape = SquircleShape(14.dp)
+    val secondaryText = if (isSelected) colors.onPrimaryContainer else colors.onSurfaceVariant
+    val scoreColor = if (isSelected) colors.onPrimaryContainer else LocalAnimeColors.current.starFilled
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(SquircleShape(14.dp))
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                shape = SquircleShape(14.dp)
+            .clip(cardShape)
+            .background(if (isSelected) colors.primaryContainer else colors.surfaceVariant.copy(alpha = 0.3f))
+            .then(if (isSelected) Modifier.border(1.dp, colors.primary, cardShape) else Modifier)
+            .then(
+                if (selected != null) {
+                    Modifier.selectable(selected = selected, enabled = enabled, onClick = onClick)
+                } else {
+                    Modifier.clickable(enabled = enabled, onClick = onClick)
+                }
             )
-            .clickable { onClick() }
             .padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -514,7 +595,7 @@ private fun SearchResultItem(
                     text = result.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isSelected) colors.onPrimaryContainer else colors.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -529,14 +610,14 @@ private fun SearchResultItem(
                         Icon(
                             painter = rememberAppIconPainter(AppIcon.STAR_SHINE),
                             contentDescription = null,
-                            tint = LocalAnimeColors.current.starFilled,
+                            tint = scoreColor,
                             modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = String.format("%.1f", score),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = LocalAnimeColors.current.starFilled
+                            color = scoreColor
                         )
                     }
                 }
@@ -546,7 +627,7 @@ private fun SearchResultItem(
                 Text(
                     text = result.summary,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    color = secondaryText.copy(alpha = if (isSelected) 0.85f else 0.6f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 16.sp
@@ -575,7 +656,7 @@ private fun SearchResultItem(
                 Text(
                     text = metaText,
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = secondaryText.copy(alpha = if (isSelected) 0.85f else 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -585,7 +666,7 @@ private fun SearchResultItem(
                 Text(
                     text = "·",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    color = secondaryText.copy(alpha = 0.5f)
                 )
                 Text(
                     text = when (result.source) {
@@ -596,7 +677,7 @@ private fun SearchResultItem(
                     fontSize = 11.sp,
                     maxLines = 1,
                     softWrap = false,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    color = if (isSelected) colors.onPrimaryContainer else colors.primary.copy(alpha = 0.7f)
                 )
             }
         }

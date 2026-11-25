@@ -54,6 +54,19 @@ interface AnimeDao {
     
     @Update
     suspend fun updateAnime(anime: Anime)
+
+    /** 只写派生字段，避免后台关系同步覆盖同时更新的观看进度或新匹配。 */
+    @Query("""
+        UPDATE anime SET seriesKey = :seriesKey, seasonNumber = :seasonNumber
+        WHERE id = :id AND title = :title AND bangumiId IS :bangumiId
+    """)
+    suspend fun updateSeriesAssignment(
+        id: Int,
+        title: String,
+        bangumiId: Int?,
+        seriesKey: String?,
+        seasonNumber: Int?
+    )
     
     @Delete
     suspend fun deleteAnime(anime: Anime)

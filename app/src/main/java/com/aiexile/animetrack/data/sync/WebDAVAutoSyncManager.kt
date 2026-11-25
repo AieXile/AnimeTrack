@@ -5,7 +5,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import com.aiexile.animetrack.BuildConfig
-import com.aiexile.animetrack.data.AnimeDao
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.backup.BackupManager
 import com.aiexile.animetrack.data.backup.WebDAVClient
@@ -21,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class WebDAVAutoSyncManager(
     private val settingsRepository: SettingsRepository,
-    private val animeDao: AnimeDao,
     private val context: Context
 ) {
 
@@ -146,7 +144,7 @@ class WebDAVAutoSyncManager(
 
             if (BuildConfig.DEBUG) Log.d(TAG, "开始自动同步（触发原因：$reason，策略：${if (strategy == 0) "JSON" else "ZIP"}）")
 
-            val backupFile = BackupManager.backup(context, strategy, animeDao)
+            val backupFile = BackupManager.backup(context, strategy)
 
             val result = WebDAVClient.upload(url, username, password, backupFile, strategy)
             if (result.isSuccess) {
@@ -183,9 +181,9 @@ class WebDAVAutoSyncManager(
             return instance ?: throw IllegalStateException("WebDAVAutoSyncManager not initialized")
         }
 
-        fun initialize(context: Context, settingsRepository: SettingsRepository, animeDao: AnimeDao) {
+        fun initialize(context: Context, settingsRepository: SettingsRepository) {
             if (instance != null) return
-            instance = WebDAVAutoSyncManager(settingsRepository, animeDao, context.applicationContext)
+            instance = WebDAVAutoSyncManager(settingsRepository, context.applicationContext)
         }
     }
 }

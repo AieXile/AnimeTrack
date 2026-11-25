@@ -30,13 +30,13 @@ internal class LocalMediaScrapeWorker(context: Context, params: WorkerParameters
     companion object {
         fun workName(sourceId: Long) = "local-media-scrape:$sourceId"
 
-        suspend fun enqueue(context: Context, sourceId: Long) {
+        suspend fun enqueue(workManager: WorkManager, sourceId: Long) {
             val request = OneTimeWorkRequestBuilder<LocalMediaScrapeWorker>()
                 .setInputData(workDataOf(LocalMediaScanWorker.SOURCE_ID to sourceId))
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 15, TimeUnit.SECONDS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(workName(sourceId), ExistingWorkPolicy.REPLACE, request).await()
+            workManager.enqueueUniqueWork(workName(sourceId), ExistingWorkPolicy.REPLACE, request).await()
         }
     }
 }

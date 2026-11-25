@@ -26,8 +26,9 @@ object SubtitleSpec {
         "zh-CN" to listOf("chs", "zh-cn", "zh_cn", "sc", "hans", "gb2312", "简体", "简中", "简"),
         "zh-TW" to listOf("cht", "zh-tw", "zh_tw", "tc", "big5", "hant", "繁体", "繁中", "繁"),
         "ja" to listOf("jpn", "japanese", "jp", "ja", "日"),
-        "en" to listOf("eng", "english")
+        "en" to listOf("eng", "english", "en")
     )
+    private val languageBoundary = Regex("[.\\s_\\-\\[\\]()]+")
 
     fun mimeTypeForExtension(extension: String): String? =
         mimeTypesByExtension[extension.lowercase(Locale.ROOT)]
@@ -64,10 +65,18 @@ object SubtitleSpec {
         matchScore(subtitleFileName, videoBaseName) != MATCH_NONE
 
     fun guessLanguage(nameOrSuffix: String): String? {
-        val lower = nameOrSuffix.lowercase(Locale.ROOT)
-        for ((lang, keys) in languageHints) {
-            if (keys.any { lower.contains(it) }) return lang
+        val suffix = nameOrSuffix.lowercase(Locale.ROOT).let {
+            if (isSupported(it)) it.substringBeforeLast('.') else it
         }
-        return null
+        val pattern = suffix.replace(Regex("(?<![a-z0-9])zh[-_](cn|tw)(?![a-z0-9])")) { "zh" + it.groupValues[1] }
+        val tokens = pattern.split(languageBoundary)
+        val compactTokens = tokens.map { it.replace("-", "").replace("_", "") }
+        if (tokens.any { it in setOf("简日", "繁日", "簡日", "双语", "雙語") }) return null
+        return languageHints.filterValues { keys ->
+            keys.any { hint ->
+                val normalized = hint.replace("-", "").replace("_", "")
+                hint in tokens || normalized in compactTokens
+            }
+        }.keys.singleOrNull()
     }
 }

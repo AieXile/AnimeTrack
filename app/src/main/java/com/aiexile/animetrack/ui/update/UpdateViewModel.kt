@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.BuildConfig
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
+import com.aiexile.animetrack.data.remote.UpdateApkCache
 import com.aiexile.animetrack.data.remote.UpdateInfo
 import com.aiexile.animetrack.data.remote.UpdateRepository
 import com.aiexile.animetrack.di.AppContainer
@@ -68,7 +69,6 @@ class UpdateViewModel(
 
     companion object {
         private const val TAG = "UpdateViewModel"
-        private const val APK_DIR = "updates"
         private const val PREFS_NAME = "update_download_state"
         private const val KEY_DOWNLOADING_VERSION = "downloading_version"
         private const val KEY_DOWNLOADED_BYTES = "downloaded_bytes"
@@ -78,7 +78,6 @@ class UpdateViewModel(
     private val _uiState = MutableStateFlow(UpdateUiState(currentVersion = BuildConfig.VERSION_NAME))
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
 
-    private var cachedApkFile: File? = null
     private var downloadJob: kotlinx.coroutines.Job? = null
 
     private val okHttpClient: OkHttpClient by lazy {
@@ -114,7 +113,6 @@ class UpdateViewModel(
                         )
                         if (apkAlreadyExists) {
                             val apkFile = findApkFileByVersion(updateInfo.versionName)
-                            cachedApkFile = apkFile
                             // 对已存在的 APK 进行 SHA 校验
                             if (apkFile != null) {
                                 val digest = updateInfo.apkDigest.takeIf { it.isNotBlank() }
@@ -128,7 +126,6 @@ class UpdateViewModel(
                                     } else {
                                         AppLogManager.e(TAG, "本地 APK SHA 校验失败，删除损坏文件")
                                         apkFile.delete()
-                                        cachedApkFile = null
                                         _uiState.value = _uiState.value.copy(
                                             shaVerifyState = ShaVerifyState.FAILED,
                                             downloadComplete = false,
@@ -182,11 +179,8 @@ class UpdateViewModel(
             return
         }
 
-        val updateDir = File(context.cacheDir, APK_DIR)
-        if (!updateDir.exists()) updateDir.mkdirs()
-
-        val fileName = buildApkFileName(info.versionName)
-        val targetFile = File(updateDir, fileName)
+        val targetFile = UpdateApkCache.fileFor(context.cacheDir, info.versionName)
+        UpdateApkCache.directory(context.cacheDir).mkdirs()
 
         downloadJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -208,7 +202,6 @@ class UpdateViewModel(
 
                     if (remoteSize > 0 && localSize == remoteSize) {
                         Log.d(TAG, "APK already fully downloaded, skipping download")
-                        cachedApkFile = targetFile
                         clearDownloadState(context)
                         _uiState.value = _uiState.value.copy(
                             isDownloading = false,
@@ -385,7 +378,6 @@ class UpdateViewModel(
     }
 
     private fun onDownloadComplete(context: Context, apkFile: File) {
-        cachedApkFile = apkFile
         clearDownloadState(context)
         _uiState.value = _uiState.value.copy(
             isDownloading = false,
@@ -423,7 +415,6 @@ class UpdateViewModel(
             } else {
                 AppLogManager.e(TAG, "SHA-256 校验失败，删除损坏的 APK")
                 apkFile.delete()
-                cachedApkFile = null
                 _uiState.value = _uiState.value.copy(
                     shaVerifyState = ShaVerifyState.FAILED,
                     downloadComplete = false,
@@ -473,13 +464,12 @@ class UpdateViewModel(
         val info = _uiState.value.updateInfo
         val digest = info?.apkDigest?.takeIf { it.isNotBlank() }
         if (digest != null && _uiState.value.shaVerifyState != ShaVerifyState.VERIFIED) {
-            val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
+            val apkFile = findApkFile(context) ?: run {
                 _uiState.value = _uiState.value.copy(installError = "未找到安装包文件")
                 return
             }
             if (!apkFile.exists()) {
                 _uiState.value = _uiState.value.copy(installError = "安装包文件不存在")
-                cachedApkFile = null
                 return
             }
             verifyAndInstall(context, apkFile)
@@ -487,14 +477,13 @@ class UpdateViewModel(
         }
 
         try {
-            val apkFile = cachedApkFile ?: findApkFile(context) ?: run {
+            val apkFile = findApkFile(context) ?: run {
                 _uiState.value = _uiState.value.copy(installError = "未找到安装包文件")
                 return
             }
 
             if (!apkFile.exists()) {
                 _uiState.value = _uiState.value.copy(installError = "安装包文件不存在")
-                cachedApkFile = null
                 return
             }
 
@@ -574,9 +563,7 @@ class UpdateViewModel(
 
         if (savedBytes <= 0 || totalBytes <= 0) return
 
-        val fileName = buildApkFileName(info.versionName)
-        val updateDir = File(context.cacheDir, APK_DIR)
-        val targetFile = File(updateDir, fileName)
+        val targetFile = UpdateApkCache.fileFor(context.cacheDir, info.versionName)
 
         if (!targetFile.exists()) return
 
@@ -611,35 +598,15 @@ class UpdateViewModel(
 
     private fun findApkFile(context: Context): File? {
         val info = _uiState.value.updateInfo ?: return null
-        val fileName = buildApkFileName(info.versionName)
-        val updateDir = File(context.cacheDir, APK_DIR)
-        val targetFile = File(updateDir, fileName)
-        if (targetFile.exists()) return targetFile
-
-        updateDir.listFiles()?.forEach { file ->
-            if (file.name.endsWith(".apk")) return file
-        }
-
-        return null
+        return UpdateApkCache.fileFor(context.cacheDir, info.versionName).takeIf { it.isFile }
     }
 
-    private fun checkApkAlreadyDownloaded(versionName: String): Boolean {
-        val fileName = buildApkFileName(versionName)
-        val updateDir = File(AppContainer.getApplication().cacheDir, APK_DIR)
-        val targetFile = File(updateDir, fileName)
-        return targetFile.exists() && targetFile.length() > 0
-    }
+    private fun checkApkAlreadyDownloaded(versionName: String): Boolean =
+        (findApkFileByVersion(versionName)?.length() ?: 0L) > 0L
 
     private fun findApkFileByVersion(versionName: String): File? {
-        val fileName = buildApkFileName(versionName)
-        val updateDir = File(AppContainer.getApplication().cacheDir, APK_DIR)
-        val targetFile = File(updateDir, fileName)
-        return if (targetFile.exists()) targetFile else null
-    }
-
-    private fun buildApkFileName(versionName: String): String {
-        val tag = versionName.removePrefix("v")
-        return "AnimeTrack_${tag}.apk"
+        val cacheDir = AppContainer.getApplication().cacheDir
+        return UpdateApkCache.fileFor(cacheDir, versionName).takeIf { it.isFile }
     }
 
     private fun saveDownloadState(
@@ -668,14 +635,11 @@ class UpdateViewModel(
     fun redownload(context: Context) {
         val info = _uiState.value.updateInfo ?: return
         // 删除已有 APK 文件
-        val fileName = buildApkFileName(info.versionName)
-        val updateDir = File(context.cacheDir, APK_DIR)
-        val targetFile = File(updateDir, fileName)
+        val targetFile = UpdateApkCache.fileFor(context.cacheDir, info.versionName)
         if (targetFile.exists()) {
             targetFile.delete()
             Log.d(TAG, "Deleted existing APK for redownload: ${targetFile.name}")
         }
-        cachedApkFile = null
         clearDownloadState(context)
         _uiState.value = _uiState.value.copy(shaVerifyState = ShaVerifyState.NONE)
         // 重新开始下载

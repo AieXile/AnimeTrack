@@ -10,6 +10,7 @@ import com.aiexile.animetrack.data.UsageStatsRepository
 import com.aiexile.animetrack.data.auth.AuthManager
 import com.aiexile.animetrack.data.auth.BilibiliAuthManager
 import com.aiexile.animetrack.data.auth.UserAuthManager
+import com.aiexile.animetrack.data.favorites.FavoriteFolderRepository
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.web.WebPlaybackHistoryRepository
@@ -66,6 +67,7 @@ object AppContainer {
     private var context: Context? = null
     private var database: AnimeDatabase? = null
     private var repository: AnimeRepository? = null
+    private var favoriteFolderRepository: FavoriteFolderRepository? = null
     private var bangumiCalendarRepository: BangumiCalendarRepository? = null
     private var settingsRepository: SettingsRepository? = null
     private var authManager: AuthManager? = null
@@ -133,6 +135,9 @@ object AppContainer {
         this.context = context.applicationContext
         database = AnimeDatabase.getDatabase(this.context!!)
         repository = AnimeRepositoryImpl(database!!.animeDao(), this.context!!)
+        favoriteFolderRepository = FavoriteFolderRepository(database!!) {
+            WebDAVAutoSyncManager.getInstance().notifyDataChanged()
+        }
         bangumiCalendarRepository = BangumiCalendarRepository(this.context!!)
         settingsRepository = SettingsRepository(this.context!!)
         authManager = AuthManager(this.context!!)
@@ -141,7 +146,7 @@ object AppContainer {
         syncManager = BangumiSyncManager(authManager!!, repository!!)
         bilibiliSyncManager = BilibiliSyncManager(bilibiliAuthManager!!, repository!!)
         playerRepository = PlayerRepository(this.context!!)
-        localMediaRepository = LocalMediaRepository(this.context!!, database!!.localMediaDao())
+        localMediaRepository = LocalMediaRepository(this.context!!, database!!.localMediaDao(), settingsRepository!!)
         localWatchProgressUseCase = LocalWatchProgressUseCase(
             localMediaRepository = localMediaRepository!!,
             animeRepository = repository!!,
@@ -155,7 +160,7 @@ object AppContainer {
         feedbackRepository = FeedbackRepository(this.context!!)
         adminFeedbackRepository = AdminFeedbackRepository()
         sseClient = SseClient(userAuthManager!!)
-        WebDAVAutoSyncManager.initialize(this.context!!, settingsRepository!!, database!!.animeDao())
+        WebDAVAutoSyncManager.initialize(this.context!!, settingsRepository!!)
     }
     
     fun getApplication(): android.app.Application {
@@ -165,6 +170,11 @@ object AppContainer {
     
     fun getAnimeRepository(): AnimeRepository {
         return repository
+            ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
+    }
+
+    fun getFavoriteFolderRepository(): FavoriteFolderRepository {
+        return favoriteFolderRepository
             ?: throw IllegalStateException("AppContainer not initialized. Call initialize() first.")
     }
     

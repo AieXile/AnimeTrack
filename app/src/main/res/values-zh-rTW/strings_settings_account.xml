@@ -151,8 +151,6 @@
     <string name="developer_simulate_update">模擬更新</string>
     <string name="developer_simulate_update_desc">模擬完整更新流程，不會下載真實檔案</string>
     <string name="developer_trigger_simulate_update">觸發模擬更新</string>
-    <string name="developer_player_hub_entry">設定頁顯示「影片播放」</string>
-    <string name="developer_player_hub_entry_desc">在設定中顯示播放器聚合入口</string>
     <string name="developer_announcement">公告</string>
     <string name="developer_announcement_desc">查看與測試公告彈窗及投票</string>
     <string name="developer_open_announcement">開啟公告</string>
@@ -251,19 +249,21 @@
     <string name="features_rating_standard_notice">僅對新新增的番劇生效，已新增的番劇不受影響</string>
 
     <!-- 外部播放 -->
-    <string name="features_external_player">外部播放</string>
+    <string name="features_external_player">詳情頁播放</string>
     <string name="features_external_player_visible">詳情頁顯示播放按鈕</string>
-    <string name="features_external_player_visible_desc">詳情頁頂欄顯示外部播放按鈕</string>
+    <string name="features_external_player_visible_desc">開啟後可從詳情頁播放本機、WebDAV、網頁影片，或跳轉外部應用</string>
     <string name="features_external_play_mode">播放應用</string>
-    <string name="features_external_play_mode_desc">詳情頁播放按鈕跳轉的目標應用</string>
+    <string name="features_external_play_mode_desc">選擇外部播放時使用的應用，或僅使用內建播放器</string>
     <string name="features_external_play_mode_auto">自動</string>
-    <string name="features_external_play_mode_auto_desc">已裝兩者時按關聯自動選擇</string>
+    <string name="features_external_play_mode_auto_desc">根據已安裝的應用和番劇關聯選擇外部應用</string>
+    <string name="features_external_play_mode_builtin">僅內建播放器</string>
+    <string name="features_external_play_mode_builtin_desc">使用本機、WebDAV 和網頁播放</string>
     <string name="features_external_play_mode_animeko">Animeko</string>
-    <string name="features_external_play_mode_animeko_desc">始終跳轉 Animeko（需關聯 Bangumi）</string>
+    <string name="features_external_play_mode_animeko_desc">外部播放時開啟 Animeko（需關聯 Bangumi）</string>
     <string name="features_external_play_mode_bilibili">嗶哩嗶哩</string>
-    <string name="features_external_play_mode_bilibili_desc">始終跳轉嗶哩嗶哩，按標題匹配 B 站番劇</string>
+    <string name="features_external_play_mode_bilibili_desc">外部播放時開啟嗶哩嗶哩，按標題配對番劇</string>
     <string name="features_external_play_mode_ask">每次詢問</string>
-    <string name="features_external_play_mode_ask_desc">每次播放前選擇應用</string>
+    <string name="features_external_play_mode_ask_desc">每次選擇外部播放時詢問使用哪個應用</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">更新通知</string>

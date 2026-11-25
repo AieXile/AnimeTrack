@@ -144,7 +144,7 @@ internal fun ErrorOverlay(
 
 @Composable
 internal fun EmptyMediaState(
-    onBrowseWebDAV: () -> Unit,
+    onBrowseWebDAV: (() -> Unit)?,
     onSelectLocalFile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -163,36 +163,39 @@ internal fun EmptyMediaState(
             fontWeight = FontWeight.Medium
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        if (onBrowseWebDAV != null) {
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = stringResource(R.string.player_select_source_hint),
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
-        )
+            Text(
+                text = stringResource(R.string.player_select_source_hint),
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = onBrowseWebDAV,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1A1A1A),
-                contentColor = Color.White
-            ),
-            shape = SquircleShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(
-                painter = rememberAppIconPainter(AppIcon.CLOUD),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.player_browse_webdav))
+        if (onBrowseWebDAV != null) {
+            Button(
+                onClick = onBrowseWebDAV,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1A1A1A),
+                    contentColor = Color.White
+                ),
+                shape = SquircleShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    painter = rememberAppIconPainter(AppIcon.CLOUD),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.player_browse_webdav))
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         Button(
             onClick = onSelectLocalFile,

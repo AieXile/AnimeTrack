@@ -162,6 +162,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        // Compose/PlayerView 自己保持绑定；这里仅保留系统回调入口，避免旋转时重复起播。
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()

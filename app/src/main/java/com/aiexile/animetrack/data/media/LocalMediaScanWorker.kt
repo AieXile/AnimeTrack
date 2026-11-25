@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.work.CoroutineWorker
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.aiexile.animetrack.BuildConfig
@@ -29,7 +30,7 @@ class LocalMediaScanWorker(context: Context, parameters: WorkerParameters) : Cor
             val matchStarted = SystemClock.elapsedRealtime()
             setProgress(workDataOf(MATCHING to true, SCANNED to scanned.scannedFiles, VIDEOS to scanned.videoFiles))
             if (LocalMediaAutoMatchUseCase(media, AppContainer.getAnimeRepository()).run(sourceId, online = false)) {
-                LocalMediaScrapeWorker.enqueue(applicationContext, sourceId)
+                LocalMediaScrapeWorker.enqueue(WorkManager.getInstance(applicationContext), sourceId)
             }
             if (timings != null) {
                 Log.i("LocalMediaScan", "files=${scanned.scannedFiles} videos=${scanned.videoFiles} missing=${scanned.missingFiles} " +

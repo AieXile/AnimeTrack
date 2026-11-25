@@ -11,12 +11,12 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.TransferListener
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -97,28 +97,19 @@ class RoutingHttpDataSource(
  * HTTP(S) 交给 [RoutingHttpDataSource] 按主机分流。
  */
 @UnstableApi
-class PlaybackDataSourceFactory(
+internal class PlaybackDataSourceFactory(
     private val context: Context,
-    private val webDavClient: OkHttpClient
+    private val settings: SettingsRepository = AppContainer.getSettingsRepository()
 ) : DataSource.Factory {
 
     override fun createDataSource(): DataSource {
-        val settings = AppContainer.getSettingsRepository()
-        val url = runBlocking(Dispatchers.IO) { settings.playerWebdavUrl.first() }
-        val username = runBlocking(Dispatchers.IO) { settings.playerWebdavUsername.first() }
-        val password = runBlocking(Dispatchers.IO) { settings.playerWebdavPassword.first() }
-
-        val httpUrl = url.trim().toHttpUrlOrNull()
-        val webDavFactory = if (httpUrl != null) {
-            WebDAVDataSourceFactory(webDavClient, username, password)
-        } else {
-            null
-        }
+        // 与目录、字幕发现读取同一份持久化配置，不混用不同版本的地址、凭据或证书设置。
+        val config = runBlocking(Dispatchers.IO) { settings.playerWebdavDirectoryConfig.first() }
 
         val routing = RoutingHttpDataSource(
-            webDavFactory = webDavFactory,
-            webDavHost = httpUrl?.host,
-            webDavPort = httpUrl?.port ?: if (httpUrl?.scheme == "https") 443 else 80,
+            webDavFactory = config?.playbackDataSourceFactory(),
+            webDavHost = config?.server?.host,
+            webDavPort = config?.server?.port ?: -1,
             webFactory = WebHttpDataSourceFactory(webClient)
         )
         return DefaultDataSource(context, routing)

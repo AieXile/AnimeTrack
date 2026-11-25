@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.LayerOutsets
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.delay
 
@@ -52,13 +53,15 @@ private val ScrollEnterPolicy = EnterMotionPolicy(
  * @param key            触发重置动画的键值（传 Unit 只在首次挂载播放）
  * @param isInitialLoad  是否首次加载（true=完整波浪进场，false=滚入轻量动效）
  * @param animationEnabled 是否启用动画
+ * @param fadeLayerOutsets 淡入时为越过布局边界的内容预留的绘制空间
  */
 fun Modifier.animateEnter(
     index: Int = 0,
     key: Any? = Unit,
     isInitialLoad: Boolean = true,
     animationEnabled: Boolean = true,
-    skipAnimation: Boolean = false
+    skipAnimation: Boolean = false,
+    fadeLayerOutsets: LayerOutsets = LayerOutsets.Zero
 ): Modifier = composed {
     if (!animationEnabled) return@composed this
 
@@ -94,6 +97,7 @@ fun Modifier.animateEnter(
     this.graphicsLayer {
         // 首次加载：alpha 0→1；滚入：始终可见
         alpha = if (isInitialLoad) progress else 1f
+        outsets = if (alpha < 1f) fadeLayerOutsets else LayerOutsets.Zero
         translationY = (initialOffsetY * motionPolicy.translationFactor) * (1f - progress)
         scaleX = motionPolicy.initialScale + (1f - motionPolicy.initialScale) * progress
         scaleY = motionPolicy.initialScale + (1f - motionPolicy.initialScale) * progress

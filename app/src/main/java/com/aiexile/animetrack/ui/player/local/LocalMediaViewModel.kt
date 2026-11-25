@@ -13,12 +13,15 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.work.WorkManager
 import com.aiexile.animetrack.data.AnimeRepository
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.media.LocalMediaScanScheduler
+import com.aiexile.animetrack.data.media.LocalMediaScanState
 import com.aiexile.animetrack.data.media.LocalMediaSourceEntity
 import com.aiexile.animetrack.data.media.LocalMediaAnimeGroup
 import com.aiexile.animetrack.data.media.LocalMediaArchiveEntity
+import com.aiexile.animetrack.data.media.WebDavLocalMediaSource
 import com.aiexile.animetrack.data.network.RetrofitClient
 import com.aiexile.animetrack.domain.SearchUseCase
 import com.aiexile.animetrack.domain.playback.tmdbKey
@@ -27,6 +30,7 @@ import com.aiexile.animetrack.domain.playback.year
 import com.aiexile.animetrack.model.SearchResult
 import com.aiexile.animetrack.model.SearchSource
 import com.aiexile.animetrack.data.media.LocalScanStatus
+import com.aiexile.animetrack.data.media.LocalScrapePhase
 import com.aiexile.animetrack.di.AppContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -36,11 +40,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class LocalMediaActionError { ADD_FOLDER, WRONG_FOLDER, REAUTHORIZE, SCAN_REQUEST, REMOVE_SOURCE, MATCH, VISIBILITY }
+enum class LocalMediaActionError { ADD_FOLDER, WRONG_FOLDER, REAUTHORIZE, SCAN_REQUEST, SCRAPE_REQUEST, REMOVE_SOURCE, MATCH, VISIBILITY }
+
+internal data class LocalScrapeStatus(val groupCount: Int, val phase: LocalScrapePhase)
 
 internal data class LocalMediaUiState(
     val sources: List<LocalMediaSourceEntity> = emptyList(),
@@ -49,7 +58,9 @@ internal data class LocalMediaUiState(
     val scan: LocalScanStatus? = null,
     val error: LocalMediaActionError? = null,
     val hiddenCount: Int = 0,
-    val matchSearch: LocalMatchSearch = LocalMatchSearch()
+    val matchSearch: LocalMatchSearch = LocalMatchSearch(),
+    val isWebDavConfigured: Boolean? = null,
+    val scrape: LocalScrapeStatus? = null
 )
 
 internal data class LocalMatchSearch(
@@ -72,8 +83,10 @@ class LocalMediaViewModel internal constructor(
     private val application: Application,
     private val mediaRepository: LocalMediaRepository,
     private val animeRepository: AnimeRepository,
+    private val settingsRepository: SettingsRepository,
     private val scheduler: LocalMediaScanScheduler,
-    private val savedState: SavedStateHandle
+    private val savedState: SavedStateHandle,
+    private val webDavOnly: Boolean = false
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LocalMediaUiState())
     internal val uiState: StateFlow<LocalMediaUiState> = _uiState.asStateFlow()
@@ -102,9 +115,7 @@ class LocalMediaViewModel internal constructor(
 
     internal fun unclassifiedMedia(sourceId: Long) = pagesFor(sourceId).unclassified
 
-    internal fun animeMedia(group: LocalMediaAnimeGroup) = if (group.archiveKey != null || group.reviewKey != null) {
-        mediaRepository.pageArchiveMedia(group.sourceId, group.archiveKey, group.reviewKey)
-    } else mediaRepository.pageAnimeMedia(group.sourceId, group.animeId)
+    internal fun animeMedia(group: LocalMediaAnimeGroup) = mediaRepository.pageGroupMedia(group)
 
     private val searchUseCase = SearchUseCase(animeRepository)
     private var matchSearchJob: Job? = null
@@ -115,6 +126,24 @@ class LocalMediaViewModel internal constructor(
     private var permissionCheckJob: Job? = null
 
     init {
+        val webDavConfig = settingsRepository.playerWebdavDirectoryConfig.distinctUntilChanged()
+        if (webDavOnly) {
+            viewModelScope.launch {
+                webDavConfig.collect { config ->
+                    _uiState.update { it.copy(isWebDavConfigured = config != null, error = null) }
+                    try {
+                        val source = mediaRepository.syncPlayerWebDavSource()
+                        if (source?.scanState == LocalMediaScanState.IDLE && source.lastScanAt == null) {
+                            scheduler.enqueue(source.id)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        _uiState.update { it.copy(error = LocalMediaActionError.SCAN_REQUEST) }
+                    }
+                }
+            }
+        }
         viewModelScope.launch {
             animeRepository.getAllAnimes().collect { animes ->
                 val options = withContext(Dispatchers.Default) { animes.map { it.id to it.title } }
@@ -123,12 +152,19 @@ class LocalMediaViewModel internal constructor(
         }
         viewModelScope.launch {
             var initial = true
-            mediaRepository.observeSources().collect { sources ->
+            val allSources = mediaRepository.observeSources()
+            val visibleSources = if (webDavOnly) combine(allSources, webDavConfig) { sources, config ->
+                val treeUri = config?.let(WebDavLocalMediaSource::uri)
+                sources.filter { it.treeUri == treeUri }
+            } else allSources.map { sources ->
+                sources.filter { Uri.parse(it.treeUri).scheme.equals("content", ignoreCase = true) }
+            }
+            visibleSources.collect { sources ->
                 val previous = _uiState.value.selectedSourceId ?: savedState.get<Long>(SELECTED_SOURCE)
                 val selected = previous?.takeIf { id -> sources.any { it.id == id } } ?: sources.firstOrNull()?.id
                 val changed = _uiState.value.selectedSourceId != selected
                 _uiState.update {
-                    if (changed) it.copy(sources = sources, selectedSourceId = selected, scan = null, hiddenCount = 0)
+                    if (changed) it.copy(sources = sources, selectedSourceId = selected, scan = null, hiddenCount = 0, scrape = null)
                     else it.copy(sources = sources)
                 }
                 if (changed) observeSelection(selected)
@@ -174,7 +210,7 @@ class LocalMediaViewModel internal constructor(
 
     fun selectSource(sourceId: Long) {
         if (_uiState.value.selectedSourceId == sourceId) return
-        _uiState.update { it.copy(selectedSourceId = sourceId, scan = null, error = null, hiddenCount = 0) }
+        _uiState.update { it.copy(selectedSourceId = sourceId, scan = null, error = null, hiddenCount = 0, scrape = null) }
         observeSelection(sourceId)
     }
 
@@ -188,6 +224,10 @@ class LocalMediaViewModel internal constructor(
 
     fun cancelSelectedScan() = launchAction(LocalMediaActionError.SCAN_REQUEST) {
         _uiState.value.selectedSourceId?.let { scheduler.cancel(it) }
+    }
+
+    fun retrySelectedScrape() = launchAction(LocalMediaActionError.SCRAPE_REQUEST) {
+        _uiState.value.selectedSourceId?.let { scheduler.retryScrape(it) }
     }
 
     fun confirmMatch(mediaId: Long, animeId: Int?) = launchAction(LocalMediaActionError.MATCH) {
@@ -291,13 +331,19 @@ class LocalMediaViewModel internal constructor(
                     _uiState.update { if (it.selectedSourceId == sourceId) it.copy(scan = scan) else it }
                 }
             }
+            launch {
+                combine(mediaRepository.observeScrapeGroupCount(sourceId), scheduler.observeScrape(sourceId), ::LocalScrapeStatus)
+                    .distinctUntilChanged().collect { scrape ->
+                        _uiState.update { if (it.selectedSourceId == sourceId) it.copy(scrape = scrape) else it }
+                    }
+            }
             mediaRepository.observeHiddenCount(sourceId).collect { count ->
                 _uiState.update { if (it.selectedSourceId == sourceId) it.copy(hiddenCount = count) else it }
             }
         }
     }
 
-    class Factory : ViewModelProvider.Factory {
+    class Factory(private val webDavOnly: Boolean = false) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
             val application = AppContainer.getApplication()
@@ -305,8 +351,10 @@ class LocalMediaViewModel internal constructor(
                 application,
                 AppContainer.getLocalMediaRepository(),
                 AppContainer.getAnimeRepository(),
+                AppContainer.getSettingsRepository(),
                 LocalMediaScanScheduler(WorkManager.getInstance(application)),
-                extras.createSavedStateHandle()
+                extras.createSavedStateHandle(),
+                webDavOnly
             ) as T
         }
     }

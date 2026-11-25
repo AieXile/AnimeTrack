@@ -66,7 +66,8 @@ fun UpdateNotificationScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val enabled by settingsRepository.updateNotificationEnabled.collectAsStateWithLifecycle(false)
+    val enabled by settingsRepository.updateNotificationEnabled
+        .collectAsStateWithLifecycle(settingsRepository.cachedUpdateNotificationEnabled())
     val hour by settingsRepository.updateNotificationHour.collectAsStateWithLifecycle(9)
     val minute by settingsRepository.updateNotificationMinute.collectAsStateWithLifecycle(0)
 

@@ -94,6 +94,7 @@ import com.aiexile.animetrack.ui.components.AnimeCard
 import com.aiexile.animetrack.ui.components.AnimeCardStack
 import com.aiexile.animetrack.ui.components.SeasonBadge
 import com.aiexile.animetrack.ui.components.ShimmerText
+import com.aiexile.animetrack.ui.components.StackEnterLayerOutsets
 import com.aiexile.animetrack.ui.components.CardPixelBounds
 import com.aiexile.animetrack.ui.components.DeletionBurstOverlay
 import com.aiexile.animetrack.ui.components.animateEnter
@@ -722,7 +723,8 @@ internal fun AnimeGrid(
                                 key = Unit,
                                 isInitialLoad = isInitialLoad,
                                 animationEnabled = true,
-                                skipAnimation = skipEnterForTransition
+                                skipAnimation = skipEnterForTransition,
+                                fadeLayerOutsets = StackEnterLayerOutsets
                             )
                             .onGloballyPositioned { coords ->
                                 // 记录堆叠卡在窗口中的位置，作为展开卡片的平移起点

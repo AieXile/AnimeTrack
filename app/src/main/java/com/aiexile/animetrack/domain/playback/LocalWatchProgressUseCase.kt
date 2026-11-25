@@ -2,10 +2,14 @@ package com.aiexile.animetrack.domain.playback
 
 import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.SettingsRepository
+import com.aiexile.animetrack.data.media.LocalMediaMatchState
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.sync.BangumiSyncManager
 import com.aiexile.animetrack.model.AnimeStatus
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** 连续观看进度的纯规则，便于单元测试。 */
 object WatchProgressRules {
@@ -47,54 +51,83 @@ object WatchProgressRules {
  * 只有用户开启「播放完成后更新追番进度」且番剧、集数明确时才生效。
  * 观看进度按已有进度继续推进，状态/完结语义复用详情页既有规则。
  */
-class LocalWatchProgressUseCase(
+class LocalWatchProgressUseCase internal constructor(
     private val localMediaRepository: LocalMediaRepository,
     private val animeRepository: AnimeRepository,
-    private val settingsRepository: SettingsRepository,
-    private val bangumiSyncManager: BangumiSyncManager
+    private val updateProgressEnabled: Flow<Boolean>,
+    private val autoCompleteEnabled: Flow<Boolean>,
+    private val pushProgressThenStatus: suspend (Int, Int, AnimeStatus) -> Unit
 ) {
+    constructor(
+        localMediaRepository: LocalMediaRepository,
+        animeRepository: AnimeRepository,
+        settingsRepository: SettingsRepository,
+        bangumiSyncManager: BangumiSyncManager
+    ) : this(
+        localMediaRepository,
+        animeRepository,
+        settingsRepository.playerUpdateProgressOnComplete,
+        settingsRepository.autoCompleteEnabled,
+        bangumiSyncManager::pushProgressThenStatus
+    )
+
+    private val completionMutex = Mutex()
+
+    internal suspend fun onLocalEpisodeCompleted(mediaId: Long): Boolean {
+        if (!updateProgressEnabled.first()) return false
+        val file = localMediaRepository.getMediaById(mediaId) ?: return false
+        if (file.matchState != LocalMediaMatchState.CONFIRMED || !LocalPlaybackQueue.isEpisode(file)) return false
+        val episode = file.episodeNumber ?: return false
+        val animeId = file.matchedAnimeId ?: localMediaRepository.findTrackedAnimeIdForArchive(mediaId) ?: return false
+        return recordCompletion(animeId, file.seasonNumber, episode)
+    }
+
     suspend fun onEpisodeCompleted(
         animeId: Int,
         seasonNumber: Int?,
         episodeNumber: Int
-    ) {
-        if (!settingsRepository.playerUpdateProgressOnComplete.first()) return
-        if (episodeNumber <= 0) return
-
-        localMediaRepository.recordEpisodeCompleted(animeId, seasonNumber, episodeNumber)
-
-        val anime = animeRepository.getAnimeById(animeId) ?: return
-        val completed = localMediaRepository.getCompletedEpisodes(animeId)
-        val target = WatchProgressRules.advanceCount(completed, anime.watchedEpisodes)
-        if (target <= anime.watchedEpisodes) return
-
-        // 只推进到连续完成的最大集数；跳集由规则本身兜底，不把中间集当作已看
-        var updated = anime.copy(
-            watchedEpisodes = target,
-            lastProgressAt = System.currentTimeMillis()
-        )
-        if (anime.status == AnimeStatus.PLANNED) {
-            updated = updated.copy(status = AnimeStatus.WATCHING)
-        }
-        if (settingsRepository.autoCompleteEnabled.first() &&
-            anime.totalEpisodes > 0 &&
-            target >= anime.totalEpisodes &&
-            anime.status != AnimeStatus.COMPLETED
-        ) {
-            updated = updated.copy(
-                status = AnimeStatus.COMPLETED,
-                isFinished = anime.airingStatusOverride?.let { !it } ?: true,
-                finishDate = anime.finishDate ?: System.currentTimeMillis()
-            )
-        }
-
-        animeRepository.updateAnime(updated)
-        updated.bangumiId?.let { bangumiId ->
-            bangumiSyncManager.pushProgressThenStatus(
-                bangumiId,
-                updated.watchedEpisodes,
-                updated.status
-            )
-        }
+    ): Boolean {
+        if (episodeNumber <= 0 || !updateProgressEnabled.first()) return false
+        return recordCompletion(animeId, seasonNumber, episodeNumber)
     }
+
+    private suspend fun recordCompletion(animeId: Int, seasonNumber: Int?, episodeNumber: Int): Boolean =
+        completionMutex.withLock {
+            val anime = animeRepository.getAnimeById(animeId) ?: return@withLock false
+            localMediaRepository.recordEpisodeCompleted(animeId, seasonNumber, episodeNumber)
+
+            val completed = localMediaRepository.getCompletedEpisodes(animeId)
+            val target = WatchProgressRules.advanceCount(completed, anime.watchedEpisodes)
+            if (target <= anime.watchedEpisodes) return@withLock true
+
+            // 只推进到连续完成的最大集数；跳集由规则本身兜底，不把中间集当作已看
+            var updated = anime.copy(
+                watchedEpisodes = target,
+                lastProgressAt = System.currentTimeMillis()
+            )
+            if (anime.status == AnimeStatus.PLANNED) {
+                updated = updated.copy(status = AnimeStatus.WATCHING)
+            }
+            if (autoCompleteEnabled.first() &&
+                anime.totalEpisodes > 0 &&
+                target >= anime.totalEpisodes &&
+                anime.status != AnimeStatus.COMPLETED
+            ) {
+                updated = updated.copy(
+                    status = AnimeStatus.COMPLETED,
+                    isFinished = anime.airingStatusOverride?.let { !it } ?: true,
+                    finishDate = anime.finishDate ?: System.currentTimeMillis()
+                )
+            }
+
+            animeRepository.updateAnime(updated)
+            updated.bangumiId?.let { bangumiId ->
+                pushProgressThenStatus(
+                    bangumiId,
+                    updated.watchedEpisodes,
+                    updated.status
+                )
+            }
+            true
+        }
 }

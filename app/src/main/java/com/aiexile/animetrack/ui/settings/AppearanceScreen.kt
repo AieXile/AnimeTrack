@@ -224,7 +224,8 @@ fun AppearanceScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             DarkStyleSelectorRow(
                                 current = currentDarkStyle,
-                                onSelect = { style -> scope.launch { settingsRepository.setDarkStyle(style) } }
+                                onSelect = { style -> scope.launch { settingsRepository.setDarkStyle(style) } },
+                                modifier = rememberHighlightModifier("dark_style", highlightKey)
                             )
                         }
                     }

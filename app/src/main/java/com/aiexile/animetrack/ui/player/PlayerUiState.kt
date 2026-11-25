@@ -41,6 +41,7 @@ data class PlayerUiState(
     val webSources: List<WebMediaSource> = emptyList(),
     val selectedWebSource: Int = -1,
     val notice: String? = null,
+    val hasManualSubtitle: Boolean = false,
     /** 0 适应，1 填满，2 裁剪。 */
     val videoScale: Int = 0,
     /** 本地或网页队列的选集标签。 */

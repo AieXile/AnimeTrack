@@ -57,6 +57,14 @@ class ExternalPlayDispatcherTest {
     }
 
     @Test
+    fun `仅内置播放器时不会选择已安装的外部应用`() {
+        assertEquals(
+            ExternalPlayDecision.BuiltInOnly,
+            ExternalPlayDispatcher.decide(ExternalPlayMode.BUILT_IN, both, hasBilibiliSeasonId = true)
+        )
+    }
+
+    @Test
     fun `显式模式忽略安装与关联状态`() {
         assertEquals(
             ExternalPlayDecision.Launch(ExternalPlayerId.ANIMEKO),

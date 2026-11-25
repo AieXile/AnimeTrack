@@ -36,7 +36,7 @@ import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
 import kotlinx.coroutines.launch
 
 /** 详情页播放来源。 */
-enum class DetailPlaySource { LOCAL, EXTERNAL, WEB }
+enum class DetailPlaySource { LOCAL, WEBDAV, EXTERNAL, WEB }
 
 /**
  * 详情页播放来源选择底部弹层。
@@ -47,10 +47,10 @@ enum class DetailPlaySource { LOCAL, EXTERNAL, WEB }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailPlaySourceSheet(
-    hasLocal: Boolean,
-    hasExternal: Boolean,
-    hasWeb: Boolean,
+    sources: List<DetailPlaySource>,
+    externalTitle: String,
     localEpisodeLabel: String?,
+    webDavEpisodeLabel: String?,
     externalEpisodeLabel: String?,
     /** 该番剧的网页续播集数；为空表示只提供网页播放入口 */
     webEpisodeLabel: String?,
@@ -86,7 +86,7 @@ fun DetailPlaySourceSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (hasLocal) {
+            if (DetailPlaySource.LOCAL in sources) {
                 PlaySourceRow(
                     icon = AppIcon.INSERT_DRIVE_FILE,
                     title = stringResource(R.string.detail_play_local),
@@ -96,17 +96,27 @@ fun DetailPlaySourceSheet(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            if (hasExternal) {
+            if (DetailPlaySource.WEBDAV in sources) {
+                PlaySourceRow(
+                    icon = AppIcon.CLOUD,
+                    title = stringResource(R.string.detail_play_webdav),
+                    subtitle = webDavEpisodeLabel,
+                    onClick = { dismissThen { onSelect(DetailPlaySource.WEBDAV) } }
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (DetailPlaySource.EXTERNAL in sources) {
                 PlaySourceRow(
                     icon = AppIcon.PLAY_CIRCLE,
-                    title = stringResource(R.string.external_player_watch),
+                    title = externalTitle,
                     subtitle = externalEpisodeLabel,
                     onClick = { dismissThen { onSelect(DetailPlaySource.EXTERNAL) } }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            if (hasWeb) {
+            if (DetailPlaySource.WEB in sources) {
                 PlaySourceRow(
                     icon = AppIcon.LINK,
                     title = stringResource(R.string.web_playback_title),

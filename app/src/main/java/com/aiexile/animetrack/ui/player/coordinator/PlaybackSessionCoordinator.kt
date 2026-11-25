@@ -18,6 +18,7 @@ import com.aiexile.animetrack.data.AnimeRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaEntity
 import com.aiexile.animetrack.data.player.PlaybackTrace
+import com.aiexile.animetrack.data.player.ManualSubtitleFile
 import com.aiexile.animetrack.data.player.service.CoilBitmapLoader
 import com.aiexile.animetrack.data.player.service.PlaybackService
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
@@ -26,6 +27,8 @@ import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.ui.player.PlaybackFailure
 import com.aiexile.animetrack.ui.player.PlaybackFailureKind
 import com.aiexile.animetrack.ui.player.PlayerUiState
+import com.aiexile.animetrack.ui.player.components.renderedVideoDisplaySize
+import com.aiexile.animetrack.ui.player.components.selectedVideoLandscape
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +56,6 @@ internal class PlaybackSessionCoordinator(
     private val uiState: MutableStateFlow<PlayerUiState>,
     private val progressTracker: PlaybackProgressTracker,
     private val getDefaultSpeed: () -> Float,
-    private val getAutoLandscape: () -> Boolean,
     private val onControllerConnected: () -> Unit,
     private val findLocalFile: (mediaId: String) -> LocalMediaEntity?,
     private val hasLocalQueue: () -> Boolean,
@@ -68,6 +70,7 @@ internal class PlaybackSessionCoordinator(
 
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var playbackStartJob: Job? = null
+    private val fullscreenVideoOrientation = FullscreenVideoOrientation()
 
     /** 供媒体会话元数据（封面/番剧名）使用的番剧 ID：优先入口参数，其次本地匹配/网页绑定 */
     val metadataAnimeId = MutableStateFlow(animeId.takeIf { it > 0 })
@@ -75,14 +78,6 @@ internal class PlaybackSessionCoordinator(
 
     /** 本次起播期望的初始位置：用于 READY 时校验位置是否被字幕合并重启丢掉 */
     var expectedStartPositionMs: Long = 0L
-
-    /**
-     * 容器声明的视频分辨率（来自轨道 Format 元数据）。
-     * libass 特效渲染管线下 onVideoSizeChanged/videoSize 可能被重写或丢失，
-     * 封装层元数据与渲染器无关，始终可靠。切集时在 onMediaItemTransition 重置。
-     */
-    var videoFormatWidth: Int = 0
-    var videoFormatHeight: Int = 0
 
     fun connect(playerListener: Player.Listener, controllerListener: MediaController.Listener) {
         val sessionToken = SessionToken(
@@ -99,6 +94,14 @@ internal class PlaybackSessionCoordinator(
                     it.addListener(playerListener)
                 }
                 val connected = controller
+                if (connected != null) {
+                    fullscreenVideoOrientation.trackLandscape = connected.currentTracks.selectedVideoLandscape()
+                    if (connected.playbackState == Player.STATE_READY &&
+                        connected.currentTracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
+                    ) {
+                        fullscreenVideoOrientation.renderedLandscape = connected.renderedVideoDisplaySize()?.isLandscape
+                    }
+                }
                 uiState.update {
                     it.copy(
                         isControllerReady = true,
@@ -107,6 +110,7 @@ internal class PlaybackSessionCoordinator(
                     )
                 }
                 onControllerConnected()
+                updateFullscreenOrientation()
             } catch (_: java.util.concurrent.CancellationException) {
                 // onCleared 已取消连接（快速退出页面），controller 由 future 内部释放
             } catch (e: Exception) {
@@ -134,9 +138,21 @@ internal class PlaybackSessionCoordinator(
         playbackStartJob?.cancel()
     }
 
-    fun resetVideoFormatDimensions() {
-        videoFormatWidth = 0
-        videoFormatHeight = 0
+    fun updateManualSubtitle(expected: MediaItem, subtitle: MediaItem.SubtitleConfiguration?): Boolean {
+        val player = controller ?: return false
+        if (player.currentMediaItem != expected) return false
+        val original = expected.localConfiguration?.subtitleConfigurations ?: return false
+        val tracks = listOfNotNull(subtitle) + original.filter { it.id != ManualSubtitleFile.TRACK_ID }
+        if (tracks == original) return false
+        val index = player.currentMediaItemIndex
+        val position = player.currentPosition.coerceAtLeast(0)
+        // 只替换当前项；保留队列、播放意图和倍速。重新开源时明确恢复当前时间轴位置。
+        player.replaceMediaItem(index, expected.buildUpon().setSubtitleConfigurations(tracks).build())
+        if (player.currentMediaItemIndex == index && player.currentPosition != position) player.seekTo(index, position)
+        val params = player.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
+        if (subtitle != null) params.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+        player.trackSelectionParameters = params.build()
+        return true
     }
 
     fun updateMetadataAnimeId(targetId: Int?) {
@@ -282,6 +298,7 @@ internal class PlaybackSessionCoordinator(
                     isBuffering = c.playbackState == Player.STATE_BUFFERING
                 )
             }
+            updateFullscreenOrientation()
         }
     }
 
@@ -316,6 +333,7 @@ internal class PlaybackSessionCoordinator(
                     isBuffering = c.playbackState == Player.STATE_BUFFERING
                 )
             }
+            updateFullscreenOrientation()
         }
     }
 
@@ -360,29 +378,36 @@ internal class PlaybackSessionCoordinator(
         }
     }
 
-    /**
-     * 进入全屏时的目标方向：自动横屏关闭时固定横向；开启时按当前视频宽高。
-     * 供界面在请求方向切换前计算，避免先转错方向再转回来。
-     */
-    fun fullscreenLandscapeTarget(): Boolean {
-        if (!getAutoLandscape()) return true
-        val size = controller?.videoSize
-        val width = videoFormatWidth.takeIf { it > 0 } ?: (size?.width ?: 0)
-        val height = videoFormatHeight.takeIf { it > 0 } ?: (size?.height ?: 0)
-        return width <= 0 || height <= 0 || width > height
+    fun onFullscreenVideoEvents(player: Player, events: Player.Events) {
+        val mediaChanged = events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)
+        if (mediaChanged) fullscreenVideoOrientation.onMediaItemTransition()
+        if (events.contains(Player.EVENT_VIDEO_SIZE_CHANGED)) {
+            fullscreenVideoOrientation.renderedLandscape = player.renderedVideoDisplaySize()?.isLandscape
+        }
+        // MediaController 会在切集的本地预测状态中暂时保留旧轨道和尺寸。
+        // 读取新轨道事件，或等待切集后的 READY 来确认轨道。渲染尺寸只在收到尺寸事件时更新。
+        if (events.contains(Player.EVENT_TRACKS_CHANGED) ||
+            (!mediaChanged && events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) &&
+                player.playbackState == Player.STATE_READY)
+        ) {
+            fullscreenVideoOrientation.trackLandscape = player.currentTracks.selectedVideoLandscape()
+        }
+        updateFullscreenOrientation()
+    }
+
+    /** 尺寸未就绪时返回 null，让首次全屏保持竖向、切集期间保持当前方向。 */
+    fun fullscreenLandscapeTarget(): Boolean? {
+        val state = uiState.value
+        if (!state.autoLandscape) return true
+        if (state.isPreparingMedia) return null
+        return fullscreenVideoOrientation.landscape
     }
 
     /** 自动方向只作用于已经打开的全屏模式，媒体就绪、换集和缓冲都不能放大详情页。 */
     fun updateFullscreenOrientation() {
         if (!uiState.value.isFullscreen) return
-        val size = controller?.videoSize
-        val width = videoFormatWidth.takeIf { it > 0 } ?: (size?.width ?: 0)
-        val height = videoFormatHeight.takeIf { it > 0 } ?: (size?.height ?: 0)
-        val autoLandscape = getAutoLandscape()
-        if (autoLandscape && (width <= 0 || height <= 0)) return
-        uiState.update {
-            it.copy(fullscreenLandscape = !autoLandscape || width > height)
-        }
+        val landscape = fullscreenLandscapeTarget() ?: return
+        uiState.update { it.copy(fullscreenLandscape = landscape) }
     }
 
     fun release(playerListener: Player.Listener) {

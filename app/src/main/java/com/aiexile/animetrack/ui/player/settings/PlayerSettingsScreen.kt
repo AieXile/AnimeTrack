@@ -8,21 +8,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -33,225 +30,130 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aiexile.animetrack.R
 import com.aiexile.animetrack.data.SettingsRepository
-import com.aiexile.animetrack.di.AppContainer
-import com.aiexile.animetrack.ui.components.AppSwitch
-import com.aiexile.animetrack.ui.components.SquircleShape
-import com.aiexile.animetrack.ui.components.chrome.AppScaffold
-import com.aiexile.animetrack.ui.components.settings.SettingsOption
-import com.aiexile.animetrack.ui.components.settings.SettingsOptionHost
-import com.aiexile.animetrack.ui.components.settings.SettingsOptionRow
 import com.aiexile.animetrack.ui.icons.AppIcon
 import com.aiexile.animetrack.ui.icons.rememberAppIconPainter
-import com.aiexile.animetrack.ui.player.webdav.webDavDisplayPath
-import kotlinx.coroutines.launch
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideAction
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuidePage
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideScaffold
+import com.aiexile.animetrack.ui.player.guide.PlaybackGuideStep
+import com.aiexile.animetrack.ui.player.guide.rememberPlaybackGuide
+import kotlinx.coroutines.flow.map
 
-/** 设置项选项弹层的行距：与播放器设置已有的行距保持一致 */
-private val PlayerSettingRowVerticalPadding = 14.dp
-
-/** 默认播放速度候选：0.5x – 2.0x */
-private val DefaultSpeedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-
-/** 长按加速速度候选：1.5x – 5.0x（7 项，正好是选项菜单的最大可见行数） */
-private val LongPressSpeedOptions = listOf(1.5f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 5.0f)
-
-/**
- * 视频播放聚合页：设置中「视频播放」入口的目标页面。
- *
- * 汇总所有与播放相关的功能，分三组：
- * - 播放行为：默认倍速、长按加速、记忆位置、自动连播、硬件加速
- * - 媒体来源：WebDAV 媒体浏览、WebDAV 服务器配置
- * - 打开播放器
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettingsScreen(
     onBack: () -> Unit,
-    onNavigateToPlayer: () -> Unit = {},
+    onNavigateToPlayerPreferences: () -> Unit = {},
+    onNavigateToMediaLibrary: () -> Unit = {},
     onNavigateToLocalMedia: () -> Unit = {},
     onNavigateToWebPlayback: () -> Unit = {},
     onNavigateToWebDAVBrowse: () -> Unit = {},
     onNavigateToPlayerWebDavConfig: () -> Unit = {},
     settingsRepository: SettingsRepository
 ) {
-    val scope = rememberCoroutineScope()
-
-    val defaultSpeed by settingsRepository.playerDefaultSpeed.collectAsStateWithLifecycle(initialValue = 1f)
-    val hardwareAcceleration by settingsRepository.playerHardwareAcceleration.collectAsStateWithLifecycle(initialValue = true)
-    val rememberPosition by settingsRepository.playerRememberPosition.collectAsStateWithLifecycle(initialValue = true)
-    val autoPlayNext by settingsRepository.playerAutoPlayNext.collectAsStateWithLifecycle(initialValue = false)
-    val updateProgressOnComplete by settingsRepository.playerUpdateProgressOnComplete.collectAsStateWithLifecycle(initialValue = false)
-    val longPressSpeed by settingsRepository.playerLongPressSpeed.collectAsStateWithLifecycle(initialValue = 2f)
-    val webdavMediaRoot by settingsRepository.playerWebdavMediaRoot.collectAsStateWithLifecycle(initialValue = "")
-    val webdavLastBrowsePath by settingsRepository.playerWebdavLastBrowsePath.collectAsStateWithLifecycle(initialValue = "")
     val playerWebdavUrl by settingsRepository.playerWebdavUrl.collectAsStateWithLifecycle(initialValue = "")
+    val webDavConfigured by remember(settingsRepository) {
+        settingsRepository.playerWebdavDirectoryConfig.map { it != null }
+    }.collectAsStateWithLifecycle(initialValue = null)
+    val guide = rememberPlaybackGuide(
+        PlaybackGuidePage.OVERVIEW,
+        ready = webDavConfigured != null,
+        settingsRepository = settingsRepository
+    )
+    val scrollState = rememberScrollState()
+    val atFirstGuideStep = guide.index == 0
+    LaunchedEffect(atFirstGuideStep) {
+        if (atFirstGuideStep) scrollState.scrollTo(0)
+    }
+    val webDavStep = if (webDavConfigured == true) {
+        PlaybackGuideStep(R.string.webdav_library_title, R.string.player_guide_overview_webdav)
+    } else {
+        PlaybackGuideStep(R.string.player_webdav_server, R.string.player_guide_webdav_setup)
+    }
 
-    AppScaffold(
+    PlaybackGuideScaffold(
+        guide = guide,
+        steps = listOf(
+            PlaybackGuideStep(R.string.media_library_title, R.string.player_guide_overview_library),
+            PlaybackGuideStep(R.string.local_media_title, R.string.player_guide_overview_local),
+            PlaybackGuideStep(R.string.web_playback_title, R.string.player_guide_overview_web),
+            webDavStep
+        ),
         title = stringResource(R.string.settings_playback),
-        onBack = onBack
+        onBack = onBack,
+        actions = { PlaybackGuideAction(guide::start) }
     ) { chrome ->
-        // 选项菜单宿主包住内容；玻璃档的采样源挂在内部内容根上，
-        // 菜单自身在采样源之外，避免自采样（规范 §7.2）
-        SettingsOptionHost(
-            modifier = Modifier.fillMaxSize(),
-            topInset = chrome.topInset,
-            bottomInset = chrome.bottomInset,
-            sources = chrome.sources
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(chrome.layout)
+                .padding(horizontal = 24.dp)
+                .verticalScroll(scrollState)
+                .padding(chrome.content)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(chrome.layout)
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(rememberScrollState())
-                    // 玻璃档内容层自垫顶/底内边距
-                    .padding(chrome.content)
-            ) {
-                Spacer(modifier = Modifier.size(8.dp))
+            Spacer(modifier = Modifier.size(8.dp))
 
-                // ==================== 播放行为 ====================
-                SectionTitle(text = stringResource(R.string.player_section_behavior))
+            SectionTitle(text = stringResource(R.string.player_section_watch))
 
-                // 默认播放速度
-                SettingsOptionRow(
-                    title = stringResource(R.string.player_settings_default_speed),
-                    options = DefaultSpeedOptions.map { SettingsOption(it, "${it}x") },
-                    selected = defaultSpeed,
-                    onSelected = { speed ->
-                        scope.launch { settingsRepository.setPlayerDefaultSpeed(speed) }
-                    },
-                    leading = rememberAppIconPainter(AppIcon.SPEED),
-                    verticalPadding = PlayerSettingRowVerticalPadding
-                )
+            PlaybackEntryRow(
+                icon = rememberAppIconPainter(AppIcon.COLLECTIONS_BOOKMARK),
+                title = stringResource(R.string.media_library_title),
+                subtitle = stringResource(R.string.media_library_subtitle),
+                onClick = onNavigateToMediaLibrary,
+                modifier = guide.anchor(R.string.media_library_title)
+            )
 
-                // 长按加速速度
-                SettingsOptionRow(
-                    title = stringResource(R.string.player_settings_long_press_speed),
-                    subtitle = stringResource(R.string.player_settings_long_press_speed_hint),
-                    options = LongPressSpeedOptions.map { SettingsOption(it, "${it}x") },
-                    selected = longPressSpeed,
-                    onSelected = { speed ->
-                        scope.launch { settingsRepository.setPlayerLongPressSpeed(speed) }
-                    },
-                    leading = rememberAppIconPainter(AppIcon.FAST_FORWARD),
-                    verticalPadding = PlayerSettingRowVerticalPadding
-                )
+            PlaybackEntryRow(
+                icon = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
+                title = stringResource(R.string.local_media_title),
+                subtitle = stringResource(R.string.player_local_media_subtitle),
+                onClick = onNavigateToLocalMedia,
+                modifier = guide.anchor(R.string.local_media_title)
+            )
 
-                SettingDivider()
+            PlaybackEntryRow(
+                icon = rememberAppIconPainter(AppIcon.LINK),
+                title = stringResource(R.string.web_playback_title),
+                subtitle = stringResource(R.string.web_playback_entry_subtitle),
+                onClick = onNavigateToWebPlayback,
+                modifier = guide.anchor(R.string.web_playback_title)
+            )
 
-                // 记忆播放位置
-                SwitchRow(
-                    icon = rememberAppIconPainter(AppIcon.BOOKMARKS),
-                    title = stringResource(R.string.player_settings_remember_position),
-                    subtitle = stringResource(R.string.player_settings_remember_position_hint),
-                    checked = rememberPosition,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerRememberPosition(enabled) }
-                    }
-                )
-
-                // 自动播放下一集
-                SwitchRow(
-                    icon = rememberAppIconPainter(AppIcon.SKIP_NEXT),
-                    title = stringResource(R.string.player_settings_auto_play_next),
-                    subtitle = stringResource(R.string.player_settings_auto_play_next_hint),
-                    checked = autoPlayNext,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerAutoPlayNext(enabled) }
-                    }
-                )
-
-                // 播放完成后更新追番进度（默认关闭）
-                SwitchRow(
-                    icon = rememberAppIconPainter(AppIcon.CHECK_CIRCLE),
-                    title = stringResource(R.string.player_settings_update_progress),
-                    subtitle = stringResource(R.string.player_settings_update_progress_hint),
-                    checked = updateProgressOnComplete,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerUpdateProgressOnComplete(enabled) }
-                    }
-                )
-
-                // 硬件加速
-                SwitchRow(
-                    icon = rememberAppIconPainter(AppIcon.MEMORY),
-                    title = stringResource(R.string.player_settings_hardware_acceleration),
-                    subtitle = stringResource(R.string.player_settings_hardware_acceleration_hint),
-                    checked = hardwareAcceleration,
-                    onCheckedChange = { enabled ->
-                        scope.launch { settingsRepository.setPlayerHardwareAcceleration(enabled) }
-                    }
-                )
-
-                Spacer(modifier = Modifier.size(20.dp))
-
-                // ==================== 媒体来源 ====================
-                SectionTitle(text = stringResource(R.string.player_section_source))
-
-                // 本地媒体库
-                WebDavEntryRow(
-                    icon = rememberAppIconPainter(AppIcon.INSERT_DRIVE_FILE),
-                    title = stringResource(R.string.local_media_title),
-                    subtitle = stringResource(R.string.local_media_add_hint),
-                    onClick = onNavigateToLocalMedia
-                )
-
-                // 网页播放
-                WebDavEntryRow(
-                    icon = rememberAppIconPainter(AppIcon.LINK),
-                    title = stringResource(R.string.web_playback_title),
-                    subtitle = stringResource(R.string.web_playback_entry_subtitle),
-                    onClick = onNavigateToWebPlayback
-                )
-
-                // WebDAV 媒体浏览
-                WebDavEntryRow(
+            if (webDavConfigured == true) {
+                PlaybackEntryRow(
                     icon = rememberAppIconPainter(AppIcon.FOLDER_OPEN),
-                    title = stringResource(R.string.player_webdav_browse),
-                    subtitle = when {
-                        webdavLastBrowsePath.isNotBlank() ->
-                            stringResource(R.string.player_webdav_recent_location, webDavDisplayPath(webdavLastBrowsePath))
-                        webdavMediaRoot.isNotBlank() -> webDavDisplayPath(webdavMediaRoot)
-                        else -> stringResource(R.string.common_not_set)
-                    },
+                    title = stringResource(R.string.webdav_library_title),
+                    subtitle = stringResource(R.string.player_webdav_browse_desc),
                     onClick = onNavigateToWebDAVBrowse,
-                    subtitleOverflow = TextOverflow.MiddleEllipsis
+                    modifier = guide.anchor(R.string.webdav_library_title)
                 )
-
-                // 播放器专属 WebDAV 配置（与备份同步独立）
-                WebDavEntryRow(
-                    icon = rememberAppIconPainter(AppIcon.CLOUD),
-                    title = stringResource(R.string.player_webdav_server),
-                    subtitle = if (playerWebdavUrl.isBlank()) {
-                        stringResource(R.string.common_not_set)
-                    } else {
-                        playerWebdavUrl
-                    },
-                    onClick = onNavigateToPlayerWebDavConfig
-                )
-
-                Spacer(modifier = Modifier.size(28.dp))
-
-                // ==================== 打开播放器 ====================
-                Button(
-                    onClick = onNavigateToPlayer,
-                    shape = SquircleShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        painter = rememberAppIconPainter(AppIcon.PLAY_ARROW),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = stringResource(R.string.player_settings_open_player))
-                }
-
-                Spacer(modifier = Modifier.size(24.dp))
             }
+
+            PlaybackEntryRow(
+                icon = rememberAppIconPainter(AppIcon.CLOUD),
+                title = stringResource(R.string.player_webdav_server),
+                subtitle = if (playerWebdavUrl.isBlank()) {
+                    stringResource(R.string.player_webdav_setup_subtitle)
+                } else {
+                    playerWebdavUrl
+                },
+                onClick = onNavigateToPlayerWebDavConfig,
+                modifier = guide.anchor(R.string.player_webdav_server)
+            )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+
+            PlaybackEntryRow(
+                icon = rememberAppIconPainter(AppIcon.TUNE),
+                title = stringResource(R.string.player_settings_title),
+                subtitle = stringResource(R.string.player_settings_subtitle),
+                onClick = onNavigateToPlayerPreferences
+            )
+
+            Spacer(modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -268,29 +170,20 @@ private fun SectionTitle(text: String) {
     )
 }
 
-/** 行间细分隔线 */
-@Composable
-private fun SettingDivider() {
-    HorizontalDivider(
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        modifier = Modifier.padding(vertical = 6.dp)
-    )
-}
-
 /** 点击进入型设置行（图标 + 标题 + 当前值摘要） */
 @Composable
-private fun WebDavEntryRow(
+private fun PlaybackEntryRow(
     icon: Painter,
     title: String,
     subtitle: String,
-    subtitleOverflow: TextOverflow = TextOverflow.Ellipsis,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = PlayerSettingRowVerticalPadding),
+            .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -315,7 +208,7 @@ private fun WebDavEntryRow(
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = subtitleOverflow,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
@@ -324,52 +217,6 @@ private fun WebDavEntryRow(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-/** 开关型设置行（图标 + 标题 + 描述 + 开关） */
-@Composable
-private fun SwitchRow(
-    icon: Painter,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = PlayerSettingRowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-        AppSwitch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
         )
     }
 }

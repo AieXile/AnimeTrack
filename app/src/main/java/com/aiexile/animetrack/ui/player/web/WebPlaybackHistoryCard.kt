@@ -34,6 +34,7 @@ internal fun WebPlaybackHistoryCard(
     item: WebPlaybackHistoryItem,
     onContinue: () -> Unit,
     onEpisodes: () -> Unit,
+    onSave: () -> Unit,
     onDelete: () -> Unit
 ) {
     val entry = item.entry
@@ -49,6 +50,11 @@ internal fun WebPlaybackHistoryCard(
                         Text(it, style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
+                IconButton(onClick = onSave) {
+                    Icon(rememberAppIconPainter(AppIcon.BOOKMARKS),
+                        contentDescription = stringResource(R.string.media_library_add_web),
+                        modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = onDelete) {
                     Icon(rememberAppIconPainter(AppIcon.DELETE),

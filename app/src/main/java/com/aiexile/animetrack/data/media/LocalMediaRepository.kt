@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.SystemClock
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
+import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.player.VideoFormats
 import com.aiexile.animetrack.domain.playback.EpisodeFileNameParser
 import com.aiexile.animetrack.util.normalizeTitleForMatch
@@ -14,6 +15,10 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -21,11 +26,26 @@ import java.util.concurrent.ConcurrentHashMap
 class LocalMediaRepository internal constructor(
     private val context: Context,
     private val dao: LocalMediaDao,
-    private val treeReader: LocalMediaTreeReader
+    private val treeReader: LocalMediaTreeReader,
+    private val webDavTreeReader: LocalMediaTreeReader? = null
 ) {
     constructor(context: Context, dao: LocalMediaDao) : this(
         context, dao, SafLocalMediaTreeReader(context.contentResolver)
     )
+
+    internal constructor(context: Context, dao: LocalMediaDao, settingsRepository: SettingsRepository) : this(
+        context,
+        dao,
+        SafLocalMediaTreeReader(context.contentResolver),
+        WebDavLocalMediaTreeReader(settingsRepository)
+    )
+
+    private fun readerFor(treeUri: Uri): LocalMediaTreeReader =
+        if (treeUri.scheme.equals("webdav", ignoreCase = true)) {
+            webDavTreeReader ?: error("WebDAV 媒体库读取器未配置")
+        } else {
+            treeReader
+        }
 
     data class ScanProgress(val scannedFiles: Int, val videoFiles: Int)
 
@@ -45,10 +65,21 @@ class LocalMediaRepository internal constructor(
     }
 
     private val activeScans = ConcurrentHashMap.newKeySet<Long>()
+    private val webDavSourceLock = Mutex()
 
     fun observeSources(): Flow<List<LocalMediaSourceEntity>> = dao.observeSources()
 
     fun pageAnimeGroups(sourceId: Long) = Pager(libraryPagingConfig) { dao.pageAnimeGroups(sourceId) }.flow
+
+    internal fun observeLibraryGroups(webDavUri: String?) = dao.observeLibraryGroups(webDavUri)
+
+    internal fun observeCardMedia(group: LocalMediaAnimeGroup) =
+        dao.observeCardMedia(group.sourceId, group.archiveKey, group.reviewKey, group.animeId)
+
+    internal fun observeVisibleMedia(ids: Set<Long>): Flow<List<LocalMediaEntity>> {
+        if (ids.isEmpty()) return flowOf(emptyList())
+        return combine(ids.chunked(500).map(dao::observeVisibleMediaByIds)) { batches -> batches.flatMap { it } }
+    }
 
     fun pageUnclassifiedMedia(sourceId: Long) = Pager(libraryPagingConfig) { dao.pageUnclassifiedMedia(sourceId) }.flow
 
@@ -57,16 +88,24 @@ class LocalMediaRepository internal constructor(
     fun pageArchiveMedia(sourceId: Long, archiveKey: String?, reviewKey: String?) =
         Pager(libraryPagingConfig) { dao.pageArchiveMedia(sourceId, archiveKey, reviewKey) }.flow
 
+    internal fun pageGroupMedia(group: LocalMediaAnimeGroup) = if (group.archiveKey != null || group.reviewKey != null) {
+        pageArchiveMedia(group.sourceId, group.archiveKey, group.reviewKey)
+    } else {
+        pageAnimeMedia(group.sourceId, group.animeId)
+    }
+
     suspend fun getArchive(sourceId: Long, key: String) = dao.getArchive(sourceId, key)
 
     internal suspend fun getScrapeQueue(sourceId: Long) = dao.getScrapeQueue(sourceId)
+
+    internal fun observeScrapeGroupCount(sourceId: Long) = dao.observeScrapeGroupCount(sourceId)
 
     internal suspend fun archivesForEvidence(sourceId: Long, groupKey: String) = dao.findArchivesForEvidence(sourceId, groupKey)
 
     internal suspend fun manualArchivesForEvidence(sourceId: Long, groupKey: String) = dao.findManualArchivesForEvidence(sourceId, groupKey)
 
     internal suspend fun commitScrape(
-        expected: List<LocalMediaEntity>, archive: LocalMediaArchiveEntity?, state: String, animeId: Int? = null,
+        expected: List<LocalMediaEntity>, archive: LocalMediaArchiveEntity?, state: String?, animeId: Int? = null,
         episodeMapping: Map<Long, Pair<Int, Int?>> = emptyMap()
     ) = dao.commitScrape(expected, archive, state, animeId, episodeMapping, System.currentTimeMillis())
 
@@ -98,8 +137,9 @@ class LocalMediaRepository internal constructor(
 
     internal suspend fun refreshMissingGrants(sources: List<LocalMediaSourceEntity>) = withContext(Dispatchers.IO) {
         for (source in sources) {
+            val reader = readerFor(Uri.parse(source.treeUri))
             if (source.permissionState == LocalMediaPermissionState.GRANTED &&
-                !treeReader.hasPersistedReadPermission(Uri.parse(source.treeUri))
+                !reader.hasPersistedReadPermission(Uri.parse(source.treeUri))
             ) {
                 dao.markPermissionRevoked(source.id)
             }
@@ -110,14 +150,14 @@ class LocalMediaRepository internal constructor(
     internal suspend fun reauthorizeSource(sourceId: Long, treeUri: Uri): Boolean = withContext(Dispatchers.IO) {
         val source = checkNotNull(dao.getSource(sourceId)) { "本地来源已移除" }
         if (Uri.parse(source.treeUri) != treeUri) return@withContext false
-        treeReader.takePersistedReadPermission(treeUri)
+        readerFor(treeUri).takePersistedReadPermission(treeUri)
         dao.refreshSourceGrant(sourceId, source.displayName, System.currentTimeMillis())
         true
     }
 
     /** 详情页播放入口：只返回已确认关联且仍在盘上的剧集。 */
-    fun observeConfirmedEpisodesForAnime(animeId: Int): Flow<List<LocalMediaEntity>> =
-        dao.observeConfirmedEpisodesForAnime(animeId)
+    fun observeConfirmedEpisodesForAnime(animeId: Int, activeWebDavUri: String? = null): Flow<List<LocalMediaEntity>> =
+        dao.observeConfirmedEpisodesForAnime(animeId, activeWebDavUri)
 
     fun observeCompletedEpisodeNumbers(animeId: Int): Flow<List<Int>> =
         dao.observeCompletedEpisodeNumbers(animeId)
@@ -130,6 +170,17 @@ class LocalMediaRepository internal constructor(
         }
         dao.refreshSourceGrant(source.id, displayName, System.currentTimeMillis())
         return checkNotNull(dao.getSource(source.id)) { "本地来源已移除" }
+    }
+
+    suspend fun syncPlayerWebDavSource(): LocalMediaSourceEntity? = webDavSourceLock.withLock {
+        val reader = webDavTreeReader as? WebDavLocalMediaTreeReader ?: return@withLock null
+        val activeUri = reader.currentConfig()?.let(WebDavLocalMediaSource::uri)
+        dao.deleteInactiveWebDavSources(WebDavLocalMediaSource.URI_PREFIX, activeUri)
+        activeUri ?: return@withLock null
+        dao.getSourceByTreeUri(activeUri) ?: run {
+            dao.insertSource(LocalMediaSourceEntity(treeUri = activeUri, displayName = "WebDAV"))
+            checkNotNull(dao.getSourceByTreeUri(activeUri)) { "无法添加 WebDAV 媒体库" }
+        }
     }
 
     suspend fun deleteSource(source: LocalMediaSourceEntity) = dao.deleteSource(source)
@@ -187,7 +238,8 @@ class LocalMediaRepository internal constructor(
             check(dao.beginScan(sourceId, System.currentTimeMillis()) == 1) { "本地来源已移除" }
         }) { databaseNs += it }
         val treeUri = Uri.parse(source.treeUri)
-        if (!treeReader.hasPersistedReadPermission(treeUri)) {
+        val reader = readerFor(treeUri)
+        if (!reader.hasPersistedReadPermission(treeUri)) {
             throw SecurityException("本地文件夹授权已失效")
         }
 
@@ -212,7 +264,7 @@ class LocalMediaRepository internal constructor(
         val beforeTraversal = if (timings != null) SystemClock.elapsedRealtimeNanos() else 0L
         val databaseBeforeTraversal = timings?.databaseNs ?: 0L
         var progressNs = 0L
-        treeReader.readFiles(treeUri) { file ->
+        reader.readFiles(treeUri) { file ->
             scanContext.ensureActive()
             scannedFiles++
             if (VideoFormats.isVideoFile(file.fileName)) {
@@ -224,7 +276,7 @@ class LocalMediaRepository internal constructor(
                 if (old?.sidecarFingerprint == null && !(reidentify && old?.canRetryRecognition() == true)) {
                     if (!unchanged) parsedFiles++
                     val update = if (unchanged) buildScanUpdate(sourceId, file, old, true)
-                    else measured(timings, { buildScanUpdate(sourceId, file, old, false, rootTitle = source.displayName) }) { parsingNs += it }
+                    else measured(timings, { buildScanUpdate(sourceId, file, old, false) }) { parsingNs += it }
                     update?.let(pending::add)
                     if (pending.size >= BATCH_SIZE) commitBatch()
                 }
@@ -242,7 +294,7 @@ class LocalMediaRepository internal constructor(
                 (timings.databaseNs - databaseBeforeTraversal) - progressNs
         }
         scanContext.ensureActive()
-        if (!treeReader.hasPersistedReadPermission(treeUri)) {
+        if (!reader.hasPersistedReadPermission(treeUri)) {
             throw SecurityException("本地文件夹授权已失效")
         }
         if (pending.isNotEmpty()) commitBatch()
@@ -251,7 +303,7 @@ class LocalMediaRepository internal constructor(
             val rows = dao.getScanSnapshot(sourceId).associateBy { it.relativePath }
             for (file in videos) {
                 scanContext.ensureActive()
-                val evidence = sidecarIndex.readFor(file.relativePath, file.fileName, treeReader::readSidecar)
+                val evidence = sidecarIndex.readFor(file.relativePath, file.fileName, reader::readSidecar)
                     .takeUnless { it == LocalMediaSidecarEvidence() }
                 val old = rows[file.relativePath]
                 val evidenceKey = evidence?.toString()
@@ -260,7 +312,7 @@ class LocalMediaRepository internal constructor(
                     old.parserVersion == EpisodeFileNameParser.VERSION && old.sidecarFingerprint == evidenceKey
                 if (!unchanged) parsedFiles++
                 val update = measured(timings, {
-                    buildScanUpdate(sourceId, file, old, unchanged, source.displayName, evidence, retry)
+                    buildScanUpdate(sourceId, file, old, unchanged, evidence, retry)
                 }) { parsingNs += it }
                 update?.let(pending::add)
                 if (pending.size >= BATCH_SIZE) commitBatch()
@@ -289,7 +341,6 @@ class LocalMediaRepository internal constructor(
         file: LocalMediaScanFile,
         old: LocalMediaEntity?,
         unchanged: Boolean,
-        rootTitle: String = "",
         evidence: LocalMediaSidecarEvidence? = null,
         reidentify: Boolean = false
     ): LocalMediaEntity? {
@@ -306,8 +357,7 @@ class LocalMediaRepository internal constructor(
         }
 
         val folder = file.relativePath.substringBeforeLast('/', "")
-        val parentPath = listOf(rootTitle, folder).filter(String::isNotBlank).joinToString("/")
-        val parsed = EpisodeFileNameParser.parse(file.fileName, parentPath)
+        val parsed = EpisodeFileNameParser.parse(file.fileName, folder)
         val sidecarYear = evidence?.year
         val year = sidecarYear ?: parsed.year
         val season = evidence?.season ?: parsed.seasonNumber
@@ -315,8 +365,10 @@ class LocalMediaRepository internal constructor(
         val name = evidence?.title ?: parsed.parsedTitle
         val names = (listOfNotNull(evidence?.title, evidence?.originalTitle).ifEmpty { parsed.titleCandidates })
             .map { it.replace('\u001f', ' ').trim() }.filter { it.isNotBlank() }.distinctBy(::normalizeTitleForMatch)
-        val groupKey = if (names.isEmpty() && evidence?.bangumiId == null && evidence?.tmdbId == null) null else
-            listOf(folder, names.map(::normalizeTitleForMatch).sorted().joinToString("|"), season, year, isMovie, evidence?.bangumiId, evidence?.tmdbId,
+        val bangumiHint = evidence?.bangumiId?.takeUnless { evidence.conflict } ?: parsed.bangumiId
+        val tmdbHint = evidence?.tmdbId?.takeUnless { evidence.conflict } ?: parsed.tmdbId
+        val groupKey = if (names.isEmpty() && bangumiHint == null && tmdbHint == null) null else
+            listOf(folder, names.map(::normalizeTitleForMatch).sorted().joinToString("|"), season, year, isMovie, bangumiHint, tmdbHint,
                 evidence?.conflict == true, evidence?.offset).joinToString("\u001f")
         val nfoEpisode = evidence?.episode
         val episode = if (nfoEpisode != null) nfoEpisode.toIntOrNull() else parsed.episodeNumber
@@ -355,8 +407,8 @@ class LocalMediaRepository internal constructor(
             releaseYear = year,
             decimalEpisode = decimal,
             originalEpisode = parsed.decimalEpisode ?: parsed.episodeNumber?.toString(),
-            bangumiHint = evidence?.bangumiId?.takeUnless { evidence.conflict },
-            tmdbHint = evidence?.tmdbId?.takeUnless { evidence.conflict },
+            bangumiHint = bangumiHint,
+            tmdbHint = tmdbHint,
             episodeOffset = evidence?.offset?.takeIf {
                 nfoEpisode == null && !parsed.explicitNumbering && episode != null && parsed.isMainFeature
             },
@@ -380,6 +432,9 @@ class LocalMediaRepository internal constructor(
     suspend fun getMediaForSource(sourceId: Long): List<LocalMediaEntity> = dao.getMedia(sourceId)
 
     suspend fun getMediaById(mediaId: Long): LocalMediaEntity? = dao.getMediaById(mediaId)
+
+    internal suspend fun findTrackedAnimeIdForArchive(mediaId: Long): Int? =
+        dao.findTrackedAnimeIdsForArchive(mediaId).singleOrNull()
 
     /** 记录单集完成；重复完成时更新完成时间。 */
     suspend fun recordEpisodeCompleted(
@@ -407,7 +462,12 @@ class LocalMediaRepository internal constructor(
             val treeUri = if (sourceId in sourceUris) sourceUris[sourceId] else {
                 dao.getSource(sourceId)?.let { Uri.parse(it.treeUri) }.also { sourceUris[sourceId] = it }
             }
-            treeUri?.let { LocalSubtitleLocator.readDirectory(context, it, parentId) }.orEmpty()
+            when {
+                treeUri?.scheme.equals("webdav", ignoreCase = true) ->
+                    (webDavTreeReader as? WebDavLocalMediaTreeReader)?.readSubtitleDirectory(parentId).orEmpty()
+                treeUri != null -> LocalSubtitleLocator.readDirectory(context, treeUri, parentId)
+                else -> emptyList()
+            }
         }
     }
 

@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -63,10 +64,33 @@ sealed class AutoSyncState {
     data class Failed(val message: String) : AutoSyncState()
 }
 
+data class BatchAnimeAddState(
+    val isActive: Boolean = false,
+    val selection: Map<Pair<SearchSource, Int>, SearchResult> = emptyMap(),
+    val isSaving: Boolean = false,
+    val summary: Summary? = null,
+    val hasError: Boolean = false
+) {
+    data class Summary(val added: Int, val skipped: Int)
+
+    internal fun toggleSelection(result: SearchResult): BatchAnimeAddState {
+        if (!isActive || isSaving) return this
+        val key = result.source to result.sourceId
+        val updated = if (key in selection) selection - key else selection + (key to result)
+        return copy(selection = updated, summary = null, hasError = false)
+    }
+
+    internal fun complete(insertedIds: List<Long>): BatchAnimeAddState {
+        val added = insertedIds.count { it > 0 }
+        return BatchAnimeAddState(isActive = true, summary = Summary(added, insertedIds.size - added))
+    }
+}
+
 data class HomeUiState(
     val selectedFilter: AnimeFilter = AnimeFilter.ALL,
     val isLoading: Boolean = true,
     val isBottomSheetVisible: Boolean = false,
+    val batchAdd: BatchAnimeAddState = BatchAnimeAddState(),
     /** 请求关闭添加面板：由 UI 层执行 bottomSheetState.hide() 动画后再走统一收尾，
      *  避免 SheetState 残留 Expanded 锚点导致下次打开面板位置偏高 */
     val pendingSheetDismiss: Boolean = false,
@@ -555,6 +579,7 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = true,
+                batchAdd = BatchAnimeAddState(),
                 pendingSheetDismiss = false,
                 showFormDialog = false,
                 formState = AddAnimeFormState(),
@@ -573,6 +598,7 @@ class HomeViewModel(
         _uiState.update { 
             it.copy(
                 isBottomSheetVisible = false,
+                batchAdd = BatchAnimeAddState(),
                 pendingSheetDismiss = false,
                 showFormDialog = false,
                 formState = AddAnimeFormState(),
@@ -854,26 +880,8 @@ class HomeViewModel(
                 }
             }
 
-            val anime = Anime(
-                title = formState.title.trim(),
-                totalEpisodes = formState.totalEpisodes,
-                watchedEpisodes = formState.watchedEpisodes,
-                status = formState.status,
-                rating = formState.rating,
-                notes = formState.notes.trim(),
-                startDate = formState.startDate,
-                finishDate = formState.finishDate,
-                coverUrl = formState.coverUrl,
-                summary = formState.summary,
-                bangumiId = formState.bangumiId,
-                tmdbId = formState.tmdbId,
-                airDate = formState.airDate,
-                airWeekday = formState.airWeekday,
-                currentEpisodes = formState.currentEpisodes,
-                airEndDate = formState.airEndDate,
-                isFinished = computeIsFinished(formState.airDate, formState.totalEpisodes, formState.status, formState.airEndDate)
-            )
-            
+            val anime = formState.toAnime()
+
             if (BuildConfig.DEBUG) Log.d(TAG, "Inserting anime: $anime")
             
             try {
@@ -899,48 +907,120 @@ class HomeViewModel(
                 // 新增完成：把网格定位到新番剧所在位置（排序模式不同位置也不同，不再回顶）
                 _scrollToAnimeRequests.tryEmit(anime.copy(id = id.toInt()))
 
-                repository.downloadCoverAsync(
-                    animeId = id.toInt(),
-                    coverUrl = anime.coverUrl,
-                    bangumiId = anime.bangumiId,
-                    tmdbId = anime.tmdbId
-                )
-
-                if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null || anime.airEndDate == null)) {
-                    viewModelScope.launch(Dispatchers.IO) {
-                        try {
-                            val detail = repository.fetchBangumiDetail(anime.bangumiId) ?: return@launch
-                            val dbAnime = repository.getAnimeById(id.toInt()) ?: return@launch
-                            val updatedAirDate = dbAnime.airDate ?: detail.date
-                            val updatedAirWeekday = dbAnime.airWeekday ?: detail.airWeekday
-                            // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
-                            val parsedAirEndDate = detail.parseEndDate()
-                            // 仅在有新字段可补齐时才写库，避免无意义写入
-                            val hasNewField = updatedAirWeekday != dbAnime.airWeekday
-                                || updatedAirDate != dbAnime.airDate
-                                || (dbAnime.summary == null && detail.summary != null)
-                                || (parsedAirEndDate != null && parsedAirEndDate != dbAnime.airEndDate)
-                            if (!hasNewField) return@launch
-                            val updated = dbAnime.copy(
-                                airWeekday = updatedAirWeekday,
-                                airDate = updatedAirDate,
-                                summary = dbAnime.summary ?: detail.summary?.cleanSummary(),
-                                airEndDate = parsedAirEndDate ?: dbAnime.airEndDate,
-                                isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status, parsedAirEndDate ?: dbAnime.airEndDate, dbAnime.airingStatusOverride)
-                            )
-                            repository.updateAnimeInternal(updated)
-                            if (BuildConfig.DEBUG) Log.d(TAG, "Backfilled detail for animeId=$id")
-                        } catch (e: Exception) {
-                            AppLogManager.e(TAG, "Failed to backfill detail for animeId=$id", e)
-                        }
-                    }
-                }
+                prepareAddedAnime(anime, id.toInt())
             } catch (e: Exception) {
                 AppLogManager.e(TAG, "Failed to insert anime", e)
             }
         }
     }
     
+    fun toggleBatchAddMode() {
+        _uiState.update { state ->
+            if (!state.isBottomSheetVisible || state.pendingSheetDismiss || state.showFormDialog || state.batchAdd.isSaving) {
+                state
+            } else {
+                state.copy(batchAdd = BatchAnimeAddState(isActive = !state.batchAdd.isActive))
+            }
+        }
+    }
+
+    fun toggleBatchAnime(result: SearchResult) {
+        _uiState.update { it.copy(batchAdd = it.batchAdd.toggleSelection(result)) }
+    }
+
+    fun saveBatchAnimes() {
+        val batch = _uiState.value.batchAdd
+        if (!batch.isActive || batch.isSaving || batch.selection.isEmpty()) return
+        _uiState.update { it.copy(batchAdd = batch.copy(isSaving = true, summary = null, hasError = false)) }
+        viewModelScope.launch {
+            try {
+                val useSourceRating = settingsRepository.ratingStandard.first() != RatingStandard.MANUAL
+                val animes = batch.selection.values.map { result ->
+                    AddAnimeFormState(
+                        title = result.title,
+                        totalEpisodes = result.episodeCount ?: 12,
+                        status = if (isAirDateInFuture(result.airDate)) AnimeStatus.PLANNED else AnimeStatus.WATCHING,
+                        rating = if (useSourceRating) result.rating?.let { roundToHalf(it / 2f) } else null,
+                        coverUrl = result.coverUrl,
+                        summary = result.summary?.cleanSummary(),
+                        bangumiId = result.sourceId.takeIf { result.source == SearchSource.BANGUMI },
+                        tmdbId = result.sourceId.takeIf { result.source == SearchSource.TMDB },
+                        airDate = result.airDate
+                    ).toAnime()
+                }
+                val ids = repository.batchInsertAnimes(animes, syncToBangumi = true)
+                _uiState.update { it.copy(batchAdd = batch.complete(ids)) }
+                animes.zip(ids).forEach { (anime, id) ->
+                    if (id > 0) prepareAddedAnime(anime, id.toInt())
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLogManager.e(TAG, "Failed to add batch of anime", e)
+                _uiState.update { it.copy(batchAdd = batch.copy(isSaving = false, hasError = true)) }
+            }
+        }
+    }
+
+    private fun AddAnimeFormState.toAnime() = Anime(
+        title = title.trim(),
+        totalEpisodes = totalEpisodes,
+        watchedEpisodes = watchedEpisodes,
+        status = status,
+        rating = rating,
+        notes = notes.trim(),
+        startDate = startDate,
+        finishDate = finishDate,
+        coverUrl = coverUrl,
+        summary = summary,
+        bangumiId = bangumiId,
+        tmdbId = tmdbId,
+        airDate = airDate,
+        airWeekday = airWeekday,
+        currentEpisodes = currentEpisodes,
+        airEndDate = airEndDate,
+        isFinished = computeIsFinished(airDate, totalEpisodes, status, airEndDate)
+    )
+
+    private fun prepareAddedAnime(anime: Anime, id: Int) {
+        repository.downloadCoverAsync(
+            animeId = id,
+            coverUrl = anime.coverUrl,
+            bangumiId = anime.bangumiId,
+            tmdbId = anime.tmdbId
+        )
+
+        if (anime.bangumiId != null && (anime.airWeekday == null || anime.airDate == null || anime.summary == null || anime.airEndDate == null)) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val detail = repository.fetchBangumiDetail(anime.bangumiId) ?: return@launch
+                    val dbAnime = repository.getAnimeById(id) ?: return@launch
+                    val updatedAirDate = dbAnime.airDate ?: detail.date
+                    val updatedAirWeekday = dbAnime.airWeekday ?: detail.airWeekday
+                    // 解析 infobox「播放结束」日期（仅番剧完结后 Bangumi 才会填充）
+                    val parsedAirEndDate = detail.parseEndDate()
+                    // 仅在有新字段可补齐时才写库，避免无意义写入
+                    val hasNewField = updatedAirWeekday != dbAnime.airWeekday
+                        || updatedAirDate != dbAnime.airDate
+                        || (dbAnime.summary == null && detail.summary != null)
+                        || (parsedAirEndDate != null && parsedAirEndDate != dbAnime.airEndDate)
+                    if (!hasNewField) return@launch
+                    val updated = dbAnime.copy(
+                        airWeekday = updatedAirWeekday,
+                        airDate = updatedAirDate,
+                        summary = dbAnime.summary ?: detail.summary?.cleanSummary(),
+                        airEndDate = parsedAirEndDate ?: dbAnime.airEndDate,
+                        isFinished = computeIsFinished(updatedAirDate, dbAnime.totalEpisodes, dbAnime.status, parsedAirEndDate ?: dbAnime.airEndDate, dbAnime.airingStatusOverride)
+                    )
+                    repository.updateAnimeInternal(updated)
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Backfilled detail for animeId=$id")
+                } catch (e: Exception) {
+                    AppLogManager.e(TAG, "Failed to backfill detail for animeId=$id", e)
+                }
+            }
+        }
+    }
+
     /**
      * 监听观看状态/进度变更（特征：已有番剧的 lastProgressAt 被刷新），
      * 把主界面网格定位到该番剧变更后的位置。

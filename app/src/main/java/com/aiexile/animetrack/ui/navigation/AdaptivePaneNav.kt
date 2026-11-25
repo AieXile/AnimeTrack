@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -54,7 +55,11 @@ import com.aiexile.animetrack.ui.home.HomeViewModel
 import com.aiexile.animetrack.ui.update.UpdateViewModel
 import com.aiexile.animetrack.ui.announcement.AnnouncementViewModel
 import com.aiexile.animetrack.ui.player.local.LocalMediaLibraryScreen
+import com.aiexile.animetrack.ui.player.library.MediaLibraryScreen
+import com.aiexile.animetrack.ui.player.library.MediaLibrarySeriesScreen
+import com.aiexile.animetrack.ui.player.library.MediaLibraryViewModel
 import com.aiexile.animetrack.ui.player.web.WebPlaybackScreen
+import com.aiexile.animetrack.ui.player.settings.PlayerPreferencesScreen
 import com.aiexile.animetrack.ui.player.settings.PlayerSettingsScreen
 import com.aiexile.animetrack.ui.schedule.DailyBroadcastScreen
 import com.aiexile.animetrack.ui.settings.AboutScreen
@@ -193,10 +198,14 @@ fun rememberPaneNavState(
                     launchSingleTop = true
                 }
             } else {
-                paneNavController.navigate(route)
+                paneNavController.navigate(route) {
+                    launchSingleTop = true
+                }
             }
         } else {
-            fullscreenNavController.navigate(route)
+            fullscreenNavController.navigate(route) {
+                launchSingleTop = true
+            }
         }
     }
 
@@ -226,6 +235,8 @@ internal fun SideNavLayout(
     settingsRepository: SettingsRepository,
     homeViewModel: com.aiexile.animetrack.ui.home.HomeViewModel,
     gridState: LazyGridState,
+    favoritesGridState: LazyGridState,
+    settingsListState: LazyListState,
     updateViewModel: UpdateViewModel,
     announcementViewModel: AnnouncementViewModel,
     authManager: AuthManager,
@@ -238,6 +249,8 @@ internal fun SideNavLayout(
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val chromeStyle = LocalChromeStyle.current
+    val paneEntry by paneNavController.currentBackStackEntryAsState()
+    val isPaneOpen = paneEntry?.destination?.route?.let { it != Routes.PANE_ROOT } == true
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -276,6 +289,8 @@ internal fun SideNavLayout(
                     navigationStyle = NavigationStyle.BOTTOM,
                     homeViewModel = homeViewModel,
                     gridState = gridState,
+                    favoritesGridState = favoritesGridState,
+                    settingsListState = settingsListState,
                     updateViewModel = updateViewModel,
                     announcementViewModel = announcementViewModel,
                     authManager = authManager,
@@ -283,7 +298,8 @@ internal fun SideNavLayout(
                     userAuthManager = userAuthManager,
                     onNavigateToScreen = onNavigateToScreen,
                     sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    isPaneOpen = isPaneOpen
                 )
             }
         }
@@ -684,15 +700,22 @@ internal fun NavGraphBuilder.sharedDestinations(
         )
     }
 
-    // 播放器设置（视频播放聚合页）
     composable(Routes.PLAYER_SETTINGS) {
-        com.aiexile.animetrack.ui.player.settings.PlayerSettingsScreen(
+        PlayerSettingsScreen(
             onBack = navigateBack,
-            onNavigateToPlayer = { onNavigate(Routes.player(0)) },
+            onNavigateToPlayerPreferences = { onNavigate(Routes.PLAYER_PREFERENCES) },
+            onNavigateToMediaLibrary = { onNavigate(Routes.MEDIA_LIBRARY) },
             onNavigateToLocalMedia = { onNavigate(Routes.LOCAL_MEDIA) },
             onNavigateToWebPlayback = { onNavigate(Routes.webPlayback()) },
             onNavigateToWebDAVBrowse = { onNavigate(Routes.webDavBrowse()) },
             onNavigateToPlayerWebDavConfig = { onNavigate(Routes.PLAYER_WEBDAV_CONFIG) },
+            settingsRepository = settingsRepository
+        )
+    }
+
+    composable(Routes.PLAYER_PREFERENCES) {
+        PlayerPreferencesScreen(
+            onBack = navigateBack,
             settingsRepository = settingsRepository
         )
     }
@@ -706,6 +729,26 @@ internal fun NavGraphBuilder.sharedDestinations(
             onOpenPlayer = { animeId ->
                 onNavigate(Routes.player(animeId, webPlay = true))
             }
+        )
+    }
+
+    composable(Routes.MEDIA_LIBRARY) {
+        MediaLibraryScreen(
+            onBack = navigateBack,
+            onOpenSeries = { key -> onNavigate(Routes.mediaLibrarySeries(key)) },
+            onPlayMedia = { mediaId -> onNavigate(Routes.player(0, localMediaId = mediaId)) },
+            onPlayWeb = { animeId -> onNavigate(Routes.player(animeId, webPlay = true)) }
+        )
+    }
+
+    composable(Routes.MEDIA_LIBRARY_SERIES, arguments = Routes.mediaLibrarySeriesArguments) { entry ->
+        val parent = remember(entry) { hostController.getBackStackEntry(Routes.MEDIA_LIBRARY) }
+        MediaLibrarySeriesScreen(
+            seriesKey = entry.arguments?.getString("seriesKey").orEmpty(),
+            onBack = navigateBack,
+            onPlayMedia = { mediaId -> onNavigate(Routes.player(0, localMediaId = mediaId)) },
+            onPlayWeb = { animeId -> onNavigate(Routes.player(animeId, webPlay = true)) },
+            viewModel = androidx.lifecycle.viewmodel.compose.viewModel(parent, factory = MediaLibraryViewModel.Factory())
         )
     }
 

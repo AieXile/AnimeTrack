@@ -16,7 +16,7 @@ import com.aiexile.animetrack.ui.home.SeriesMatcher
  *
  * 算法：
  * 1. 以"同系列关系"（前传/续集/外传/总集篇等）构建无向图，求连通分量
- * 2. 分量内库内条目 ≥2 才成组；seriesKey = 链头（无前传节点）标题归一后的 baseTitle
+ * 2. 分量内库内条目 ≥2 才成组；展示标题取链头（无前传节点）的基础标题
  * 3. seasonNumber：特殊类型（剧场版/外传/番外/总集篇等）= 99；
  *   其余 = 沿前传链的最短深度（链头 = 1），多个前传时取 min 避免"剧场版也是前传"导致深度虚高
  */
@@ -43,6 +43,10 @@ object BangumiSeriesResolver {
         "总集篇", "総集編", "总集编", "剧场版", "劇場版", "主线故事", "分支故事"
     )
 
+    internal fun isSeriesEdge(from: Int, relation: SubjectRelation): Boolean =
+        relation.isAnime && relation.subjectId > 0 && relation.subjectId != from &&
+            relation.relation in SERIES_RELATIONS
+
     /** 特殊类型关系：以这些关系被指向的条目季数 = 99（排所有正季后） */
     private val SPECIAL_RELATIONS = setOf(
         "外传", "外伝", "番外篇", "番外編", "番外编",
@@ -54,8 +58,9 @@ object BangumiSeriesResolver {
 
     /** 系列归属结果 */
     data class SeriesAssignment(
-        /** 系列头 baseTitle；null 表示该条目不属于任何 ≥2 部的系列组 */
-        val seriesKey: String?,
+        /** 使用分量内最小的本地 ID 区分同名但不连通的系列。 */
+        val groupId: Int,
+        val baseTitle: String,
         /** 关系链推导的季数；null 表示未推导 */
         val seasonNumber: Int?
     )
@@ -73,16 +78,14 @@ object BangumiSeriesResolver {
      *
      * @param animes 用户库内番剧（须有 bangumiId）
      * @param relationsBySubjectId 各条目的关联关系（key 为 subjectId，含库外前传等条目的关系数据）；
-     *        调用方须保证仅包含「拉取成功」的结果（空列表 = Bangumi 确认无关联），
-     *        拉取失败的条目不得放入本表（否则会误清正则分组结果）
-     * @return anime.id → 系列归属。未出现在返回值中的条目视为无归属（由调用方保留正则结果）
+     * @return anime.id → 已得到正向关系证据的系列归属。未找到关系不代表不同系列。
      */
     fun resolve(
         animes: List<Anime>,
         relationsBySubjectId: Map<Int, List<SubjectRelation>>
     ): Map<Int, SeriesAssignment> {
         val result = mutableMapOf<Int, SeriesAssignment>()
-        val inLibraryIds = animes.mapNotNull { it.bangumiId }.toSet()
+        val libraryBySubjectId = animes.filter { (it.bangumiId ?: 0) > 0 }.groupBy { it.bangumiId!! }
 
         // 1. 构建无向邻接表（仅同系列关系）
         val adjacency = mutableMapOf<Int, MutableSet<Int>>()
@@ -90,13 +93,23 @@ object BangumiSeriesResolver {
         // 入边关系集合：nodeId → 指向它的关系类型集合（用于判断特殊类型）
         val incomingRelations = mutableMapOf<Int, MutableSet<String>>()
 
+        val prequels = mutableMapOf<Int, MutableSet<Int>>()
+        val sequels = mutableMapOf<Int, MutableSet<Int>>()
         for ((from, relations) in relationsBySubjectId) {
+            if (from <= 0) continue
             for (rel in relations) {
-                if (!rel.isAnime || rel.relation !in SERIES_RELATIONS) continue
-                adjacency.getOrPut(from) { mutableSetOf() }.add(rel.subjectId)
-                adjacency.getOrPut(rel.subjectId) { mutableSetOf() }.add(from)
-                titleById[rel.subjectId] = rel.title
-                incomingRelations.getOrPut(rel.subjectId) { mutableSetOf() }.add(rel.relation)
+                if (!isSeriesEdge(from, rel)) continue
+                val to = rel.subjectId
+                adjacency.getOrPut(from) { mutableSetOf() }.add(to)
+                adjacency.getOrPut(to) { mutableSetOf() }.add(from)
+                if (rel.title.isNotBlank()) titleById[to] = rel.title
+                incomingRelations.getOrPut(to) { mutableSetOf() }.add(rel.relation)
+                // Bangumi 只记录单向关系时，也可从「续集」反推「前传」。
+                if (rel.relation == PREQUEL || rel.relation == SEQUEL) {
+                    val (earlier, later) = if (rel.relation == PREQUEL) Pair(to, from) else Pair(from, to)
+                    prequels.getOrPut(later) { mutableSetOf() }.add(earlier)
+                    sequels.getOrPut(earlier) { mutableSetOf() }.add(later)
+                }
             }
         }
         // 库内条目的标题优先（关系数据可能缺 name_cn）
@@ -106,8 +119,8 @@ object BangumiSeriesResolver {
 
         // 2. 求连通分量
         val visited = mutableSetOf<Int>()
-        for (start in adjacency.keys) {
-            if (start in visited) continue
+        for (start in libraryBySubjectId.keys) {
+            if (start in visited || start !in adjacency) continue
             val component = mutableListOf<Int>()
             val stack = ArrayDeque<Int>()
             stack.addLast(start)
@@ -124,57 +137,39 @@ object BangumiSeriesResolver {
             }
 
             // 3. 分量内库内条目 ≥2 才成组
-            val componentSet = component.toHashSet()
-            val libraryAnimes = animes.filter { it.bangumiId != null && it.bangumiId in componentSet }
+            val libraryAnimes = component.flatMap { libraryBySubjectId[it].orEmpty() }
             if (libraryAnimes.size < 2) continue
 
-            // 4. 前传有向边（分量内），计算最短深度
-            val prequels = mutableMapOf<Int, List<Int>>()
-            for (node in component) {
-                prequels[node] = relationsBySubjectId[node].orEmpty()
-                    .filter { it.isAnime && it.relation == "前传" && it.subjectId in adjacency }
-                    .map { it.subjectId }
-            }
-            val depthCache = mutableMapOf<Int, Int>()
-            val computing = mutableSetOf<Int>()
-            fun depthOf(node: Int): Int {
-                depthCache[node]?.let { return it }
-                if (node in computing) return 1 // 环保护
-                computing.add(node)
-                val preq = prequels[node].orEmpty()
-                val d = if (preq.isEmpty()) 1 else 1 + (preq.minOfOrNull { depthOf(it) } ?: 0)
-                computing.remove(node)
-                depthCache[node] = d
-                return d
-            }
-            component.forEach { depthOf(it) }
+            fun isSpecial(node: Int): Boolean = SeriesMatcher.isSpecialEntry(titleById[node].orEmpty()) ||
+                incomingRelations[node].orEmpty().any { it in SPECIAL_RELATIONS }
 
-            // 5. 链头 = 无前传节点；取标题最短者归一为 seriesKey（标题最短通常最接近系列名）
-            val heads = component.filter { prequels[it].orEmpty().isEmpty() }
-            val headTitle = heads.minByOrNull { titleById[it]?.length ?: Int.MAX_VALUE }
-                ?.let { titleById[it] }
-                ?: libraryAnimes.minByOrNull { it.title.length }?.title
+            // 从所有链头按层遍历，得到最短前传深度；有环且无链头的条目交给标题季号兜底。
+            val heads = component.filter { prequels[it].isNullOrEmpty() }
+            val depths = heads.associateWith { 1 }.toMutableMap()
+            val remaining = ArrayDeque(heads)
+            while (remaining.isNotEmpty()) {
+                val node = remaining.removeFirst()
+                for (sequel in sequels[node].orEmpty()) {
+                    if (depths.putIfAbsent(sequel, depths.getValue(node) + 1) == null) remaining.addLast(sequel)
+                }
+            }
+
+            // 优先选主线链头，避免最短的外传标题变成整个系列的名字。
+            val headTitle = heads.filterNot(::isSpecial).mapNotNull(titleById::get)
+                .minWithOrNull(compareBy<String> { it.length }.thenBy { it })
+                ?: libraryAnimes.minWithOrNull(compareBy<Anime> { it.title.length }.thenBy { it.title })?.title
                 ?: continue
-            val seriesKey = SeriesMatcher.extractBaseTitle(headTitle)
+            val baseTitle = SeriesMatcher.extractBaseTitle(headTitle)
+            val groupId = libraryAnimes.minOf { it.id }
 
             // 6. 计算每部库内番剧的归属
             for (anime in libraryAnimes) {
                 val nodeId = anime.bangumiId ?: continue
-                val isSpecial = SeriesMatcher.isSpecialEntry(anime.title) ||
-                    incomingRelations[nodeId].orEmpty().any { it in SPECIAL_RELATIONS }
                 result[anime.id] = SeriesAssignment(
-                    seriesKey = seriesKey,
-                    seasonNumber = if (isSpecial) SPECIAL_SEASON else (depthCache[nodeId] ?: 1)
+                    groupId = groupId,
+                    baseTitle = baseTitle,
+                    seasonNumber = if (isSpecial(nodeId)) SPECIAL_SEASON else depths[nodeId]
                 )
-            }
-        }
-
-        // 7. 不在任何 ≥2 部系列组内的库内条目：显式清空（Bangumi 权威认为它们不成组，
-        //    用于覆盖正则可能的误判，如同名不同作品）
-        val assigned = result.keys
-        for (anime in animes) {
-            if (anime.id !in assigned && anime.bangumiId != null && anime.bangumiId in relationsBySubjectId) {
-                result[anime.id] = SeriesAssignment(null, null)
             }
         }
 

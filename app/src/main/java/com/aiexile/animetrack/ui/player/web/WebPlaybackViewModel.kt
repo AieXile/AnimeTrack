@@ -11,8 +11,11 @@ import com.aiexile.animetrack.domain.playback.WebPlaybackResumeTarget
 import com.aiexile.animetrack.domain.playback.WebPlaybackQueue
 import com.aiexile.animetrack.model.PlaybackProgress
 import com.aiexile.animetrack.di.AppContainer
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -34,6 +37,8 @@ class WebPlaybackViewModel(
     private val historyRepository: WebPlaybackHistoryRepository,
     private val playerRepository: PlayerRepository
 ) : ViewModel() {
+    private val _librarySaveResult = MutableStateFlow<Boolean?>(null)
+    internal val librarySaveResult = _librarySaveResult.asStateFlow()
 
     val history: StateFlow<List<WebPlaybackHistoryItem>> =
         combine(historyRepository.entries, playerRepository.progress) { entries, records ->
@@ -61,6 +66,21 @@ class WebPlaybackViewModel(
     fun prepareContinue(item: WebPlaybackHistoryItem) {
         PendingWebPlayback.set(item.resume.request)
     }
+
+    internal fun saveToLibrary(entry: WebPlaybackHistoryRepository.Entry) {
+        viewModelScope.launch {
+            _librarySaveResult.value = try {
+                historyRepository.saveToLibrary(entry)
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    internal fun clearLibrarySaveResult() { _librarySaveResult.value = null }
 
     fun remove(url: String) {
         viewModelScope.launch { historyRepository.remove(url) }

@@ -151,8 +151,6 @@
     <string name="developer_simulate_update">Simulate Update</string>
     <string name="developer_simulate_update_desc">Simulate full update flow without downloading real files</string>
     <string name="developer_trigger_simulate_update">Trigger Simulated Update</string>
-    <string name="developer_player_hub_entry">Show "Video Playback" in Settings</string>
-    <string name="developer_player_hub_entry_desc">Show playback hub entry in settings</string>
     <string name="developer_announcement">Announcement</string>
     <string name="developer_announcement_desc">View and test the announcement dialog and voting</string>
     <string name="developer_open_announcement">Open Announcement</string>
@@ -251,19 +249,21 @@
     <string name="features_rating_standard_notice">Only affects newly added anime, existing anime are not affected</string>
 
     <!-- External playback -->
-    <string name="features_external_player">External playback</string>
+    <string name="features_external_player">Playback on anime details</string>
     <string name="features_external_player_visible">Show play button in details</string>
-    <string name="features_external_player_visible_desc">Show external play button in detail top bar</string>
+    <string name="features_external_player_visible_desc">Play local files, WebDAV or web videos, or open an external app from anime details</string>
     <string name="features_external_play_mode">Playback app</string>
-    <string name="features_external_play_mode_desc">Target app opened by the play button on the detail page</string>
+    <string name="features_external_play_mode_desc">Choose an app for external playback or use the built-in player only</string>
     <string name="features_external_play_mode_auto">Automatic</string>
-    <string name="features_external_play_mode_auto_desc">Auto-pick Bilibili when linked, otherwise ask</string>
+    <string name="features_external_play_mode_auto_desc">Choose an external app based on what is installed and linked</string>
+    <string name="features_external_play_mode_builtin">Built-in player only</string>
+    <string name="features_external_play_mode_builtin_desc">Play from local files, WebDAV and the web</string>
     <string name="features_external_play_mode_animeko">Animeko</string>
-    <string name="features_external_play_mode_animeko_desc">Always open Animeko (requires a Bangumi link)</string>
+    <string name="features_external_play_mode_animeko_desc">Open Animeko for external playback (requires a Bangumi link)</string>
     <string name="features_external_play_mode_bilibili">Bilibili</string>
-    <string name="features_external_play_mode_bilibili_desc">Always open Bilibili, matching the anime by title</string>
+    <string name="features_external_play_mode_bilibili_desc">Open Bilibili for external playback and match by title</string>
     <string name="features_external_play_mode_ask">Ask every time</string>
-    <string name="features_external_play_mode_ask_desc">Choose an app before each playback</string>
+    <string name="features_external_play_mode_ask_desc">Ask which app to use when you select external playback</string>
 
     <!-- UpdateNotificationScreen -->
     <string name="update_notif_title">Update Notifications</string>

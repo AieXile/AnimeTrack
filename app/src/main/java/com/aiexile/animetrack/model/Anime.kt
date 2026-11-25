@@ -47,11 +47,11 @@ data class Anime(
     val hasNewUpdate: Boolean = false,
     val syncRemarks: String? = null,
     val tmdbId: Int? = null,
-    /** 系列识别 key（= baseTitle 或 Bangumi 关系链系列头标题），同系列多季番剧共享。null 表示未识别为系列。 */
+    /** 系列分组标识；关系分组可带 ID 前缀以区分同名作品。null 表示未识别为系列。 */
     val seriesKey: String? = null,
     /**
-     * Bangumi 关系链推导的显式季数（1-based；99=剧场版/外传/总集篇等特殊类型，排所有正季后）。
-     * null 表示未由关系链推导，堆叠排序回退到标题正则（extractSeasonNumber）+ airDate。
+     * 由关系链或已知系列得出的显式季序（1-based；99=剧场版/外传/总集篇等特殊类型，排所有正季后）。
+     * null 表示没有显式季序，堆叠排序回退到标题正则（extractSeasonNumber）+ airDate。
      */
     val seasonNumber: Int? = null,
     /** 远程封面 URL（wsrv.nl 代理或原始 URL），用于同步到后端。coverUrl 被本地化后仍保留此值。 */

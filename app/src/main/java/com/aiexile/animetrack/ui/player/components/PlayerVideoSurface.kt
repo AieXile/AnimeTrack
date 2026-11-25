@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
@@ -131,20 +130,10 @@ internal fun PlayerViewContainer(
  */
 @UnstableApi
 private fun applyVideoAspectFallback(view: PlayerView, player: Player) {
-    if (player.videoSize.width > 0 && player.videoSize.height > 0) return
-    val group = player.currentTracks.groups.firstOrNull {
-        it.type == C.TRACK_TYPE_VIDEO && it.isSelected
-    } ?: return
-    val index = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: 0
-    val format = group.getTrackFormat(index)
-    if (format.width <= 0 || format.height <= 0) return
-    val quarterTurn = format.rotationDegrees % 180 != 0
-    val displayWidth = if (quarterTurn) format.height else format.width
-    val displayHeight = if (quarterTurn) format.width else format.height
-    val pixelRatio = format.pixelWidthHeightRatio.takeIf { it > 0f } ?: 1f
+    if (player.renderedVideoDisplaySize() != null) return
+    val size = player.trackVideoDisplaySize() ?: return
     val contentFrame = view.findViewById<AspectRatioFrameLayout>(
         androidx.media3.ui.R.id.exo_content_frame
     ) ?: return
-    val aspect = displayWidth * pixelRatio / displayHeight
-    contentFrame.setAspectRatio(aspect)
+    contentFrame.setAspectRatio(size.aspectRatio)
 }

@@ -1,7 +1,6 @@
 package com.aiexile.animetrack.data.player.service
 
 import com.aiexile.animetrack.data.player.PlaybackTrace
-import com.aiexile.animetrack.data.player.webdav.PlayerWebDavHttpClient
 import com.aiexile.animetrack.data.player.webdav.WebDavResumeOpenException
 import com.aiexile.animetrack.data.player.webdav.WebDavSubtitleException
 
@@ -59,7 +58,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import okhttp3.OkHttpClient
 import java.io.IOException
 
 /**
@@ -83,9 +81,6 @@ class PlaybackService : MediaSessionService() {
     private var sessionPlayer: WebQueueForwardingPlayer? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    /** onCreate 初始化一次；凭据变化经 DataSource.Factory 每次实时读取，此处只涉及证书信任模式 */
-    private lateinit var okHttpClient: OkHttpClient
-
     override fun onCreate() {
         super.onCreate()
         val settingsRepository = AppContainer.getSettingsRepository()
@@ -93,18 +88,14 @@ class PlaybackService : MediaSessionService() {
         // 并行读取服务启动所需的设置（原先串行 4 次 DataStore IO，都在主线程 runBlocking）
         data class StartupSettings(
             val allowHardware: Boolean,
-            val autoPlayNext: Boolean,
-            val trustAllCerts: Boolean
+            val autoPlayNext: Boolean
         )
 
         val startup = runBlocking(Dispatchers.IO) {
             val hardware = async { settingsRepository.playerHardwareAcceleration.first() }
             val autoNext = async { settingsRepository.playerAutoPlayNext.first() }
-            val trustAll = async { settingsRepository.playerWebdavTrustAllCerts.first() }
-            StartupSettings(hardware.await(), autoNext.await(), trustAll.await())
+            StartupSettings(hardware.await(), autoNext.await())
         }
-
-        okHttpClient = PlayerWebDavHttpClient.create(startup.trustAllCerts)
 
         // libass 使用 GL 合成；外挂字幕的原始数据仍需单独限制，不能算进视频缓冲预算。
         val player = try {
@@ -354,7 +345,7 @@ class PlaybackService : MediaSessionService() {
      * 一个工厂同时覆盖 WebDAV 流式播放与本地文件播放。
      */
     private fun createDataSourceFactory(): DataSource.Factory =
-        PlaybackDataSourceFactory(this, okHttpClient)
+        PlaybackDataSourceFactory(this)
 
     private fun createLoadControl() = PlaybackBufferControl()
 

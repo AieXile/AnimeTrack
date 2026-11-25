@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.LayerOutsets
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -77,6 +78,11 @@ private val CoverTopShape = SquircleShape(topStart = CardCornerRadius, topEnd = 
 // 设计规格来自 https://github.com/Wren036/PhotoStack（基于微信原版录屏逐帧测量逆向）。
 private val StackPeek = 15.dp                 // 第一层探边露出
 private val StackPeekStep = 12.dp            // 每深一层多探出
+// 淡入图层为两层探边和阴影预留绘制空间，保持网格项的尺寸与间距。
+internal val StackEnterLayerOutsets = LayerOutsets(
+    horizontal = StackPeek + StackPeekStep + 8.dp,
+    vertical = 8.dp
+)
 private const val StackRotStep = 2.2f        // 每层递进旋转角（度）
 private const val StackScaleStep = 0.08f     // 每层递进缩小
 private val StackFlingVelocity = 0.4.dp       // 快甩判定速度（dp/ms）

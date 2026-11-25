@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="favorite_folder_folders">收藏夾</string>
+    <string name="favorite_folder_open">開啟收藏夾</string>
+    <string name="favorite_folder_close">闔上收藏夾</string>
+    <string name="favorite_folder_pinch_guide_title">雙指向內捏合，收起收藏夾</string>
+    <string name="favorite_folder_pinch_guide_message">在收藏夾內試試看</string>
+    <string name="favorite_folder_new">新增收藏夾</string>
+    <string name="favorite_folder_name">收藏夾名稱</string>
+    <string name="favorite_folder_rename">重新命名收藏夾</string>
+    <string name="favorite_folder_delete">刪除收藏夾</string>
+    <string name="favorite_folder_delete_message">刪除「%1$s」？夾內番劇仍會保留在全部收藏中。</string>
+    <string name="favorite_folder_all">全部收藏</string>
+    <string name="favorite_folder_add">加入番劇</string>
+    <string name="favorite_folder_add_to">加入收藏夾</string>
+    <string name="favorite_folder_search">搜尋已收藏的番劇</string>
+    <string name="favorite_folder_no_available">沒有可加入的番劇</string>
+    <string name="favorite_folder_no_matches">沒有符合的番劇</string>
+    <string name="favorite_folder_empty">收藏夾裡還沒有番劇</string>
+    <string name="favorite_folder_remove">移出收藏夾</string>
+    <string name="favorite_folder_remove_message">將「%1$s」移出這個收藏夾？</string>
+    <string name="favorite_folder_change_cover">更換封面</string>
+    <string name="favorite_folder_clear_cover">清除自訂封面</string>
+    <string name="favorite_folder_reorder">調整收藏夾順序</string>
+    <string name="favorite_folder_reorder_anime">調整番劇順序</string>
+    <string name="favorite_folder_drag_hint">按住右側把手拖曳排序</string>
+    <string name="favorite_folder_drag">拖曳排序</string>
+    <string name="favorite_folder_up">上移</string>
+    <string name="favorite_folder_down">下移</string>
+    <string name="favorite_folder_unfavorite_message">取消收藏後，「%1$s」也會從以下收藏夾移除：%2$s</string>
+    <string name="favorite_folder_error">儲存失敗，請重試</string>
+    <string name="favorite_folder_create_first">請先建立收藏夾，再加入番劇。</string>
+    <string name="favorite_folder_empty_hint">可在番劇詳情頁點擊心形收藏，或長按主頁卡片</string>
+    <string name="favorite_folder_manage">管理收藏夾</string>
+</resources>

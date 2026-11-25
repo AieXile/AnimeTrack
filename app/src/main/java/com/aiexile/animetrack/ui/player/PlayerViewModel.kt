@@ -6,12 +6,10 @@ import android.os.Bundle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
@@ -22,6 +20,7 @@ import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.data.media.LocalMediaRepository
 import com.aiexile.animetrack.data.player.PlaybackTrace
+import com.aiexile.animetrack.data.player.ManualSubtitleFile
 import com.aiexile.animetrack.data.player.PlayerRepository
 import com.aiexile.animetrack.data.player.service.PlaybackSessionCommands
 import com.aiexile.animetrack.data.player.web.PendingWebPlaybackRequest
@@ -45,9 +44,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * 播放器页面控制器：手里握的是 MediaController（遥控器），
@@ -75,8 +80,15 @@ class PlayerViewModel(
         private const val TAG = "PlayerViewModel"
     }
 
-    private val _uiState = MutableStateFlow(PlayerUiState())
+    private val _uiState = MutableStateFlow(
+        PlayerUiState(videoScale = settingsRepository.cachedPlayerDefaultVideoScale())
+    )
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+    private var hasTemporaryVideoScale = false
+
+    val isPlayerWebDavConfigured: StateFlow<Boolean> = settingsRepository.playerWebdavDirectoryConfig
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
      * 播放页身份卡使用的番剧记录：封面、追番进度。
@@ -92,6 +104,10 @@ class PlayerViewModel(
 
     private var currentMediaId: String? = null
     private var lastPlayRequest: PlayRequest? = null
+    private var manualSubtitleJob: Job? = null
+    private var manualSubtitleFile: File? = null
+    private var manualSubtitleDocument: Uri? = null
+    private var manualSubtitleEncoding: String? = null
 
     /** 长按加速前的原始播放速度 */
     private var speedBeforeLongPress: Float = 1f
@@ -100,7 +116,6 @@ class PlayerViewModel(
     private var longPressSpeedCache: Float = 2f
     private var defaultSpeedCache: Float = 1f
     private var rememberPositionCache: Boolean = true
-    private var autoLandscapeCache: Boolean = false
 
     private val localCoordinator: LocalPlaybackCoordinator
     private val webCoordinator: WebPlaybackCoordinator
@@ -114,8 +129,12 @@ class PlayerViewModel(
         getCurrentMediaId = { currentMediaId },
         getRememberPosition = { rememberPositionCache },
         resolveCompletionTarget = { mediaId ->
-            localCoordinator.findLocalFile(mediaId)?.let { EpisodeCompletionTarget.Local(it) }
-                ?: webCoordinator.resolveCompletionTarget(mediaId)
+            when {
+                mediaId.startsWith("local:") -> mediaId.substringAfter(':').toLongOrNull()
+                    ?.let { EpisodeCompletionTarget.Local(it) }
+                mediaId.startsWith("web:") -> webCoordinator.resolveCompletionTarget(mediaId)
+                else -> null
+            }
         },
         onSavedProgressUpdated = { records ->
             webCoordinator.publishEpisodeProgress(records)
@@ -130,8 +149,8 @@ class PlayerViewModel(
         uiState = _uiState,
         progressTracker = progressTracker,
         getDefaultSpeed = { defaultSpeedCache },
-        getAutoLandscape = { autoLandscapeCache },
         onControllerConnected = {
+            restoreActiveSessionIfPresent()
             if (localCoordinator.hasWebDavQueue) localCoordinator.syncWebDavNavigation()
             else sessionCoordinator.syncWebNavigation(webCoordinator.webQueue)
         },
@@ -191,6 +210,15 @@ class PlayerViewModel(
                     isBuffering = player.playbackState == Player.STATE_BUFFERING
                 )
             }
+            if (events.containsAny(
+                    Player.EVENT_TRACKS_CHANGED,
+                    Player.EVENT_VIDEO_SIZE_CHANGED,
+                    Player.EVENT_MEDIA_ITEM_TRANSITION,
+                    Player.EVENT_PLAYBACK_STATE_CHANGED
+                )
+            ) {
+                sessionCoordinator.onFullscreenVideoEvents(player, events)
+            }
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -210,7 +238,6 @@ class PlayerViewModel(
                 Player.STATE_READY -> {
                     _uiState.update { it.copy(error = null) }
                     sessionCoordinator.restoreStartPositionIfNeeded()
-                    sessionCoordinator.updateFullscreenOrientation()
                 }
                 Player.STATE_ENDED -> {
                     progressTracker.finishCurrentMedia()
@@ -219,11 +246,17 @@ class PlayerViewModel(
                     ) {
                         val next = _uiState.value.currentEpisodeIndex + 1
                         if (webCoordinator.hasQueue) webCoordinator.selectEpisode(next, fromStart = true)
-                        else if (localCoordinator.hasWebDavQueue) localCoordinator.selectEpisode(next)
+                        else if (localCoordinator.hasWebDavQueue) {
+                            localCoordinator.adjacentWebDavIndex(true)?.let(localCoordinator::selectEpisode)
+                        }
                     }
                 }
             }
             progressTracker.updatePositionState()
+        }
+
+        override fun onRenderedFirstFrame() {
+            localCoordinator.onFirstFrame(sessionCoordinator.controller?.currentMediaItem?.mediaId)
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -238,32 +271,17 @@ class PlayerViewModel(
             _uiState.update { it.copy(playbackSpeed = playbackParameters.speed) }
         }
 
-        override fun onTracksChanged(tracks: Tracks) {
-            // 记录当前选中视频轨的容器分辨率，供「自动横屏」判断使用。
-            for (group in tracks.groups) {
-                if (group.type != C.TRACK_TYPE_VIDEO) continue
-                for (i in 0 until group.length) {
-                    if (!group.isTrackSelected(i)) continue
-                    val f = group.getTrackFormat(i)
-                    if (f.width > 0 && f.height > 0) {
-                        sessionCoordinator.videoFormatWidth = f.width
-                        sessionCoordinator.videoFormatHeight = f.height
-                    }
-                }
-            }
-            sessionCoordinator.updateFullscreenOrientation()
-        }
-
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val newMediaId = mediaItem?.mediaId
             // setMediaItems 首次回调时 newMediaId 已等于当前项，不能当作「切集」，
             // 否则会清掉 startPlaylist 刚设置的续播位置
             val isNewItem = newMediaId != currentMediaId
-            if (isNewItem) progressTracker.finalizeCurrentForTransition()
+            if (isNewItem) {
+                progressTracker.finalizeCurrentForTransition()
+                manualSubtitleJob?.cancel()
+                clearManualSubtitleState()
+            }
 
-            // 切集：清掉上一集的容器尺寸，
-            // 避免横屏视频的旧尺寸误判新集（新集轨道信息到达前 READY 先触发）
-            sessionCoordinator.resetVideoFormatDimensions()
             if (isNewItem) {
                 progressTracker.resetSampling()
                 sessionCoordinator.expectedStartPositionMs = 0L
@@ -287,6 +305,32 @@ class PlayerViewModel(
                 )
             }
         }
+    }
+
+    /** 页面被通知/锁屏回跳重建时，只接管服务已有会话，不自动启动新的媒体。 */
+    private fun restoreActiveSessionIfPresent() {
+        val player = sessionCoordinator.controller ?: return
+        val item = player.currentMediaItem ?: return
+        if (player.playbackState == Player.STATE_IDLE && !player.playWhenReady) return
+        currentMediaId = item.mediaId
+        _uiState.update {
+            it.copy(
+                hasPlaybackRequest = true,
+                isPreparingMedia = false,
+                isResolvingMedia = false,
+                isBuffering = player.playbackState == Player.STATE_BUFFERING,
+                playWhenReady = player.playWhenReady,
+                isPlaying = player.isPlaying,
+                mediaTitle = item.mediaMetadata.title?.toString() ?: item.mediaId,
+                sourceLabel = when {
+                    item.mediaId.startsWith("webdav:") -> "WebDAV"
+                    item.mediaId.startsWith("local:") -> "本地"
+                    else -> "网页"
+                },
+                error = null
+            )
+        }
+        progressTracker.updatePositionState()
     }
 
     private val controllerListener = object : MediaController.Listener {
@@ -324,6 +368,11 @@ class PlayerViewModel(
             settingsRepository.playerDefaultSpeed.collect { defaultSpeedCache = it }
         }
         viewModelScope.launch {
+            settingsRepository.playerDefaultVideoScale.collect { scale ->
+                if (!hasTemporaryVideoScale) _uiState.update { it.copy(videoScale = scale) }
+            }
+        }
+        viewModelScope.launch {
             settingsRepository.playerRememberPosition.collect { enabled ->
                 rememberPositionCache = enabled
                 _uiState.update { it.copy(rememberPosition = enabled) }
@@ -336,7 +385,6 @@ class PlayerViewModel(
         }
         viewModelScope.launch {
             settingsRepository.playerAutoLandscape.collect { enabled ->
-                autoLandscapeCache = enabled
                 _uiState.update { it.copy(autoLandscape = enabled) }
                 sessionCoordinator.updateFullscreenOrientation()
             }
@@ -406,6 +454,7 @@ class PlayerViewModel(
 
     /** 在任何异步工作之前标记已选源，避免准备过程中回落到选源界面。 */
     private fun beginPlaybackRequest() {
+        manualSubtitleJob?.cancel()
         webCoordinator.cancelActiveResolution()
         localCoordinator.cancelWebDavPreparation()
         sessionCoordinator.cancelStartJob()
@@ -418,6 +467,55 @@ class PlayerViewModel(
                 error = null
             )
         }
+    }
+
+    fun currentSubtitleTarget(): MediaItem? = sessionCoordinator.controller?.takeIf {
+        it.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS) &&
+            it.playbackState == Player.STATE_READY && !_uiState.value.isPreparingMedia
+    }?.currentMediaItem?.takeIf { it.localConfiguration != null }
+
+    fun attachManualSubtitle(expected: MediaItem, document: Uri, encoding: String?) {
+        if (currentSubtitleTarget() != expected ||
+            (manualSubtitleDocument == document && manualSubtitleEncoding == encoding && _uiState.value.hasManualSubtitle)
+        ) return
+        manualSubtitleJob?.cancel()
+        manualSubtitleJob = viewModelScope.launch {
+            var prepared: ManualSubtitleFile.Prepared? = null
+            var adopted = false
+            try {
+                withContext(Dispatchers.IO) { prepared = ManualSubtitleFile.prepare(application, document, encoding) }
+                val subtitle = checkNotNull(prepared)
+                if (currentSubtitleTarget() != expected) return@launch
+                if (sessionCoordinator.updateManualSubtitle(expected, subtitle.config)) {
+                    manualSubtitleFile?.delete()
+                    manualSubtitleFile = subtitle.file
+                    manualSubtitleDocument = document
+                    manualSubtitleEncoding = encoding
+                    adopted = true
+                    _uiState.update { it.copy(hasManualSubtitle = true) }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.update { it.copy(notice = application.getString(R.string.player_manual_subtitle_failed)) }
+            } finally {
+                if (!adopted) prepared?.file?.delete()
+            }
+        }
+    }
+
+    fun removeManualSubtitle() {
+        manualSubtitleJob?.cancel()
+        val item = currentSubtitleTarget() ?: return
+        if (sessionCoordinator.updateManualSubtitle(item, null)) clearManualSubtitleState()
+    }
+
+    private fun clearManualSubtitleState() {
+        manualSubtitleFile?.delete()
+        manualSubtitleFile = null
+        manualSubtitleDocument = null
+        manualSubtitleEncoding = null
+        _uiState.update { it.copy(hasManualSubtitle = false) }
     }
 
     private fun resetEpisodeState() {
@@ -446,8 +544,6 @@ class PlayerViewModel(
     private fun normalPlaybackSpeed(): Float =
         if (_uiState.value.isLongPressSpeedActive) speedBeforeLongPress
         else sessionCoordinator.controller?.playbackParameters?.speed ?: defaultSpeedCache
-
-    fun fullscreenLandscapeTarget(): Boolean = sessionCoordinator.fullscreenLandscapeTarget()
 
     /** 错误重试：重放最近一次播放请求；无可重试请求时返回 false */
     fun retryLast(): Boolean {
@@ -510,20 +606,20 @@ class PlayerViewModel(
     }
 
     fun setVideoScale(scale: Int) {
+        hasTemporaryVideoScale = true
         _uiState.update { it.copy(videoScale = scale.coerceIn(0, 2)) }
     }
 
-    /** 幂等设置全屏态：方向在进入/退出时先由界面请求，布局等系统完成切换后再跟随。 */
+    /** 进入全屏时记录当前媒体的目标方向，后续由播放器事件更新。 */
     fun setFullscreen(fullscreen: Boolean) {
         if (_uiState.value.isFullscreen == fullscreen) return
+        val landscape = if (fullscreen) sessionCoordinator.fullscreenLandscapeTarget() ?: false else false
         _uiState.update {
             it.copy(
                 isFullscreen = fullscreen,
-                fullscreenLandscape = if (fullscreen) fullscreenLandscapeTarget()
-                else it.fullscreenLandscape
+                fullscreenLandscape = landscape
             )
         }
-        sessionCoordinator.updateFullscreenOrientation()
     }
 
     /** 设置「自动横屏」开关：仅在全屏内按视频比例适配方向（持久化） */
@@ -544,8 +640,12 @@ class PlayerViewModel(
 
     /** 跳到下一个媒体项 */
     fun seekToNext() {
-        if (webCoordinator.hasQueue || localCoordinator.hasWebDavQueue) {
+        if (webCoordinator.hasQueue) {
             if (hasNextEpisode()) selectEpisode(_uiState.value.currentEpisodeIndex + 1)
+            return
+        }
+        if (localCoordinator.hasWebDavQueue) {
+            localCoordinator.adjacentWebDavIndex(true)?.let(::selectEpisode)
             return
         }
         val c = sessionCoordinator.controller ?: return
@@ -557,19 +657,23 @@ class PlayerViewModel(
     /** 是否有下一集 */
     fun hasNextEpisode(): Boolean = when {
         webCoordinator.hasQueue -> webCoordinator.hasNextEpisode()
-        localCoordinator.hasWebDavQueue -> localCoordinator.canSelectWebDav(_uiState.value.currentEpisodeIndex + 1)
+        localCoordinator.hasWebDavQueue -> localCoordinator.adjacentWebDavIndex(true) != null
         else -> sessionCoordinator.controller?.hasNextMediaItem() == true
     }
 
     fun hasPreviousEpisode(): Boolean = when {
         webCoordinator.hasQueue -> webCoordinator.hasPreviousEpisode()
-        localCoordinator.hasWebDavQueue -> localCoordinator.canSelectWebDav(_uiState.value.currentEpisodeIndex - 1)
+        localCoordinator.hasWebDavQueue -> localCoordinator.adjacentWebDavIndex(false) != null
         else -> sessionCoordinator.controller?.hasPreviousMediaItem() == true
     }
 
     fun seekToPrevious() {
-        if (webCoordinator.hasQueue || localCoordinator.hasWebDavQueue) {
+        if (webCoordinator.hasQueue) {
             if (hasPreviousEpisode()) selectEpisode(_uiState.value.currentEpisodeIndex - 1)
+            return
+        }
+        if (localCoordinator.hasWebDavQueue) {
+            localCoordinator.adjacentWebDavIndex(false)?.let(::selectEpisode)
             return
         }
         sessionCoordinator.controller?.let { if (it.hasPreviousMediaItem()) it.seekToPreviousMediaItem() }
@@ -598,6 +702,7 @@ class PlayerViewModel(
         progressTracker.saveCurrentPosition()
         progressTracker.persistSampledPosition()
         sessionCoordinator.release(playerListener)
+        clearManualSubtitleState()
         WebPlaybackSession.clear()
         // 注意：PlaybackProgressTracker 内部的 persistScope 有意不取消，保证最后一次位置写入完成
     }

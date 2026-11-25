@@ -3,12 +3,14 @@ package com.aiexile.animetrack.data.backup
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import androidx.room.withTransaction
 import com.aiexile.animetrack.data.AnimeDao
 import com.aiexile.animetrack.data.AnimeDatabase
 import com.aiexile.animetrack.data.log.AppLogManager
 import com.aiexile.animetrack.model.Anime
 import com.aiexile.animetrack.model.AnimeStatus
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,33 +30,40 @@ object BackupManager {
 
     private const val TAG = "Backup"
 
-    suspend fun backup(context: Context, strategy: Int, animeDao: AnimeDao): File =
+    suspend fun backup(
+        context: Context,
+        strategy: Int,
+        database: AnimeDatabase = AnimeDatabase.getDatabase(context)
+    ): File =
         withContext(Dispatchers.IO) {
             val file = when (strategy) {
-                0 -> backupJson(context, animeDao)
-                1 -> backupZip(context)
+                0 -> backupJson(context, database)
+                1 -> backupZip(context, database)
                 else -> throw IllegalArgumentException("Unknown strategy: $strategy")
             }
             AppLogManager.i(TAG, "备份完成: strategy=$strategy, ${file.name} ${file.length()}B")
             file
         }
 
-    private suspend fun backupJson(context: Context, animeDao: AnimeDao): File {
-        val animes = animeDao.getAllAnimesList()
+    private suspend fun backupJson(context: Context, database: AnimeDatabase): File {
+        val data = database.withTransaction {
+            val folders = database.favoriteFolderDao()
+            AnimeBackup(database.animeDao().getAllAnimesList(), folders.getFolders(), folders.getEntries())
+        }
         val gson = GsonBuilder().setPrettyPrinting().create()
-        val json = gson.toJson(animes)
+        val json = gson.toJson(if (data.folders.isEmpty()) data.animes else data)
         val file = File(context.cacheDir, "AnimeTrack_Backup.json")
         file.writeText(json, Charsets.UTF_8)
         return file
     }
 
-    private fun backupZip(context: Context): File {
-        val db = AnimeDatabase.getDatabase(context)
-        db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").close()
+    private suspend fun backupZip(context: Context, database: AnimeDatabase): File {
+        val helper = database.openHelper
+        helper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
 
-        val dbFile = context.getDatabasePath("anime_database")
-        val walFile = File(dbFile.parent, "anime_database-wal")
-        val shmFile = File(dbFile.parent, "anime_database-shm")
+        val dbFile = context.getDatabasePath(requireNotNull(helper.databaseName))
+        val walFile = File(dbFile.path + "-wal")
+        val shmFile = File(dbFile.path + "-shm")
         // 下载封面目录（CoverDownloader 本地化的封面）
         val coversDir = File(context.filesDir, "anime_covers")
         // 手动设置封面目录（用户自选图片，copyCoverToInternalStorage 保存）
@@ -62,31 +71,10 @@ object BackupManager {
 
         val zipFile = File(context.cacheDir, "AnimeTrack_Backup.zip")
         ZipOutputStream(FileOutputStream(zipFile).buffered()).use { zos ->
-            if (dbFile.exists()) {
-                val entry = ZipEntry("anime_database")
-                zos.putNextEntry(entry)
-                FileInputStream(dbFile).use { fis ->
-                    fis.copyTo(zos)
-                }
-                zos.closeEntry()
-            }
-
-            if (walFile.exists()) {
-                val entry = ZipEntry("anime_database-wal")
-                zos.putNextEntry(entry)
-                FileInputStream(walFile).use { fis ->
-                    fis.copyTo(zos)
-                }
-                zos.closeEntry()
-            }
-
-            if (shmFile.exists()) {
-                val entry = ZipEntry("anime_database-shm")
-                zos.putNextEntry(entry)
-                FileInputStream(shmFile).use { fis ->
-                    fis.copyTo(zos)
-                }
-                zos.closeEntry()
+            database.withTransaction {
+                putZipFile(zos, dbFile, "anime_database")
+                putZipFile(zos, walFile, "anime_database-wal")
+                putZipFile(zos, shmFile, "anime_database-shm")
             }
 
             if (coversDir.exists() && coversDir.isDirectory) {
@@ -117,14 +105,21 @@ object BackupManager {
         return zipFile
     }
 
+    private fun putZipFile(zip: ZipOutputStream, file: File, name: String) {
+        if (!file.isFile) return
+        zip.putNextEntry(ZipEntry(name))
+        file.inputStream().use { it.copyTo(zip) }
+        zip.closeEntry()
+    }
+
     suspend fun restore(
         context: Context,
         strategy: Int,
         mode: Int,
         file: File,
-        animeDao: AnimeDao
+        database: AnimeDatabase = AnimeDatabase.getDatabase(context)
     ): RestoreResult = withContext(Dispatchers.IO) {
-        val animes = try {
+        val backup = try {
             when (strategy) {
                 0 -> restoreJson(file)
                 1 -> restoreZip(context, file)
@@ -136,12 +131,19 @@ object BackupManager {
             AppLogManager.e(TAG, "解析备份文件失败: strategy=$strategy, ${file.name} (${file.length()}B)", e)
             throw e
         }
-        AppLogManager.i(TAG, "备份文件解析完成: strategy=$strategy, ${animes.size} 部")
+        AppLogManager.i(TAG, "备份文件解析完成: strategy=$strategy, ${backup.animes.size} 部")
 
-        val result = when (mode) {
-            0 -> restoreOverwrite(animes, animeDao)
-            1 -> restoreMerge(animes, animeDao)
-            else -> throw IllegalArgumentException("Unknown mode: $mode")
+        require(mode == 0 || mode == 1) { "Unknown mode: $mode" }
+        val result = database.withTransaction {
+            val folderDao = database.favoriteFolderDao()
+            val animeDao = database.animeDao()
+            if (mode == 0) {
+                folderDao.deleteFolders()
+                animeDao.deleteAllAnimes()
+            }
+            val (result, animeIds) = restoreAnimes(backup.animes, animeDao, merge = mode == 1)
+            restoreFavoriteFolders(backup, folderDao, animeIds, overwrite = mode == 0)
+            result
         }
         AppLogManager.i(
             TAG,
@@ -151,18 +153,32 @@ object BackupManager {
         result
     }
 
-    private fun restoreJson(file: File): List<Anime> {
-        val json = file.readText(Charsets.UTF_8)
+    private fun restoreJson(file: File): AnimeBackup {
+        val json = file.bufferedReader().use { JsonParser.parseReader(it) }
         val gson = GsonBuilder().create()
-        return (gson.fromJson(json, Array<Anime>::class.java) ?: emptyArray()).toList()
+        if (json.isJsonArray) return AnimeBackup(gson.fromJson(json, Array<Anime>::class.java).toList())
+        require(json.isJsonObject && json.asJsonObject.get("animes")?.isJsonArray == true)
+        val backup = gson.fromJson(json, AnimeBackup::class.java)
+        return AnimeBackup(
+            backup.animes,
+            json.asJsonObject.get("folders")?.takeIf { it.isJsonArray }?.let { backup.folders }.orEmpty(),
+            json.asJsonObject.get("folderEntries")?.takeIf { it.isJsonArray }?.let { backup.folderEntries }.orEmpty()
+        )
     }
 
-    private fun restoreZip(context: Context, file: File): List<Anime> {
-        val tempDbFile = File(context.cacheDir, "temp_restore_db")
-        val tempWalFile = File(context.cacheDir, "temp_restore_db-wal")
-        val tempShmFile = File(context.cacheDir, "temp_restore_db-shm")
+    private fun restoreZip(context: Context, file: File): AnimeBackup {
+        val tempDir = kotlin.io.path.createTempDirectory(context.cacheDir.toPath(), "anime_restore").toFile()
+        try {
+            return readZip(context, file, tempDir)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 
-        var animes: List<Anime> = emptyList()
+    private fun readZip(context: Context, file: File, tempDir: File): AnimeBackup {
+        val tempDbFile = File(tempDir, "temp_restore_db")
+        val tempWalFile = File(tempDir, "temp_restore_db-wal")
+        val tempShmFile = File(tempDir, "temp_restore_db-shm")
 
         ZipInputStream(FileInputStream(file).buffered()).use { zis ->
             var entry = zis.nextEntry
@@ -205,23 +221,10 @@ object BackupManager {
             }
         }
 
-        if (tempDbFile.exists()) {
-            val db = SQLiteDatabase.openDatabase(
-                tempDbFile.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READONLY
-            )
-            animes = readAnimesFromCursor(db)
-            db.close()
-            tempDbFile.delete()
-            tempWalFile.delete()
-            tempShmFile.delete()
-        } else {
-            // zip 里没有数据库文件：多为选错文件 / 下载不完整
-            AppLogManager.w(TAG, "备份 zip 内未找到数据库文件: ${file.name} (${file.length()}B)")
+        require(tempDbFile.isFile) { "Database missing from backup" }
+        return SQLiteDatabase.openDatabase(tempDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            readFavoriteFolders(db, readAnimesFromCursor(db))
         }
-
-        return animes
     }
 
     private fun readAnimesFromCursor(db: SQLiteDatabase): List<Anime> {
@@ -247,8 +250,8 @@ object BackupManager {
             return if (cursor.isNull(idx)) null else cursor.getLong(idx)
         }
         fun getIntNullable(col: String): Int? {
-            val idx = cursor.getColumnIndexOrThrow(col)
-            return if (cursor.isNull(idx)) null else cursor.getInt(idx)
+            val idx = cursor.getColumnIndex(col)
+            return if (idx < 0 || cursor.isNull(idx)) null else cursor.getInt(idx)
         }
 
         val statusStr = getString("status") ?: "PLANNED"
@@ -272,48 +275,47 @@ object BackupManager {
             airDate = getString("airDate"),
             summary = getString("summary"),
             bangumiId = getIntNullable("bangumiId"),
+            tmdbId = getIntNullable("tmdbId"),
+            remoteSyncId = cursor.getColumnIndex("remoteSyncId").takeIf { it >= 0 }?.let(cursor::getString),
             airWeekday = getIntNullable("airWeekday"),
             isFinished = getInt("isFinished") != 0,
             currentEpisodes = getInt("currentEpisodes"),
             hasNewUpdate = getInt("hasNewUpdate") != 0,
-            airEndDate = getString("airEndDate")
+            airEndDate = getString("airEndDate"),
+            isFavorite = getIntNullable("isFavorite") == 1
         )
     }
 
-    private suspend fun restoreOverwrite(animes: List<Anime>, animeDao: AnimeDao): RestoreResult {
-        animeDao.deleteAllAnimes()
-        val cleaned = animes.map { it.copy(id = 0) }
-        animeDao.insertAnimes(cleaned)
-        return RestoreResult(
-            totalCount = animes.size,
-            insertedCount = animes.size,
-            skippedCount = 0
-        )
-    }
-
-    private suspend fun restoreMerge(animes: List<Anime>, animeDao: AnimeDao): RestoreResult {
+    private suspend fun restoreAnimes(
+        animes: List<Anime>,
+        animeDao: AnimeDao,
+        merge: Boolean
+    ): Pair<RestoreResult, Map<Int, Int>> {
         var insertedCount = 0
-        var skippedCount = 0
-
+        val ids = mutableMapOf<Int, Int>()
         for (anime in animes) {
-            val existing = if (anime.bangumiId != null) {
-                animeDao.getAnimeByBangumiId(anime.bangumiId)
-            } else {
-                animeDao.getAnimeByTitle(anime.title)
+            val inserted = if (!merge) animeDao.insertAnime(anime.copy(id = 0)) else -1
+            val existing = if (inserted > 0) null else findExistingAnime(animeDao, anime)
+            val localId = when {
+                inserted > 0 -> inserted
+                existing != null -> existing.id.toLong()
+                merge -> animeDao.insertAnime(anime.copy(id = 0))
+                else -> -1
             }
-
+            if (localId <= 0) continue
+            ids[anime.id] = localId.toInt()
             if (existing == null) {
-                animeDao.insertAnime(anime.copy(id = 0))
                 insertedCount++
-            } else {
-                skippedCount++
+            } else if (anime.isFavorite && !existing.isFavorite) {
+                animeDao.setFavorite(existing.id, true)
             }
         }
-
-        return RestoreResult(
-            totalCount = animes.size,
-            insertedCount = insertedCount,
-            skippedCount = skippedCount
-        )
+        return RestoreResult(animes.size, insertedCount, animes.size - insertedCount) to ids
     }
+
+    private suspend fun findExistingAnime(dao: AnimeDao, anime: Anime): Anime? =
+        anime.bangumiId?.let { dao.getAnimeByBangumiId(it) }
+            ?: anime.tmdbId?.let { dao.getAnimeByTmdbId(it) }
+            ?: anime.remoteSyncId?.let { dao.getAnimeByRemoteSyncId(it) }
+            ?: if (anime.bangumiId == null && anime.tmdbId == null) dao.getAnimeByTitle(anime.title) else null
 }

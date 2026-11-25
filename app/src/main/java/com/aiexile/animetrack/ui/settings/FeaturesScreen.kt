@@ -67,15 +67,19 @@ fun FeaturesScreen(
         .collectAsStateWithLifecycle(settingsRepository.cachedCardCoverFullyRounded())
     val ratingStandard by settingsRepository.ratingStandard.collectAsStateWithLifecycle(RatingStandard.SOURCE)
     val crashReportEnabled by settingsRepository.crashReportEnabled.collectAsStateWithLifecycle(true)
-    val externalPlayerEntryVisible by settingsRepository.externalPlayerEntryVisible.collectAsStateWithLifecycle(false)
+    val detailPlayEntryVisible by settingsRepository.detailPlayEntryVisible.collectAsStateWithLifecycle(false)
     val externalPlayMode by settingsRepository.externalPlayMode.collectAsStateWithLifecycle(ExternalPlayMode.AUTO)
 
-    // 外部播放目标候选：自动/Animeko/哔哩哔哩/每次询问
     val externalPlayModeOptions = listOf(
         SettingsOption(
             value = ExternalPlayMode.AUTO,
             label = stringResource(R.string.features_external_play_mode_auto),
             supportingText = stringResource(R.string.features_external_play_mode_auto_desc)
+        ),
+        SettingsOption(
+            value = ExternalPlayMode.BUILT_IN,
+            label = stringResource(R.string.features_external_play_mode_builtin),
+            supportingText = stringResource(R.string.features_external_play_mode_builtin_desc)
         ),
         SettingsOption(
             value = ExternalPlayMode.ANIMEKO,
@@ -126,6 +130,7 @@ fun FeaturesScreen(
         "update_reminder" to 2,
         "feedback_reply_reminder" to 2,
         "calendar_button" to 2,
+        "daily_broadcast_button" to 2,
         "series_stack" to 3,
         "card_cover_fully_rounded" to 3,
         "status_badge_transition" to 3,
@@ -303,9 +308,9 @@ fun FeaturesScreen(
                             SwitchItem(
                                 title = stringResource(R.string.features_external_player_visible),
                                 description = stringResource(R.string.features_external_player_visible_desc),
-                                checked = externalPlayerEntryVisible,
+                                checked = detailPlayEntryVisible,
                                 onCheckedChange = {
-                                    scope.launch { settingsRepository.setExternalPlayerEntryVisible(it) }
+                                    scope.launch { settingsRepository.setDetailPlayEntryVisible(it) }
                                 },
                                 itemKey = "external_player_entry",
                                 highlightKey = highlightKey

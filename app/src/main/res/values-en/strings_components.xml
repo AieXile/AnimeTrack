@@ -103,13 +103,28 @@
 
     <!-- Video playback hub -->
     <string name="settings_playback">Video Playback</string>
-    <string name="settings_playback_subtitle">Speed · Autoplay · Position memory · WebDAV</string>
-    <string name="player_section_behavior">Playback Behavior</string>
-    <string name="player_section_source">Media Sources</string>
-    <string name="player_webdav_browse">WebDAV Browser</string>
-    <string name="player_webdav_browse_desc">Browse and play video files on WebDAV</string>
-    <string name="player_webdav_server">Player WebDAV</string>
+    <string name="settings_playback_subtitle">Local library, web playback, and player settings</string>
+    <string name="player_section_watch">Browse and Play</string>
+    <string name="player_local_media_subtitle">Add folders and browse local videos</string>
+    <string name="player_webdav_browse_desc">Browse and play anime stored on your server</string>
+    <string name="player_webdav_server">WebDAV Connection</string>
+    <string name="player_webdav_setup_subtitle">Connect a server to browse your WebDAV library</string>
     <string name="player_webdav_config_hint">These settings are used only by the player and are independent of the backup sync server. A different server or account can be used.</string>
+    <string name="player_webdav_probe_success">The media root is accessible. This test does not verify seeking or resume.</string>
+    <string name="player_webdav_probe_running">Checking the media root…</string>
+    <string name="player_webdav_probe_invalid_address">Enter a valid HTTP(S) address. The media root must use the same origin.</string>
+    <string name="player_webdav_probe_unauthorized">Authentication failed (401). Check the account, password, and authentication method.</string>
+    <string name="player_webdav_probe_forbidden">Access to the media root was denied (403).</string>
+    <string name="player_webdav_probe_not_found">The media root was not found. Check the path.</string>
+    <string name="player_webdav_probe_unsupported">No valid WebDAV directory response. Check that the URL points to a WebDAV directory.</string>
+    <string name="player_webdav_probe_redirect">The server redirected the request. Enter the final WebDAV address.</string>
+    <string name="player_webdav_probe_dns">Could not resolve the server address.</string>
+    <string name="player_webdav_probe_tls">TLS handshake failed. Check the certificate and server address.</string>
+    <string name="player_webdav_probe_timeout">The connection test timed out.</string>
+    <string name="player_webdav_probe_too_large">The directory response exceeded the test size limit.</string>
+    <string name="player_webdav_probe_http">The server returned HTTP %1$d.</string>
+    <string name="player_webdav_probe_network">Could not connect to the server.</string>
+    <string name="player_webdav_save_failed">Could not save the WebDAV settings.</string>
     <string name="player_webdav_import_from_backup">Fill from backup config</string>
     <string name="player_webdav_backup_empty_hint">Backup sync has no WebDAV configured yet, nothing to fill in</string>
     <string name="player_webdav_trust_all_certs">Trust all certificates</string>
@@ -120,24 +135,28 @@
     <string name="player_webdav_recent_location">Recent location: %1$s</string>
     <string name="player_webdav_clear_memory">Clear browse memory</string>
 
-    <!-- PlayerSettingsScreen -->
+    <!-- PlayerPreferencesScreen -->
     <string name="player_settings_title">Player Settings</string>
+    <string name="player_settings_subtitle">Speed, display, resume, and autoplay</string>
+    <string name="player_settings_default_video_scale">Default video scaling</string>
+    <string name="player_settings_auto_landscape_hint">In fullscreen, match the screen orientation to the video</string>
     <string name="player_settings_default_speed">Default Playback Speed</string>
-    <string name="player_settings_long_press_speed">Long Press Speed</string>
-    <string name="player_settings_long_press_speed_hint">Play accelerated while holding the screen, release to resume</string>
-    <string name="player_settings_hardware_acceleration">Hardware Acceleration</string>
-    <string name="player_settings_hardware_acceleration_hint">Use hardware decoder for better performance</string>
+    <string name="player_settings_long_press_speed">Press-and-Hold Speed</string>
+    <string name="player_settings_long_press_speed_hint">Hold to speed up, then release to return to the previous speed</string>
+    <string name="player_settings_hardware_acceleration">Hardware Decoding</string>
+    <string name="player_settings_hardware_acceleration_hint">Use a hardware decoder to reduce CPU usage during playback</string>
     <string name="player_settings_remember_position">Remember Position</string>
-    <string name="player_settings_remember_position_hint">Resume from last position</string>
+    <string name="player_settings_remember_position_hint">Resume where you left off when you reopen a video</string>
     <string name="player_settings_auto_play_next">Auto-play Next Episode</string>
-    <string name="player_settings_auto_play_next_hint">Automatically play next when current ends</string>
-    <string name="player_settings_update_progress">Update progress after playback</string>
-    <string name="player_settings_update_progress_hint">Only for confirmed main episodes; seeking to the end does not count</string>
+    <string name="player_settings_auto_play_next_hint">Play the next video in the queue when the current one ends</string>
+    <string name="player_settings_update_progress">Update Watch Progress When Finished</string>
+    <string name="player_settings_update_progress_hint">Applies to confirmed episode matches after you watch the episode. Jumping to the end does not count.</string>
     <string name="player_settings_webdav_path">WebDAV Media Path</string>
-    <string name="player_settings_open_player">Open Player</string>
 
     <!-- WebDAVBrowseScreen -->
     <string name="webdav_browse_title">WebDAV Files</string>
+    <string name="webdav_library_title">WebDAV Series</string>
+    <string name="webdav_library_browse_directories">Browse folders</string>
     <string name="webdav_browse_loading">Loading...</string>
     <string name="webdav_browse_load_failed">Load Failed</string>
     <string name="webdav_browse_not_configured">WebDAV Not Configured</string>
@@ -150,6 +169,19 @@
     <string name="webdav_browse_root_format">Root: %1$s</string>
 
     <!-- LocalMediaLibraryScreen -->
+    <string name="media_library_title">Media Library</string>
+    <string name="media_library_source_webdav">WebDAV</string>
+    <string name="media_library_filter_empty">No anime from this source yet</string>
+    <string name="media_library_series_unavailable">This anime is no longer available</string>
+    <string name="media_library_sources">Playback sources</string>
+    <string name="media_library_subtitle">Browse and play anime from local files, web pages, and WebDAV</string>
+    <string name="media_library_empty">No anime yet. Scan a local or WebDAV folder, or save a source from Web Playback.</string>
+    <string name="media_library_source_local">Local</string>
+    <string name="media_library_source_web">Web</string>
+    <string name="media_library_add_web">Add to Media Library</string>
+    <string name="media_library_remove_web">Remove Web Source</string>
+    <string name="media_library_web_saved">Added to Media Library</string>
+    <string name="media_library_error">Media Library action failed. Try again.</string>
     <string name="local_media_title">Local Media Library</string>
     <string name="local_media_add_folder">Add local folder</string>
     <string name="local_media_add_title">Add local media folder</string>
@@ -176,7 +208,14 @@
     <string name="local_media_scan_summary">Scan and matching</string>
     <string name="local_media_scan_count">Scanned %1$d files, found %2$d videos</string>
     <string name="local_media_reidentify">Identify again</string>
-    <string name="local_media_waiting_metadata">Waiting for online metadata</string>
+    <string name="local_media_waiting_metadata">Online match pending</string>
+    <string name="local_media_group_match_manually">Needs manual match</string>
+    <string name="local_media_scrape_queued">Waiting to connect (%1$d pending)</string>
+    <string name="local_media_scrape_running">Matching online (%1$d left)</string>
+    <string name="local_media_scrape_retry_scheduled">Automatic retry scheduled (%1$d pending)</string>
+    <string name="local_media_scrape_stopped">Ready to retry (%1$d pending)</string>
+    <string name="local_media_scrape_retry">Retry online matching</string>
+    <string name="local_media_scrape_request_failed">Could not start online matching. Try again.</string>
     <string name="local_media_match_group">Match group</string>
     <string name="local_media_confirm_group">Confirm group</string>
     <string name="local_media_clear_group">Remove group match</string>
@@ -246,7 +285,7 @@
 
     <!-- Web playback -->
     <string name="web_playback_title">Web Playback</string>
-    <string name="web_playback_entry_subtitle">Play a web page or video URL</string>
+    <string name="web_playback_entry_subtitle">Paste a web page link or direct video URL</string>
     <string name="web_playback_url_hint">Enter a page or video URL</string>
     <string name="web_playback_play_direct">Play URL</string>
     <string name="web_playback_parse_page">Parse page</string>
@@ -372,4 +411,25 @@
     <string name="player_watched_progress">Watched %1$d/%2$d</string>
     <string name="player_jump_current">Jump to current episode</string>
     <string name="media_notification_channel_name">Video playback controls</string>
+    <string name="player_webdav_continue_recent">Continue: %1$s</string>
+    <string name="player_manual_subtitle_add">Add a local subtitle</string>
+    <string name="player_manual_subtitle_remove">Remove manually added subtitle</string>
+    <string name="player_manual_subtitle_failed">Cannot read the subtitle. Check permissions, encoding, format, and the 8 MiB limit.</string>
+    <string name="player_enter_pip">Enter picture-in-picture</string>
+
+    <!-- Playback feature guide -->
+    <string name="player_guide_title">Video playback guide</string>
+    <string name="player_guide_previous">Previous</string>
+    <string name="player_guide_done">Done</string>
+    <string name="player_guide_overview_library">Find local, web, and WebDAV series you have added. Use Continue watching to pick up where you left off.</string>
+    <string name="player_guide_overview_local">Add a video folder from your device. Scanning identifies titles and episodes from filenames so you can browse by series after matching.</string>
+    <string name="player_guide_overview_web">Play a direct video link, parse a web page to select an episode, or search by title using a source rule.</string>
+    <string name="player_guide_overview_webdav">Browse scanned series on your server, review matches, and choose episodes to play.</string>
+    <string name="player_guide_webdav_setup">Enter your server address, account, and media root, then test the connection. Save the settings and open the WebDAV library to see scans and matches.</string>
+    <string name="player_guide_web_direct">Paste a direct video link, such as an MP4 or M3U8 URL, into the field above and tap Direct play.</string>
+    <string name="player_guide_web_parse">Paste the link to a series or playback page into the field above and tap Parse web page. When episodes are found, you can choose an episode and switch sources.</string>
+    <string name="player_guide_web_rules">Rules tell the app how to search a site and find its episodes. Select a built-in rule, enter a series title, and search. Use Manage to import compatible Kazumi HTML or API rules.</string>
+    <string name="player_guide_local_add">Choose a video folder and grant access. The app scans it automatically and groups files by series and episode where possible. Rescan under Scan and match, then confirm or correct matches on the series cards.</string>
+    <string name="player_guide_webdav_directories">Browse and play videos using the folder structure on your server. You can also open files that have not been matched yet.</string>
+    <string name="player_guide_webdav_scan">The first connection scans the media directory automatically. The app uses filenames and folders to identify series and episodes. Rescan after adding files. Review the matches on series cards and match manually when needed. Confirmed matches can update watch progress when you finish an episode.</string>
 </resources>

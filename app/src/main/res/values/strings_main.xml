@@ -16,6 +16,13 @@
     <string name="home_add_anime">添加番剧</string>
     <string name="home_scroll_to_top">返回顶部</string>
     <string name="home_add_new_anime">添加新番剧</string>
+    <string name="home_batch_add">批量添加</string>
+    <string name="home_batch_add_exit">退出批量</string>
+    <string name="home_batch_add_hint">点按搜索结果即可选中，可跨搜索保留已选番剧。</string>
+    <string name="home_batch_add_selected">添加所选（%1$d）</string>
+    <string name="home_batch_add_saving">正在添加…</string>
+    <string name="home_batch_add_summary">已添加 %1$d 部，跳过已存在的 %2$d 部。</string>
+    <string name="home_batch_add_error">批量添加失败，请重试。</string>
     <string name="home_search_anime_hint">搜索番剧...</string>
     <string name="home_no_anime_found">未找到相关番剧</string>
     <string name="home_manual_add">手动添加番剧</string>
@@ -86,6 +93,7 @@
     <string name="detail_play_continue">继续观看</string>
     <string name="detail_play_action">播放</string>
     <string name="detail_play_local">本地文件</string>
+    <string name="detail_play_webdav">WebDAV</string>
     <string name="detail_play_source_title">选择播放来源</string>
     <string name="detail_play_web_subtitle">输入网页地址</string>
     <string name="detail_notes">备注</string>

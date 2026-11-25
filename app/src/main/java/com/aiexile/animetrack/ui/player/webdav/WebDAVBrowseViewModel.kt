@@ -1,18 +1,15 @@
 package com.aiexile.animetrack.ui.player.webdav
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.aiexile.animetrack.data.SettingsRepository
 import com.aiexile.animetrack.data.log.AppLogManager
-import com.aiexile.animetrack.data.player.webdav.PlayerWebDavHttpClient
 import com.aiexile.animetrack.data.player.VideoFormats
-import com.aiexile.animetrack.data.player.webdav.WebDavDirectoryCache
+import com.aiexile.animetrack.data.player.webdav.PlayerWebDavDirectory
+import com.aiexile.animetrack.data.player.webdav.WebDavPlaybackIdentity
 import com.aiexile.animetrack.di.AppContainer
-import com.thegrizzlylabs.sardineandroid.impl.OkHttpSardine
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,10 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
- data class WebDAVFileItem(
+data class WebDAVFileItem(
     val name: String,
     val path: String,
     val isDirectory: Boolean,
@@ -37,13 +32,15 @@ data class BrowseUiState(
     val mediaRootPath: String = "",
     val lastBrowsePath: String = "",
     val lastSelectedFile: String = "",
+    val scrollIndex: Int = 0,
+    val scrollOffset: Int = 0,
+    val listGeneration: Long = 0,
     val isLoading: Boolean = false,
     val error: String? = null,
     val isConfigured: Boolean = true
 )
 
 class WebDAVBrowseViewModel(
-    private val application: Application,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -51,17 +48,12 @@ class WebDAVBrowseViewModel(
         private const val TAG = "WebDAVBrowseViewModel"
     }
 
-    private data class WebDavConfig(
-        val serverUrl: String,
-        val username: String,
-        val password: String,
-        val mediaRootPath: String,
-        val trustAllCerts: Boolean
-    )
-
     private val _uiState = MutableStateFlow(BrowseUiState())
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
+    internal val resume = settingsRepository.playerWebdavResume
     private var browseJob: Job? = null
+    private var activeConfig: PlayerWebDavDirectory.Config? = null
+    private val pageAnchors = mutableMapOf<String, SettingsRepository.WebDavScrollAnchor>()
 
     /**
      * 浏览目录。path 为空时恢复最近一次成功目录；显式 path 则只加载用户指定位置。
@@ -69,25 +61,28 @@ class WebDAVBrowseViewModel(
     fun browseDirectory(path: String? = null) {
         browseJob?.cancel()
         browseJob = viewModelScope.launch {
-            val config = readConfig() ?: run {
+            val config = settingsRepository.playerWebdavDirectoryConfig.first() ?: run {
+                activeConfig = null
                 _uiState.value = BrowseUiState(isConfigured = false)
                 return@launch
             }
+            if (config != activeConfig) pageAnchors.clear()
+            activeConfig = config
 
             val remembered = settingsRepository.playerWebdavLastBrowsePath.first()
             val lastSelected = settingsRepository.playerWebdavLastSelectedFile.first()
             val rememberedIsValid = remembered.isNotBlank() &&
-                isWithinRoot(remembered, config.mediaRootPath)
+                isWithinRoot(remembered, config.root.toString())
             _uiState.update { it.copy(
                 lastBrowsePath = remembered.takeIf { rememberedIsValid }.orEmpty(),
-                lastSelectedFile = lastSelected.takeIf { isWithinRoot(it, config.mediaRootPath) }.orEmpty()
+                lastSelectedFile = lastSelected.takeIf { isWithinRoot(it, config.root.toString()) }.orEmpty()
             ) }
             val normalizedRequested = path?.let(::normalizeUrl)
             val targetPath = normalizedRequested
-                ?.takeIf { isWithinRoot(it, config.mediaRootPath) }
-                ?: if (rememberedIsValid) normalizeUrl(remembered) else config.mediaRootPath
+                ?.takeIf { isWithinRoot(it, config.root.toString()) }
+                ?: if (rememberedIsValid) normalizeUrl(remembered) else config.root.toString()
             val restoringRememberedPath = path == null &&
-                rememberedIsValid && targetPath != config.mediaRootPath
+                rememberedIsValid && targetPath != config.root.toString()
 
             loadDirectory(
                 config = config,
@@ -97,76 +92,52 @@ class WebDAVBrowseViewModel(
         }
     }
 
-    private suspend fun readConfig(): WebDavConfig? {
-        val url = settingsRepository.playerWebdavUrl.first().trim()
-        if (url.isBlank()) return null
-
-        val serverUrl = normalizeUrl(url)
-        val configuredRoot = settingsRepository.playerWebdavMediaRoot.first()
-        val mediaRootPath = configuredRoot
-            .takeIf { it.isNotBlank() && isSameServer(it, serverUrl) }
-            ?.let(::normalizeUrl)
-            ?: serverUrl
-
-        return WebDavConfig(
-            serverUrl = serverUrl,
-            username = settingsRepository.playerWebdavUsername.first(),
-            password = settingsRepository.playerWebdavPassword.first(),
-            mediaRootPath = mediaRootPath,
-            trustAllCerts = settingsRepository.playerWebdavTrustAllCerts.first()
-        )
-    }
-
     private suspend fun loadDirectory(
-        config: WebDavConfig,
+        config: PlayerWebDavDirectory.Config,
         targetPath: String,
         fallbackToRootOnFailure: Boolean
     ) {
+        val directory = checkNotNull(WebDavPlaybackIdentity.directory(targetPath))
+        val rootPath = config.root.toString()
         _uiState.update {
             it.copy(
                 isLoading = true,
+                files = emptyList(),
                 error = null,
                 currentPath = targetPath,
-                mediaRootPath = config.mediaRootPath
+                mediaRootPath = rootPath
             )
         }
 
         try {
-            val sardine = OkHttpSardine(PlayerWebDavHttpClient.create(config.trustAllCerts))
-            if (config.username.isNotEmpty()) {
-                sardine.setCredentials(config.username, config.password)
+            val resources = PlayerWebDavDirectory.list(config, directory, useCache = false)
+            if (settingsRepository.playerWebdavDirectoryConfig.first() != config) {
+                browseDirectory()
+                return
             }
-
-            val resources = withContext(Dispatchers.IO) {
-                sardine.list(targetPath, 1)
-            }
-            // 供播放前外挂字幕扫描复用（命中缓存则点播零网络请求起播）
-            WebDavDirectoryCache.put(targetPath, resources)
             // 只有列举成功才覆盖最近目录，失败路径不会污染记忆。
             settingsRepository.setPlayerWebdavLastBrowsePath(targetPath)
 
-            val isRoot = samePath(targetPath, config.mediaRootPath)
+            val isRoot = PlayerWebDavDirectory.samePath(directory, config.root)
             val items = mutableListOf<WebDAVFileItem>()
 
             if (!isRoot) {
                 items.add(
                     WebDAVFileItem(
                         name = "..",
-                        path = getParentPath(targetPath, config.mediaRootPath),
+                        path = getParentPath(targetPath, rootPath),
                         isDirectory = true
                     )
                 )
             }
 
             for (resource in resources) {
-                // NAS 可能返回相对 href（如 /Movies/xxx.mkv），统一转为绝对 URL
-                val resPath = toAbsoluteUrl(resource.href.toString(), targetPath)
+                val entry = PlayerWebDavDirectory.entryUrl(directory, resource) ?: continue
+                if (PlayerWebDavDirectory.samePath(entry, directory)) continue
+                val resPath = entry.toString()
                 val resName = resource.displayName?.takeIf { it.isNotBlank() }
-                    ?: android.net.Uri.decode(resPath.trimEnd('/').substringAfterLast('/'))
+                    ?: entry.pathSegments.lastOrNull { it.isNotEmpty() }.orEmpty()
                 if (resName.isBlank()) continue
-
-                // Skip the directory itself (first result is always the listed directory)
-                if (samePath(resPath, targetPath)) continue
 
                 val isDir = resource.isDirectory
                 if (isDir) {
@@ -197,29 +168,38 @@ class WebDAVBrowseViewModel(
                     .thenBy { it.name.lowercase() }
             )
 
+            val directoryKey = directory.encodedPath
+            val anchor = pageAnchors[directoryKey] ?: settingsRepository.webDavScrollAnchor(config, directoryKey)
+            val anchorIndex = items.indexOfFirst { item ->
+                anchor != null && pathOnly(item.path) == anchor.itemPath
+            }
+
             _uiState.value = _uiState.value.copy(
                 files = items,
                 isLoading = false,
                 currentPath = targetPath,
-                mediaRootPath = config.mediaRootPath,
+                mediaRootPath = rootPath,
                 lastBrowsePath = targetPath,
+                scrollIndex = anchorIndex.coerceAtLeast(0),
+                scrollOffset = if (anchorIndex >= 0) anchor?.offsetPx ?: 0 else 0,
+                listGeneration = _uiState.value.listGeneration + 1,
                 error = null
             )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {
-            AppLogManager.e(TAG, "Failed to browse directory: $targetPath", e)
-            if (fallbackToRootOnFailure && !samePath(targetPath, config.mediaRootPath)) {
-                // 可能只是暂时断网；回退一次，但不让失败请求抹掉已保存的位置。
+            AppLogManager.w(TAG, "WebDAV 目录查询失败 (${e.javaClass.simpleName})")
+            if (fallbackToRootOnFailure && e is PlayerWebDavDirectory.HttpFailure && e.status in listOf(404, 410)) {
+                // 只有目录确认失效才回退，断网或认证失败不覆盖上次位置。
                 loadDirectory(
                     config = config,
-                    targetPath = config.mediaRootPath,
+                    targetPath = rootPath,
                     fallbackToRootOnFailure = false
                 )
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "未知错误"
+                    error = if (e is PlayerWebDavDirectory.HttpFailure) "WebDAV HTTP ${e.status}" else "无法读取 WebDAV 目录"
                 )
             }
         }
@@ -233,6 +213,27 @@ class WebDAVBrowseViewModel(
             browseDirectory(parentPath)
         }
     }
+
+    fun rememberScroll(generation: Long, index: Int, offset: Int) {
+        val state = _uiState.value
+        val config = activeConfig ?: return
+        if (state.isLoading || state.listGeneration != generation) return
+        val directory = pathOnly(state.currentPath) ?: return
+        val item = state.files.getOrNull(index)?.let { pathOnly(it.path) } ?: return
+        val anchor = SettingsRepository.WebDavScrollAnchor(item, offset.coerceAtLeast(0))
+        if (pageAnchors[directory] == anchor) return
+        if (pageAnchors.size >= 32 && directory !in pageAnchors) pageAnchors.remove(pageAnchors.keys.first())
+        pageAnchors[directory] = anchor
+        viewModelScope.launch {
+            try {
+                settingsRepository.saveWebDavScroll(config, directory, anchor)
+            } catch (_: java.io.IOException) {
+                AppLogManager.w(TAG, "无法保存 WebDAV 浏览位置")
+            }
+        }
+    }
+
+    private fun pathOnly(raw: String): String? = WebDavPlaybackIdentity.directory(raw)?.encodedPath
 
     fun navigateToMediaRoot() {
         val root = _uiState.value.mediaRootPath
@@ -254,6 +255,7 @@ class WebDAVBrowseViewModel(
     }
 
     fun clearBrowseMemory() {
+        pageAnchors.clear()
         viewModelScope.launch {
             settingsRepository.clearPlayerWebdavBrowseMemory()
             _uiState.update { it.copy(lastBrowsePath = "", lastSelectedFile = "") }
@@ -270,41 +272,15 @@ class WebDAVBrowseViewModel(
 
     fun isVideoFile(name: String): Boolean = VideoFormats.isVideoFile(name)
 
-    private fun normalizeUrl(url: String): String {
-        val trimmed = url.trim()
-        return if (trimmed.isBlank()) "" else trimmed.trimEnd('/') + "/"
-    }
+    private fun normalizeUrl(url: String): String = WebDavPlaybackIdentity.directory(url)?.toString().orEmpty()
 
     private fun samePath(first: String, second: String): Boolean =
         first.trimEnd('/') == second.trimEnd('/')
 
-    private fun isSameServer(first: String, second: String): Boolean {
-        val a = first.toHttpUrlOrNull() ?: return false
-        val b = second.toHttpUrlOrNull() ?: return false
-        return a.scheme == b.scheme && a.host == b.host && a.port == b.port
-    }
-
-    /** 目录只能在固定媒体根目录下，避免恢复到另一台服务器或根外路径。 */
     private fun isWithinRoot(path: String, root: String): Boolean {
-        val candidate = path.toHttpUrlOrNull() ?: return false
-        val boundary = root.toHttpUrlOrNull() ?: return false
-        if (!isSameServer(path, root)) return false
-
-        val candidatePath = candidate.encodedPath.trimEnd('/')
-        val boundaryPath = boundary.encodedPath.trimEnd('/')
-        return boundaryPath.isBlank() ||
-            candidatePath == boundaryPath ||
-            candidatePath.startsWith("$boundaryPath/")
-    }
-
-    /** 将 WebDAV 响应中的 href 规范化为绝对 URL。 */
-    private fun toAbsoluteUrl(href: String, requestUrl: String): String {
-        if (href.startsWith("http://") || href.startsWith("https://")) return href
-        return try {
-            requestUrl.toHttpUrlOrNull()?.resolve(href)?.toString() ?: href
-        } catch (_: Exception) {
-            href
-        }
+        val candidate = WebDavPlaybackIdentity.directory(path) ?: return false
+        val boundary = WebDavPlaybackIdentity.directory(root) ?: return false
+        return WebDavPlaybackIdentity.isWithin(candidate, boundary)
     }
 
     private fun getParentPath(path: String, boundary: String): String {
@@ -321,9 +297,8 @@ class WebDAVBrowseViewModel(
     class Factory : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            val application = AppContainer.getApplication()
             val settingsRepository = AppContainer.getSettingsRepository()
-            return WebDAVBrowseViewModel(application, settingsRepository) as T
+            return WebDAVBrowseViewModel(settingsRepository) as T
         }
     }
 }

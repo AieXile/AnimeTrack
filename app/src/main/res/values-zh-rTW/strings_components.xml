@@ -103,13 +103,28 @@
 
     <!-- 影片播放聚合頁 -->
     <string name="settings_playback">影片播放</string>
-    <string name="settings_playback_subtitle">倍速·連播·記憶位置·WebDAV</string>
-    <string name="player_section_behavior">播放行為</string>
-    <string name="player_section_source">媒體來源</string>
-    <string name="player_webdav_browse">WebDAV 媒體瀏覽</string>
-    <string name="player_webdav_browse_desc">瀏覽並播放 WebDAV 上的影片檔案</string>
-    <string name="player_webdav_server">播放器 WebDAV</string>
+    <string name="settings_playback_subtitle">本機媒體庫、網頁播放與播放器設定</string>
+    <string name="player_section_watch">瀏覽與播放</string>
+    <string name="player_local_media_subtitle">新增影片資料夾並瀏覽本機影片</string>
+    <string name="player_webdav_browse_desc">瀏覽並播放伺服器上的番劇</string>
+    <string name="player_webdav_server">WebDAV 連線設定</string>
+    <string name="player_webdav_setup_subtitle">連線至伺服器以瀏覽 WebDAV 番劇庫</string>
     <string name="player_webdav_config_hint">此設定僅供播放器使用，與備份同步的伺服器相互獨立，可以是不同的伺服器或帳號。</string>
+    <string name="player_webdav_probe_success">媒體根目錄可存取。此測試不檢查影片能否拖曳或續播。</string>
+    <string name="player_webdav_probe_running">正在檢查媒體根目錄…</string>
+    <string name="player_webdav_probe_invalid_address">請輸入有效的 HTTP(S) 位址，媒體根目錄必須與伺服器同源。</string>
+    <string name="player_webdav_probe_unauthorized">驗證失敗（401）。請檢查帳號、密碼與伺服器驗證方式。</string>
+    <string name="player_webdav_probe_forbidden">沒有讀取媒體根目錄的權限（403）。</string>
+    <string name="player_webdav_probe_not_found">找不到媒體根目錄，請檢查路徑。</string>
+    <string name="player_webdav_probe_unsupported">未收到有效的 WebDAV 目錄回應，請檢查位址是否指向 WebDAV 目錄。</string>
+    <string name="player_webdav_probe_redirect">伺服器重新導向了請求，請輸入最終的 WebDAV 位址。</string>
+    <string name="player_webdav_probe_dns">無法解析伺服器位址。</string>
+    <string name="player_webdav_probe_tls">TLS 交握失敗，請檢查憑證與伺服器位址。</string>
+    <string name="player_webdav_probe_timeout">連線測試逾時。</string>
+    <string name="player_webdav_probe_too_large">目錄回應超出測試大小上限。</string>
+    <string name="player_webdav_probe_http">伺服器傳回 HTTP %1$d。</string>
+    <string name="player_webdav_probe_network">無法連線至伺服器。</string>
+    <string name="player_webdav_save_failed">無法儲存 WebDAV 設定。</string>
     <string name="player_webdav_import_from_backup">從備份配置填入</string>
     <string name="player_webdav_backup_empty_hint">備份同步尚未配置 WebDAV，無可填入的配置</string>
     <string name="player_webdav_trust_all_certs">信任所有證書</string>
@@ -120,24 +135,28 @@
     <string name="player_webdav_recent_location">最近瀏覽：%1$s</string>
     <string name="player_webdav_clear_memory">清除瀏覽記憶</string>
 
-    <!-- PlayerSettingsScreen -->
+    <!-- PlayerPreferencesScreen -->
     <string name="player_settings_title">播放器設定</string>
-    <string name="player_settings_default_speed">預設播放速度</string>
-    <string name="player_settings_long_press_speed">長按加速速度</string>
-    <string name="player_settings_long_press_speed_hint">長按螢幕時加速播放，放開恢復</string>
-    <string name="player_settings_hardware_acceleration">硬體加速</string>
-    <string name="player_settings_hardware_acceleration_hint">使用硬體解碼器提升播放效能</string>
+    <string name="player_settings_subtitle">倍速、畫面、續播與連播</string>
+    <string name="player_settings_default_video_scale">預設畫面比例</string>
+    <string name="player_settings_auto_landscape_hint">進入全螢幕後，依影片長寬比自動切換橫向或直向</string>
+    <string name="player_settings_default_speed">預設播放倍速</string>
+    <string name="player_settings_long_press_speed">長按倍速</string>
+    <string name="player_settings_long_press_speed_hint">長按時暫時加速，放開後恢復原倍速</string>
+    <string name="player_settings_hardware_acceleration">硬體解碼</string>
+    <string name="player_settings_hardware_acceleration_hint">使用硬體解碼器播放影片，降低 CPU 負載</string>
     <string name="player_settings_remember_position">記憶播放位置</string>
-    <string name="player_settings_remember_position_hint">繼續上次播放進度</string>
+    <string name="player_settings_remember_position_hint">再次開啟影片時，從上次的位置繼續</string>
     <string name="player_settings_auto_play_next">自動播放下一集</string>
-    <string name="player_settings_auto_play_next_hint">當前視訊播放結束後自動播放下一個</string>
-    <string name="player_settings_update_progress">播放完成後更新追番進度</string>
+    <string name="player_settings_auto_play_next_hint">播完後自動播放佇列中的下一部影片</string>
+    <string name="player_settings_update_progress">看完後更新追番進度</string>
     <string name="player_settings_update_progress_hint">僅對已確認關聯的正片生效，直接拖到片尾不算看完</string>
     <string name="player_settings_webdav_path">WebDAV 媒體路徑</string>
-    <string name="player_settings_open_player">開啟播放器</string>
 
     <!-- WebDAVBrowseScreen -->
     <string name="webdav_browse_title">WebDAV 檔案</string>
+    <string name="webdav_library_title">WebDAV 番劇庫</string>
+    <string name="webdav_library_browse_directories">瀏覽目錄</string>
     <string name="webdav_browse_loading">載入中...</string>
     <string name="webdav_browse_load_failed">載入失敗</string>
     <string name="webdav_browse_not_configured">未設定 WebDAV</string>
@@ -150,6 +169,19 @@
     <string name="webdav_browse_root_format">根目錄：%1$s</string>
 
     <!-- LocalMediaLibraryScreen -->
+    <string name="media_library_title">媒體庫</string>
+    <string name="media_library_source_webdav">WebDAV</string>
+    <string name="media_library_filter_empty">這個來源暫時沒有動畫</string>
+    <string name="media_library_series_unavailable">這部動畫已無法播放</string>
+    <string name="media_library_sources">播放來源</string>
+    <string name="media_library_subtitle">瀏覽與播放本機、網頁及 WebDAV 動畫</string>
+    <string name="media_library_empty">還沒有動畫。請掃描本機或 WebDAV 資料夾，或從網頁播放新增來源。</string>
+    <string name="media_library_source_local">本機</string>
+    <string name="media_library_source_web">網頁</string>
+    <string name="media_library_add_web">加入媒體庫</string>
+    <string name="media_library_remove_web">移除網頁來源</string>
+    <string name="media_library_web_saved">已加入媒體庫</string>
+    <string name="media_library_error">媒體庫操作失敗，請重試</string>
     <string name="local_media_title">本機媒體庫</string>
     <string name="local_media_add_folder">新增本機資料夾</string>
     <string name="local_media_add_title">新增本機媒體資料夾</string>
@@ -176,7 +208,14 @@
     <string name="local_media_scan_summary">掃描與匹配</string>
     <string name="local_media_scan_count">已掃描 %1$d 個檔案，發現 %2$d 個影片</string>
     <string name="local_media_reidentify">重新識別</string>
-    <string name="local_media_waiting_metadata">正在等待線上中繼資料</string>
+    <string name="local_media_waiting_metadata">待線上配對</string>
+    <string name="local_media_group_match_manually">待手動配對</string>
+    <string name="local_media_scrape_queued">%1$d 部待連線處理</string>
+    <string name="local_media_scrape_running">正在連線配對，剩餘 %1$d 部</string>
+    <string name="local_media_scrape_retry_scheduled">%1$d 部等待自動重試</string>
+    <string name="local_media_scrape_stopped">%1$d 部待重試</string>
+    <string name="local_media_scrape_retry">重試線上配對</string>
+    <string name="local_media_scrape_request_failed">無法啟動線上配對，請重試</string>
     <string name="local_media_match_group">配對整組</string>
     <string name="local_media_confirm_group">確認整組</string>
     <string name="local_media_clear_group">解除整組識別</string>
@@ -244,7 +283,7 @@
 
     <!-- 網頁播放 -->
     <string name="web_playback_title">網頁播放</string>
-    <string name="web_playback_entry_subtitle">輸入網頁或影片網址播放</string>
+    <string name="web_playback_entry_subtitle">貼上網頁連結或影片網址播放</string>
     <string name="web_playback_url_hint">輸入網頁或影片網址</string>
     <string name="web_playback_play_direct">直接播放</string>
     <string name="web_playback_parse_page">解析網頁</string>
@@ -370,4 +409,25 @@
     <string name="player_watched_progress">已看 %1$d/%2$d 集</string>
     <string name="player_jump_current">跳至目前集數</string>
     <string name="media_notification_channel_name">影片播放控制</string>
+    <string name="player_webdav_continue_recent">繼續上次：%1$s</string>
+    <string name="player_manual_subtitle_add">新增本機外掛字幕</string>
+    <string name="player_manual_subtitle_remove">移除手動外掛</string>
+    <string name="player_manual_subtitle_failed">無法讀取字幕。請檢查檔案權限、編碼、格式及 8 MiB 大小限制。</string>
+    <string name="player_enter_pip">進入子母畫面</string>
+
+    <!-- Playback feature guide -->
+    <string name="player_guide_title">影片播放指南</string>
+    <string name="player_guide_previous">上一步</string>
+    <string name="player_guide_done">完成</string>
+    <string name="player_guide_overview_library">在這裡查看已加入的本機、網頁和 WebDAV 番劇，也可以從「繼續觀看」接著上次的進度播放。</string>
+    <string name="player_guide_overview_local">新增裝置上的影片資料夾。掃描會辨識檔名中的番名和集數，配對後可按番劇選集。</string>
+    <string name="player_guide_overview_web">有影片直連可以直接播放，有網頁連結可以解析選集。也可以用規則源按番名搜尋。</string>
+    <string name="player_guide_overview_webdav">在這裡查看伺服器上已掃描的番劇，檢查配對結果並選集播放。</string>
+    <string name="player_guide_webdav_setup">先填寫伺服器位址、帳號和媒體根目錄並測試連線。儲存後，從「WebDAV 番劇庫」查看掃描和配對結果。</string>
+    <string name="player_guide_web_direct">將 MP4、M3U8 等影片直連貼到上方輸入欄，再點「直接播放」。</string>
+    <string name="player_guide_web_parse">將番劇詳情頁或播放頁的連結貼到上方輸入欄，再點「解析網頁」。辨識出劇集後可以選集和切換線路。</string>
+    <string name="player_guide_web_rules">規則會告訴應用程式如何在網站搜尋番劇和讀取集數。選擇內建規則，輸入番名並搜尋。也可以在「管理」裡匯入相容的 Kazumi HTML 或 API 規則。</string>
+    <string name="player_guide_local_add">選擇儲存影片的資料夾並授權。應用程式會自動掃描，嘗試依番劇和集數整理。可在「掃描與匹配」裡重新掃描，在番劇卡片上確認或手動配對。</string>
+    <string name="player_guide_webdav_directories">依照伺服器原有的資料夾層級查找並播放影片。還沒配對的檔案也可以從這裡開啟。</string>
+    <string name="player_guide_webdav_scan">首次連線後會自動掃描媒體目錄。掃描會依檔名和目錄辨識番名及集數，新增檔案後可點「重新掃描」。檢查番劇卡片上的配對結果，有疑義時手動配對。確認關聯後，看完的集數可更新追番進度。</string>
 </resources>

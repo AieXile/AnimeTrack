@@ -47,12 +47,13 @@ fun WebSourceSection(
     onKeywordChange: (String) -> Unit,
     onSelectRule: (WebSourceRule) -> Unit,
     onSearch: () -> Unit,
-    onManage: () -> Unit
+    onManage: () -> Unit,
+    headerModifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = headerModifier, verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = stringResource(R.string.web_source_section_title),
                 style = MaterialTheme.typography.titleSmall,
