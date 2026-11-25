@@ -5,18 +5,40 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Retry the failed v1.0.0 build
+        required: true
+        type: choice
+        options:
+          - v1.0.0
 
 jobs:
   build:
+    if: github.event_name == 'push' || inputs.release_tag == 'v1.0.0'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
 
     steps:
+      - name: Validate release tag
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9][0-9A-Za-z._+-]*$ ]]; then
+            echo 'Expected a version tag starting with v and a digit.' >&2
+            exit 1
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           fetch-depth: 0
+
+      - name: Verify v1.0.0 retry source
+        if: github.event_name == 'workflow_dispatch'
+        run: test "$(git rev-parse HEAD)" = 115cb29fd9d58e0db4eb6b0ded302d0d49440b89
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -29,7 +51,28 @@ jobs:
         run: chmod +x gradlew
 
       - name: Install Android SDK 37.1
-        run: sdkmanager 'platforms;android-37.1'
+        shell: bash
+        run: |
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$RUNNER_TEMP/android-sdk}}"
+          sdk_manager="$(command -v sdkmanager || true)"
+          if [[ -z "$sdk_manager" && -x "$sdk_root/cmdline-tools/latest/bin/sdkmanager" ]]; then
+            sdk_manager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          if [[ -z "$sdk_manager" ]]; then
+            tools_dir="$(mktemp -d)"
+            archive="$tools_dir/commandlinetools.zip"
+            curl --fail --location --silent --show-error --retry 3 \
+              https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip \
+              --output "$archive"
+            printf '%s  %s\n' 4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583 "$archive" | sha256sum --check
+            unzip -q "$archive" -d "$tools_dir"
+            mkdir -p "$sdk_root/cmdline-tools/15859902"
+            cp -a "$tools_dir/cmdline-tools/." "$sdk_root/cmdline-tools/15859902/"
+            sdk_manager="$sdk_root/cmdline-tools/15859902/bin/sdkmanager"
+          fi
+          (set +o pipefail; yes | "$sdk_manager" --sdk_root="$sdk_root" --licenses >/dev/null)
+          "$sdk_manager" --sdk_root="$sdk_root" 'platform-tools' 'platforms;android-37.1'
+          printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' "$sdk_root" "$sdk_root" >> "$GITHUB_ENV"
 
       - name: Decode Keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
@@ -45,16 +88,16 @@ jobs:
       - name: Rename APKs
         run: |
           cd app/build/outputs/apk/release
-          mv app-armeabi-v7a-release.apk AnimeTrack-${{ github.ref_name }}-v7a.apk
-          mv app-arm64-v8a-release.apk AnimeTrack-${{ github.ref_name }}-v8a.apk
-          mv app-universal-release.apk AnimeTrack-${{ github.ref_name }}-universal.apk
+          mv app-armeabi-v7a-release.apk "AnimeTrack-${RELEASE_TAG}-v7a.apk"
+          mv app-arm64-v8a-release.apk "AnimeTrack-${RELEASE_TAG}-v8a.apk"
+          mv app-universal-release.apk "AnimeTrack-${RELEASE_TAG}-universal.apk"
 
       - name: Generate Custom Changelog
         id: changelog
         run: |
           # 优先读取 update/更新日志_<tag>.md 作为 Release body
-          # 若文件不存在（例如直接在 main 分支 dispatch），回退到最近 10 条 commit 标题
-          CHANGELOG_FILE="update/更新日志_${{ github.ref_name }}.md"
+          # 旧标签缺少专用日志时，回退到最近 10 条 commit 标题
+          CHANGELOG_FILE="update/更新日志_${RELEASE_TAG}.md"
           echo "log_body<<EOF" >> $GITHUB_OUTPUT
           if [ -f "$CHANGELOG_FILE" ]; then
             cat "$CHANGELOG_FILE" >> $GITHUB_OUTPUT
@@ -67,16 +110,17 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: AnimeTrack ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: AnimeTrack ${{ env.RELEASE_TAG }}
           body: |
             ${{ steps.changelog.outputs.log_body }}
 
             ---
             *由 GitHub Actions 自动构建*
           files: |
-            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v7a.apk
-            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-v8a.apk
-            app/build/outputs/apk/release/AnimeTrack-${{ github.ref_name }}-universal.apk
+            app/build/outputs/apk/release/AnimeTrack-${{ env.RELEASE_TAG }}-v7a.apk
+            app/build/outputs/apk/release/AnimeTrack-${{ env.RELEASE_TAG }}-v8a.apk
+            app/build/outputs/apk/release/AnimeTrack-${{ env.RELEASE_TAG }}-universal.apk
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,13 +140,13 @@ jobs:
           curl -sS -X POST "https://www.aiexile.top/api/admin/broadcast" \
             -H "Content-Type: application/json" \
             -H "X-Admin-Key: $ADMIN_API_KEY" \
-            -d "{\"type\":\"app_update\",\"version\":\"${GITHUB_REF_NAME}\"}" \
+            -d "{\"type\":\"app_update\",\"version\":\"${RELEASE_TAG}\"}" \
             || echo "app_update 广播失败（不影响发版）"
 
       - name: Convert changelog to Telegram HTML
         id: tg_changelog
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.RELEASE_TAG }}
           REPO: ${{ github.repository }}
         run: |
           python3 - <<'PYEOF'
@@ -148,7 +192,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ env.RELEASE_TAG }}
           REPO: ${{ github.repository }}
           TG_BODY: ${{ steps.tg_changelog.outputs.tg_body }}
         run: |
