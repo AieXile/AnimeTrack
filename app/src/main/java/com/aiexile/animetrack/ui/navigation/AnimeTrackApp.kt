@@ -162,7 +162,8 @@ fun AnimeTrackApp(
     val navigationStyle by settingsRepository.navigationStyle.collectAsStateWithLifecycle(NavigationStyle.BOTTOM)
     // 大屏适配：Medium/Expanded 宽度使用左侧导航栏（覆盖导航样式设置），Compact 保持原底部导航/胶囊导航
     val useSideNavigation = !isCompactWidth()
-    val fabLocation by settingsRepository.fabLocation.collectAsStateWithLifecycle(FabLocation.NAV_BAR)
+    val preferredFabLocation by settingsRepository.fabLocation.collectAsStateWithLifecycle(FabLocation.NAV_BAR)
+    val fabLocation = preferredFabLocation.resolveFor(navigationStyle)
     val isFirstLaunch by settingsRepository.isFirstLaunch.collectAsStateWithLifecycle(null)
     // 隐私同意状态：null = 加载中；false = 未同意（首启弹窗模态覆盖）；true = 已同意
     val privacyAccepted by settingsRepository.privacyPolicyAccepted.collectAsStateWithLifecycle(null)

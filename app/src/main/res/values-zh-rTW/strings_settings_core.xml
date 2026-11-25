@@ -102,6 +102,7 @@
     <string name="nav_custom_fab_bottom_right_desc">頁面右下角懸浮</string>
     <string name="nav_custom_fab_top_bar_desc">嵌入頂欄右側</string>
     <string name="nav_custom_fab_nav_bar_desc">膠囊右側成組居中</string>
+    <string name="nav_custom_fab_nav_bar_fallback">使用傳統底部導覽列時，新增番劇按鈕會浮在右下角。</string>
     <string name="nav_custom_content_title">導航欄內容</string>
     <string name="nav_custom_content_subtitle">選擇在導航欄中顯示的入口</string>
     <string name="nav_custom_show_favorites">顯示收藏</string>

@@ -102,6 +102,7 @@
     <string name="nav_custom_fab_bottom_right_desc">Floating at bottom right</string>
     <string name="nav_custom_fab_top_bar_desc">Embedded in top bar</string>
     <string name="nav_custom_fab_nav_bar_desc">Centered beside the capsule</string>
+    <string name="nav_custom_fab_nav_bar_fallback">With the traditional bottom bar, the Add Anime button floats at the bottom right.</string>
     <string name="nav_custom_content_title">Navigation Content</string>
     <string name="nav_custom_content_subtitle">Choose entries shown in navigation</string>
     <string name="nav_custom_show_favorites">Show Favorites</string>
