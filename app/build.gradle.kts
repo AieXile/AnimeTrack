@@ -18,12 +18,14 @@ val isSigningReady = !ksPath.isNullOrBlank() && !ksPass.isNullOrBlank()
     && !kAlias.isNullOrBlank() && !kPass.isNullOrBlank()
 
 val githubToken: String = project.findProperty("GITHUB_TOKEN")?.toString() ?: ""
+val compileSdkApi = providers.gradleProperty("animetrack.compileSdk").get()
 
 android {
     namespace = "com.aiexile.animetrack"
-    // Compose 1.13 要求 API 37.1；不改变应用的最低安装版本或目标版本。
     compileSdk {
-        version = release(37) { minorApiLevel = 1 }
+        version = release(compileSdkApi.substringBefore('.').toInt()) {
+            minorApiLevel = compileSdkApi.substringAfter('.', "0").toInt()
+        }
     }
 
     defaultConfig {
